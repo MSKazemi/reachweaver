@@ -8,6 +8,8 @@ This page is the human-readable view of what ReachWeaver itself can deliver per 
 
 `tests/test_platform_matrix_docs.py` fails when the table below disagrees with those sources. If you change a registry or the Postiz mapping, update this table in the same change.
 
+**Separate audit registry:** [`profile_audit_registry.json`](../reachweaver/profile_audit_registry.json) and [profile/post audit guide](PROFILE-AND-POST-AUDITS.md) provide offline, platform-specific owner-profile checks and content hypotheses. They do **not** grant API scopes, change adapter status, inspect accounts automatically or permit publishing. For native publishing availability use the original two registries below instead.
+
 ## Three layers that must never be merged
 
 | Layer | What it means | Where it is recorded | Evidence that exists today |
