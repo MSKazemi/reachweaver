@@ -1,0 +1,7 @@
+{
+  "_fixture": {"provider": "postiz", "recorded": false, "source": "hand-written; the NestJS throttler answers 429 'ThrottlerException: Too Many Requests'; the Retry-After value is a synthetic variant to exercise the bounded parser", "written": "2026-10-10", "scrubbed": "yes (synthetic only)"},
+  "endpoint": "POST /public/v1/posts",
+  "status": 429,
+  "headers": {"Content-Type": "application/json; charset=utf-8", "Retry-After": "900"},
+  "body": {"statusCode": 429, "message": "ThrottlerException: Too Many Requests"}
+}

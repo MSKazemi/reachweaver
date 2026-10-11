@@ -1,0 +1,7 @@
+{
+  "_fixture": {"provider": "mastodon", "recorded": false, "source": "hand-written from the documented Mastodon rate-limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset) and the generic Mastodon error body", "written": "2026-10-10", "scrubbed": "yes (synthetic only)", "placeholders": {"$RESET_ISO": "replaced at run time by an ISO 8601 UTC time 30 minutes ahead, so the fixture never goes stale"}},
+  "endpoint": "POST /api/v1/statuses",
+  "status": 429,
+  "headers": {"Content-Type": "application/json; charset=utf-8", "X-RateLimit-Limit": "300", "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "$RESET_ISO"},
+  "body": {"error": "Too many requests"}
+}

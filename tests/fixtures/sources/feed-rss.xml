@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Example engineering blog</title>
+    <link>https://blog.example.org/</link>
+    <description>Synthetic test feed</description>
+    <item>
+      <title>Benchmarking speech recognition on HPC clusters</title>
+      <link>https://blog.example.org/posts/speech-hpc</link>
+      <pubDate>Fri, 02 Oct 2026 08:00:00 +0000</pubDate>
+      <description>&lt;p&gt;How we measured &lt;b&gt;speech&lt;/b&gt; latency on HPC nodes.&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Benchmarking speech recognition on HPC clusters!</title>
+      <link>https://blog.example.org/posts/speech-hpc-repost</link>
+      <pubDate>Sat, 03 Oct 2026 08:00:00 +0000</pubDate>
+      <description>Reposted announcement.</description>
+    </item>
+    <item>
+      <title>Insecure link item</title>
+      <link>http://blog.example.org/posts/plain-http</link>
+      <pubDate>Sat, 03 Oct 2026 09:00:00 +0000</pubDate>
+      <description>Should be skipped: not https.</description>
+    </item>
+  </channel>
+</rss>

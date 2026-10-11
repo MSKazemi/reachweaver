@@ -1,0 +1,13 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message": {
+    "DOI": "10.5555/reachweaver.fixture.2026",
+    "type": "journal-article",
+    "title": ["A synthetic fixture paper on scheduling speech workloads"],
+    "container-title": ["Journal of Test Fixtures"],
+    "published": {"date-parts": [[2026, 9, 20]]},
+    "abstract": "<jats:p>We study <jats:italic>speech</jats:italic> workloads on HPC and Kubernetes.</jats:p>",
+    "URL": "http://dx.doi.org/10.5555/reachweaver.fixture.2026"
+  }
+}

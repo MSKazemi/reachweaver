@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.2",
+  "type": "AnalyticsSnapshot",
+  "id": "snap-bluesky-intro-1-d1",
+  "job_id": "job-bluesky-intro-1",
+  "account_id": "my-bluesky",
+  "platform": "bluesky",
+  "remote_post_id": "at://did:plc:example/app.bsky.feed.post/3kexample",
+  "campaign_id": "reachweaver-skill-intro",
+  "observed_at": "2026-10-16T08:00:00Z",
+  "post_age_hours": 25,
+  "source": "native-export",
+  "metrics": {
+    "views": null,
+    "impressions": null,
+    "likes": 4,
+    "replies": 1,
+    "reposts": 2,
+    "saves": null,
+    "clicks": null,
+    "signups": null
+  },
+  "metric_status": {
+    "views": {"status": "not_available"},
+    "impressions": {"status": "not_available"},
+    "signups": {"status": "delayed"}
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "_note": "SYNTHETIC fixture for docs/WEEKLY-REPORT-EXAMPLE.md. No real account, post, receipt or metric. Hosts use the reserved example.org domain.",
+  "week": {"start": "2026-09-28", "end": "2026-10-04", "timezone": "UTC"},
+  "posts": [
+    {"id": "5e0b000000000001", "account_id": "synthetic-bluesky", "platform": "bluesky",
+     "campaign": "rw-v0-3-release", "send_started_at": "2026-09-29T09:00:00+00:00",
+     "remote_id": "synthetic-bluesky-1",
+     "content": "ReachWeaver v0.3 is out: https://example.org/reachweaver/docs/?utm_source=bluesky&utm_medium=social&utm_campaign=rw-v0-3-release&utm_content=5e0b000000000001"},
+    {"id": "5e0b000000000002", "account_id": "synthetic-mastodon", "platform": "mastodon",
+     "campaign": "rw-v0-3-release", "send_started_at": "2026-09-29T10:00:00+00:00",
+     "remote_id": "synthetic-mastodon-2",
+     "content": "ReachWeaver v0.3 release notes: https://example.org/reachweaver/docs/?utm_source=mastodon&utm_medium=social&utm_campaign=rw-v0-3-release&utm_content=5e0b000000000002"},
+    {"id": "5e0b000000000003", "account_id": "synthetic-linkedin", "platform": "linkedin",
+     "campaign": "rw-v0-3-release", "send_started_at": "2026-09-30T08:00:00+00:00",
+     "remote_id": "synthetic-linkedin-3",
+     "content": "What changed in ReachWeaver v0.3: https://example.org/reachweaver/docs/?utm_source=linkedin&utm_medium=social&utm_campaign=rw-v0-3-release&utm_content=5e0b000000000003"},
+    {"id": "5e0b000000000004", "account_id": "synthetic-telegram", "platform": "telegram",
+     "campaign": "rw-v0-3-release", "send_started_at": "2026-10-01T12:00:00+00:00",
+     "remote_id": "synthetic-telegram-4",
+     "content": "Release notes: https://example.org/reachweaver/releases/v0.3"}
+  ]
+}

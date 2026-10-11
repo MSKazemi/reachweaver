@@ -1,0 +1,19 @@
+{
+  "_comment": "Invented fixtures for the offline 'mockstats' provider (issue #15). No real platform, no credentials. threshold is the provider's privacy minimum for audience counts.",
+  "above_threshold": {
+    "threshold": 10,
+    "metrics": {"plays_3s": 120, "link_taps": 14, "bookmarks": 10, "unique_viewers": 90, "reactions_all": 33}
+  },
+  "below_threshold": {
+    "threshold": 10,
+    "metrics": {"plays_3s": 120, "link_taps": 3, "bookmarks": 9, "unique_viewers": 4}
+  },
+  "withheld_marker": {
+    "threshold": 10,
+    "metrics": {"plays_3s": {"withheld": "privacy_threshold"}, "link_taps": {"withheld": "not_collected"}, "bookmarks": {"pending": true}}
+  },
+  "malformed": {
+    "threshold": 10,
+    "metrics": {"plays_3s": -1, "link_taps": true, "bookmarks": "12", "unique_viewers": 1.5}
+  }
+}

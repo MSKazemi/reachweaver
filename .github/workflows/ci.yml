@@ -1,0 +1,78 @@
+name: Offline tests and skill validation
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  hygiene:
+    # Repository hygiene: no network calls to social platforms, no credentials required.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Secret scan of tracked files (values are never printed)
+        run: python scripts/secret_scan.py
+      - name: Stdlib lint (syntax of every tracked .py, JSON/JSONL validity)
+        run: python scripts/lint.py
+      - name: Byte-compile runtime, scripts and tests
+        run: python -m compileall -q reachweaver scripts tests
+      - name: Ruff hard-error rules (syntax, undefined names), pinned
+        # 0.16.10 = latest stable on PyPI when pinned (2026-10-08). Bump deliberately.
+        run: pipx run --spec ruff==0.16.10 ruff check --no-cache --select E9,F63,F7,F82 --target-version py311 reachweaver scripts tests
+      - name: No runtime dependencies (adding one requires a pip-audit step first)
+        run: python scripts/check_runtime_deps.py
+      - name: Type check reachweaver/ with mypy, pinned (config in pyproject [tool.mypy])
+        # 2.4.0 = latest stable on PyPI when pinned (2026-10-08). Bump deliberately.
+        run: pipx run --spec mypy==2.4.0 mypy
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Unit tests (no network)
+        run: python -m unittest discover -s tests -v
+      - name: Compile and verify mirrored bundled runtime
+        run: |
+          python -m compileall -q reachweaver
+          python - <<'PY'
+          from pathlib import Path
+          a = Path('reachweaver')
+          b = Path('.claude/skills/reachweaver/scripts/reachweaver')
+          files = [*a.glob('*.py'), *a.glob('*.json')]
+          assert all((b / f.name).read_bytes() == f.read_bytes() for f in files)
+          from reachweaver.capabilities import load_registry
+          load_registry()  # fails CI if the capability registry is incomplete
+          print('Bundled skill runtime matches canonical implementation')
+          PY
+      - name: Skill frontmatter and missing placeholders
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.claude/skills/reachweaver/SKILL.md').read_text()
+          assert p.startswith('---\nname: reachweaver\ndescription:')
+          assert '[TODO' not in p
+          assert Path('.claude/skills/reachweaver/agents/openai.yaml').is_file()
+          print('Skill metadata present')
+          PY
+      - name: Build complete ReachWeaver skill ZIP (trusted main artifacts only)
+        if: matrix.python-version == '3.12'
+        run: |
+          cd .claude/skills
+          python -m zipfile -c ../../skill.zip reachweaver
+          python -m zipfile -t ../../skill.zip
+      - name: Upload installable skill bundle
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: reachweaver-claude-skill
+          path: skill.zip
+          if-no-files-found: error
+          retention-days: 30

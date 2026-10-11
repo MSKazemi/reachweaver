@@ -1,0 +1,6 @@
+post_id,observed_at,source,views,impressions,likes,replies,reposts,saves,clicks,signups,window_start,window_end
+5e0b000000000001,2026-10-02T09:00:00+00:00,native-export,not_available,not_available,18,2,5,,,,,
+5e0b000000000001,2026-10-05T09:00:00+00:00,native-export,not_available,not_available,31,4,9,,,,,
+5e0b000000000002,2026-10-05T09:00:00+00:00,native-export,not_available,not_available,14,2,6,,,,,
+5e0b000000000003,2026-10-05T09:00:00+00:00,native-export,,1840,22,5,3,,37,,2026-09-30T00:00:00Z,2026-10-05T00:00:00Z
+5e0b000000000004,2026-10-05T09:00:00+00:00,native-export,410,,,,,,,,,

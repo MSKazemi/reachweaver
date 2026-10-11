@@ -1,0 +1,16 @@
+{
+  "description": "Once per session: tell Claude when a newer ReachWeaver release exists (cached 24 h, silent offline). Never updates by itself.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/.claude/skills/reachweaver/scripts/run.py\" update --notice"
+          }
+        ]
+      }
+    ]
+  }
+}

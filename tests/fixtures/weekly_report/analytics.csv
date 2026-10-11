@@ -1,0 +1,9 @@
+date,landing_url,utm_source,utm_medium,utm_campaign,utm_content,sessions,conversions,referrer
+2026-09-29,https://example.org/reachweaver/docs/,bluesky,social,rw-v0-3-release,5e0b000000000001,48,3,
+2026-09-30,https://example.org/reachweaver/docs/,bluesky,social,rw-v0-3-release,5e0b000000000001,21,,
+2026-09-29,https://example.org/reachweaver/docs/,mastodon,social,rw-v0-3-release,5e0b000000000002,19,1,
+2026-09-30,https://example.org/reachweaver/docs/,linkedin,social,rw-v0-3-release,5e0b000000000003,52,,
+2026-10-01,https://example.org/reachweaver/,linkedin,social,rw-v0-3-release,,6,0,
+2026-10-01,https://example.org/reachweaver/releases/v0.3,,,,,11,0,https://t.me/s/synthetic-channel
+2026-10-02,https://example.org/reachweaver/,,,,,140,4,https://www.google.com/
+2026-10-03,https://example.org/reachweaver/,newsletter,email,october-digest,,9,1,

@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reachweaver"
+version = "0.2.0"
+description = "Approval-first social publishing and evidence-driven audience growth for Claude Code"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Mohsen Seyedkazemi Ardebili", email = "mohsen.seyedkazemi@gmail.com" }]
+keywords = ["claude-code", "social-media", "agent-skills", "content-marketing"]
+readme = "README.md"
+dependencies = []
+
+[project.scripts]
+reachweaver = "reachweaver.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["reachweaver*"]
+
+[tool.setuptools.package-data]
+reachweaver = ["distribution_registry.json", "platform_registry.json"]
+
+# Type checking (issue #8, ADR-0002). Pragmatic baseline: only annotated functions are
+# checked; tighten deliberately module by module. Run with `make typecheck`.
+[tool.mypy]
+python_version = "3.11"
+packages = ["reachweaver"]
+check_untyped_defs = false
+ignore_missing_imports = true
+warn_unused_configs = true
+cache_dir = "/dev/null"  # like ruff --no-cache: no .mypy_cache in the working tree
+
+# Baseline debt recorded 2026-10-08 with mypy 2.4.0 was 99 errors in 17 modules, suppressed
+# by a per-module ignore_errors override. media was cleaned in issue #18 and the other 16 in
+# issue #8 (annotations, typing.cast and local renames only, no runtime change), so the
+# override is gone: every reachweaver module is type-checked and must stay clean. Do not add
+# an ignore_errors override to silence a new error (CONTRIBUTING.md).

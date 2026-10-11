@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "retention_days": {
+    "metric_snapshots_days": 400,
+    "event_log_days": 365,
+    "cancelled_drafts_days": 30,
+    "published_content_days": 180,
+    "campaign_evidence_days": 365
+  }
+}

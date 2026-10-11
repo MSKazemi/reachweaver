@@ -1,0 +1,16 @@
+{
+  "_fixture": {
+    "recorded": false,
+    "provider": "instagram",
+    "endpoint": "GET /me",
+    "scrubbed": "n/a (hand-written)",
+    "note": "synthetic Graph-shaped response; not evidence of any live behaviour"
+  },
+  "status": 200,
+  "headers": {},
+  "body": {
+    "user_id": "17841400000000001",
+    "username": "igapitestuser",
+    "account_type": "PERSONAL"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "type": "Approval",
+  "id": "appr-bluesky-intro-1",
+  "variant_id": "var-bluesky-intro-1",
+  "account_id": "my-bluesky",
+  "platform": "bluesky",
+  "approved_payload_sha256": "f26080ddbf6a37b4053a6dc664f7d074f90f6bed88d1824be613dda348379d4f",
+  "decision": "approved",
+  "reviewer_kind": "human",
+  "approved_by": "owner",
+  "approved_at": "2026-10-08T14:00:00Z",
+  "expires_at": "2026-10-22T14:00:00Z",
+  "notes": "Illustrative sample only. Not a real approval of a real account."
+}

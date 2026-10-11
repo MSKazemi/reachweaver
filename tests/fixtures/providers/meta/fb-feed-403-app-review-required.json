@@ -1,0 +1,19 @@
+{
+  "_fixture": {
+    "recorded": false,
+    "provider": "facebook",
+    "endpoint": "POST /<page-id>/feed",
+    "scrubbed": "n/a (hand-written)",
+    "note": "synthetic Graph-shaped response; not evidence of any live behaviour"
+  },
+  "status": 403,
+  "headers": {},
+  "body": {
+    "error": {
+      "message": "REMOTE-TEXT-MUST-NOT-LEAK (#10) Application does not have permission for this action; app review required for pages_manage_posts",
+      "type": "OAuthException",
+      "code": 10,
+      "fbtrace_id": "FIXTUREFBTRACE0000"
+    }
+  }
+}

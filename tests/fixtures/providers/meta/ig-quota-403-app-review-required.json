@@ -1,0 +1,19 @@
+{
+  "_fixture": {
+    "recorded": false,
+    "provider": "instagram",
+    "endpoint": "GET /<ig-id>/content_publishing_limit",
+    "scrubbed": "n/a (hand-written)",
+    "note": "synthetic Graph-shaped response; not evidence of any live behaviour"
+  },
+  "status": 403,
+  "headers": {},
+  "body": {
+    "error": {
+      "message": "REMOTE-TEXT-MUST-NOT-LEAK App has not completed App Review / advanced access for this permission",
+      "type": "OAuthException",
+      "code": 200,
+      "fbtrace_id": "FIXTUREFBTRACE0000"
+    }
+  }
+}

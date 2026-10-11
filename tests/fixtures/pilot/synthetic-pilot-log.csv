@@ -1,0 +1,13 @@
+date,arm,task,minutes_spent,posts_published,duplicates,unrecoverable_errors,interventions,factual_errors_found,clicks,impressions,downstream_conversions
+2026-01-05,manual,synthetic-fixture-draft,30,1,0,0,0,1,4,200,
+2026-01-06,manual,synthetic-fixture-post,10,1,0,0,1,0,,,
+2026-01-13,manual,synthetic-fixture-post,20,2,1,0,0,0,6,300,1
+2026-01-05,scheduler,synthetic-fixture-post,15,2,0,1,2,,5,250,0
+2026-01-14,scheduler,synthetic-fixture-post,,1,0,0,0,0,2,100,
+2026-01-07,reachweaver,synthetic-fixture-review,12,1,0,0,1,0,3,150,1
+2026-01-15,reachweaver,synthetic-fixture-reconcile,8,0,0,1,1,0,,,
+2026-01-16,reachweaver,synthetic-fixture-post,,1,0,0,0,0,0,0,
+2026-13-01,reachweaver,synthetic-fixture-bad-date,5,1,0,0,0,0,1,10,0
+2026-01-16,newsletter,synthetic-fixture-bad-arm,5,1,0,0,0,0,1,10,0
+2026-01-16,manual,synthetic-fixture-bad-number,-3,1,0,0,0,0,1,10,0
+2026-01-16,manual,synthetic-fixture-too-many-dupes,5,1,2,0,0,0,1,10,0

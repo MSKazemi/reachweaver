@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "entries": [
+    {"handle": "someone.example.social", "platform": "bluesky", "recorded_on": "2026-10-08"},
+    {"handle": "someone@mastodon.example", "recorded_on": "2026-10-08"},
+    {"domain": "example.org", "recorded_on": "2026-10-08"}
+  ]
+}

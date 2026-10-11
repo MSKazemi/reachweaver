@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "project": "YazSes",
+  "reviewed_on": "2026-10-08",
+  "evidence_classification": "owner_reported_unverified",
+  "notice": "The owner mentioned prior activity, but no platform receipts, canonical content URLs, permissions or analytics have been independently checked. This file never authorizes publishing.",
+  "entries": [
+    {
+      "platform": "linkedin",
+      "reported_activity": "YazSes promotional post and reshare",
+      "reported_dates": [],
+      "url": null,
+      "verified": false,
+      "account_connected_to_reachweaver": false,
+      "metrics": null
+    },
+    {
+      "platform": "dev",
+      "reported_activity": "Two articles",
+      "reported_dates": [
+        "2026-06-22",
+        "2026-09-23"
+      ],
+      "url": null,
+      "verified": false,
+      "account_connected_to_reachweaver": false,
+      "metrics": null
+    },
+    {
+      "platform": "youtube",
+      "reported_activity": "YazSes demonstration",
+      "reported_dates": [],
+      "url": null,
+      "verified": false,
+      "account_connected_to_reachweaver": false,
+      "metrics": null
+    },
+    {
+      "platform": "github",
+      "reported_activity": "Main public repository",
+      "reported_dates": [],
+      "url": null,
+      "verified": false,
+      "account_connected_to_reachweaver": false,
+      "metrics": null
+    },
+    {
+      "platform": "snapcraft",
+      "reported_activity": "Snapcraft Forum technical discussion",
+      "reported_dates": [],
+      "url": null,
+      "verified": false,
+      "account_connected_to_reachweaver": false,
+      "metrics": null
+    }
+  ],
+  "unknown_activity_for_unlisted_platforms": true
+}

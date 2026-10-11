@@ -1,0 +1,219 @@
+"""Offline calendar planner regression tests: no network or live sends."""
+import sqlite3
+import unittest
+from datetime import datetime, timezone
+
+from reachweaver.calendar import propose_calendar, apply_calendar
+from reachweaver.policy import ValidationError
+from reachweaver.storage import SCHEMA, approval_payload_sha256
+
+NOW = datetime(2026, 10, 8, 12, tzinfo=timezone.utc)
+
+
+class CalendarTests(unittest.TestCase):
+    def setUp(self):
+        self.db = sqlite3.connect(':memory:', isolation_level=None)
+        self.db.row_factory = sqlite3.Row
+        # The real schema (approval binding columns included, #7): apply_calendar refuses
+        # to schedule an approval that is not bound to its payload hash.
+        self.db.executescript(SCHEMA)
+        self.addCleanup(self.db.close)
+
+    def post(self, pid, platform='bluesky', status='approved', account='personal', scheduled_at=None):
+        self.db.execute('INSERT INTO posts(id,account_id,platform,content,status,created_at,scheduled_at) '
+                        'VALUES(?,?,?,?,?,?,?)',
+                        (pid, account, platform, 'Useful release note.', status, '2026-10-01T00:00:00+00:00',
+                         scheduled_at))
+        if status in ('approved', 'scheduled'):  # bind like a human approve (+ schedule) would
+            row = self.db.execute('SELECT * FROM posts WHERE id=?', (pid,)).fetchone()
+            nonce = 'ab' * 16  # wave 9 item 1: a human approve also draws a nonce, bound into the hash
+            self.db.execute('UPDATE posts SET approval_nonce=? WHERE id=?', (nonce, pid))
+            row = self.db.execute('SELECT * FROM posts WHERE id=?', (pid,)).fetchone()
+            self.db.execute('UPDATE posts SET approved_payload_sha256=? WHERE id=?',
+                            (approval_payload_sha256(row), pid))
+
+    def plan(self, *, platform='bluesky', account='personal', start='2026-10-12', days=14,
+             timezone_name='Europe/Rome', **kw):
+        return propose_calendar(self.db, account_id=account, platform=platform, audience_timezone=timezone_name,
+                                start=start, days=days, now=NOW, **kw)
+
+    def test_utc_and_local_time_and_draft_safety(self):
+        self.post('a')
+        self.post('b')
+        plan = self.plan()
+        self.assertEqual(len(plan['entries']), 2)
+        self.assertEqual(plan['entries'][0]['scheduled_local'], '2026-10-12T18:00+02:00')
+        self.assertEqual(plan['entries'][0]['scheduled_utc'], '2026-10-12T16:00:00+00:00')
+        self.assertEqual(plan['entries'][1]['scheduled_local'], '2026-10-13T18:00+02:00')
+        self.assertEqual(plan['entries'][0]['schedule_status'], 'proposed_only')
+        self.assertEqual(self.db.execute("SELECT count(*) FROM posts WHERE status='approved'").fetchone()[0],2)
+        self.assertEqual(plan['entries'][0]['evidence'],'industry_observational')
+
+    def test_apply_is_local_only_after_approval(self):
+        self.post('a')
+        self.post('b')
+        result = apply_calendar(self.db, self.plan(), now=NOW)
+        self.assertEqual([row['schedule_status'] for row in result['entries']], ['locally_scheduled']*2)
+        self.assertEqual(self.db.execute("SELECT count(*) FROM posts WHERE status='scheduled'").fetchone()[0], 2)
+        self.assertIn('local SQLite only',result['delivery_note'])
+
+    def test_draft_preview_never_allowed_for_apply(self):
+        self.post('a', status='draft')
+        with self.assertRaises(ValidationError): self.plan()
+        preview = self.plan(include_drafts=True)
+        self.assertEqual(preview['entries'][0]['post_status'], 'draft')
+        with self.assertRaisesRegex(ValidationError, 'lack exact-content approval'):
+            apply_calendar(self.db, preview, now=NOW)
+        self.assertEqual(self.db.execute("SELECT status FROM posts WHERE id='a'").fetchone()[0],'draft')
+
+    def test_manual_network_cannot_apply(self):
+        self.post('a',platform='x')
+        plan=self.plan(platform='x')
+        self.assertEqual(plan['entries'][0]['delivery'],'manual_native_handoff')
+        with self.assertRaisesRegex(ValidationError, 'manual-only'):
+            apply_calendar(self.db,plan,now=NOW)
+        self.assertEqual(self.db.execute("SELECT status FROM posts WHERE id='a'").fetchone()[0],'approved')
+
+    def test_existing_post_collision_and_min_spacing(self):
+        self.post('old', status='scheduled', scheduled_at='2026-10-12T16:00:00+00:00')
+        self.post('a')
+        planned=self.plan()
+        self.assertEqual(planned['entries'][0]['scheduled_local'],'2026-10-13T18:00+02:00')
+
+    def test_atomic_rollback_when_plan_stale(self):
+        self.post('a')
+        self.post('b')
+        plan=self.plan()
+        self.db.execute("UPDATE posts SET status='cancelled' WHERE id='b'")
+        with self.assertRaisesRegex(ValidationError, 'Posts changed'):
+            apply_calendar(self.db,plan,now=NOW)
+        self.assertEqual(self.db.execute("SELECT status FROM posts WHERE id='a'").fetchone()[0],'approved')
+
+    def test_atomic_rollback_on_new_collision(self):
+        self.post('a')
+        plan=self.plan()
+        self.post('c',status='scheduled',scheduled_at=plan['entries'][0]['scheduled_utc'])
+        with self.assertRaisesRegex(ValidationError, 'collision'):
+            apply_calendar(self.db,plan,now=NOW)
+        self.assertEqual(self.db.execute("SELECT status FROM posts WHERE id='a'").fetchone()[0],'approved')
+
+    def test_approval_pause_blocks_batch(self):
+        self.post('a')
+        plan=self.plan()
+        self.db.execute("INSERT INTO settings VALUES ('paused','1')")
+        with self.assertRaisesRegex(ValidationError,'paused'):
+            apply_calendar(self.db,plan,now=NOW)
+
+    def test_first_party_custom_slot_does_not_forge_evidence(self):
+        self.post('a',platform='mastodon')
+        plan=self.plan(platform='mastodon',slots=['Wed@10:00'],timezone_name='America/New_York')
+        self.assertEqual(plan['entries'][0]['scheduled_local'], '2026-10-14T10:00-04:00')
+        self.assertEqual(plan['entries'][0]['evidence'], 'operator_supplied')
+        self.assertEqual(plan['entries'][0]['confidence'], 'unverified')
+        with self.assertRaisesRegex(ValidationError,'supply one or more --slot'):
+            self.plan(platform='mastodon')
+
+    def test_dst_gap_rejected(self):
+        self.post('a')
+        with self.assertRaisesRegex(ValidationError,'DST'):
+            self.plan(start='2027-03-28',days=1,slots=['Sun@02:30'])
+
+    def test_dst_fold_rejected(self):
+        self.post('a')
+        with self.assertRaisesRegex(ValidationError,'DST'):
+            self.plan(start='2026-10-25',days=1,slots=['Sun@02:30'])
+
+    def test_blackout_and_post_order(self):
+        self.post('a')
+        self.post('b')
+        plan=self.plan(blackout=['2026-10-12'])
+        self.assertEqual([r['scheduled_local'] for r in plan['entries']],
+                         ['2026-10-13T18:00+02:00','2026-10-14T18:00+02:00'])
+
+    def test_exhaustion_fails_without_changes(self):
+        self.post('a')
+        self.post('b')
+        with self.assertRaisesRegex(ValidationError,'Insufficient collision-free'):
+            self.plan(days=1)
+        self.assertEqual(self.db.execute("SELECT count(*) FROM posts WHERE status='approved'").fetchone()[0],2)
+
+    def test_selected_account_and_duplicate_rejections(self):
+        self.post('a')
+        with self.assertRaisesRegex(ValidationError,'distinct'):
+            self.plan(post_ids=['a','a'])
+        with self.assertRaisesRegex(ValidationError,'Selected post does not belong'):
+            self.plan(account='different',post_ids=['a'])
+        with self.assertRaisesRegex(ValidationError,'Unknown IANA'):
+            self.plan(timezone_name='Mars/Phobos')
+        with self.assertRaisesRegex(ValidationError,'Duplicate slot'):
+            self.plan(slots=['Mon@18:00','Mon@18:00'])
+
+    def test_developer_articles_remain_manual_and_need_owner_time_slots(self):
+        from reachweaver.policy import validate_post
+        for platform in ('devto', 'hashnode'):
+            self.assertEqual(validate_post(platform, '# An original technical article'), [])
+            self.post(platform,platform=platform)
+            with self.assertRaisesRegex(ValidationError,'supply one or more --slot'):
+                self.plan(platform=platform)
+            plan=self.plan(platform=platform,slots=['Wed@10:00'])
+            self.assertEqual(plan['entries'][0]['delivery'],'manual_native_handoff')
+            with self.assertRaisesRegex(ValidationError,'manual-only'):
+                apply_calendar(self.db,plan,now=NOW)
+
+    def test_only_approved_bounded_and_not_auto_published(self):
+        self.post('a')
+        self.post('b',status='draft')
+        plan=self.plan()
+        self.assertEqual(len(plan['entries']),1)
+        self.assertNotIn('publish',plan['entries'][0]['schedule_status'])
+        self.assertEqual(self.db.execute("SELECT count(*) FROM posts WHERE status='scheduled'").fetchone()[0],0)
+
+
+
+class CalendarCLITests(unittest.TestCase):
+    def test_cli_plan_and_apply_do_not_publish(self):
+        import contextlib
+        import io
+        import json
+        import tempfile
+        from datetime import timedelta
+        from pathlib import Path
+        from reachweaver.cli import main
+        from reachweaver.storage import connect, add_post, transition
+
+        with tempfile.TemporaryDirectory() as temp:
+            db_path = str(Path(temp) / "outbox.sqlite")
+            config = Path(temp) / "accounts.json"
+            config.write_text(json.dumps({"accounts": [
+                {"id": "my-bluesky", "platform": "bluesky",
+                 "env_prefix": "REACHWEAVER_TEST_PLAN",
+                 "handle": "test.bsky.social"}
+            ]}), encoding="utf-8")
+            with connect(db_path) as db:
+                pid = add_post(db, "my-bluesky", "bluesky", "A factual and helpful open-source tip")
+                transition(db, pid, "approve")
+            start = (datetime.now(timezone.utc).date() + timedelta(days=2)).isoformat()
+            argv = [
+                "--db", db_path, "--accounts", str(config), "calendar-plan",
+                "--account", "my-bluesky", "--timezone", "UTC",
+                "--start", start, "--days", "5", "--post-id", pid,
+            ]
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(argv), 0)
+            proposal = json.loads(output.getvalue())
+            self.assertEqual(proposal["entries"][0]["schedule_status"], "proposed_only")
+            with connect(db_path) as db:
+                self.assertEqual(db.execute("SELECT status FROM posts WHERE id=?", (pid,)).fetchone()[0], "approved")
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(argv + ["--apply"]), 0)
+            applied = json.loads(output.getvalue())
+            self.assertEqual(applied["entries"][0]["schedule_status"], "locally_scheduled")
+            with connect(db_path) as db:
+                row = db.execute("SELECT status,remote_id FROM posts WHERE id=?", (pid,)).fetchone()
+                self.assertEqual(row["status"], "scheduled")
+                self.assertIsNone(row["remote_id"])
+
+if __name__ == '__main__':
+    unittest.main()

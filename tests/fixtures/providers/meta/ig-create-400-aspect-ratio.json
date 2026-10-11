@@ -1,0 +1,20 @@
+{
+  "_fixture": {
+    "recorded": false,
+    "provider": "instagram",
+    "endpoint": "POST /<ig-id>/media",
+    "scrubbed": "n/a (hand-written)",
+    "note": "synthetic Graph-shaped response; not evidence of any live behaviour"
+  },
+  "status": 400,
+  "headers": {},
+  "body": {
+    "error": {
+      "message": "REMOTE-TEXT-MUST-NOT-LEAK The image aspect ratio is not supported",
+      "type": "OAuthException",
+      "code": 36003,
+      "fbtrace_id": "FIXTUREFBTRACE0000",
+      "error_subcode": 2207009
+    }
+  }
+}

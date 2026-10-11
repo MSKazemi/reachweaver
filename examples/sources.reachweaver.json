@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "keywords": ["speech", "kubernetes", "hpc", "llm", "data center", "autoscaling"],
+  "half_life_days": 14,
+  "include_prereleases": false,
+  "weights": {"freshness": 0.35, "novelty": 0.25, "audience_relevance": 0.25, "confidence": 0.15},
+  "overrides": {"include_urls": [], "exclude_urls": []},
+  "sources": [
+    {"id": "yazses-releases", "kind": "github_releases", "repo": "MSKazemi/YazSes", "sensitivity": "public"},
+    {"id": "kubeintellect-releases", "kind": "github_releases", "repo": "MSKazemi/KubeIntellect", "sensitivity": "public"},
+    {"id": "kubeintellect-pulls", "kind": "github_pulls", "repo": "MSKazemi/KubeIntellect", "sensitivity": "public", "max_pages": 2},
+    {"id": "kubeintellect-announcements", "kind": "github_issues", "repo": "MSKazemi/KubeIntellect", "sensitivity": "public",
+     "labels": ["release-note", "announcement"]},
+    {"id": "novafabric-tags", "kind": "github_tags", "repo": "MSKazemi/NovaFabric", "sensitivity": "public"},
+    {"id": "example-blog", "kind": "feed", "url": "https://blog.example.org/feed.xml", "sensitivity": "public",
+     "fixture": "../tests/fixtures/sources/feed-rss.xml"},
+    {"id": "example-changelog", "kind": "changelog", "format": "markdown", "sensitivity": "public",
+     "url": "https://raw.githubusercontent.com/example-org/example-tool/main/CHANGELOG.md",
+     "evidence_url": "https://github.com/example-org/example-tool/blob/main/CHANGELOG.md", "project": "example-tool",
+     "fixture": "../tests/fixtures/sources/changelog-keepachangelog.md"},
+    {"id": "example-site-changelog", "kind": "changelog", "format": "html", "sensitivity": "public",
+     "url": "https://www.example.org/changelog", "fixture": "../tests/fixtures/sources/changelog-page.html"},
+    {"id": "example-paper", "kind": "doi", "doi": "10.5555/reachweaver.fixture.2026", "sensitivity": "public",
+     "fixture": "../tests/fixtures/sources/crossref-work.json"},
+    {"id": "private-research", "kind": "github_releases", "repo": "example-org/private-repo", "sensitivity": "private", "enabled": false}
+  ]
+}

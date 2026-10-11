@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "keywords": ["kubernetes", "speech", "hpc", "autoscaling"],
+  "half_life_days": 14,
+  "include_prereleases": false,
+  "sources": [
+    {"id": "tool-releases", "kind": "github_releases", "repo": "example-org/example-tool", "sensitivity": "public", "fixture": "github-releases.json"},
+    {"id": "tool-pulls", "kind": "github_pulls", "repo": "example-org/example-tool", "sensitivity": "public", "fixture": "github-pulls.json"},
+    {"id": "tool-tags", "kind": "github_tags", "repo": "example-org/example-tool", "sensitivity": "public", "fixture": "github-tags.json"},
+    {"id": "blog-rss", "kind": "feed", "url": "https://blog.example.org/feed.xml", "sensitivity": "public", "fixture": "feed-rss.xml"},
+    {"id": "news-atom", "kind": "feed", "url": "https://news.example.org/atom.xml", "sensitivity": "public", "fixture": "feed-atom.xml"},
+    {"id": "poisoned-feed", "kind": "feed", "url": "https://poison.example.org/feed.xml", "sensitivity": "public", "fixture": "feed-doctype.xml"},
+    {"id": "paper", "kind": "doi", "doi": "10.5555/reachweaver.fixture.2026", "sensitivity": "public", "fixture": "crossref-work.json"},
+    {"id": "private-repo", "kind": "github_releases", "repo": "example-org/private-tool", "sensitivity": "private", "fixture": "private-notes.json"}
+  ]
+}

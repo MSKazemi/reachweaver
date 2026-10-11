@@ -1,0 +1,13 @@
+{
+  "_fixture": {
+    "provider": "tiktok",
+    "recorded": false,
+    "source": "hand-written from the documented media transfer guide and creator_info response (https://developers.tiktok.com/doc/content-posting-api-media-transfer-guide); synthetic, not a recorded capture",
+    "written": "2026-10-10",
+    "scrubbed": "yes (synthetic ids only)"
+  },
+  "endpoint": "PUT upload_url (chunk 1, expects 206)",
+  "status": 200,
+  "headers": {},
+  "body": null
+}

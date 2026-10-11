@@ -1,0 +1,17 @@
+[
+  {"number": 41, "title": "Add GPU-aware autoscaling for Kubernetes jobs", "merged_at": "2026-10-05T09:00:00Z",
+   "html_url": "https://github.com/example-org/example-tool/pull/41", "user": {"login": "maintainer", "type": "User"},
+   "labels": [{"name": "enhancement"}], "body": "Implements GPU-aware autoscaling."},
+  {"number": 42, "title": "Bump requests from 2.31.0 to 2.32.3", "merged_at": "2026-10-06T09:00:00Z",
+   "user": {"login": "dependabot[bot]", "type": "Bot"}, "labels": [{"name": "dependencies"}], "body": ""},
+  {"number": 43, "title": "Update all non-major dependencies", "merged_at": "2026-10-06T10:00:00Z",
+   "user": {"login": "renovate-helper", "type": "User"}, "labels": [{"name": "renovate"}], "body": ""},
+  {"number": 44, "title": "chore: tidy imports", "merged_at": "2026-10-06T11:00:00Z",
+   "user": {"login": "maintainer", "type": "User"}, "labels": [], "body": ""},
+  {"number": 45, "title": "docs: fix typo in README", "merged_at": "2026-10-06T12:00:00Z",
+   "user": {"login": "maintainer", "type": "User"}, "labels": [], "body": ""},
+  {"number": 46, "title": "ci: cache pip downloads", "merged_at": "2026-10-06T13:00:00Z",
+   "user": {"login": "maintainer", "type": "User"}, "labels": [], "body": ""},
+  {"number": 47, "title": "Experimental rewrite (closed without merge)", "merged_at": null,
+   "user": {"login": "maintainer", "type": "User"}, "labels": [], "body": ""}
+]

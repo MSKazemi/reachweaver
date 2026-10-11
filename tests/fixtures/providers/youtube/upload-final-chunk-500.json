@@ -1,0 +1,26 @@
+{
+  "_fixture": {
+    "provider": "youtube",
+    "recorded": false,
+    "source": "hand-written from the documented resumable-upload protocol (https://developers.google.com/youtube/v3/guides/using_resumable_upload_protocol) and the Google API error envelope; synthetic, not a recorded capture",
+    "written": "2026-10-10",
+    "scrubbed": "yes (synthetic ids only)"
+  },
+  "endpoint": "PUT <resumable session URI> (final chunk)",
+  "status": 500,
+  "headers": {
+    "Content-Type": "application/json; charset=UTF-8"
+  },
+  "body": {
+    "error": {
+      "code": 500,
+      "message": "Backend Error",
+      "errors": [
+        {
+          "reason": "backendError",
+          "message": "Backend Error"
+        }
+      ]
+    }
+  }
+}

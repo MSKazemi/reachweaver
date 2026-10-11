@@ -1,0 +1,14 @@
+# INERT EXAMPLE: user must install/enable this explicitly AFTER a supervised pilot.
+# The example service additionally requires the operator-created ALLOW_LIVE marker,
+# live opt-in credentials and approved posts. No GitHub Actions job performs sends.
+[Unit]
+Description=Check due approved ReachWeaver social posts every 15 minutes
+
+[Timer]
+OnCalendar=*:0/15
+AccuracySec=1min
+Persistent=false
+Unit=reachweaver-publish.service
+
+[Install]
+WantedBy=timers.target

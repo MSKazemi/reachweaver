@@ -1,0 +1,27 @@
+{
+  "_fixture": {
+    "provider": "youtube",
+    "recorded": false,
+    "source": "hand-written from the documented resumable-upload protocol (https://developers.google.com/youtube/v3/guides/using_resumable_upload_protocol) and the Google API error envelope; synthetic, not a recorded capture; a receipt that comes back private although public was requested (unverified API project restriction, see docs/YOUTUBE.md)",
+    "written": "2026-10-10",
+    "scrubbed": "yes (synthetic ids only)"
+  },
+  "endpoint": "PUT <resumable session URI> (final chunk)",
+  "status": 201,
+  "headers": {
+    "Content-Type": "application/json; charset=UTF-8"
+  },
+  "body": {
+    "kind": "youtube#video",
+    "id": "dQw4w9WgXcQ",
+    "snippet": {
+      "channelId": "UCabcdefghijklmnopqrstuv",
+      "title": "Demo"
+    },
+    "status": {
+      "privacyStatus": "private",
+      "uploadStatus": "uploaded",
+      "selfDeclaredMadeForKids": false
+    }
+  }
+}

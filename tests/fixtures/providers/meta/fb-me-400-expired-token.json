@@ -1,0 +1,20 @@
+{
+  "_fixture": {
+    "recorded": false,
+    "provider": "facebook",
+    "endpoint": "GET /me",
+    "scrubbed": "n/a (hand-written)",
+    "note": "synthetic Graph-shaped response; not evidence of any live behaviour"
+  },
+  "status": 400,
+  "headers": {},
+  "body": {
+    "error": {
+      "message": "REMOTE-TEXT-MUST-NOT-LEAK Error validating access token: session has expired",
+      "type": "OAuthException",
+      "code": 190,
+      "fbtrace_id": "FIXTUREFBTRACE0000",
+      "error_subcode": 463
+    }
+  }
+}

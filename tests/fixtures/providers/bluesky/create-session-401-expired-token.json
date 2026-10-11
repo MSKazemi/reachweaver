@@ -1,0 +1,7 @@
+{
+  "_fixture": {"provider": "bluesky", "recorded": false, "source": "hand-written from the documented XRPC error shape (error + message); synthetic, not a recorded capture", "written": "2026-10-10", "scrubbed": "yes (synthetic ids only)"},
+  "endpoint": "POST /xrpc/com.atproto.server.createSession",
+  "status": 401,
+  "headers": {"Content-Type": "application/json; charset=utf-8"},
+  "body": {"error": "ExpiredToken", "message": "Token has expired"}
+}

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Malformed items fixture</title>
+    <item>
+      <title>Item with no link at all</title>
+      <description>No link, must be skipped.</description>
+    </item>
+    <item>
+      <title>Script scheme link</title>
+      <link>javascript:alert(1)</link>
+    </item>
+    <item>
+      <title>Credentials in link</title>
+      <link>https://user:pw@blog.example.org/posts/creds</link>
+      <pubDate>not a date</pubDate>
+    </item>
+    <item>
+      <link>https://blog.example.org/posts/untitled</link>
+      <pubDate>Mon, 05 Oct 2026 08:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Valid survivor</title>
+      <link>https://blog.example.org/posts/survivor</link>
+      <pubDate>Mon, 05 Oct 2026 09:00:00 +0000</pubDate>
+      <description>Only this item should survive.</description>
+    </item>
+  </channel>
+</rss>

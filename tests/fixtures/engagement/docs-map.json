@@ -1,0 +1,23 @@
+{
+  "schema_version": "reachweaver.docs-map.v1",
+  "topics": [
+    {
+      "topic": "Engagement triage",
+      "keywords": [
+        "docs map",
+        "engagement"
+      ],
+      "url": "https://github.com/MSKazemi/reachweaver/blob/main/docs/ENGAGEMENT.md"
+    },
+    {
+      "topic": "Troubleshooting",
+      "keywords": [
+        "crash",
+        "crashes",
+        "traceback",
+        "windows"
+      ],
+      "url": "https://github.com/MSKazemi/reachweaver/blob/main/README.md#security-and-reality-checks"
+    }
+  ]
+}

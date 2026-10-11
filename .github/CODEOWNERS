@@ -1,0 +1,8 @@
+# Code owners. Effective only when branch protection on main enables
+# "Require review from Code Owners" (repository setting).
+/reachweaver/platform_registry.json      @MSKazemi
+/reachweaver/distribution_registry.json  @MSKazemi
+/reachweaver/accounts.py                 @MSKazemi
+/reachweaver/storage.py                  @MSKazemi
+/reachweaver/publishers.py               @MSKazemi
+/reachweaver/caps.py                     @MSKazemi

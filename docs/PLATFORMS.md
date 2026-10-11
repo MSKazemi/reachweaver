@@ -1,0 +1,181 @@
+# Platform capability and API-approval registry
+
+<!-- Mirrors reachweaver/platform_registry.json (schema_version 1, reviewed_on 2026-10-08).
+     Regenerate the table from: python -m reachweaver.cli capabilities -->
+
+**Snapshot:** 2026-10-08. The machine-readable source of truth is [`reachweaver/platform_registry.json`](../reachweaver/platform_registry.json), validated by `reachweaver/capabilities.py` and `tests/test_capabilities.py`. Run `reachweaver capabilities [--platform P] [--json] [--max-age-days N]` to print it offline. It exits nonzero when the registry is incomplete or invalid.
+
+**This registry is research data. It is not permission, consent, account authorization or proof of delivery.** No owner account has been connected or verified end to end. The four enabled `live_text` adapters (Bluesky, Mastodon, Telegram and LinkedIn member text) are tested only with mocks. Mock-tested adapters for Threads text (#19), Instagram single images (#20), Facebook Page text/link (#21), YouTube video (#22), TikTok video (#23), Mastodon images (#13) and Bluesky/Mastodon replies (#17) also exist (owner-approved 2026-10-09); this registry keeps every one of them disabled until the owner records a supervised live receipt.
+
+## Status vocabulary
+
+| Format status | Meaning | Runtime effect |
+|---|---|---|
+| `api_direct` | Official, documented, self-serve API path for the format | Allowed for `api` checks. ReachWeaver `publish` also needs an enabled adapter: `live_text` for text, or the format listed in `live_media_formats` (none is); video uses its own switches |
+| `api_gated` | Official API exists but needs app review, audit, approval, a paid plan or account eligibility | Refused (fail closed) |
+| `manual_export` | Only verified path is the owner posting in the native UI from a ReachWeaver export | Refused for API use; manual package only |
+| `unavailable` | The platform does not offer this format for this kind of post | Refused |
+| `unknown` | Not verified from an official source on `verified_date` | Refused |
+
+Platform `status` follows issue #6: `supported` (an enabled ReachWeaver live adapter), `requires-review`, `blocked` or `manual-export`. Validation enforces `supported` ⇔ `reachweaver_adapter` is `live_text` or `live_media` (`capabilities.LIVE_ADAPTERS`; `live_media` is for a media-only platform such as Instagram, and no entry uses it) ⇔ `policy.SUPPORTED_LIVE`. Video is gated separately: the platforms whose `reachweaver_video_*` switch is `live` must equal `policy.SUPPORTED_LIVE_VIDEO`, which is empty.
+
+`require_capability(platform, fmt="text", action="publish")` raises `ValidationError` unless the format is `api_direct` and, for `publish`, either the format is text with a `live_text` adapter, or it is an image format listed in the entry's `live_media_formats` (limited to `capabilities.LIVE_MEDIA_FORMATS`: Mastodon and Instagram `image`) with a live adapter. `publishers.publish()` and `publish --live` call it before any identity check, claim or network request. This guard only adds restrictions: approval, dry-run, emergency stop, credential isolation and ambiguous-send reconciliation are unchanged.
+
+## Capability table
+
+| Platform | Status | Adapter | Text | Image | Video | Carousel | Link | Verified |
+|---|---|---|---|---|---|---|---|---|
+| `bluesky` | supported | live_text | api_direct | unknown | unknown | unknown | api_direct | 2026-10-08 |
+| `devto` | manual-export | none | manual_export | unknown | unknown | unknown | manual_export | 2026-10-08 |
+| `facebook` | requires-review | none | api_gated | unknown | unknown | unknown | api_gated | 2026-10-08 |
+| `hashnode` | manual-export | none | api_gated | unknown | unknown | unknown | api_gated | 2026-10-08 |
+| `instagram` | requires-review | none | unavailable | api_gated | api_gated | api_gated | unknown | 2026-10-08 |
+| `linkedin` | supported | live_text | api_direct | api_direct | api_direct | unavailable | api_direct | 2026-10-08 |
+| `mastodon` | supported | live_text | api_direct | api_direct | api_direct | unknown | api_direct | 2026-10-08 |
+| `pinterest` | requires-review | none | unavailable | api_gated | api_gated | unknown | api_gated | 2026-10-08 |
+| `reddit` | blocked | none | api_gated | unknown | unknown | unknown | api_gated | 2026-10-08 |
+| `telegram` | supported | live_text | api_direct | api_direct | api_direct | api_direct | api_direct | 2026-10-08 |
+| `threads` | requires-review | none | api_gated | api_gated | api_gated | unknown | api_gated | 2026-10-08 |
+| `tiktok` | requires-review | none | unknown | unknown | api_gated | unknown | unknown | 2026-10-08 |
+| `x` | requires-review | none | api_direct | api_direct | api_direct | unknown | api_direct | 2026-10-08 |
+| `youtube` | requires-review | none | unknown | unknown | api_gated | unknown | unknown | 2026-10-08 |
+
+Image, video and carousel are listed only to record what each provider offers. No ReachWeaver media path is enabled: the Mastodon and Instagram image adapters need a `live_media_formats` entry (none exists), and the YouTube and TikTok video adapters need `policy.SUPPORTED_LIVE_VIDEO` plus a `live` switch (all `off`).
+
+**Optional delivery fields (all off in the bundled registry):**
+
+| Field | Values | Enables | Valid on |
+|---|---|---|---|
+| `live_media_formats` | list of formats, e.g. `["image"]`; absent = none | Live image publishing (#13, #20) | Entries with a live adapter and `api_direct` for the format; formats limited to `capabilities.LIVE_MEDIA_FORMATS` (Mastodon, Instagram `image`) |
+| `reachweaver_reply_adapter` | `live_reply` or `none`; absent = `none` | Sending an approved reply (#17) through `capabilities.require_reply_capability` | `live_text` entries of Bluesky and Mastodon only (`capabilities.REPLY_ADAPTER_PLATFORMS`); both ship `none` |
+| `reachweaver_video_upload` | `off` or `live`; absent = `off` | YouTube resumable upload (#22) | `youtube`, with `video: api_direct` and the platform in `SUPPORTED_LIVE_VIDEO` |
+| `reachweaver_video_inbox`, `reachweaver_video_direct_post` | `off` or `live`; absent = `off` | TikTok creator-inbox upload and Direct Post (#23); `direct_post` needs `reachweaver_video_inbox` live too | `tiktok`, with `video` `api_direct` or `api_gated` and the platform in `SUPPORTED_LIVE_VIDEO` |
+
+Because Mastodon and Bluesky are already in `SUPPORTED_LIVE`, a registry-only edit of `live_media_formats` (Mastodon) or `reachweaver_reply_adapter` can enable Mastodon images or replies; that is the intended owner step after a supervised live receipt and needs the same review as a code change (THREAT-MODEL.md T6).
+
+## Per-platform notes
+
+Each entry's `verification_basis` field records where its facts came from. "Official docs fetched" means the official page was read on 2026-10-08. "Repo research snapshot" means the facts were carried over from [PLATFORM-RESEARCH.md](PLATFORM-RESEARCH.md) / [PLATFORM-MATRIX.md](PLATFORM-MATRIX.md) and must be re-checked before an adapter is built.
+
+- **Bluesky:** App Password session with an exact handle check, on the account's `service` (default `https://bsky.social`, or an owner-configured public HTTPS PDS origin). Text, link facets and hashtag facets are covered by the mock-tested adapter. Media is `unknown` (not re-verified). Rate limits are in [Provider rate limits](#provider-rate-limits-issue-11). Details of the issue #12 slice are below. Sources: [creating a post](https://docs.bsky.app/docs/tutorials/creating-a-post), [rich text](https://docs.bsky.app/docs/advanced-guides/post-richtext), [post lexicon](https://github.com/bluesky-social/atproto/blob/main/lexicons/app/bsky/feed/post.json), [facet lexicon](https://github.com/bluesky-social/atproto/blob/main/lexicons/app/bsky/richtext/facet.json), [createRecord](https://github.com/bluesky-social/atproto/blob/main/lexicons/com/atproto/repo/createRecord.json), [TID](https://atproto.com/specs/tid).
+- **Mastodon:** User token with `write:statuses`. Media via `media_ids`. Edit (`PUT`) and delete (`DELETE /api/v1/statuses/:id`) are documented. Default limit is 300 calls per 5 minutes per account; media and deletion are each 30 per 30 minutes (see [Provider rate limits](#provider-rate-limits-issue-11)). Details of the issue #13 slice are below. Sources: [statuses](https://docs.joinmastodon.org/methods/statuses/), [instance](https://docs.joinmastodon.org/methods/instance/), [Status entity](https://docs.joinmastodon.org/entities/Status/), [rate limits](https://docs.joinmastodon.org/api/rate-limits/).
+- **Telegram:** Bot must be a channel admin with posting rights. The Bot API page lists `sendPhoto`, `sendVideo`, `sendMediaGroup` and `editMessageText`. Bot rate limits are in [Provider rate limits](#provider-rate-limits-issue-11); the Bots FAQ publishes no channel-specific limit. Sources: [Bot API](https://core.telegram.org/bots/api), [Bots FAQ](https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this).
+- **LinkedIn (issue #14):** Member (personal profile) **text** posts only, via `POST https://api.linkedin.com/rest/posts` with `Linkedin-Version: YYYYMM` and `X-Restli-Protocol-Version: 2.0.0`. Share on LinkedIn (`w_member_social`) and Sign In with LinkedIn using OpenID Connect (`openid`, `profile`) are open, self-serve products, so text is `api_direct`. The created post URN comes back in the `x-restli-id` header with HTTP 201. Identity is `GET /v2/userinfo` `sub` compared exactly with the account's `person_id`. Versions are supported for a minimum of one year; ReachWeaver warns from month 10 and refuses live sends from month 12 (HTTP 426 `NONEXISTENT_VERSION` is what LinkedIn returns for an inactive version). Image, video and article posts are documented for members (`api_direct`) but have no ReachWeaver adapter; organic carousels are not supported by the Posts API (`unavailable`). Organization pages (`w_organization_social`, page roles) are **not supported** and `urn:li:organization` authors are refused. Documented throttle on the Share on LinkedIn page: 150 requests per member and 100,000 per application per UTC day. Onboarding: [LINKEDIN.md](LINKEDIN.md). Sources: [Posts API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api), [post schema](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/post-api-schema), [versioning](https://learn.microsoft.com/en-us/linkedin/marketing/versioning), [error responses](https://learn.microsoft.com/en-us/linkedin/marketing/error-responses), [little text format](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/little-text-format), [Share on LinkedIn](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/share-on-linkedin), [getting access](https://learn.microsoft.com/en-us/linkedin/shared/authentication/getting-access), [authorization code flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow), [OpenID Connect userinfo](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2).
+- **X:** See the go/no-go section below. Sources: [pricing](https://docs.x.com/x-api/getting-started/pricing), [create post](https://docs.x.com/x-api/posts/create-post), [delete post](https://docs.x.com/x-api/posts/delete-post), [rate limits](https://docs.x.com/x-api/fundamentals/rate-limits).
+- **Threads:** `threads_basic` and `threads_content_publish`. Users without an app role can grant them only after App Review (verified 2026-10-08). Manual fallback: `manual-export` ([MANUAL-EXPORT.md](MANUAL-EXPORT.md)). A mock-tested text adapter exists (issue #19, owner-approved 2026-10-09; disabled until a live receipt; re-verified 2026-10-09: 250 API-published posts per profile per 24-hour moving period, quota via `threads_publishing_limit`), but the registry entry above is unchanged, so it is unreachable until a live receipt ([THREADS.md](THREADS.md), proposal). Sources: [get started](https://developers.facebook.com/docs/threads/get-started), [posts](https://developers.facebook.com/docs/threads/posts), [Meta Threads API workspace](https://www.postman.com/meta/threads/collection/dht3nzz/threads-api).
+- **Instagram:** Professional (Business/Creator) accounts only. Every post needs media, so text-only is `unavailable`. Scopes are `instagram_business_basic` + `instagram_business_content_publish` (Instagram Login) or `instagram_basic` + `instagram_content_publish` + `pages_read_engagement` (Facebook Login), verified 2026-10-08. Manual fallback: `manual-export`. A mock-tested single-image adapter exists (issue #20, owner-approved 2026-10-09; disabled until a live receipt; re-verified 2026-10-09: JPEG only, 8 MB, aspect 4:5 to 1.91:1, caption 2,200 characters, 30 hashtags, 20 @ tags, `alt_text` up to 1,000 characters; the publishing quota is documented as both 100 and 50 posts per 24 hours, so the live `content_publishing_limit` is authoritative), but the registry entry above is unchanged, so it is unreachable until a live receipt ([INSTAGRAM.md](INSTAGRAM.md), proposal). Sources: [content publishing](https://developers.facebook.com/docs/instagram-platform/content-publishing), [Meta Instagram API workspace](https://www.postman.com/meta/instagram/collection/6yqw8pt/instagram-api).
+- **Facebook Pages:** Page posts need a Page access token and `pages_manage_posts`, `pages_read_engagement`, `pages_manage_engagement` and `pages_read_user_engagement` (plus `publish_video` for video), verified 2026-10-08. App review must still be verified before any format is claimed. Personal profiles are not supported, and Groups API permissions were removed on 2024-04-22. `manual-export` rejects profile and group targets. A mock-tested adapter for Page text/link posts exists (issue #21, owner-approved 2026-10-09; disabled until a live receipt; re-verified 2026-10-09: `POST /{page-id}/feed`, Graph API v25.0, available until 2028-07-29). The registry entry above is unchanged, so the adapter is unreachable until a live receipt ([FACEBOOK.md](FACEBOOK.md), proposal). Sources: [Pages API posts](https://developers.facebook.com/docs/pages-api/posts), [v19.0 changelog](https://developers.facebook.com/docs/graph-api/changelog/version19.0), [Graph API](https://developers.facebook.com/docs/graph-api).
+- **YouTube:** `youtube.upload` scope. Uploads from unverified projects created after 2020-07-28 may be forced private, and public release may need an audit. On 2026-10-08 and again on 2026-10-09 the official pages conflicted on this (the revision history says private; the current videos.insert page says not restricted), so public visibility stays unverified. Manual YouTube Studio fallback: `manual-export`. Quota (re-verified 2026-10-09): since 2026-06-01 `videos.insert` has its own bucket, default 100 calls per day at 1 unit each; `channels.list` costs 1 unit from the shared 10,000 units per day; reset at midnight Pacific Time ([quota costs](https://developers.google.com/youtube/v3/determine_quota_cost)). A mock-tested upload adapter exists (issue #22, owner-approved 2026-10-09; disabled until a live receipt: resumable upload, channel check, SHA-256-bound approval, default `private`, required made-for-kids answer), but the registry entry above is unchanged, so it is unreachable until a live receipt ([YOUTUBE.md](YOUTUBE.md), proposal). Sources: [videos.insert](https://developers.google.com/youtube/v3/docs/videos/insert), [revision history](https://developers.google.com/youtube/v3/revision_history).
+- **TikTok:** Content Posting API approval plus app audit. Unaudited clients can post only private-viewable content. Creator draft export is the fallback (`manual-export`, which never pre-selects public). Re-verified 2026-10-09: `video.upload` sends a draft to the creator's inbox (at most 5 pending shares per 24 hours; 6 init requests per minute per token), and `video.publish` is Direct Post. A mock-tested adapter exists (issue #23, owner-approved 2026-10-09; disabled until a live receipt; creator inbox first), but both registry switches are `off`, so it is unreachable until a live receipt ([TIKTOK.md](TIKTOK.md), proposal). Sources: [Content Posting API](https://developers.tiktok.com/docs/en/content-posting-api-get-started), [sharing guidelines](https://developers.tiktok.com/docs/en/content-sharing-guidelines).
+- **Reddit / Pinterest:** See the go/no-go section below.
+- **DEV Community:** Owner writes and schedules in the native editor; ReachWeaver produces a manual export only. Source: [DEV help](https://dev.to/help/writing-editing-scheduling).
+- **Hashnode:** Scheduled and GraphQL publishing require the paid Hashnode Pro plan. Source: [Hashnode Pro changelog](https://hashnode.com/changelog/2026-06-11-introducing-hashnode-pro).
+
+## Provider rate limits (issue #11)
+
+Published numbers for the four `live_text` providers, each read from the official page on **2026-10-09** and stored in `rate_limits` (`summary`, `source`, `accessed`, `facts`, `not_published`). `facts` holds one exact number per row; `not_published` names limits the official page does not state, so they are recorded as gaps and never guessed. Validation requires every `live_text` adapter to carry sourced `facts`, and every fact to have an HTTPS `source` and an `accessed` date.
+
+These are provider facts only. They do not change ReachWeaver's own budgets or cooldowns ([WORKER-OPERATIONS.md](WORKER-OPERATIONS.md), `caps.py`, `ratelimit.py`), which are far stricter: at most 10 attempts per account per rolling 24 hours, at least 15 minutes apart, 2 and 60 minutes by default. Built-in tighten-only pilot caps (`caps.BUILTIN_PROVIDER_CAPS`, owner decisions D19-4 and D21-5, 2026-10-09) apply with or without a caps file: Threads accounts at most 2 sends per rolling 24 hours, Facebook Page accounts at most 2 per 24 hours and at least 60 minutes apart (Postiz-backed ones included), so a looser flag or file value cannot exceed them. `tests/test_capabilities.py` checks that even the loosest allowed budget stays inside every per-account, per-member and per-chat limit below.
+
+| Provider | Scope | Limit | Source (accessed 2026-10-09) |
+|---|---|---|---|
+| Bluesky PDS | account | 5,000 repo-write points per hour and 35,000 per day. CREATE costs 3, UPDATE 2, DELETE 1, so at most 1,666 creates per hour and 11,666 per day | [Rate Limits](https://bsky.network/docs/rate-limits) |
+| Bluesky PDS | account | `com.atproto.server.createSession`: 30 per 5 minutes and 300 per day | same |
+| Bluesky PDS | IP | all API requests: 3,000 per 5 minutes | same |
+| Telegram bot | single chat | avoid more than 1 message per second; short bursts may pass, then 429 errors | [Bots FAQ](https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this) |
+| Telegram bot | group | at most 20 messages per minute | same |
+| Telegram bot | bulk notifications | about 30 messages per second; paid broadcasts allow up to 1,000 per second at 0.1 Stars per message above 30 (needs 100,000 Stars and 100,000 monthly active users) | same |
+| Mastodon | account | 300 calls per 5 minutes; `POST /api/v1/media` 30 per 30 minutes; status deletion or unreblog 30 per 30 minutes | [Rate limits](https://docs.joinmastodon.org/api/rate-limits/) |
+| Mastodon | IP | 300 calls per 5 minutes; `POST /api/v1/accounts` 5 per 30 minutes | same |
+| LinkedIn | member / application | Share on LinkedIn: 150 and 100,000 requests per UTC day | [Share on LinkedIn](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/share-on-linkedin) |
+
+**Not published (recorded as gaps):**
+
+- **Telegram channels.** The FAQ covers single chats, groups and bulk notifications. It states no channel-specific limit and no hourly or daily cap per bot. ReachWeaver posts only to channels.
+- **Bluesky PDS hosts not run by Bluesky.** The page covers Bluesky-operated hosts (default `bsky.social`) and says other providers are likely to differ and that limits are likely to evolve. An owner-configured `service` has unknown limits.
+- **Mastodon status creation.** The rate-limits page (last updated 2022-11-20) lists no limit for `POST /api/v1/statuses`, and it describes the numbers as hardcoded defaults, so an instance can differ.
+- **LinkedIn Posts API.** The Posts API page documents only the `429 TOO_MANY_REQUESTS` error. The daily numbers above come from the Share on LinkedIn page (last updated 2025-02-05).
+
+`docs.bsky.app/docs/advanced-guides/rate-limits` now 308-redirects to `bsky.network/docs/advanced-guides/rate-limits`, which redirects to `bsky.network/docs/rate-limits`; the final page is the recorded source.
+
+## Bluesky and Mastodon adapter details (issues #12, #13)
+
+Read on 2026-10-08. `docs.bsky.app` now redirects (HTTP 308) to `bsky.network`, which renders its pages in the browser. The Bluesky tutorial and rich-text guide were therefore read from the official `bluesky-social/bsky-docs` source, and the schemas from the lexicon JSON in `bluesky-social/atproto`. Every adapter call below is tested with mocks only. No owner account has been connected.
+
+**Bluesky account fields:** `handle` (required) and `service` (optional, default `https://bsky.social`). `service` must be an HTTPS origin with no path, credentials, IP address, localhost/`.local` host or non-443 port (`policy.require_https_public_server`). It is checked when the config loads and again before every request. ReachWeaver sends both `createSession` and `createRecord` to that origin. It never follows endpoints from the session's `didDoc`.
+
+| Rule | Source | ReachWeaver behaviour |
+|---|---|---|
+| Text `maxGraphemes` 300, `maxLength` 3000 (UTF-8 bytes) | post lexicon, Lexicon spec | `validate_post` blocks posts over 300 grapheme clusters or 3000 UTF-8 bytes. The old 280 code-point cap is gone |
+| Grapheme clusters | Lexicon spec (no Unicode version named) | `richtext.graphemes` approximates UAX #29 with stdlib `unicodedata`: CR LF, controls, Hangul, combining marks, ZWJ emoji sequences, variation selectors, emoji modifiers, tag flags, regional-indicator pairs. Prepend characters and Indic conjuncts are not joined, so the count can only come out **higher** than Bluesky's |
+| Facets use UTF-8 byte offsets, start inclusive, end exclusive; no overlaps | rich-text guide, facet lexicon | Link facets (trailing punctuation, including CJK, and unbalanced `)` trimmed) and `#tag` facets (not starting with a digit; at most 64 graphemes and 640 bytes; trailing punctuation stripped). Sorted and non-overlapping |
+| Mention facets need the mentioned account's DID | facet lexicon | **Not created.** ReachWeaver resolves no handles, so `@handle` text stays plain. `show` lists such mentions under `mentions_as_plain_text` |
+| `createRecord` accepts an optional `rkey`; posts use key type `tid` | createRecord and post lexicons, TID spec | A deterministic TID-syntax `rkey` is derived from the local post id and draft `created_at`. A re-send of the same post targets the same key, so the PDS should refuse it rather than create a duplicate. This refusal is expected from AT Protocol repo semantics but has **not** been observed on a live PDS. It surfaces as an error and `needs_review` |
+| `createRecord` returns `uri` and `cid` | createRecord lexicon, tutorial | The receipt must be `at://{session did}/app.bsky.feed.post/{requested rkey}` with a CID-shaped `cid`. Any mismatch raises a `*_uncertain` error, which moves the post to `needs_review`. The `cid` is kept in the `published` audit event |
+
+**Mastodon account fields:** `server` and `handle`, plus these optional fields:
+
+- `visibility`: `public` (default), `unlisted` or `private`. `direct` is a DM and is rejected.
+- `max_characters`: an integer from 1 to 100000. The effective limit is `min(450, max_characters)`, so this field can only lower the cap.
+- `language`: a lowercase two-letter ISO 639-1 code. Only the shape is checked.
+- `spoiler_text`: 1 to 200 printable characters.
+
+The status body sends only `status`, `visibility` and whichever of `language`/`spoiler_text` is configured. Length counts code points, and each URL counts as at least 23 characters (Mastodon's `characters_reserved_per_url`), so the count is never lower than Mastodon's. The `Idempotency-Key` is the local post id. Mastodon stores keys "for up to 1 hour", so duplicate protection after that rests on ReachWeaver's never-retry/`needs_review` rule. A receipt needs an `id` and an HTTPS `url` or `uri`. If the response includes `account.username` or `visibility`, both must match what was configured or sent.
+
+**Server capability probe:** `connect-check --account ID --online` on a Mastodon account first verifies identity, then makes an unauthenticated `GET {server}/api/v2/instance` call (public, Mastodon 4.0+). It reports `configuration.statuses` (`max_characters`, `max_media_attachments`, `characters_reserved_per_url`) and the `media_attachments` size/matrix/description limits, along with the configured and effective text limits. It exits 2 when the effective limit would exceed the instance's `max_characters`. Pin a lower `max_characters` by hand; nothing is written automatically. `show POST_ID` prints a `platform_preview` offline: grapheme count, facets, record key and service for Bluesky; server, handle, visibility, language, spoiler, counted length and limit for Mastodon.
+
+**Image attachments (issue #13, owner-approved 2026-10-09; disabled until a live receipt; live sending refused by the capability registry).** Read on 2026-10-09: [media methods](https://docs.joinmastodon.org/methods/media/), [MediaAttachment](https://docs.joinmastodon.org/entities/MediaAttachment/), [Instance](https://docs.joinmastodon.org/entities/Instance/), [posting](https://docs.joinmastodon.org/user/posting/), [statuses](https://docs.joinmastodon.org/methods/statuses/), [focal points](https://docs.joinmastodon.org/api/guidelines/#focal-points) and the server's [`media_attachment.rb`](https://github.com/mastodon/mastodon/blob/main/app/models/media_attachment.rb).
+
+| Rule | Source | ReachWeaver behaviour |
+|---|---|---|
+| "Up to 4 images can be attached, per post"; `configuration.statuses.max_media_attachments` (example 4) | posting, Instance | At most 4 (`max_media_attachments` may pin fewer) |
+| Images "up to 16MB"; `image_size_limit` example 16777216 | posting, Instance | At most 16,000,000 bytes (`image_size_limit` may pin fewer) |
+| `description_limit` example 1500 (added 4.4.0); server model constant 10,000 on main | Instance, `media_attachment.rb` | Alt text required, at most 1500 code points (`media_description_limit` may pin fewer); placeholders, control and bidi/invisible characters refused |
+| `IMAGE_MIME_TYPES` jpeg, png, gif, webp; animated GIFs become soundless video (gifv) | `media_attachment.rb`, posting | PNG, JPEG, WebP only, detected from the file header, dimensions must parse. GIF and video are not supported |
+| `focus`: "Two floating points (x,y), comma-delimited, ranging from -1.0 to 1.0" | media methods, focal points | Optional `--focus x,y`, canonicalized, at most 6 decimals |
+| `POST /api/v2/media` (multipart `file`, `description`, `focus`; scope `write:media`): 200 processed, 202 still processing with `url` null | media methods | One upload per image, stdlib multipart; the file part is named `attachment-N.ext`, never the local path; no `Idempotency-Key` (documented for statuses only) |
+| `GET /api/v1/media/:id`: 206 still processing, 200 once a `url` exists | media methods | At most 8 polls with 1, 2, 4, 8, 8, 8, 8, 8 s waits (47 s); the emergency pause is checked before each wait |
+| `POST /api/v1/statuses` with `media_ids[]` | statuses | Sent after every image has a `url`, with the same `Idempotency-Key`; the receipt's `media_attachments` ids must equal the uploaded ids in order |
+
+The write marker is set **before the first upload**, so any failure after it (upload, poll, pause, status or receipt) moves the post to `needs_review` as `ambiguous` and nothing is resent. Upload and poll error codes are prefixed `mastodon_media_upload_` / `mastodon_media_poll_`, which tells the reviewer no status was created by that request (orphan media may exist; ReachWeaver never deletes it). The approval hash covers each attachment's SHA-256, MIME type, alt text and focus in order; the sender re-reads each file once, refuses it unless its bytes still hash to the approved value, and uploads exactly those bytes. Account fields `max_media_attachments`, `image_size_limit` and `media_description_limit` can only lower the defaults. Commands: `media-attach`, `media-detach`, `show` (lists attachments and whether each file still matches). Tests: `tests/test_mastodon_media.py`. Owner decisions: SECURITY-REVIEW-PROPOSAL-13-mastodon-media.md.
+
+**Mastodon media provider fixtures** (`tests/fixtures/providers/mastodon/`, synthetic, not recordings): a `202` unprocessed upload, a `206` still-processing poll, a `200` ready poll, and `429` rate-limit responses with and without `Retry-After`. They are replayed by `tests/test_mastodon_media.py` and show only that those shapes are handled (poll bounded, 429 cooldown recorded, nothing resent). `media-attach` prints a warning, and still attaches, when an image carries EXIF GPS data; the bytes are never stripped or rewritten.
+
+**Local testing:** `python3 -m unittest tests.test_bluesky_mastodon -v`. All HTTP is mocked. Bluesky error handling is also replayed from synthetic (not recorded) fixtures in `tests/fixtures/providers/bluesky/`: a 401 (`ExpiredToken`, `InvalidToken`) is a sanitized `http_401` (certain-not-sent on createSession, ambiguous on createRecord), a 429 carries a delay only from `Retry-After` (the unverified `ratelimit-reset` is ignored), a session for another handle is refused before any write, a deactivated account fails `connect-check`, and Bluesky image and video publishing stay refused by the capability registry (no `embed` is ever sent; `media-attach` refuses Bluesky drafts). A live pilot still needs the opt-in steps in [FIRST-LIVE-PILOT.md](FIRST-LIVE-PILOT.md).
+
+## Go/no-go: X, Reddit and Pinterest (issue #24)
+
+**Default stance for all three: NO-GO for adapters, manual export only, until the owner verifies their own account and accepts the conditions below in writing.** Nothing here authorizes a send. Passing feasibility only allows a separate, bounded implementation issue to be opened.
+
+| | X | Reddit | Pinterest |
+|---|---|---|---|
+| Decision (2026-10-08) | **No-go / manual** until the owner sets a cost ceiling | **No-go / manual, human-only** | **No-go / manual** until business-account and app-access eligibility are confirmed |
+| API path | `POST /2/tweets`, OAuth 2.0 `tweet.write` | OAuth Data API; new tokens need approval under the Responsible Builder Policy | `POST /v5/pins`; scopes `boards:read/write`, `pins:read/write` |
+| Cost | Pay-per-use credits: $0.015 per post, $0.200 per post with a URL; per-cycle spend cap available; prices can change | Data API Terms (revised 2026-07-20) reserve the right to charge fees; commercial use needs a separate agreement | No API fee documented |
+| Limits | 100 posts per 15 min per user; 10,000 per 24 h per app | `unknown` (wiki unreachable; secondary sources cite 100 QPM) | `org_write`: Trial 300 per day per app; Standard 100 per min per user per app |
+| Approval / eligibility | Developer Console account and credits | Reviewed request; Reddit may require App Review at any time | App approval in roughly 1–3 business days; Trial → Standard; apps registered on or after 2026-09-14 get `403 PINNER_DATA_ACCESS_DENIED` for non-business users |
+| Human-approval model | Same per-item approval, dry run and pause as today, plus a ReachWeaver-side check that blocks a send once the owner's spend is reached | **Human-authored and human-posted only.** Native scheduling is moderator-only. ReachWeaver never posts, comments, votes or messages | Per-item approval, and each Pin must carry its rights-checked image or video |
+
+### X — cost ceiling requirement
+
+An X adapter cannot be proposed until the owner records a **cost ceiling** in USD per billing cycle (owner-defined; ReachWeaver supplies no default). The ceiling must also be set as X's own max-spend limit in the Developer Console. URL posts cost about 13× plain posts, so the ceiling must assume the URL price. Prices on the [official pricing page](https://docs.x.com/x-api/getting-started/pricing) change without notice: re-verify them on the day of any pilot.
+
+**Minimal work package if go:** (1) a `publish_x` text adapter for `POST /2/tweets` behind the existing gates; (2) a local ledger that counts spend per cycle and refuses to claim a send that would exceed the ceiling; (3) an identity preflight that looks up the authenticated user (verify the exact endpoint when implementing); (4) mock tests only, never live CI. Media, replies and reads are out of scope.
+
+### Reddit — prohibitions preserved
+
+The repository's existing rule stands: **Reddit is human-only, and native scheduled posts are moderator-only** (see `reachweaver/distribution_registry.json` and `docs/DISTRIBUTION-GOVERNANCE.md`). The [Reddit Rules](https://redditinc.com/policies/reddit-rules) require authentic participation and ban spam and content manipulation (Rule 2), as well as anything that breaks the site (Rule 8). The [Data API Terms](https://redditinc.com/policies/data-api-terms) ban using the API to "spam, incentivize, or harass users". ReachWeaver will **never** send unsolicited DMs or automated outreach, scrape Reddit or use data beyond an approved case, manipulate votes or content, or evade bans and subreddit rules. **Minimal work package if go:** none planned. The only change would be an export checklist that adds the target subreddit's rules for the human poster. An API adapter would need the owner to pass Responsible Builder review, plus a separate security review.
+
+### Pinterest — eligibility
+
+Before any work starts, confirm the owner has a **Pinterest business account**, an approved app with Standard access, and whether the app was registered before or after 2026-09-14. Pins need image or video media, so text-only Pins are `unavailable`; the optional `link` field sets the destination URL. Carousel support is `unknown`. **Minimal work package if go:** an image Pin adapter for one owned board, built on a separate rights-checked media pipeline (an issue that does not exist yet); `org_write` budget enforcement; mock tests only.
+
+**Also preserved:** Hacker News stays human-written, manual and unscheduled ([distribution registry](../reachweaver/distribution_registry.json)). No API capability ever overrides a community's human-only rules.
+
+## Periodic update process
+
+1. **Cadence:** re-verify every entry at least every 120 days, and immediately before building an adapter or running a pilot. `reachweaver capabilities` warns when an entry's `verified_date` is older than `--max-age-days` (default 120).
+2. **Sources:** use official provider pages only (developer docs, terms, pricing, help centre). Third-party blogs may suggest what to check, but a registry value never rests on them. If a fact cannot be confirmed, set it to `unknown`, which fails closed.
+3. **Edit:** update `reachweaver/platform_registry.json`, including `verified_date`, `verification_basis` and `sources`. A stated rate limit needs an HTTPS `source`; exact numbers go in `rate_limits.facts` with an `accessed` date, and anything the official page does not state goes in `rate_limits.not_published`. Then mirror the table and notes here.
+4. **Gate:** run `python scripts/sync_skill.py` and then `python -m unittest discover -s tests -v`. CI re-validates the registry, checks the bundle is byte-identical and fails on any missing platform, field, enum, date or HTTPS source.
+5. **Changing an adapter** (`live_text`/`live_media`) also requires changing `policy.SUPPORTED_LIVE`, and a video switch requires `policy.SUPPORTED_LIVE_VIDEO`, plus a security review (see CLAUDE.md). The tests reject any mismatch. `live_media_formats` and `reachweaver_reply_adapter` need no code change for Mastodon and Bluesky, so treat them as security-reviewed changes too.

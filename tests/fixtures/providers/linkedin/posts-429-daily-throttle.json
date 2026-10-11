@@ -1,0 +1,7 @@
+{
+  "_fixture": {"provider": "linkedin", "recorded": false, "source": "hand-written; LinkedIn documents daily application and member throttles that reset at midnight UTC and sends no Retry-After for them", "written": "2026-10-10", "scrubbed": "yes (synthetic only)"},
+  "endpoint": "POST /rest/posts",
+  "status": 429,
+  "headers": {"Content-Type": "application/json"},
+  "body": {"status": 429, "code": "THROTTLED", "message": "Resource level throttle APPLICATION DAY limit for calls to this resource is reached."}
+}

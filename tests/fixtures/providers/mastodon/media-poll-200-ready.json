@@ -1,0 +1,7 @@
+{
+  "_fixture": {"provider": "mastodon", "recorded": false, "source": "hand-written from https://docs.joinmastodon.org/methods/media/#get (200 OK: processing finished, url is set); synthetic ids", "written": "2026-10-10", "scrubbed": "yes (synthetic ids only)"},
+  "endpoint": "GET /api/v1/media/:id",
+  "status": 200,
+  "headers": {"Content-Type": "application/json; charset=utf-8"},
+  "body": {"id": "109000000000000001", "type": "image", "url": "https://files.example.invalid/media_attachments/files/109/000/000/001/original/aaaa.png", "preview_url": "https://files.example.invalid/media_attachments/files/109/000/000/001/small/aaaa.png", "remote_url": null, "meta": {"original": {"width": 4, "height": 3}}, "description": "Fixture alt text", "blurhash": "LEHV6nWB2yk8pyo0adR*.7kCMdnj"}
+}

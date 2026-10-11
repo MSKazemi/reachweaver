@@ -1,0 +1,20 @@
+{
+  "schema_version": "reachweaver.docs-map.v1",
+  "source": "Synthetic owner templates for tests; an owner writes and checks their own wording.",
+  "topics": [
+    {
+      "topic": "Engagement triage",
+      "keywords": ["docs map", "docs-map", "engagement", "نقشه مستندات"],
+      "url": "https://github.com/MSKazemi/reachweaver/blob/main/docs/ENGAGEMENT.md"
+    }
+  ],
+  "templates": {
+    "de": {
+      "technical_question": "Gute Frage! Das steht in der Dokumentation: {docs}",
+      "praise": "Vielen Dank, das freut uns sehr!"
+    },
+    "fa": {
+      "technical_question": "سؤال خوبی است. توضیحش در مستندات آمده: {docs}"
+    }
+  }
+}

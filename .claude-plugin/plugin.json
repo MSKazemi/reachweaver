@@ -1,0 +1,10 @@
+{
+  "name": "reachweaver",
+  "version": "0.2.0",
+  "description": "Approval-first social publishing and evidence-driven audience growth for Claude Code",
+  "author": { "name": "Mohsen Seyedkazemi Ardebili" },
+  "homepage": "https://github.com/MSKazemi/reachweaver",
+  "repository": "https://github.com/MSKazemi/reachweaver",
+  "keywords": ["social-media", "content-marketing", "claude-code"],
+  "skills": "./.claude/skills"
+}

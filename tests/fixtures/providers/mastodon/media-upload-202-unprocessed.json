@@ -1,0 +1,7 @@
+{
+  "_fixture": {"provider": "mastodon", "recorded": false, "source": "hand-written from https://docs.joinmastodon.org/methods/media/#v2 (202 Accepted: the attachment is still being processed, url is null); synthetic ids", "written": "2026-10-10", "scrubbed": "yes (synthetic ids only)"},
+  "endpoint": "POST /api/v2/media",
+  "status": 202,
+  "headers": {"Content-Type": "application/json; charset=utf-8"},
+  "body": {"id": "109000000000000001", "type": "image", "url": null, "preview_url": "https://files.example.invalid/cache/media_attachments/files/109/000/000/001/small/aaaa.png", "remote_url": null, "meta": {}, "description": "Fixture alt text", "blurhash": null}
+}

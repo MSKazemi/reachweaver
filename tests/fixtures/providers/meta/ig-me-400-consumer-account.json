@@ -1,0 +1,19 @@
+{
+  "_fixture": {
+    "recorded": false,
+    "provider": "instagram",
+    "endpoint": "GET /me",
+    "scrubbed": "n/a (hand-written)",
+    "note": "synthetic Graph-shaped response; not evidence of any live behaviour"
+  },
+  "status": 400,
+  "headers": {},
+  "body": {
+    "error": {
+      "message": "REMOTE-TEXT-MUST-NOT-LEAK Unsupported request for a personal consumer account",
+      "type": "OAuthException",
+      "code": 100,
+      "fbtrace_id": "FIXTUREFBTRACE0000"
+    }
+  }
+}

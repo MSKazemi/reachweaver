@@ -1,0 +1,5 @@
+[
+  {"name": "v1.2.0", "commit": {"sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},
+  {"name": "v1.0.0-beta.2", "commit": {"sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}},
+  {"name": "v0.9.0", "commit": {"sha": "cccccccccccccccccccccccccccccccccccccccc"}}
+]

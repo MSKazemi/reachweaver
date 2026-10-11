@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Example project news</title>
+  <id>urn:uuid:00000000-0000-0000-0000-000000000000</id>
+  <updated>2026-10-04T10:00:00Z</updated>
+  <entry>
+    <title>Community call recap: autoscaling roadmap</title>
+    <link rel="alternate" href="https://news.example.org/2026/community-call"/>
+    <id>urn:uuid:00000000-0000-0000-0000-000000000001</id>
+    <published>2026-10-04T10:00:00Z</published>
+    <summary type="html">Notes on the Kubernetes autoscaling roadmap.</summary>
+  </entry>
+  <entry>
+    <title>Undated note</title>
+    <link href="https://news.example.org/2026/undated"/>
+    <id>urn:uuid:00000000-0000-0000-0000-000000000002</id>
+    <summary>No published or updated element.</summary>
+  </entry>
+</feed>

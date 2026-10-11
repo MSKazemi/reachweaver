@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "campaign_id": "reachweaver-channel-previews",
+  "brand_id": "reachweaver",
+  "audience": "Developers and open-source maintainers who want responsible social publishing",
+  "objective": "qualified_visits",
+  "cta_url": "https://github.com/MSKazemi/reachweaver",
+  "evidence": [
+    {
+      "id": "source-repo",
+      "url": "https://github.com/MSKazemi/reachweaver",
+      "kind": "repository",
+      "claim": "ReachWeaver contains a Claude Code skill and a local-first publishing CLI; live integrations are limited.",
+      "verification": "primary_source_checked",
+      "checked_at": "2026-10-08T15:00:00+02:00"
+    },
+    {
+      "id": "capability-registry",
+      "url": "https://github.com/MSKazemi/reachweaver/blob/main/reachweaver/platform_registry.json",
+      "kind": "documentation",
+      "claim": "The offline capability registry records API and approval status for 14 platforms: bluesky, mastodon, telegram, linkedin, x, threads, instagram, facebook, youtube, tiktok, reddit, pinterest, devto and hashnode.",
+      "verification": "primary_source_checked",
+      "checked_at": "2026-10-08T15:00:00+02:00"
+    }
+  ],
+  "variants": [
+    {
+      "id": "preview-linkedin",
+      "account_id": "my-linkedin",
+      "platform": "linkedin",
+      "format": "text",
+      "angle": "Why a capability registry beats guessing what an API allows",
+      "evidence_ids": ["capability-registry", "source-repo"],
+      "text": "Before a tool posts for you, it should know what each network actually allows.\n\nReachWeaver keeps an offline registry of API and approval status for 14 platforms. Anything unknown, gated or manual-only is refused instead of guessed.\n\nWhich platform rule has surprised you most?\n\nhttps://github.com/MSKazemi/reachweaver #opensource #devtools",
+      "cta": "Invite maintainers to share a platform rule that surprised them",
+      "rationale": "Registry count is quoted from the registry file; the question invites discussion, not clicks."
+    },
+    {
+      "id": "preview-bluesky",
+      "account_id": "my-bluesky",
+      "platform": "bluesky",
+      "format": "text",
+      "angle": "Fail closed on unknown platform capabilities",
+      "evidence_ids": ["capability-registry"],
+      "text": "ReachWeaver refuses to publish where its registry marks a format as unknown, gated or manual-only. 14 platforms tracked, none assumed. https://github.com/MSKazemi/reachweaver #opensource",
+      "cta": "Invite review of the fail-closed design"
+    },
+    {
+      "id": "preview-mastodon",
+      "account_id": "my-mastodon",
+      "platform": "mastodon",
+      "format": "text",
+      "angle": "Local-first drafting with human approval",
+      "evidence_ids": ["source-repo"],
+      "text": "Drafts, approvals and the send log live in a local SQLite file, not a vendor dashboard.\n\nReachWeaver is a Claude Code skill plus a local-first CLI, and it is plain about which integrations are still limited.\n\nhttps://github.com/MSKazemi/reachweaver #FOSS",
+      "cta": "Ask self-hosters what they would audit first"
+    },
+    {
+      "id": "preview-bluesky-thread",
+      "account_id": "my-bluesky",
+      "platform": "bluesky",
+      "format": "thread",
+      "angle": "Three guardrails between a draft and a post",
+      "evidence_ids": ["source-repo", "capability-registry"],
+      "parts": [
+        "Three guardrails sit between a ReachWeaver draft and a real post: https://github.com/MSKazemi/reachweaver",
+        "First, a human approves the exact text and account. Nothing is approved because a file validates.",
+        "Second, the capability registry fails closed: unknown, gated or manual-only formats are refused.",
+        "Third, an interrupted send is never retried blindly. A person reconciles what actually happened."
+      ],
+      "cta": "Invite maintainers to review the guardrails"
+    },
+    {
+      "id": "preview-linkedin-carousel",
+      "account_id": "my-linkedin",
+      "platform": "linkedin",
+      "format": "carousel_outline",
+      "angle": "From draft to receipt, one slide per gate",
+      "evidence_ids": ["source-repo"],
+      "text": "How a draft becomes a post in ReachWeaver, one gate at a time. https://github.com/MSKazemi/reachweaver",
+      "slides": [
+        "Draft: exact text, one account, cited evidence.",
+        "Approve: a human confirms the account and payload.",
+        "Send: only with an explicit live flag and opt-in.",
+        "Receipt: the platform's own post ID, or human reconciliation."
+      ],
+      "cta": "Ask which gate readers would add"
+    }
+  ]
+}

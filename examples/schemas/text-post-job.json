@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "type": "PublishJob",
+  "id": "job-bluesky-intro-1",
+  "variant_id": "var-bluesky-intro-1",
+  "approval_id": "appr-bluesky-intro-1",
+  "brand_id": "reachweaver",
+  "campaign_id": "reachweaver-skill-intro",
+  "account_id": "my-bluesky",
+  "platform": "bluesky",
+  "state": "approved",
+  "idempotency_key": "reachweaver:job-bluesky-intro-1:v1",
+  "payload": {
+    "schema_version": "1.0",
+    "type": "PlatformVariant",
+    "id": "var-bluesky-intro-1",
+    "draft_id": "draft-intro-1",
+    "brand_id": "reachweaver",
+    "campaign_id": "reachweaver-skill-intro",
+    "platform": "bluesky",
+    "account_id": "my-bluesky",
+    "locale": "en-US",
+    "format": "link",
+    "text": "Writing a post is easy. Proving it was approved, sent once and measured correctly is harder. ReachWeaver explores that with a Claude Code skill and a local-first CLI.",
+    "link_url": "https://github.com/MSKazemi/reachweaver",
+    "utm": {
+      "source": "bluesky",
+      "medium": "social",
+      "campaign": "reachweaver-skill-intro",
+      "content": "var-bluesky-intro-1"
+    },
+    "platform_options": {
+      "langs": [
+        "en"
+      ]
+    },
+    "created_at": "2026-10-08T13:00:00Z"
+  },
+  "payload_sha256": "f26080ddbf6a37b4053a6dc664f7d074f90f6bed88d1824be613dda348379d4f",
+  "scheduled_at": "2026-10-15T07:00:00Z",
+  "attempts": 0,
+  "cost": [
+    {
+      "amount": 0,
+      "currency": "EUR",
+      "kind": "api"
+    }
+  ],
+  "created_at": "2026-10-08T14:00:00Z",
+  "updated_at": "2026-10-08T14:00:00Z"
+}

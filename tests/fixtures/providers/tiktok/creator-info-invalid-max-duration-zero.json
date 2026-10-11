@@ -1,0 +1,30 @@
+{
+  "_fixture": {
+    "provider": "tiktok",
+    "recorded": false,
+    "source": "hand-written from the documented media transfer guide and creator_info response (https://developers.tiktok.com/doc/content-posting-api-media-transfer-guide); synthetic, not a recorded capture",
+    "written": "2026-10-10",
+    "scrubbed": "yes (synthetic ids only)"
+  },
+  "endpoint": "POST /v2/post/publish/creator_info/query/",
+  "status": 200,
+  "headers": {},
+  "body": {
+    "data": {
+      "creator_username": "testcreator",
+      "creator_nickname": "Test Creator",
+      "privacy_level_options": [
+        "SELF_ONLY"
+      ],
+      "comment_disabled": false,
+      "duet_disabled": false,
+      "stitch_disabled": false,
+      "max_video_post_duration_sec": 0
+    },
+    "error": {
+      "code": "ok",
+      "message": "",
+      "log_id": "202610100000"
+    }
+  }
+}

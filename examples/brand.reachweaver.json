@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "brand_id": "reachweaver",
+  "display_name": "ReachWeaver",
+  "voice": "Precise, technical, credible, useful, without hype or manufactured urgency.",
+  "approved_accounts": ["my-linkedin", "my-bluesky"],
+  "prohibited_claims": ["Guaranteed virality", "Fully automated publishing on every social network"]
+}

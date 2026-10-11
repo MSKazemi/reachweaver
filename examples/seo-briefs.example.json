@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "https://github.com/MSKazemi/seo",
+    "exported_at": "2026-10-08T15:00:00+02:00",
+    "note": "Illustrative fixture. Replace with an export from your own SEO checkout. URLs are not checked for liveness; example.org entries are placeholders."
+  },
+  "briefs": [
+    {
+      "page_id": "reachweaver-docs-calendar",
+      "canonical_url": "https://github.com/MSKazemi/reachweaver/blob/main/docs/CALENDAR-PLANNER.md",
+      "title": "ReachWeaver calendar planner quickstart",
+      "primary_keyword": "approval-first social scheduling",
+      "audience": "Developers evaluating ReachWeaver releases",
+      "campaign_type": "release",
+      "priority": 1,
+      "project": "reachweaver"
+    },
+    {
+      "page_id": "reachweaver-readme",
+      "canonical_url": "https://github.com/MSKazemi/reachweaver",
+      "title": "ReachWeaver: evidence-driven social publishing for Claude Code",
+      "primary_keyword": "claude code social media skill",
+      "audience": "Open-source maintainers",
+      "campaign_type": "product",
+      "priority": 1,
+      "project": "reachweaver"
+    },
+    {
+      "page_id": "reachweaver-architecture",
+      "canonical_url": "https://github.com/MSKazemi/reachweaver/blob/main/docs/ARCHITECTURE.md",
+      "title": "ReachWeaver architecture and state protocol",
+      "primary_keyword": "durable social publishing outbox",
+      "audience": "Contributors and reviewers",
+      "campaign_type": "docs",
+      "priority": 2,
+      "project": "reachweaver"
+    },
+    {
+      "page_id": "example-paper-page",
+      "canonical_url": "https://example.org/publications/example-paper",
+      "title": "Placeholder peer-reviewed paper landing page",
+      "primary_keyword": "placeholder paper keyword",
+      "audience": "Researchers in the paper's field",
+      "campaign_type": "paper",
+      "priority": 1,
+      "project": "example-research"
+    }
+  ],
+  "campaigns": [
+    {
+      "campaign_id": "reachweaver-v0-3-release",
+      "page_id": "reachweaver-docs-calendar",
+      "start": "2026-10-15",
+      "end": "2026-10-29",
+      "status": "planned"
+    },
+    {
+      "campaign_id": "example-paper-launch",
+      "page_id": "example-paper-page",
+      "start": "2026-11-02",
+      "end": "2026-11-16",
+      "status": "planned"
+    }
+  ]
+}

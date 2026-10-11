@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "defaults": {"max_per_24h": 2, "min_gap_minutes": 60},
+  "providers": {
+    "linkedin": {"max_per_24h": 1, "cooldown_floor_seconds": 3600},
+    "telegram": {"preflight_max_retries": 0}
+  },
+  "accounts": {
+    "my-linkedin": {"max_per_24h": 1, "min_gap_minutes": 240},
+    "my-mastodon": {"min_gap_minutes": 120}
+  }
+}

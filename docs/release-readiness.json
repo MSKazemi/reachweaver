@@ -1,0 +1,481 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-10-09",
+  "issue": 27,
+  "note": "Release-readiness scorecard, validated by scripts/release_gate.py --scorecard and by the release gate's readiness check. Statuses are derived from the code, the capability and distribution registries and the offline tests. No owner account has been connected and no live send has been run, so no area claims live_receipt_verified. A status here is not permission, consent or proof of delivery.",
+  "status_meaning": {
+    "not_started": "No code path exists in this repository.",
+    "offline_mock_tested": "Implemented and covered by offline tests with mocked HTTP or local fixtures; never run against a real account.",
+    "manual_export_only": "No live adapter. ReachWeaver writes an export or draft package that the owner posts by hand in the native app.",
+    "live_receipt_verified": "A first-party receipt file from a supervised live run on an owner account is checked in and named in the receipt field.",
+    "blocked": "ReachWeaver does not and will not act here until the recorded blocker is lifted (policy or owner decision)."
+  },
+  "areas": [
+    {
+      "id": "bluesky",
+      "label": "Bluesky",
+      "kind": "platform",
+      "capability_id": "bluesky",
+      "status": "offline_mock_tested",
+      "issue": 12,
+      "evidence": [
+        "reachweaver/publishers.py",
+        "reachweaver/richtext.py",
+        "reachweaver/platform_registry.json",
+        "tests/test_bluesky_mastodon.py::BlueskyAdapterTests",
+        "tests/test_bluesky_mastodon.py::GraphemeTests",
+        "tests/test_connections.py::OnlineCheckTests",
+        "docs/PLATFORMS.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "Owner creates an App Password and connects an account; none is connected."},
+        {"kind": "live", "detail": "No supervised live send has produced a verified uri/cid receipt."}
+      ]
+    },
+    {
+      "id": "mastodon",
+      "label": "Mastodon",
+      "kind": "platform",
+      "capability_id": "mastodon",
+      "status": "offline_mock_tested",
+      "issue": 13,
+      "evidence": [
+        "reachweaver/publishers.py",
+        "reachweaver/platform_registry.json",
+        "tests/test_bluesky_mastodon.py::MastodonAdapterTests",
+        "tests/test_connections.py::OnlineCheckTests",
+        "docs/PLATFORMS.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "Owner registers an app on their instance and supplies a token; none is connected."},
+        {"kind": "live", "detail": "No supervised live send has produced a verified status receipt."}
+      ]
+    },
+    {
+      "id": "telegram",
+      "label": "Telegram channels",
+      "kind": "platform",
+      "capability_id": "telegram",
+      "status": "offline_mock_tested",
+      "issue": null,
+      "evidence": [
+        "reachweaver/publishers.py",
+        "reachweaver/platform_registry.json",
+        "tests/test_reachweaver.py::PublisherTests",
+        "tests/test_connections.py::OnlineCheckTests",
+        "tests/test_rate_limits.py::RetryAfterParsingTests",
+        "docs/PLATFORMS.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "Owner adds a bot as channel admin with posting rights; none is connected."},
+        {"kind": "live", "detail": "No supervised live send has produced a verified message receipt."}
+      ]
+    },
+    {
+      "id": "linkedin",
+      "label": "LinkedIn (member text)",
+      "kind": "platform",
+      "capability_id": "linkedin",
+      "status": "offline_mock_tested",
+      "issue": 14,
+      "evidence": [
+        "reachweaver/linkedin.py",
+        "reachweaver/platform_registry.json",
+        "tests/test_linkedin.py::PublishAndIdentityTests",
+        "tests/test_linkedin.py::ReceiptTests",
+        "tests/test_linkedin.py::CliLiveTests",
+        "docs/LINKEDIN.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "Owner adds Share on LinkedIn and OpenID Connect products to their own developer app and consents; organization pages are not supported."},
+        {"kind": "live", "detail": "No supervised live send has produced a verified post URN receipt."}
+      ]
+    },
+    {
+      "id": "postiz",
+      "label": "Postiz backend",
+      "kind": "backend",
+      "status": "offline_mock_tested",
+      "issue": 30,
+      "evidence": [
+        "reachweaver/postiz.py",
+        "tests/test_postiz.py::PostizTests",
+        "tests/test_approval_binding.py::ApprovalBindingPostizTests",
+        "docs/POSTIZ.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "Owner runs a Postiz instance or Postiz Cloud and supplies the API key; none is connected."},
+        {"kind": "live", "detail": "A Postiz acceptance is never a platform receipt; no native post has been reconciled."}
+      ]
+    },
+    {
+      "id": "threads",
+      "label": "Threads",
+      "kind": "platform",
+      "capability_id": "threads",
+      "status": "manual_export_only",
+      "issue": 19,
+      "evidence": [
+        "reachweaver/manual_export.py",
+        "reachweaver/onboarding.py",
+        "tests/test_manual_export.py::PreflightRules",
+        "tests/test_manual_export.py::PackageContract",
+        "docs/MANUAL-EXPORT.md",
+        "reachweaver/threads.py",
+        "tests/test_threads.py::UnreachableTests",
+        "docs/THREADS.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "A mock-tested text adapter exists (issue #19, owner-approved 2026-10-09; disabled until a live receipt); the capability registry blocks it until Meta App Review, a supervised live receipt and a registry change."},
+        {"kind": "live", "detail": "No live receipt; the owner posts the package by hand."}
+      ]
+    },
+    {
+      "id": "instagram",
+      "label": "Instagram",
+      "kind": "platform",
+      "capability_id": "instagram",
+      "status": "manual_export_only",
+      "issue": 20,
+      "evidence": [
+        "reachweaver/manual_export.py",
+        "reachweaver/onboarding.py",
+        "tests/test_manual_export.py::PreflightRules",
+        "tests/test_manual_export.py::MediaIntegration",
+        "docs/MANUAL-EXPORT.md",
+        "reachweaver/instagram.py",
+        "reachweaver/remote_media.py",
+        "tests/test_instagram.py::UnreachableTests",
+        "docs/INSTAGRAM.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "A single-image adapter exists (issue #20, mock-tested, owner-approved 2026-10-09) but stays blocked by the capability registry until an eligible professional account, Meta App Review, a supervised live receipt and a registry change."},
+        {"kind": "live", "detail": "No live receipt; the owner posts the package by hand."}
+      ]
+    },
+    {
+      "id": "facebook",
+      "label": "Facebook Pages",
+      "kind": "platform",
+      "capability_id": "facebook",
+      "status": "manual_export_only",
+      "issue": 21,
+      "evidence": [
+        "reachweaver/manual_export.py",
+        "reachweaver/onboarding.py",
+        "tests/test_manual_export.py::PreflightRules",
+        "docs/MANUAL-EXPORT.md",
+        "docs/FACEBOOK.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "A mock-tested Page text/link adapter exists (issue #21, owner-approved 2026-10-09; disabled until a live receipt); the capability registry blocks it until Page tasks, Meta App Review, a supervised live receipt and a registry change."},
+        {"kind": "live", "detail": "No adapter and no live receipt; the owner posts the package by hand."}
+      ]
+    },
+    {
+      "id": "youtube",
+      "label": "YouTube",
+      "kind": "platform",
+      "capability_id": "youtube",
+      "status": "manual_export_only",
+      "issue": 22,
+      "evidence": [
+        "reachweaver/manual_export.py",
+        "reachweaver/onboarding.py",
+        "tests/test_manual_export.py::PackageContract",
+        "docs/MANUAL-EXPORT.md",
+        "reachweaver/youtube.py",
+        "tests/test_youtube.py::UnreachableTests",
+        "docs/YOUTUBE.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "An upload adapter exists (issue #22, mock-tested, owner-approved 2026-10-09) but stays blocked by the capability registry until a supervised live receipt, Google project verification/audit (uploads may be locked private) and a registry change."},
+        {"kind": "live", "detail": "No live receipt; the owner uploads in YouTube Studio."}
+      ]
+    },
+    {
+      "id": "tiktok",
+      "label": "TikTok",
+      "kind": "platform",
+      "capability_id": "tiktok",
+      "status": "manual_export_only",
+      "issue": 23,
+      "evidence": [
+        "reachweaver/manual_export.py",
+        "reachweaver/onboarding.py",
+        "tests/test_manual_export.py::PackageContract",
+        "docs/MANUAL-EXPORT.md",
+        "reachweaver/tiktok.py",
+        "tests/test_tiktok.py::UnreachableTests",
+        "docs/TIKTOK.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "A creator-inbox/Direct Post adapter exists (issue #23, mock-tested, owner-approved 2026-10-09) but stays blocked by both registry switches until Content Posting API approval (video.upload; video.publish plus an audit for public Direct Post), a supervised live receipt and a registry change."},
+        {"kind": "live", "detail": "No live receipt; the owner posts the package by hand."}
+      ]
+    },
+    {
+      "id": "x",
+      "label": "X",
+      "kind": "platform",
+      "capability_id": "x",
+      "status": "manual_export_only",
+      "issue": 24,
+      "evidence": [
+        "reachweaver/onboarding.py",
+        "reachweaver/campaigns.py",
+        "reachweaver/platform_registry.json",
+        "tests/test_onboarding.py::BlockedPlatformAlternatives",
+        "tests/test_capabilities.py::CapabilityRegistryTests",
+        "docs/PLATFORMS.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "No adapter until the owner records a pay-per-use spending ceiling (PLATFORMS.md go/no-go)."},
+        {"kind": "live", "detail": "No adapter and no live receipt; the owner posts exported drafts by hand."}
+      ]
+    },
+    {
+      "id": "reddit",
+      "label": "Reddit",
+      "kind": "platform",
+      "capability_id": "reddit",
+      "distribution_id": "reddit",
+      "status": "blocked",
+      "issue": 24,
+      "evidence": [
+        "reachweaver/onboarding.py",
+        "reachweaver/platform_registry.json",
+        "reachweaver/distribution_registry.json",
+        "tests/test_onboarding.py::BlockedPlatformAlternatives",
+        "docs/DISTRIBUTION-GOVERNANCE.md"
+      ],
+      "blockers": [
+        {"kind": "policy", "detail": "Human-authored and human-posted only; native scheduling is moderator-only. ReachWeaver writes no Reddit text."},
+        {"kind": "owner", "detail": "New Data API access needs a reviewed request under the Responsible Builder Policy."}
+      ]
+    },
+    {
+      "id": "hacker_news",
+      "label": "Hacker News",
+      "kind": "platform",
+      "distribution_id": "hacker_news",
+      "status": "blocked",
+      "issue": null,
+      "evidence": [
+        "reachweaver/onboarding.py",
+        "reachweaver/distribution_registry.json",
+        "tests/test_onboarding.py::BlockedPlatformAlternatives",
+        "tests/test_distribution.py::GlobalDistributionTests",
+        "docs/DISTRIBUTION-GOVERNANCE.md"
+      ],
+      "blockers": [
+        {"kind": "policy", "detail": "Human-written, human-edited and human-submitted only; ReachWeaver never writes, schedules or submits HN text."}
+      ]
+    },
+    {
+      "id": "pinterest",
+      "label": "Pinterest",
+      "kind": "platform",
+      "capability_id": "pinterest",
+      "status": "manual_export_only",
+      "issue": 24,
+      "evidence": [
+        "reachweaver/onboarding.py",
+        "reachweaver/campaigns.py",
+        "reachweaver/platform_registry.json",
+        "tests/test_onboarding.py::BlockedPlatformAlternatives",
+        "docs/PLATFORMS.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "Business account and app access unconfirmed; Pins need owner-supplied media."},
+        {"kind": "live", "detail": "No adapter and no live receipt; the owner posts exported drafts by hand."}
+      ]
+    },
+    {
+      "id": "devto",
+      "label": "DEV Community",
+      "kind": "platform",
+      "capability_id": "devto",
+      "status": "manual_export_only",
+      "issue": null,
+      "evidence": [
+        "reachweaver/onboarding.py",
+        "reachweaver/campaigns.py",
+        "tests/test_dev_guidance_contract.py::DEVGuidanceTests",
+        "tests/test_onboarding.py::BlockedPlatformAlternatives"
+      ],
+      "blockers": [
+        {"kind": "policy", "detail": "Human-authored articles only (DEV AI rules); the owner writes and schedules in DEV's editor."}
+      ]
+    },
+    {
+      "id": "hashnode",
+      "label": "Hashnode",
+      "kind": "platform",
+      "capability_id": "hashnode",
+      "status": "manual_export_only",
+      "issue": null,
+      "evidence": [
+        "reachweaver/onboarding.py",
+        "reachweaver/campaigns.py",
+        "tests/test_onboarding.py::BlockedPlatformAlternatives"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "No adapter; API and native scheduled publishing need a Hashnode Pro plan."}
+      ]
+    },
+    {
+      "id": "sources",
+      "label": "Sources and signals",
+      "kind": "area",
+      "status": "offline_mock_tested",
+      "issue": 9,
+      "evidence": [
+        "reachweaver/sources.py",
+        "reachweaver/briefs.py",
+        "tests/test_sources.py::SourceScanTests",
+        "tests/test_sources.py::OnlineMockTests",
+        "tests/test_briefs.py::BriefTests",
+        "docs/SOURCES.md"
+      ],
+      "blockers": [
+        {"kind": "live", "detail": "--online GET reads are mock-tested only; no scan of a real owner repository is recorded."}
+      ]
+    },
+    {
+      "id": "content",
+      "label": "Content and claims",
+      "kind": "area",
+      "status": "offline_mock_tested",
+      "issue": 10,
+      "evidence": [
+        "reachweaver/campaigns.py",
+        "reachweaver/claims.py",
+        "reachweaver/preview.py",
+        "tests/test_claims.py::ClaimGroundingTests",
+        "tests/test_campaign_experiments.py::CampaignTests",
+        "tests/test_preview.py::CliTests",
+        "docs/CLAIM-GROUNDING.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "Lexical grounding is not truth verification; every claim needs owner review."},
+        {"kind": "live", "detail": "No campaign has been published from this pipeline."}
+      ]
+    },
+    {
+      "id": "scheduler",
+      "label": "Scheduler and outbox",
+      "kind": "area",
+      "status": "offline_mock_tested",
+      "issue": 11,
+      "evidence": [
+        "reachweaver/calendar.py",
+        "reachweaver/storage.py",
+        "reachweaver/ratelimit.py",
+        "tests/test_calendar.py::CalendarTests",
+        "tests/test_queue_guards.py::GuardedOutbox",
+        "tests/test_rate_limits.py::PostClaimRateLimitTests",
+        "docs/WORKER-OPERATIONS.md"
+      ],
+      "blockers": [
+        {"kind": "live", "detail": "No real-account pilot; no provider 429 headers observed; no remote status polling."},
+        {"kind": "owner", "detail": "Worker uptime monitoring, alerts and spend ceilings are not decided."}
+      ]
+    },
+    {
+      "id": "analytics",
+      "label": "Metrics and attribution",
+      "kind": "area",
+      "status": "offline_mock_tested",
+      "issue": 15,
+      "evidence": [
+        "reachweaver/metrics_fetch.py",
+        "reachweaver/attribution.py",
+        "reachweaver/timing_analysis.py",
+        "reachweaver/baseline_eval.py",
+        "tests/test_metrics_fetch.py::MetricsFetchTests",
+        "tests/test_attribution.py::AttributionTests",
+        "tests/test_baseline_eval.py::BaselineComparisonTests",
+        "docs/ATTRIBUTION.md"
+      ],
+      "blockers": [
+        {"kind": "live", "detail": "No first-party metric snapshot from a real post exists; the weekly report example is synthetic."}
+      ]
+    },
+    {
+      "id": "engagement",
+      "label": "Engagement triage",
+      "kind": "area",
+      "status": "offline_mock_tested",
+      "issue": 17,
+      "evidence": [
+        "reachweaver/engagement.py",
+        "tests/test_engagement.py::EngagementTriageTests",
+        "tests/test_engagement_multilingual.py::InjectionAcrossLanguagesTests",
+        "tests/test_engagement_secrets.py::EngagementSecretRedactionTests",
+        "docs/ENGAGEMENT.md"
+      ],
+      "blockers": [
+        {"kind": "live", "detail": "Triage reads owner-exported JSON files; only test fixtures have been triaged, never a real export."}
+      ]
+    },
+    {
+      "id": "media",
+      "label": "Media and accessibility",
+      "kind": "area",
+      "status": "offline_mock_tested",
+      "issue": 18,
+      "evidence": [
+        "reachweaver/media.py",
+        "reachweaver/storyboard.py",
+        "tests/test_media.py::ManifestTests",
+        "tests/test_storyboard.py::StoryboardScaffoldTests",
+        "docs/MEDIA-ASSETS.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "TikTok, Instagram Reels and YouTube Shorts safe zones are unverified until the owner supplies sourced numbers."},
+        {"kind": "live", "detail": "Live adapters are text-only; no media post has been sent."}
+      ]
+    },
+    {
+      "id": "security",
+      "label": "Security and credentials",
+      "kind": "area",
+      "status": "offline_mock_tested",
+      "issue": 5,
+      "evidence": [
+        "reachweaver/credential_hygiene.py",
+        "scripts/secret_scan.py",
+        "tests/test_security_regressions.py::TokenLeakTests",
+        "tests/test_credential_hygiene.py::AuditEnvironmentTests",
+        "tests/test_approval_binding.py::ApprovalBindingStorageTests",
+        "tests/test_no_network.py::NetworkGuardSelfTest",
+        "docs/THREAT-MODEL.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "Human-presence check and keyed approval binding (#7) and a renewable OAuth credential vault need owner security review."}
+      ]
+    },
+    {
+      "id": "privacy_ops",
+      "label": "Privacy and operations",
+      "kind": "area",
+      "status": "offline_mock_tested",
+      "issue": 26,
+      "evidence": [
+        "reachweaver/privacy.py",
+        "reachweaver/optout.py",
+        "reachweaver/health.py",
+        "reachweaver/caps.py",
+        "tests/test_privacy.py::Lifecycle",
+        "tests/test_optout.py::OptoutListTests",
+        "tests/test_health.py::HealthReportTests",
+        "docs/PRIVACY-LIFECYCLE.md"
+      ],
+      "blockers": [
+        {"kind": "owner", "detail": "Alerts, retry metrics and per-provider spend ceilings are not decided."},
+        {"kind": "live", "detail": "No unattended worker has run against a real account."}
+      ]
+    }
+  ]
+}

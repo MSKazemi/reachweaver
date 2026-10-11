@@ -1,0 +1,7 @@
+{
+  "_fixture": {"provider": "mastodon", "recorded": false, "source": "hand-written from https://docs.joinmastodon.org/api/rate-limits/ (X-RateLimit-Limit/Remaining/Reset on a 429, JSON error body); the Retry-After value is a synthetic variant a proxy may add. Reset is a fixed far-future timestamp", "written": "2026-10-10", "scrubbed": "yes (synthetic ids only)"},
+  "endpoint": "POST /api/v2/media",
+  "status": 429,
+  "headers": {"Content-Type": "application/json; charset=utf-8", "X-RateLimit-Limit": "30", "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "2099-01-01T00:30:00.000000Z", "Retry-After": "300"},
+  "body": {"error": "Too many requests"}
+}

@@ -1,0 +1,42 @@
+# INERT EXAMPLE: not installed or enabled automatically.
+# DO NOT use before an owner-approved supervised live pilot and secure credential setup.
+# Review user/group/path, token lifecycle, platform API scopes, backups and monitoring.
+[Unit]
+Description=ReachWeaver approved scheduled posts (guarded one-shot)
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/reachweaver/ALLOW_LIVE
+
+[Service]
+Type=oneshot
+User=reachweaver
+Group=reachweaver
+WorkingDirectory=/opt/reachweaver
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/reachweaver
+TimeoutStartSec=120
+LimitCORE=0
+UMask=0077
+
+# Deliberately no credentials or live opt-in in the checked-in example.
+# Only AFTER explicit human authorization, the operator adds a drop-in
+# (systemctl edit reachweaver-publish.service) on the PRODUCTION host only:
+#
+#   # One line per credential variable the accounts read (see 'reachweaver doctor').
+#   # systemd reads each root-owned 0600 file at start and exposes it, readable by
+#   # this unit's user only, as $CREDENTIALS_DIRECTORY/<NAME>. ReachWeaver then reads
+#   # credentials from that directory only, never from the environment.
+#   LoadCredential=REACHWEAVER_MASTODON_TOKEN:/etc/reachweaver/credentials/REACHWEAVER_MASTODON_TOKEN
+#   # Not secrets. Live sends need both, plus --live; never set these on dev/staging.
+#   Environment=REACHWEAVER_ALLOW_LIVE=1
+#   Environment=REACHWEAVER_ENV=prod
+#
+# Never put a secret in an Environment= line. See docs/ACCOUNT-ONBOARDING.md
+# ("Unattended host: systemd LoadCredential=").
+# For first test, REMOVE --live and verify DRY RUN without posting; its "Live gate:"
+# line must report "credential source credentials_directory".
+ExecStart=/opt/reachweaver/.venv/bin/reachweaver --db /var/lib/reachweaver/reachweaver.sqlite --accounts /etc/reachweaver/accounts.json publish --live --scheduled-only --max-lateness-minutes 180 --max-per-24h 2 --min-gap-minutes 60 --limit 10

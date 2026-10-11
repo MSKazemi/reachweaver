@@ -1,0 +1,4 @@
+interface:
+  display_name: "ReachWeaver"
+  short_description: "Run evidence-driven social campaigns with safe publishing and measurable learning"
+  default_prompt: "Use ReachWeaver to plan, draft, validate, and measure authentic posts for my project. Ask approval before publishing."

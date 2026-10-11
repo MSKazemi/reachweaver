@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "type": "PlatformVariant",
+  "id": "var-linkedin-diagram-1",
+  "draft_id": "draft-intro-2",
+  "brand_id": "reachweaver",
+  "campaign_id": "reachweaver-skill-intro",
+  "platform": "linkedin",
+  "account_id": "my-linkedin",
+  "locale": "en-GB",
+  "format": "image",
+  "text": "A social post is also a production operation. This diagram shows the ReachWeaver path from a verified source to a human-approved, exactly-once outbox entry and native analytics. Which step would you add?",
+  "media": [
+    {
+      "schema_version": "1.0",
+      "type": "MediaAsset",
+      "id": "media-architecture-diagram",
+      "kind": "image",
+      "mime_type": "image/png",
+      "uri": "assets/architecture-diagram.png",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "bytes": 182344,
+      "width": 1200,
+      "height": 1200,
+      "alt_text": "Flow diagram: owned sources feed a Claude Code skill, then a campaign validator, human approval, a local SQLite outbox, platform connectors and native analytics snapshots.",
+      "license": "MIT, created by the project owner",
+      "people_depicted": false
+    }
+  ],
+  "link_url": "https://github.com/MSKazemi/reachweaver",
+  "utm": {
+    "source": "linkedin",
+    "medium": "social",
+    "campaign": "reachweaver-skill-intro"
+  },
+  "platform_options": {
+    "visibility": "PUBLIC"
+  },
+  "created_at": "2026-10-08T13:10:00Z"
+}
