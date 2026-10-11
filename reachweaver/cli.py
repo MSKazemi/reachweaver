@@ -45,6 +45,7 @@ from .privacy import apply_purge, export_data, load_policy, plan_purge, privacy_
 from .media import media_check
 from .metrics_fetch import DEFAULT_MAX_POSTS, MAX_POSTS_LIMIT, fetch_metrics
 from .preview import build_preview, render_markdown as render_preview_markdown, render_text as render_preview_text
+from .profile_audit import load_snapshot as load_profile_snapshot, audit_profiles, audit_posts, render_summary as render_profile_audit
 from .manual_export import MANUAL_PLATFORMS, build_export, write_export
 from .pilot import DEFAULT_MIN_WEEKS, load_pilot_log, pilot_report, render_report as render_pilot_report
 from .timing_analysis import analyze_posting_times
@@ -376,6 +377,17 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--brand", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True, help="New output folder; refuses existing output")
     p.add_argument("--optout", type=Path, help=optout_help)
+    p = sub.add_parser("profile-audit", help="Offline owner-snapshot, per-platform profile readiness and fix list; no network")
+    p.add_argument("--file", type=Path, required=True, help="Local JSON snapshot; no account login or network")
+    p.add_argument("--platform", help="Only this platform from the profile-audit registry")
+    p.add_argument("--json", action="store_true", help="Detailed machine-readable checklist with evidence and coverage")
+    p = sub.add_parser("post-audit", help="Offline platform-specific creative checks and comparable-age outcome summaries")
+    p.add_argument("--file", type=Path, required=True, help="Same owner-supplied profile/post snapshot")
+    p.add_argument("--platform", help="Limit to one registered platform")
+    p.add_argument("--age-hours", type=int, default=168, help="Native metric post age 24..720 hours (default 168)")
+    p.add_argument("--tolerance-hours", type=int, default=24, help="Observation age tolerance 1..168 hours")
+    p.add_argument("--min-posts", type=int, default=3, help="Minimum matched-age posts per format cohort 3..30")
+    p.add_argument("--json", action="store_true", help="Detailed no-write JSON results")
     p = sub.add_parser("distribution-plan", help="Offline regional channel research and hypothetical timing windows; NEVER schedules/posts")
     p.add_argument("--region", required=True, help="Target country/market, e.g. india, china, nigeria or global")
     p.add_argument("--goal", choices=GOALS, required=True, help="One measurable audience objective")
@@ -1552,6 +1564,16 @@ def execute(args) -> int:
             for key in stale:
                 print(f"WARNING: {key} verified_date older than {args.max_age_days} days; re-verify official sources")
             print("Registry is research data, not permission; unknown/gated/manual formats fail closed.")
+        return 0
+    if args.command in ("profile-audit", "post-audit"):
+        snapshot = load_profile_snapshot(args.file)
+        result = (
+            audit_profiles(snapshot, platform=args.platform)
+            if args.command == "profile-audit"
+            else audit_posts(snapshot, platform=args.platform, age_hours=args.age_hours,
+                             tolerance_hours=args.tolerance_hours, min_posts=args.min_posts)
+        )
+        print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else render_profile_audit(result))
         return 0
     if args.command == "distribution-plan":
         plan = build_distribution_plan(
