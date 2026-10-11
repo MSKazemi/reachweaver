@@ -1,0 +1,1069 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-10-11",
+  "decision_type": "owner_supplied_profile_and_post_audit_hypotheses_not_ranking_algorithms",
+  "notes": "Official citations describe documented profile fields, recommendation principles or community rules, not proprietary weights. Unverified regions/platforms receive editorial hypotheses only. No account network or credential use.",
+  "field_labels": {
+    "display_name": [
+      "Display name is recognizable and relevant",
+      "text"
+    ],
+    "bio": [
+      "Bio/about states audience and real value",
+      "text"
+    ],
+    "avatar": [
+      "Recognizable avatar/logo",
+      "bool"
+    ],
+    "banner": [
+      "Relevant banner/cover",
+      "bool"
+    ],
+    "website": [
+      "Working canonical HTTPS destination in profile",
+      "url"
+    ],
+    "headline": [
+      "Searchable professional headline",
+      "text"
+    ],
+    "featured": [
+      "Featured proof/project/sample",
+      "bool"
+    ],
+    "pinned": [
+      "Pinned introductory proof or useful resource",
+      "bool"
+    ],
+    "cta": [
+      "One clear audience-relevant action",
+      "text"
+    ],
+    "highlights": [
+      "Organized useful highlights",
+      "bool"
+    ],
+    "category": [
+      "Relevant account category (when eligible)",
+      "text"
+    ],
+    "trailer": [
+      "Channel trailer or featured demonstration",
+      "bool"
+    ],
+    "playlists": [
+      "Topic-based playlists and organization",
+      "bool"
+    ],
+    "technical_articles": [
+      "Original technical articles/examples",
+      "bool"
+    ],
+    "topics": [
+      "Relevant topical tags/labels",
+      "bool"
+    ],
+    "original_samples": [
+      "Original example/demo content",
+      "bool"
+    ],
+    "rules_reviewed": [
+      "Community/instance rules read before contributions",
+      "bool"
+    ],
+    "community_intro": [
+      "Authentic community participation and introduction",
+      "bool"
+    ],
+    "domain_verified": [
+      "Website identity linked/verified when supported",
+      "bool"
+    ],
+    "profile_metadata": [
+      "Useful structured profile fields",
+      "bool"
+    ],
+    "directory_opt_in": [
+      "Directory/listing opt-in reviewed for privacy",
+      "bool"
+    ],
+    "opt_in": [
+      "Channel/group is opt-in rather than unsolicited outreach",
+      "bool"
+    ],
+    "welcome_post": [
+      "Clear onboarding or welcome post",
+      "bool"
+    ],
+    "business_details": [
+      "Accurate organizational information",
+      "bool"
+    ],
+    "maker_story": [
+      "Credible maker background and build story",
+      "bool"
+    ],
+    "product_gallery": [
+      "Real product screenshots or demo gallery",
+      "bool"
+    ],
+    "claimed_domain": [
+      "Owned website claimed when appropriate",
+      "bool"
+    ],
+    "boards": [
+      "Useful visual search boards",
+      "bool"
+    ],
+    "portfolio": [
+      "Relevant portfolio/project history",
+      "bool"
+    ],
+    "project_page": [
+      "Maintained project/product page",
+      "bool"
+    ],
+    "featured_projects": [
+      "Pinned relevant public repos/projects",
+      "bool"
+    ],
+    "contribution_guide": [
+      "Contributor onboarding instructions",
+      "bool"
+    ],
+    "about": [
+      "Accurate about/identity information",
+      "text"
+    ],
+    "starter_pack": [
+      "Appropriate topic community/starter-pack participation",
+      "bool"
+    ],
+    "readme": [
+      "Clear first-screen GitHub README/profile README",
+      "bool"
+    ],
+    "invite_link": [
+      "Owner-approved working channel/group invite",
+      "url"
+    ]
+  },
+  "platforms": [
+    {
+      "id": "linkedin",
+      "label": "LinkedIn",
+      "account_type": "personal",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "banner",
+        "headline",
+        "bio",
+        "website",
+        "featured"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "text",
+          "document",
+          "video",
+          "image"
+        ],
+        "test_hypothesis": "Professional insight with a traceable decision and trade-off",
+        "action_metric": "clicks",
+        "exposure_metric": "impressions",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "shares"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_capability_with_editorial_post_hypothesis",
+        "official_source": "https://www.linkedin.com/help/linkedin/answer/a547248",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "instagram",
+      "label": "Instagram",
+      "account_type": "professional",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "website",
+        "pinned",
+        "highlights",
+        "category"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "reel",
+          "carousel",
+          "image"
+        ],
+        "test_hypothesis": "Original visual demonstration and legible first-frame payoff",
+        "action_metric": "shares",
+        "exposure_metric": "reach",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_guidance",
+        "official_source": "https://about.fb.com/news/2024/10/best-practices-education-hub-creators-instagram/",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "facebook",
+      "label": "Facebook Page",
+      "account_type": "page",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "banner",
+        "bio",
+        "business_details",
+        "website",
+        "cta"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "video",
+          "reel",
+          "image",
+          "text"
+        ],
+        "test_hypothesis": "Original practical case study and helpful Page/community discussion",
+        "action_metric": "shares",
+        "exposure_metric": "reach",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_guidance",
+        "official_source": "https://about.fb.com/news/2026/03/rewarding-original-creators-on-facebook/",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "threads",
+      "label": "Threads",
+      "account_type": "personal",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "website",
+        "pinned",
+        "topics"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "text",
+          "image",
+          "carousel"
+        ],
+        "test_hypothesis": "Self-contained observation and an authentic relevant conversation",
+        "action_metric": "replies",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "editorial_hypothesis",
+        "official_source": "https://about.fb.com/news/2025/03/new-threads-features-more-personalized-experience-you-control/",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "x",
+      "label": "X",
+      "account_type": "personal",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "banner",
+        "bio",
+        "website",
+        "pinned"
+      ],
+      "profile_bio_limit": 160,
+      "profile_bio_limit_scope": "official_help",
+      "post_strategy": {
+        "formats": [
+          "text",
+          "thread",
+          "image",
+          "video"
+        ],
+        "test_hypothesis": "Concise reproducible finding, technical visual and discussion",
+        "action_metric": "reposts",
+        "exposure_metric": "impressions",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_profile_and_editorial_post_hypothesis",
+        "official_source": "https://help.x.com/en/managing-your-account/how-to-customize-your-profile",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "tiktok",
+      "label": "TikTok",
+      "account_type": "creator",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "pinned",
+        "original_samples",
+        "cta"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "short_video",
+          "video"
+        ],
+        "test_hypothesis": "Show working result first; test retention and clear captions",
+        "action_metric": "shares",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_guidance",
+        "official_source": "https://support.tiktok.com/en/using-tiktok/exploring-videos/how-tiktok-recommends-content",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "youtube",
+      "label": "YouTube",
+      "account_type": "channel",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "banner",
+        "about",
+        "website",
+        "trailer",
+        "playlists"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "shorts",
+          "video",
+          "live"
+        ],
+        "test_hypothesis": "Accurate title/thumbnail, value-first demo, inspect retention and traffic sources",
+        "action_metric": "likes",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "comments",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_guidance",
+        "official_source": "https://support.google.com/youtube/answer/3027950?hl=en",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "bluesky",
+      "label": "Bluesky",
+      "account_type": "personal",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "domain_verified",
+        "pinned",
+        "starter_pack"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "text",
+          "image",
+          "thread"
+        ],
+        "test_hypothesis": "Share specific code evidence and participate in relevant custom feeds",
+        "action_metric": "reposts",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_discovery_and_editorial_post_hypothesis",
+        "official_source": "https://bsky.social/about/blog/7-27-2023-custom-feeds",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "mastodon",
+      "label": "Mastodon",
+      "account_type": "personal",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "banner",
+        "bio",
+        "profile_metadata",
+        "domain_verified",
+        "directory_opt_in"
+      ],
+      "profile_bio_limit": 500,
+      "profile_bio_limit_scope": "instance_default_verify_actual_server",
+      "post_strategy": {
+        "formats": [
+          "text",
+          "thread",
+          "image"
+        ],
+        "test_hypothesis": "Instance-appropriate original context, relevant hashtags and alt text",
+        "action_metric": "reposts",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_profile_and_editorial_post_hypothesis",
+        "official_source": "https://docs.joinmastodon.org/user/profile/",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "telegram",
+      "label": "Telegram Channel",
+      "account_type": "channel",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "pinned",
+        "invite_link",
+        "opt_in"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "text",
+          "image",
+          "video"
+        ],
+        "test_hypothesis": "Subscriber-useful concise updates at a respectful frequency; not cold discovery",
+        "action_metric": "shares",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "editorial_hypothesis",
+        "official_source": "https://telegram.org/blog/6-years",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "reddit",
+      "label": "Reddit",
+      "account_type": "personal",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "rules_reviewed",
+        "community_intro",
+        "technical_articles"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "discussion",
+          "tutorial"
+        ],
+        "test_hypothesis": "Answer real subreddit questions and disclose ownership; human publishing only",
+        "action_metric": "comments",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_rules",
+        "official_source": "https://redditinc.com/policies/reddit-rules",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": true
+    },
+    {
+      "id": "hackernews",
+      "label": "Hacker News",
+      "account_type": "personal",
+      "profile_checks": [
+        "about",
+        "website",
+        "rules_reviewed",
+        "community_intro"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "human_only"
+        ],
+        "test_hypothesis": "Human writes original submission; research checklist only; never generate HN-facing text",
+        "action_metric": "comments",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_rules",
+        "official_source": "https://news.ycombinator.com/newsguidelines.html",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": true
+    },
+    {
+      "id": "devto",
+      "label": "DEV Community",
+      "account_type": "author",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "website",
+        "technical_articles",
+        "topics"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "article",
+          "tutorial"
+        ],
+        "test_hypothesis": "Reproducible original engineering tutorial with useful tags and source",
+        "action_metric": "comments",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_editor_guidance",
+        "official_source": "https://dev.to/help/writing-editing-scheduling",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "hashnode",
+      "label": "Hashnode",
+      "account_type": "author",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "website",
+        "technical_articles",
+        "topics"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "article",
+          "tutorial"
+        ],
+        "test_hypothesis": "Evergreen original explanation with accurate search title and canonical care",
+        "action_metric": "likes",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "comments",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "editorial_hypothesis",
+        "official_source": "https://hashnode.com/changelog/2026-06-11-introducing-hashnode-pro",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "pinterest",
+      "label": "Pinterest",
+      "account_type": "business",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "website",
+        "claimed_domain",
+        "boards"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "pin",
+          "infographic"
+        ],
+        "test_hypothesis": "Original actionable diagrams and descriptive search-led titles",
+        "action_metric": "saves",
+        "exposure_metric": "impressions",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_profile_and_editorial_post_hypothesis",
+        "official_source": "https://help.pinterest.com/en/business/article/claim-your-website",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "producthunt",
+      "label": "Product Hunt",
+      "account_type": "maker",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "maker_story",
+        "website",
+        "product_gallery"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "launch",
+          "update"
+        ],
+        "test_hypothesis": "Working demo, understandable edge, genuine maker story and feedback",
+        "action_metric": "comments",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_launch_guidance",
+        "official_source": "https://help.producthunt.com/en/articles/17350772-launch-guide",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "discord",
+      "label": "Discord Community",
+      "account_type": "community",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "rules_reviewed",
+        "welcome_post",
+        "opt_in"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "discussion",
+          "help"
+        ],
+        "test_hypothesis": "Serve existing community questions; moderator-approved human participation",
+        "action_metric": "comments",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "editorial_hypothesis_unverified",
+        "official_source": null,
+        "checked_on": null
+      },
+      "human_only": true
+    },
+    {
+      "id": "indiehackers",
+      "label": "Indie Hackers",
+      "account_type": "personal",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "project_page",
+        "community_intro"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "case_study",
+          "discussion"
+        ],
+        "test_hypothesis": "Share honest builder lessons and specific results, no repetitive promotion",
+        "action_metric": "comments",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "editorial_hypothesis_unverified",
+        "official_source": null,
+        "checked_on": null
+      },
+      "human_only": true
+    },
+    {
+      "id": "peerlist",
+      "label": "Peerlist",
+      "account_type": "personal",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "portfolio",
+        "project_page",
+        "website"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "project_update",
+          "case_study"
+        ],
+        "test_hypothesis": "Verified technical projects, artifacts and genuine peer feedback",
+        "action_metric": "comments",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "editorial_hypothesis_unverified",
+        "official_source": null,
+        "checked_on": null
+      },
+      "human_only": false
+    },
+    {
+      "id": "bilibili",
+      "label": "Bilibili",
+      "account_type": "creator",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "original_samples",
+        "portfolio"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "video",
+          "tutorial"
+        ],
+        "test_hypothesis": "Chinese-localized working demo with accurate captions and creator context",
+        "action_metric": "shares",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "editorial_hypothesis_unverified",
+        "official_source": null,
+        "checked_on": null
+      },
+      "human_only": false
+    },
+    {
+      "id": "zhihu",
+      "label": "Zhihu",
+      "account_type": "author",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "technical_articles",
+        "portfolio"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "answer",
+          "article"
+        ],
+        "test_hypothesis": "Chinese-language evidence-rich answers to actual technical questions",
+        "action_metric": "comments",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "editorial_hypothesis_unverified",
+        "official_source": null,
+        "checked_on": null
+      },
+      "human_only": false
+    },
+    {
+      "id": "oschina",
+      "label": "OSCHINA",
+      "account_type": "developer",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "technical_articles",
+        "website"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "article",
+          "tutorial"
+        ],
+        "test_hypothesis": "Original Chinese-language implementation tutorial and reproducible sources",
+        "action_metric": "comments",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "shares",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "editorial_hypothesis_unverified",
+        "official_source": null,
+        "checked_on": null
+      },
+      "human_only": false
+    },
+    {
+      "id": "github",
+      "label": "GitHub",
+      "account_type": "organization_or_personal",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "website",
+        "featured_projects",
+        "readme",
+        "contribution_guide"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "release",
+          "discussion",
+          "tutorial"
+        ],
+        "test_hypothesis": "Useful README, truthful release notes, runnable quickstart and contributor onboarding",
+        "action_metric": "clicks",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "shares"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_profile_and_editorial_growth_hypothesis",
+        "official_source": "https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-github-profile/customizing-your-profile",
+        "checked_on": "2026-10-11"
+      },
+      "human_only": false
+    },
+    {
+      "id": "snapchat",
+      "label": "Snapchat",
+      "account_type": "creator",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "original_samples",
+        "cta"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "spotlight",
+          "story"
+        ],
+        "test_hypothesis": "Original vertical-native storytelling and practical demonstrations",
+        "action_metric": "shares",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "editorial_hypothesis_unverified",
+        "official_source": null,
+        "checked_on": null
+      },
+      "human_only": false
+    },
+    {
+      "id": "whatsapp",
+      "label": "WhatsApp Channel",
+      "account_type": "channel",
+      "profile_checks": [
+        "display_name",
+        "avatar",
+        "bio",
+        "opt_in",
+        "pinned"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "post_strategy": {
+        "formats": [
+          "text",
+          "image"
+        ],
+        "test_hypothesis": "Opt-in community update, no unsolicited messaging or auto-invites",
+        "action_metric": "shares",
+        "exposure_metric": "views",
+        "secondary_metrics": [
+          "likes",
+          "comments",
+          "clicks"
+        ],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "editorial_hypothesis_unverified",
+        "official_source": null,
+        "checked_on": null
+      },
+      "human_only": true
+    }
+  ]
+}
