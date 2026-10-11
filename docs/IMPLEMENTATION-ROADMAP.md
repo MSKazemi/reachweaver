@@ -52,6 +52,14 @@ This document distinguishes implementation, validation and aspiration. A complet
 - [x] Runbook for revoked permissions, LinkedIn version sunsets and Mastodon instance changes ([worker operations](WORKER-OPERATIONS.md#runbook-revoked-permissions-and-api-version-sunsets)).
 - [ ] Remaining #26: alerts, traces/retry metrics, per-provider spend ceilings, dependency-compromise and poisoned-feed tests. **Do not close #26.**
 
+## Per-network profile and post audit foundation (2026-10-11, issue #3)
+
+- [x] Add a versioned 25-platform profile/post audit registry with evidence tiers, checked dates, individual field checklists, content experiments and relevant native outcome metrics.
+- [x] Add offline `profile-audit --file OWNER.json [--platform]` with checklist coverage, source-labelled known/unknown observations, owner-reported completeness heuristic, bio/claim/clean-link and optional brand consistency findings.
+- [x] Add offline `post-audit --file OWNER.json [--age-hours 168]` with explicitly owner-reviewed creative flags, single-platform/account/format/source/age metric cohorts, missingness and descriptive medians.
+- [x] Add README/skill routing, privacy/creative guidance, self-contained illustrative example, Python offline tests and portable skill mirror.
+- [ ] Not yet done: consented live read-only profile APIs, platform-specific media quality/retention importers, independently verified profile content or causal reach uplift, production experiments and continuous account learning. See [full audit guide](PROFILE-AND-POST-AUDITS.md) and [issue #3](https://github.com/MSKazemi/reachweaver/issues/3). No external account touched.
+
 ## P2 — Evidence-driven attention intelligence
 
 - [ ] Dataset of post ideas/outcomes per platform and project (privacy-preserving).
