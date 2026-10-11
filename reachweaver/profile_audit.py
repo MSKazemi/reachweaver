@@ -47,7 +47,7 @@ REQUIRED_PROFILE = frozenset({"platform", "account_id", "handle", "fields"})
 REQUIRED_POST = frozenset({"platform", "account_id", "post_id", "format"})
 PROFILE_ALLOWED = REQUIRED_PROFILE | {"profile_kind", "keywords"}
 POST_ALLOWED = REQUIRED_POST | {"source", "published_at", "observed_at", "metrics", "review_flags"}
-ROOT_ALLOWED = frozenset({"schema_version", "brand_name", "profiles", "posts"})
+ROOT_ALLOWED = frozenset({"schema_version", "brand_name", "preferred_handle", "profiles", "posts"})
 KNOWN_FIELDS = BOOL_FIELDS | URL_FIELDS | TEXT_FIELDS
 
 
@@ -116,6 +116,8 @@ def load_snapshot(path: Path) -> dict:
         raise ValidationError("At most 100 post observations are supported")
     if "brand_name" in data and (not isinstance(data["brand_name"], str) or len(data["brand_name"]) > 100):
         raise ValidationError("brand_name must be a short string")
+    if "preferred_handle" in data and (not isinstance(data["preferred_handle"], str) or not ID.fullmatch(data["preferred_handle"])):
+        raise ValidationError("preferred_handle must be one short string; no credentials")
     registry = {p["id"]: p for p in load_registry()["platforms"]}
     identities = set()
     for p in profiles:
@@ -232,6 +234,14 @@ def audit_profiles(snapshot: dict, *, platform: str | None = None) -> dict:
             text_fields = " ".join(str(fields.get(key) or "") for key in ("bio","headline","about")).casefold()
             if not any(k.casefold() in text_fields for k in keywords):
                 alerts.append({"kind":"keyword_alignment","message":"Declared topic phrases were not found in about/headline/bio; consider one natural, accurate phrase, not keyword stuffing."})
+        preferred = snapshot.get("preferred_handle")
+        if preferred and p.get("profile_kind") in ("organization","community","maker"):
+            # Handles differ legitimately across services; advisory, never a score penalty.
+            actual_stem = p["handle"].casefold().lstrip("@").split("@")[0].split(".")[0]
+            expected = preferred.casefold().lstrip("@")
+            if actual_stem != expected:
+                alerts.append({"kind":"handle_consistency",
+                               "message":"Handle differs from the owner-declared preferred handle. Confirm this is intentional for the platform."})
         brand = snapshot.get("brand_name")
         name = fields.get("display_name")
         if (brand and p.get("profile_kind") in ("organization", "community")
