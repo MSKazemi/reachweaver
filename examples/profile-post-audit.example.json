@@ -1,0 +1,135 @@
+{
+  "schema_version": "reachweaver.profile-post-audit.v1",
+  "brand_name": "ExampleProject (illustrative only)",
+  "profiles": [
+    {
+      "platform": "linkedin",
+      "account_id": "sample-linkedin",
+      "handle": "sample-dev",
+      "profile_kind": "personal",
+      "keywords": [
+        "Kubernetes",
+        "observability"
+      ],
+      "fields": {
+        "display_name": "Example Developer",
+        "avatar": true,
+        "banner": null,
+        "headline": "Platform engineering and Kubernetes",
+        "bio": "I share practical Kubernetes deployment and observability lessons.",
+        "website": "https://example.org/projects",
+        "featured": false
+      }
+    },
+    {
+      "platform": "youtube",
+      "account_id": "sample-youtube",
+      "handle": "@sample-dev",
+      "profile_kind": "organization",
+      "keywords": [
+        "tutorial"
+      ],
+      "fields": {
+        "display_name": "ExampleProject (illustrative only)",
+        "avatar": true,
+        "banner": true,
+        "about": "Practical software tutorials, reproducible demonstrations and architecture decisions.",
+        "website": "https://example.org/tutorials",
+        "trailer": false,
+        "playlists": true
+      }
+    },
+    {
+      "platform": "devto",
+      "account_id": "sample-devto",
+      "handle": "sample-dev",
+      "profile_kind": "personal",
+      "fields": {
+        "display_name": "Example Developer",
+        "avatar": true,
+        "bio": "Technical tutorials from reproducible experiments",
+        "website": "https://example.org/tutorials",
+        "technical_articles": true,
+        "topics": true
+      }
+    }
+  ],
+  "posts": [
+    {
+      "platform": "linkedin",
+      "account_id": "sample-linkedin",
+      "post_id": "sample-p1",
+      "format": "text",
+      "source": "owner-native-export",
+      "published_at": "2026-09-01T10:00:00+02:00",
+      "observed_at": "2026-09-08T10:00:00+02:00",
+      "review_flags": {
+        "hook_clear": true,
+        "proof_visible": true,
+        "original_content": true,
+        "relevant_cta": false
+      },
+      "metrics": {
+        "clicks": 5,
+        "impressions": 100
+      }
+    },
+    {
+      "platform": "linkedin",
+      "account_id": "sample-linkedin",
+      "post_id": "sample-p2",
+      "format": "text",
+      "source": "owner-native-export",
+      "published_at": "2026-09-02T10:00:00+02:00",
+      "observed_at": "2026-09-09T10:00:00+02:00",
+      "review_flags": {
+        "hook_clear": true,
+        "proof_visible": true,
+        "original_content": true,
+        "relevant_cta": true
+      },
+      "metrics": {
+        "clicks": 7,
+        "impressions": 100
+      }
+    },
+    {
+      "platform": "linkedin",
+      "account_id": "sample-linkedin",
+      "post_id": "sample-p3",
+      "format": "text",
+      "source": "owner-native-export",
+      "published_at": "2026-09-03T10:00:00+02:00",
+      "observed_at": "2026-09-10T10:00:00+02:00",
+      "review_flags": {
+        "hook_clear": false,
+        "proof_visible": true,
+        "original_content": true,
+        "relevant_cta": true
+      },
+      "metrics": {
+        "clicks": 6,
+        "impressions": 100
+      }
+    },
+    {
+      "platform": "youtube",
+      "account_id": "sample-youtube",
+      "post_id": "sample-y1",
+      "format": "video",
+      "source": "owner-native-export",
+      "published_at": "2026-09-04T10:00:00+02:00",
+      "observed_at": "2026-09-11T10:00:00+02:00",
+      "review_flags": {
+        "hook_clear": true,
+        "proof_visible": true,
+        "original_content": true,
+        "captioned": true
+      },
+      "metrics": {
+        "views": 120,
+        "likes": 8
+      }
+    }
+  ]
+}
