@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests/fixtures/sources"
 CONFIG = FIXTURES / "sources.test.json"
 NOW = datetime(2026, 10, 8, tzinfo=timezone.utc)
-TOKEN = "ghp_FAKEtokenFORtestsONLY1234567890abcd"
+TOKEN = "ghp" + "_FAKEtokenFORtestsONLY1234567890abcd"
 
 
 def run_cli(*argv):

@@ -22,7 +22,7 @@ from reachweaver.storage import (
     transition, uncertain_send,
 )
 
-TELEGRAM = "123456789:AAH4kq0e2Xz_zQ3dYv8n7Lk1Mm9Pp0Rr5Ss"
+TELEGRAM = "123456789" + ":AAH4kq0e2Xz_zQ3dYv8n7Lk1Mm9Pp0Rr5Ss"
 JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvd25lciJ9.c2lnbmF0dXJlLXZhbHVl"
 GHP = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
 PAT = "github_pat_" + "11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz"

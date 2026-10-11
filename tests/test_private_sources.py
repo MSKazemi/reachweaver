@@ -30,7 +30,7 @@ FIXTURES = ROOT / "tests/fixtures/sources"
 BRAND = ROOT / "examples/brand.reachweaver.json"
 ACCOUNTS = ROOT / "config/accounts.example.json"
 NOW = datetime(2026, 10, 8, tzinfo=timezone.utc)
-TOKEN = "ghp_FAKEtokenFORtestsONLY1234567890abcd"
+TOKEN = "ghp" + "_FAKEtokenFORtestsONLY1234567890abcd"
 REPO = "example-org/private-tool"
 META_URL = f"https://api.github.com/repos/{REPO}"
 RELEASES_URL = f"{META_URL}/releases?per_page=30"

@@ -324,7 +324,7 @@ class SeoIntegrationTests(unittest.TestCase):
             lambda d: d["campaigns"][0].update(page_id="missing"),
             lambda d: d["campaigns"][0].update(end="2026-10-01"),
             lambda d: d["source"].update(api_token="x"),
-            lambda d: d["briefs"][0].update(audience="ghp_abcdefghijklmnop"),
+            lambda d: d["briefs"][0].update(audience="ghp" + "_abcdefghijklmnop"),
             lambda d: d.update(schema_version=2),
         ]
         for mutate in bad:
