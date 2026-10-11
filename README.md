@@ -54,6 +54,23 @@ If no account configured yet, use the skill for research, content and plans; it 
 
 The next human-assisted milestone is a single supervised real-world pilot, not automatic mass cross-posting. Follow **[First live pilot](docs/FIRST-LIVE-PILOT.md)** (for Bluesky on a throwaway account, the copy-pasteable **[Bluesky one-post pilot](docs/BLUESKY-PILOT.md)** runbook) for local credential entry, read-only identity validation, the exact-post approval workflow, reconciliation and a private evidence checklist. **No account has been connected or live-tested in this repository.**
 
+## Per-platform profile and post audits (offline, Issue #3)
+
+**ReachWeaver now audits each network on its own terms.** LinkedIn headlines and featured proof, YouTube channel organization and retention, Instagram original Reels and reach, DEV technical articles, Mastodon profile metadata and verified links, Reddit rules, Product Hunt maker stories, and Chinese developer channels receive **different profile checklists and native content experiments**. Twenty-five platform and community surfaces are described in the [complete audit playbook](docs/PROFILE-AND-POST-AUDITS.md). This is not a universal ranking formula or a guarantee of likes, impressions, views or follows.
+
+```bash
+# Pure offline example: no account, API keys, website fetch, local DB or changes.
+reachweaver profile-audit --file examples/profile-post-audit.example.json --json
+reachweaver post-audit --file examples/profile-post-audit.example.json --age-hours 168 --min-posts 3 --json
+
+# For a REAL audit, replace the example with your OWN owner-confirmed profile
+# observations and source-labeled native analytics kept locally under state/.
+reachweaver profile-audit --file state/owned-profiles.json --platform linkedin --json
+reachweaver post-audit --file state/owned-profiles.json --platform youtube --json
+```
+
+The profile score is **only an observed checklist-completion heuristic** and is omitted when less than 60% of the platform's fields have been checked. Post rates require compatible format, account, platform, native metric source and observation age; missing data is **unknown**. Inputs include no passwords or cookies and the audit commands never log in, change a profile, draft, schedule, publish, follow or generate votes. Without an actual owner-supplied snapshot, the skill offers a **general playbook**, not an audit of your real accounts. See the [portable skill reference](.claude/skills/reachweaver/references/profile-post-audit.md).
+
 ## Developer attention and contributor growth
 
 For a source-backed, moderation-aware 30-day plan prioritizing DEV, LinkedIn, GitHub-native discovery and Bluesky over indiscriminate cross-posting, see the [open-source developer growth playbook](docs/OPEN-SOURCE-DEVELOPER-GROWTH-PLAYBOOK.md). It covers first-time-contributor onboarding, platform rules, Reddit/HN recovery, qualified-traffic measurement and the changed Hacktoberfest 2026 rules. It is strategic research, **not** evidence of published posts or promised reach.
