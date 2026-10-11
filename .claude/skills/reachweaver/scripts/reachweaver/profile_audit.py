@@ -295,7 +295,7 @@ def audit_posts(snapshot: dict, *, platform: str | None = None, age_hours: int =
     posts = [p for p in snapshot.get("posts", []) if platform is None or p["platform"] == platform]
     reports = []
     grouped = defaultdict(list)
-    exclusions = defaultdict(int)
+    exclusions: defaultdict[str, int] = defaultdict(int)
     for p in posts:
         rules = registry[p["platform"]]
         suggestions = []
