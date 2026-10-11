@@ -13,13 +13,14 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "reachweaver"
 SKILL = ROOT / ".claude/skills/reachweaver"
 TARGET = SKILL / "scripts/reachweaver"
-REGISTRIES = ("distribution_registry.json", "platform_registry.json")
+REGISTRIES = ("distribution_registry.json", "platform_registry.json", "profile_audit_registry.json")
 # Canonical files mirrored into the skill's assets/ (flat, by basename).
 ASSET_SOURCES = (
     "examples/brand.reachweaver.json", "examples/campaign.reachweaver.json",
     "examples/experiment.example.json", "examples/growth-plan.example.json",
     "examples/brand-preview.reachweaver.json", "examples/campaign-preview.reachweaver.json",
     "config/accounts.example.json", "examples/example-post.txt",
+    "examples/profile-post-audit.example.json",
 )
 RUN_PY = '''#!/usr/bin/env python3
 """Standalone bundled ReachWeaver CLI; runs against the current project directory."""
