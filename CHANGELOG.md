@@ -2,13 +2,13 @@
 
 All notable changes to ReachWeaver are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow [Semantic Versioning](https://semver.org/). `scripts/release_gate.py` requires a non-empty section for the version in `pyproject.toml`, and a `YYYY-MM-DD` date on it before a tag is created (`make release-gate TAG=vX.Y.Z`).
 
-No version has been tagged yet. No section below claims a live account connection, a delivered post or a growth result.
+No section below claims a live account connection, a delivered post or a growth result.
 
 ## [Unreleased]
 
-### Security (draft pending owner security review)
+### Security
 
-- **Send-state bookkeeping atomicity (P1-P5 of SECURITY-REVIEW-PROPOSAL-send-state-atomicity.md; implemented on a draft branch, NOT approved, do not release).** `finish_send`/`uncertain_send` return a flag and write a `state_conflict` event (remote id / error code) when the post is no longer `sending`; `publish` prints `REVIEW` and logs `state_conflict` instead of `PUBLISHED`. `reconcile` is atomic and status-guarded, refuses a `sending` post claimed under 15 minutes ago unless the new `--force` is given (an existing test now passes `force=True` for a freshly claimed post). `transition` is atomic and its updates are status-guarded. `publish` retries a failed bookkeeping write briefly, then prints the remote id to stderr and counts the post as needing review without aborting the run or resending. `set_paused` and its event commit together. Tests: `tests/test_send_state_atomicity.py`.
+- **Send-state bookkeeping atomicity (owner-approved 2026-10-11 as a security-reviewed change).** `finish_send`/`uncertain_send` return a flag and write a `state_conflict` event (remote id / error code) when the post is no longer `sending`; `publish` prints `REVIEW` and logs `state_conflict` instead of `PUBLISHED`. `reconcile` is atomic and status-guarded, refuses a `sending` post claimed under 15 minutes ago unless the new `--force` is given (an existing test now passes `force=True` for a freshly claimed post). `transition` is atomic and its updates are status-guarded. `publish` retries a failed bookkeeping write briefly, then prints the remote id to stderr and counts the post as needing review without aborting the run or resending. `set_paused` and its event commit together. Tests: `tests/test_send_state_atomicity.py`.
 
 ### Fixed
 
@@ -109,7 +109,7 @@ No version has been tagged yet. No section below claims a live account connectio
 - **A credential with a control character could leak into `ERROR:` output (issue #5, review F1).** A `$CREDENTIALS_DIRECTORY` file ending in `\r\n` kept its `\r`, `http.client` refused the header with `ValueError("Invalid header value b'Bearer <token>\\r'")`, and the CLI printed that message, token included. `accounts.credential` now strips exactly one trailing `\n` or `\r\n` from a file and refuses any value, from a file or the environment, that still contains a C0 control character or DEL (`credential NAME contains control characters`, name only). As defence in depth, `publishers` turns a `ValueError`, `http.client.InvalidURL` or unknown-scheme error raised while building or sending a request into the fixed `PublishError("invalid_request")` (and a later `http.client.HTTPException` into `invalid_api_response_uncertain`), with the original message dropped; the CLI's top-level `ERROR:` line now passes through `privacy.redact`. Ambiguous-send classification is unchanged: a failure after `mark_write_started` is still C3 `ambiguous` and goes to `needs_review`. Tests: `ControlCharacterCredentialTests`, `ControlCharacterCliTests`, `RequestBuildErrorTests` in `tests/test_hardening.py`.
 
 
-## [0.2.0] - Unreleased (not tagged)
+## [0.2.0] - 2026-10-11
 
 ### Added
 
