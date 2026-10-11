@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "reachweaver"
 SKILL = ROOT / ".claude/skills/reachweaver"
 TARGET = SKILL / "scripts/reachweaver"
-REGISTRIES = ("distribution_registry.json", "platform_registry.json")
+REGISTRIES = ("distribution_registry.json", "platform_registry.json", "profile_audit_registry.json")
 # Canonical files mirrored into the skill's assets/ (flat, by basename).
 ASSET_SOURCES = (
     "examples/brand.reachweaver.json", "examples/campaign.reachweaver.json",
