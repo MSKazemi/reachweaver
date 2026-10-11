@@ -24,7 +24,7 @@ VAGUE_CLAIM = re.compile(r"\b(?:guaranteed|best\s+ever|number\s+one|100%\s+guara
 ID = re.compile(r"^[a-zA-Z0-9_@.:-]{1,100}$")
 METRICS = frozenset({
     "views", "impressions", "reach", "engaged_views", "likes", "comments",
-    "shares", "reposts", "saves", "clicks", "upvotes", "profile_visits",
+    "shares", "reposts", "replies", "saves", "clicks", "upvotes", "profile_visits",
     "follows", "watch_time_seconds", "average_view_duration_seconds",
 })
 BOOL_FIELDS = frozenset({
