@@ -43,6 +43,14 @@ Scheduled due claim (BEGIN IMMEDIATE), optionally exact --post-id
        Matched-age paired directional evaluator -> next hypothesis
 ```
 
+## Independent offline social profile/post audits
+
+`reachweaver/profile_audit.py` and `profile_audit_registry.json` are a **local/read-only sidecar**. The commands `profile-audit` and `post-audit` execute **before** any SQLite connection and never import authorization credentials, write account metadata, stage drafts, schedule posts or invoke a social API. The strict versioned owner-snapshot contract rejects credential-like keys/values, unknown fields/metrics, invalid booleans, negative/nonfinite counts and overly large inputs. User-supplied fields are **unverified observations**.
+
+A registry rule defines each network's applicable field checklist, officially sourced platform capabilities or editorial hypotheses, format experiments, and one action/exposure metric pair. The profile output exposes checklist coverage and produces a completeness percentage only when enough fields are known; **it is not a provider algorithm or a traffic prediction**. The post audit only compares native metrics inside same platform/account/format/source and matched post age; missing denominators, source or dates are excluded rather than zero-filled. It never runs experiments or blindly promotes the "winning" idea. Human-only channels remain human-only.
+
+See [profile and post audits](PROFILE-AND-POST-AUDITS.md), [analytics protocol](GROWTH-EXPERIMENTS.md) and [user privacy](PRIVACY-LIFECYCLE.md). Do not add online reads to these offline commands without a dedicated security review and owner-approved scopes.
+
 ## Boundaries
 
 - `reachweaver/policy.py`: platform catalogue, conservative text lint (placeholders, length, control characters, bidi overrides/isolates and invisible format characters), URL origin guardrails.
