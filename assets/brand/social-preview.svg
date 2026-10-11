@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-label="ReachWeaver: evidence-first social distribution for Claude Code">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#10192E"/><stop offset="1" stop-color="#080D1C"/></linearGradient>
+<radialGradient id="sky"><stop stop-color="#205A6C" stop-opacity=".35"/><stop offset="1" stop-color="#0C1223" stop-opacity="0"/></radialGradient></defs>
+<rect width="1280" height="640" fill="url(#bg)"/>
+<circle cx="550" cy="60" r="570" fill="url(#sky)"/>
+<g transform="translate(76,105) scale(.43)"><title id="title">ReachWeaver icon</title>
+<desc id="desc">Two bright teal and violet threads weave together and connect four points, symbolizing careful cross-platform distribution.</desc>
+<defs>
+  <linearGradient id="night" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#111A33"/><stop offset="1" stop-color="#080D1D"/></linearGradient>
+  <radialGradient id="halo" cx="50%" cy="50%" r="50%"><stop stop-color="#5EEAD4" stop-opacity="0.12"/><stop offset="1" stop-color="#5EEAD4" stop-opacity="0"/></radialGradient>
+  <linearGradient id="aqua" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#72F1DA"/><stop offset=".52" stop-color="#37DCCC"/><stop offset="1" stop-color="#329DEB"/></linearGradient>
+  <linearGradient id="iris" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#789DFF"/><stop offset=".5" stop-color="#A587F9"/><stop offset="1" stop-color="#DA7DE5"/></linearGradient>
+  <clipPath id="bridge"><rect x="0" y="0" width="512" height="1024"/></clipPath>
+</defs>
+<rect x="0" y="0" width="1024" height="1024" rx="232" fill="url(#night)"/>
+<circle cx="520" cy="510" r="445" fill="url(#halo)"/>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M216 692 C355 692 374 344 512 344 C650 344 669 692 808 692" stroke="url(#iris)" stroke-width="78"/>
+  <path d="M216 332 C355 332 374 680 512 680 C650 680 669 332 808 332" stroke="url(#aqua)" stroke-width="78"/>
+  <g clip-path="url(#bridge)"><path d="M216 692 C355 692 374 344 512 344 C650 344 669 692 808 692" stroke="url(#iris)" stroke-width="78"/></g>
+</g>
+<g fill="#F6FAFF">
+  <circle cx="216" cy="332" r="11"/>
+  <circle cx="808" cy="332" r="11"/>
+  <circle cx="216" cy="692" r="11"/>
+  <circle cx="808" cy="692" r="11"/>
+</g>
+</g>
+<text x="570" y="250" font-family="DejaVu Sans, Arial, sans-serif" font-size="65" font-weight="800" letter-spacing="-2" fill="#F6FAFF">Reach<tspan fill="#63E5D6">Weaver</tspan></text>
+<text x="574" y="322" font-family="DejaVu Sans, Arial, sans-serif" font-size="25" font-weight="500" fill="#BDCBDE">Plan · Approve · Publish · Learn</text>
+<rect x="574" y="369" width="535" height="1" fill="#3D526E" opacity=".75"/>
+<text x="574" y="416" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="400" fill="#93A8C2">Evidence-first social media workflows</text>
+<text x="574" y="446" font-family="DejaVu Sans, Arial, sans-serif" font-size="20" font-weight="400" fill="#93A8C2">for Claude Code.</text>
+<rect x="574" y="482" rx="19" width="177" height="38" fill="#203C4B"/>
+<text x="592" y="507" font-family="DejaVu Sans, Arial, sans-serif" font-size="15" font-weight="700" fill="#83EDDA">APPROVAL FIRST</text>
+<rect x="766" y="482" rx="19" width="201" height="38" fill="#283351"/>
+<text x="784" y="507" font-family="DejaVu Sans, Arial, sans-serif" font-size="15" font-weight="700" fill="#C1B1FF">PLATFORM NATIVE</text>
+</svg>

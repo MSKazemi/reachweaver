@@ -1,5 +1,7 @@
 # ReachWeaver
 
+<img src="assets/brand/icon.svg" alt="ReachWeaver icon: interwoven teal and violet signal paths" align="right" width="112" height="112">
+
 **Claude Code social media skill for evidence-backed content planning, approval-first scheduling, publishing workflows, and analytics.** Turn one verified achievement into useful platform-native content, review each destination, and learn from real results.
 
 > Status: **v0.2 experimental**. A working offline-first CLI and Claude Code skill are included. Live **text-only** API adapters exist for Bluesky, Mastodon, Telegram and LinkedIn personal profiles (member posts), but no personal accounts are connected and no live end-to-end publishing has been run. Mock-tested adapters for Threads text, Facebook Page text/link, Instagram single images, YouTube and TikTok video, Mastodon images and Bluesky/Mastodon replies also exist (owner-approved 2026-10-09); the capability registry keeps each one disabled until the owner records a supervised live receipt, so those platforms stay draft/manual-only (`manual-export`), as do all others. This is not a promise of viral growth.
@@ -7,6 +9,8 @@
 **Start here:** [quickstart](docs/QUICKSTART.md) · [what works now](docs/PLATFORM-MATRIX.md) · [install the Claude Code skill](#claude-code-skill) · [contribute](CONTRIBUTING.md) · [GitHub discovery and naming](docs/GITHUB-DISCOVERY.md) · public-release safety checklist
 
 **At a glance:** Draft distinct social posts, propose account-aware publishing times, export unsupported networks for manual posting, and review outcomes from imported native analytics. Automatic multi-network publishing, live account authorization, and algorithm-driven reach are **not** established by the current offline tests. The release checklist separates public code review from any live-posting permission.
+
+**Visual identity:** [scalable icon](assets/brand/icon.svg) · [wordmark](assets/brand/lockup-light.svg) · [social preview source](assets/brand/social-preview.svg) · [brand usage](assets/brand/README.md)
 
 ## Why this exists
 
