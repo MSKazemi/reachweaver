@@ -180,7 +180,7 @@ class PlatformAuditTests(unittest.TestCase):
             with contextlib.redirect_stdout(output):
                 self.assertEqual(main(["profile-audit","--file",str(EXAMPLE)]),0)
             self.assertIn("OFFLINE",output.getvalue())
-            self.assertIn("LinkedIn", output.getvalue().replace("linkedin","LinkedIn")) if False else None
+            self.assertIn("linkedin",output.getvalue())
 
 
 if __name__ == "__main__":
