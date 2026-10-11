@@ -20,14 +20,14 @@ Enable a user to turn a trustworthy update about their own work into platform-sp
 
 | Issue | Deliverable |
 | --- | --- |
-| [#1](https://github.com/MSKazemi/reachweaver/issues/1) | MVP/product success metrics and concrete user journeys |
-| [#2](https://github.com/MSKazemi/reachweaver/issues/2) | Reuse/build decision using independent evidence and license review |
-| [#3](https://github.com/MSKazemi/reachweaver/issues/3) | Discoverable Claude Code skill with offline preview contract |
-| [#4](https://github.com/MSKazemi/reachweaver/issues/4) | Versioned schema, provider abstractions and state machine |
-| [#5](https://github.com/MSKazemi/reachweaver/issues/5) | User-assisted OAuth, secure secrets and account selection. Offline slice merged: threat model, [onboarding guide](ACCOUNT-ONBOARDING.md), `credentials-audit`. Owner-approved hardening (2026-10-09, mock-tested): overlapping `env_prefix` refused, production-only live marker `REACHWEAVER_ENV`, systemd `LoadCredential=` through one credential accessor, Claude Code deny rules |
-| [#6](https://github.com/MSKazemi/reachweaver/issues/6) | Dated per-platform capability, policy and API-approval registry |
-| [#7](https://github.com/MSKazemi/reachweaver/issues/7) | Approval, dry-run, immutable preview and emergency stop |
-| [#8](https://github.com/MSKazemi/reachweaver/issues/8) | CI/tests/fixtures/security/development guides |
+| #1 | MVP/product success metrics and concrete user journeys |
+| #2 | Reuse/build decision using independent evidence and license review |
+| #3 | Discoverable Claude Code skill with offline preview contract |
+| #4 | Versioned schema, provider abstractions and state machine |
+| [#5](https://github.com/MSKazemi/reachweaver/issues/38) | User-assisted OAuth, secure secrets and account selection. Offline slice merged: threat model, [onboarding guide](ACCOUNT-ONBOARDING.md), `credentials-audit`. Owner-approved hardening (2026-10-09, mock-tested): overlapping `env_prefix` refused, production-only live marker `REACHWEAVER_ENV`, systemd `LoadCredential=` through one credential accessor, Claude Code deny rules |
+| #6 | Dated per-platform capability, policy and API-approval registry |
+| [#7](https://github.com/MSKazemi/reachweaver/issues/39) | Approval, dry-run, immutable preview and emergency stop |
+| #8 | CI/tests/fixtures/security/development guides |
 
 **Suggested execution order:** #1 + #2 + #6 research; then #4 schema; #3 + #8 local skill/testing; #5 + #7 authentication and approvals. These are dependencies, not a reason to work on all tickets in one PR.
 
@@ -35,15 +35,15 @@ Enable a user to turn a trustworthy update about their own work into platform-sp
 
 | Issue | Deliverable |
 | --- | --- |
-| [#9](https://github.com/MSKazemi/reachweaver/issues/9) | GitHub/RSS/paper/website signals with novelty and provenance |
-| [#10](https://github.com/MSKazemi/reachweaver/issues/10) | Verified brand-aware platform content and CTA variants |
-| [#11](https://github.com/MSKazemi/reachweaver/issues/11) | Durable jobs, scheduling, backoff and duplicate prevention |
-| [#12](https://github.com/MSKazemi/reachweaver/issues/12) | Bluesky official publishing adapter |
-| [#13](https://github.com/MSKazemi/reachweaver/issues/13) | Mastodon official publishing adapter |
-| [#14](https://github.com/MSKazemi/reachweaver/issues/14) | LinkedIn authorized member publishing adapter |
-| [#15](https://github.com/MSKazemi/reachweaver/issues/15) | Normalized-but-not-falsely-comparable metrics and UTM attribution |
-| [#16](https://github.com/MSKazemi/reachweaver/issues/16) | Measured growth experiments and evidence-based recommendations |
-| [#17](https://github.com/MSKazemi/reachweaver/issues/17) | Human-approved comment/mention response suggestions |
+| [#9](https://github.com/MSKazemi/reachweaver/issues/40) | GitHub/RSS/paper/website signals with novelty and provenance |
+| #10 | Verified brand-aware platform content and CTA variants |
+| [#11](https://github.com/MSKazemi/reachweaver/issues/41) | Durable jobs, scheduling, backoff and duplicate prevention |
+| [#12](https://github.com/MSKazemi/reachweaver/issues/42) | Bluesky official publishing adapter |
+| [#13](https://github.com/MSKazemi/reachweaver/issues/43) | Mastodon official publishing adapter |
+| [#14](https://github.com/MSKazemi/reachweaver/issues/44) | LinkedIn authorized member publishing adapter |
+| [#15](https://github.com/MSKazemi/reachweaver/issues/45) | Normalized-but-not-falsely-comparable metrics and UTM attribution |
+| [#16](https://github.com/MSKazemi/reachweaver/issues/46) | Measured growth experiments and evidence-based recommendations |
+| [#17](https://github.com/MSKazemi/reachweaver/issues/47) | Human-approved comment/mention response suggestions |
 
 **Recommended first technical vertical slice:** #3, #4, #6, #7, #8, #9, #10, #11, #12, then #5 auth integration as needed and #15 metrics. LinkedIn can be added when required developer permission is available. Use *offline mocked provider tests first*; real posting only with explicit owner approval.
 
@@ -51,16 +51,16 @@ Enable a user to turn a trustworthy update about their own work into platform-sp
 
 | Issue | Deliverable |
 | --- | --- |
-| [#18](https://github.com/MSKazemi/reachweaver/issues/18) | Rich media, alt text, subtitles, accessibility and localization |
-| [#19](https://github.com/MSKazemi/reachweaver/issues/19) | Threads integration, gated on Meta app authorization |
-| [#20](https://github.com/MSKazemi/reachweaver/issues/20) | Instagram professional-account adapter |
-| [#21](https://github.com/MSKazemi/reachweaver/issues/21) | Authorized Facebook Page adapter |
-| [#22](https://github.com/MSKazemi/reachweaver/issues/22) | YouTube upload/Shorts and analytics, respecting audit restrictions |
-| [#23](https://github.com/MSKazemi/reachweaver/issues/23) | TikTok Direct Post or approved creator-draft fallback |
-| [#24](https://github.com/MSKazemi/reachweaver/issues/24) | X, Reddit and Pinterest scoped feasibility before separate integrations |
-| [#25](https://github.com/MSKazemi/reachweaver/issues/25) | Optional SEO-repo integration and campaign attribution |
-| [#26](https://github.com/MSKazemi/reachweaver/issues/26) | Spend caps, monitoring, privacy and operations |
-| [#27](https://github.com/MSKazemi/reachweaver/issues/27) | Field pilot, benchmark and versioned release readiness |
+| [#18](https://github.com/MSKazemi/reachweaver/issues/48) | Rich media, alt text, subtitles, accessibility and localization |
+| [#19](https://github.com/MSKazemi/reachweaver/issues/49) | Threads integration, gated on Meta app authorization |
+| [#20](https://github.com/MSKazemi/reachweaver/issues/50) | Instagram professional-account adapter |
+| [#21](https://github.com/MSKazemi/reachweaver/issues/51) | Authorized Facebook Page adapter |
+| [#22](https://github.com/MSKazemi/reachweaver/issues/52) | YouTube upload/Shorts and analytics, respecting audit restrictions |
+| [#23](https://github.com/MSKazemi/reachweaver/issues/53) | TikTok Direct Post or approved creator-draft fallback |
+| #24 | X, Reddit and Pinterest scoped feasibility before separate integrations |
+| #25 | Optional SEO-repo integration and campaign attribution |
+| [#26](https://github.com/MSKazemi/reachweaver/issues/54) | Spend caps, monitoring, privacy and operations |
+| [#27](https://github.com/MSKazemi/reachweaver/issues/55) | Field pilot, benchmark and versioned release readiness |
 
 ## Global market research and timing roadmap (introduced 2026-10-08)
 

@@ -1,6 +1,6 @@
 # Timing-outcome evaluation — issue #16 (offline, observational)
 
-**Status:** Implemented as read-only **exploratory** analyses (`timing-evaluate`, `baseline-eval`) of the operator's previously imported, source-labeled metrics. It does **not** fetch analytics, connect social accounts, discover platform ranking weights, train an ML model, prove an optimal time, or schedule a post. This is an incremental part of [issue #16](https://github.com/MSKazemi/reachweaver/issues/16), not its completion.
+**Status:** Implemented as read-only **exploratory** analyses (`timing-evaluate`, `baseline-eval`) of the operator's previously imported, source-labeled metrics. It does **not** fetch analytics, connect social accounts, discover platform ranking weights, train an ML model, prove an optimal time, or schedule a post. This is an incremental part of [issue #16](https://github.com/MSKazemi/reachweaver/issues/46), not its completion.
 
 ## Purpose
 

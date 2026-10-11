@@ -99,8 +99,8 @@ Use a public GitHub release or publicly posted technical article as a **single o
 
 ## 8. Requirements traceability
 
-- This specification addresses [issue #1](https://github.com/MSKazemi/reachweaver/issues/1) (personas, outcomes, 3 worked journeys, MVP/v1.0 gates).
-- Tool reuse, legal feasibility, schema, auth, platform policy, approvals and CI are owned by [#2](https://github.com/MSKazemi/reachweaver/issues/2), [#4](https://github.com/MSKazemi/reachweaver/issues/4), [#5](https://github.com/MSKazemi/reachweaver/issues/5), [#6](https://github.com/MSKazemi/reachweaver/issues/6), [#7](https://github.com/MSKazemi/reachweaver/issues/7), [#8](https://github.com/MSKazemi/reachweaver/issues/8).
-- First metrics integration and experimentation are [#15](https://github.com/MSKazemi/reachweaver/issues/15) and [#16](https://github.com/MSKazemi/reachweaver/issues/16).
+- This specification addresses issue #1 (personas, outcomes, 3 worked journeys, MVP/v1.0 gates).
+- Tool reuse, legal feasibility, schema, auth, platform policy, approvals and CI are owned by #2, #4, [#5](https://github.com/MSKazemi/reachweaver/issues/38), #6, [#7](https://github.com/MSKazemi/reachweaver/issues/39), #8.
+- First metrics integration and experimentation are [#15](https://github.com/MSKazemi/reachweaver/issues/45) and [#16](https://github.com/MSKazemi/reachweaver/issues/46).
 
 **Open product choices (not blockers for this document):** select actual brands/accounts, countries, languages, budgets, user approvals and conversion event definitions with the owner before any live pilot. These must remain user-controlled rather than guessed.

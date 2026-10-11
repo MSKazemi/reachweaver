@@ -74,7 +74,7 @@ This document distinguishes implementation, validation and aspiration. A complet
 - [x] New `timing-evaluate` analyzes only already imported source-labeled snapshots from one account/platform at matched post ages and one denominator. Reads no private APIs and never modifies scheduled content.
 - [x] Six-hour audience-local weekday/weekend time groups report medians/IQR, evidence coverage, exclusion counts and explicitly **exploratory** candidate status after minimum post counts in two groups.
 - [x] Regression tests cover account/campaign/source isolation, missing/zero data, nearest snapshot, dates/timezones, sparse samples, ties and read-only CLI.
-- [ ] Not complete: consented first-party audience-activity connector, statistically robust future holdout tests, personalized model validation, qualified GitHub/site conversion attribution and independent long-term evaluation. See [timing protocol](TIMING-EVALUATION.md) and [#16](https://github.com/MSKazemi/reachweaver/issues/16).
+- [ ] Not complete: consented first-party audience-activity connector, statistically robust future holdout tests, personalized model validation, qualified GitHub/site conversion attribution and independent long-term evaluation. See [timing protocol](TIMING-EVALUATION.md) and [#16](https://github.com/MSKazemi/reachweaver/issues/46).
 
 ## Issue #16 baseline evaluation slice (2026-10-08)
 

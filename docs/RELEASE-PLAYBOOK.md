@@ -1,6 +1,6 @@
 # Release playbook: from a tagged release to a measured campaign
 
-**Status (2026-10-08):** Every command below exists and is covered by offline tests. The live steps (12 and 13) have **not** been run against a real account in this repository; see [FIRST-LIVE-PILOT.md](FIRST-LIVE-PILOT.md). This playbook is the ReachWeaver arm of the [field pilot protocol](FIELD-PILOT-PROTOCOL.md) and part of [issue #27](https://github.com/MSKazemi/reachweaver/issues/27).
+**Status (2026-10-08):** Every command below exists and is covered by offline tests. The live steps (12 and 13) have **not** been run against a real account in this repository; see [FIRST-LIVE-PILOT.md](FIRST-LIVE-PILOT.md). This playbook is the ReachWeaver arm of the [field pilot protocol](FIELD-PILOT-PROTOCOL.md) and part of [issue #27](https://github.com/MSKazemi/reachweaver/issues/55).
 
 The playbook turns one public release of a project you own into a small campaign on networks you are authorized to use, then measures what happened. Each **HUMAN GATE** is a decision only the owner can make. No command, plan, calendar or Claude Code session can make it for them, and passing an earlier gate never approves a later one.
 

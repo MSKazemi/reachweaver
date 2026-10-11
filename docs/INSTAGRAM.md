@@ -1,6 +1,6 @@
 # Instagram single-image posts (issue #20, owner-approved, disabled)
 
-**Status:** owner-approved 2026-10-09; disabled until a live receipt. The mock-tested adapter exists, but it is **unreachable**. The capability registry keeps Instagram `image` at `api_gated` with `reachweaver_adapter: "none"`, and `instagram` is not in `policy.SUPPORTED_LIVE`. `publish --live` and `connect-check --online` therefore refuse Instagram before any credential read or request. No Meta app, Instagram account or live post exists. Until the owner completes the steps in the security review proposal, use `manual-export --platform instagram` ([MANUAL-EXPORT.md](MANUAL-EXPORT.md)).
+**Status:** owner-approved 2026-10-09; disabled until a live receipt. The mock-tested adapter exists, but it is **unreachable**. The capability registry keeps Instagram `image` at `api_gated` with `reachweaver_adapter: "none"`, and `instagram` is not in `policy.SUPPORTED_LIVE`. `publish --live` and `connect-check --online` therefore refuse Instagram before any credential read or request. No Meta app, Instagram account or live post exists. Until the owner completes the steps in the security review proposal, use `manual-export --platform instagram` ([MANUAL-EXPORT.md](MANUAL-EXPORT.md)). Owner preparation steps: [INSTAGRAM-SETUP.md](INSTAGRAM-SETUP.md).
 
 ## What the adapter would send
 
