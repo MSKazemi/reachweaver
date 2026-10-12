@@ -1,46 +1,57 @@
-# ReachWeaver: disclaimer and terms of use
+# ReachWeaver: license, warranty disclaimer and responsible-use notice
 
-**Read this before you use ReachWeaver. By installing or using it you accept these terms. If you do not accept them, do not use it.**
+**Updated 12 October 2026.** This notice accompanies the free, experimental ReachWeaver v0.2 software and Claude Code plugin.
 
-ReachWeaver is free, open-source, **experimental** software (version 0.2) published by an individual, Mohsen Seyedkazemi Ardebili ("the author"), under the [Apache License 2.0](LICENSE). This page summarizes how that license applies and what you are responsible for. It does not replace or limit the license; if anything here conflicts with the license, the license governs. It is not legal advice.
+**Software license controls.** ReachWeaver is distributed under the [Apache License, Version 2.0](LICENSE). In particular, Sections 7 and 8 set out the warranty disclaimer and limitation of liability. This notice explains the tool's purpose and the operator's responsibilities; it **does not replace or amend Apache-2.0, impose additional conditions on its copyright permissions, or create a separate negotiated contract merely because someone downloads or runs the software**. If anything here conflicts with the license, the license controls. Rights and obligations imposed by applicable law or independently agreed written contracts may also apply.
 
-## 1. No warranty, no liability
+## 1. Experimental software; no warranty
 
-- The software is provided **"AS IS", without warranties or conditions of any kind**, express or implied, including fitness for a particular purpose, accuracy, reliability, security, non-infringement and availability (Apache-2.0, section 7).
-- **To the maximum extent permitted by law, the author and contributors are not liable for any damages or losses** arising from the software or from your use of it, whether direct or indirect, including: account suspension, restriction or loss; deleted, duplicated, wrong, premature or unwanted posts; reputational harm; lost reach, followers, revenue or opportunities; data loss; leaked or misused credentials; security incidents; privacy or data-protection claims; claims by platforms, employers, institutions, clients or third parties (Apache-2.0, section 8).
-- Nothing in these terms excludes or limits liability that cannot be excluded or limited under the law that applies to you.
+The software is provided **"AS IS"** without warranties or conditions except as required by applicable law or agreed in writing, as described in Apache-2.0 Section 7. Features, AI-generated content, security controls, analytics and publishing integrations can be incorrect, incomplete, interrupted or unsuitable for a particular purpose. The maintainers do not promise accuracy, uninterrupted service, compliance certification, commercial results, reach, likes, account acceptance or fitness for high-stakes uses.
 
-## 2. You are the operator and you are responsible
+Review the source and test safely before relying on the software. Do not use an untested workflow for critical business or personal decisions.
 
-ReachWeaver is a tool. A human operator decides what is drafted, approved and sent. **You are solely responsible for:**
+## 2. Independent operator; no publishing agency
 
-- every post, reply or other content published from your accounts, whether or not an AI assistant drafted it, and for checking its facts, tone, claims and attributions before you approve it;
-- complying with the terms, API rules, automation and rate-limit policies of each platform you connect, and with disclosure rules (for example for sponsored or affiliated content), advertising law, copyright and licensing, trademark rules, and the law on data protection and privacy that applies to you and to the people you mention, including honoring their requests;
-- the rights to any media, text or data you use;
-- the policies of your employer, institution or clients;
-- your **credentials**: keep tokens and passwords in your own secret manager or environment, never paste them into a chat or a repository, use a throwaway or test account for first trials, restrict token scopes, rotate and revoke them, and secure your own computer, backups, shell history and logs;
-- any live sending you enable. Live sending is off by default and requires your explicit configuration, approval of each post and an explicit command. Do not enable it unless you have reviewed the code and accept the risk.
+ReachWeaver is **user-operated software, not a hosted social-media management service**. Installing it does not make its author or contributors the operator's employee, agent, publisher, representative, compliance officer, data processor or professional adviser. No contributor is appointed to speak on a user's behalf merely by distributing the code.
 
-## 3. AI-generated content and results
+The software runs on the operator's own computer. Drafts and other state are normally local, and **live publishing is disabled by default**. An operator must configure an account and permissions, review the exact content and destination, give the required approval and explicitly activate a live send. These controls help prevent mistakes but are **not** a guarantee against unexpected behavior, compromised environments or third-party failures.
 
-Drafts, plans, scores, recommendations and analytics produced with the help of an AI assistant can be wrong, incomplete or out of date. Nothing here guarantees reach, engagement, views, followers, ranking or any commercial result. Metrics are only what you import from a platform's own export.
+Operators choose their own accounts, audiences, content, schedules, targets, data sources, integrations and applicable settings. No software license grants permission to use someone else's accounts or content, bypass platform restrictions or violate the law.
 
-## 4. Independence and trademarks
+## 3. Responsibility for content and third-party rules
 
-ReachWeaver is an independent project. It is **not affiliated with, endorsed by, sponsored by or supported by Anthropic or any social platform or service** it can work with (for example Bluesky, Mastodon, Telegram, LinkedIn, Meta, YouTube, TikTok, X, GitHub or Postiz). All product names, logos and brands are the property of their owners and are used only to identify compatibility. Claude and Claude Code are products of Anthropic. Third-party services have their own terms and privacy policies, and your use of them is governed by those, not by this project.
+Each operator is responsible, to the extent imposed by applicable law and the agreements they have accepted, for **their own decisions, accounts, credentials, data and publishing activity**. Before publishing, the operator should:
 
-## 5. No professional advice, no support promise
+- Obtain authorization to operate each personal, employer, institutional or client account, and check relevant organizational policies.
+- Verify every draft's factual claims, quotations, rights to use text and media, attribution, audience, destination, preview and accessibility, even when an AI model suggested them.
+- Check platform terms, API permissions, rate limits and automation rules, and applicable laws on privacy, data protection, copyright, trademarks, defamation, advertising, sponsorship disclosures, competition, consumer protection and unsolicited communications.
+- Respect privacy and opt-out requests, use only lawfully obtained information and avoid impersonation, harassment, deceptive endorsements, fake engagement or unauthorized bulk messages.
+- Review a live send on the **actual external platform**, reconcile unknown outcomes and remove or correct content through the platform when appropriate.
 
-The documentation, including the security, privacy and platform pages, describes what the software does. It is not legal, compliance, financial, tax, medical or security advice. Platform rules and laws change; the research pages record what was checked on a given date and may be out of date. The author provides no service level, support, or guaranteed response times.
+An operator's independent violation of platform rules or law is not, by itself, a guarantee that the project's contributors share responsibility for that act. **This statement does not prevent a third party from bringing a claim, and legal responsibility is determined by applicable law and the facts.** The maintainer cannot independently approve or supervise every downstream use, modified fork or account configuration.
 
-## 6. Data
+## 4. AI and third-party services
 
-The author does not receive your data (see the [privacy policy](docs/PRIVACY.md)). Data the software stores on your computer is under your control and your responsibility, including its retention, export and deletion.
+ReachWeaver is not affiliated with, endorsed by or sponsored by Anthropic, Claude, any social network or other named integration. External platforms and AI providers apply their own terms, policies, security practices and data handling. The operator is responsible for reviewing and satisfying those terms. The maintainers do not control third-party decisions such as account suspension, API changes, content removal, rate limits or service outages.
 
-## 7. Security and problems
+Generated content and growth/measurement recommendations are information for human evaluation, **not legal, security, financial, medical or other professional advice**. The software cannot assess legal compliance in every jurisdiction or guarantee moderation approval.
 
-This is experimental software and may contain bugs and vulnerabilities. Review the source before relying on it. If you find a problem, please open an issue at <https://github.com/MSKazemi/reachweaver/issues> and **do not include secrets, tokens or personal data in it**. Reports are welcome but are handled on a best-effort basis.
+## 5. Limitations of liability and damages
 
-## 8. Changes
+**To the extent permitted by applicable law and as provided by Apache-2.0 Section 8**, contributors limit their liability to users for damages arising from the license or the use or inability to use the software. Potential harms include erroneous, duplicate or unwanted posts; loss of accounts, followers, reputation or revenue; content or copyright disputes; provider sanctions; data loss, credential compromise or security incidents; and claims by third parties.
 
-These terms may be updated in this repository; the version at the release you installed applies to that release.
+This is a summary of the existing license, **not an independent promise that nobody can sue, an automatic user indemnity in favor of the author, or a waiver of third parties' rights**. No provision excludes or restricts responsibility where the law prohibits doing so, including applicable rules on intentional or grossly negligent conduct, mandatory public-interest obligations and non-waivable consumer rights. Separate contracts signed by a contributor may establish additional obligations that this notice cannot cancel.
+
+## 6. Privacy, security and support
+
+The maintainer does not currently operate a service that collects local drafts, databases or social credentials automatically. The plugin has network-enabled functions, including its GitHub update notice; external providers may receive connection metadata and, when explicitly used, approved content or credentials. Local state may persist until the operator manages it. The exact data flows and limits are described in the [privacy policy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md) and the [data lifecycle documentation](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY-LIFECYCLE.md).
+
+Operators must safeguard account credentials, machines, backups and exported data. Review the [security policy](https://github.com/MSKazemi/reachweaver/blob/main/SECURITY.md), use least-privilege access and report vulnerabilities privately. Maintenance and support are best-effort; no availability, maintenance period, response-time SLA or individual remediation guarantee is offered, except where independently agreed or required by law.
+
+## 7. No affiliation; notices and changes
+
+Product names and trademarks belong to their respective owners and identify compatibility only. The project may change; users should consult documentation for their installed version and verify current legal and provider requirements before each live publishing workflow.
+
+**Key documents:** [Apache-2.0 license](LICENSE) · [privacy policy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md) · [security policy](https://github.com/MSKazemi/reachweaver/blob/main/SECURITY.md).
+
+This notice is not a legal opinion. A qualified lawyer should assess enforceability for any particular jurisdiction or commercial deployment.
