@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "experiment_id": "hook-clarity-week-1",
+  "hypothesis": "A proof-led opening drives more qualified clicks than a generic opening for the same engineering topic.",
+  "changed_variable": "first-line hook only; same account, topic, format, CTA, and similar time slot",
+  "pre_registered_at": "2026-10-08T12:00:00+02:00",
+  "primary_metric": "clicks",
+  "guardrail_metric": "saves",
+  "denominator": "impressions",
+  "minimum_pairs": 3,
+  "minimum_relative_lift": 0.2,
+  "maximum_guardrail_drop": 0.1,
+  "metric_age_hours": 168,
+  "age_tolerance_hours": 24,
+  "pairs": [
+    {"control": "replace-with-real-control-1", "treatment": "replace-with-real-variant-1"},
+    {"control": "replace-with-real-control-2", "treatment": "replace-with-real-variant-2"},
+    {"control": "replace-with-real-control-3", "treatment": "replace-with-real-variant-3"}
+  ]
+}

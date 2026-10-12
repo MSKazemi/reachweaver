@@ -129,20 +129,49 @@ class PluginTests(unittest.TestCase):
     ROOT = Path(__file__).resolve().parents[1]
 
     def test_manifests_match_package_version_and_validate_shape(self):
-        plugin = json.loads((self.ROOT / ".claude-plugin/plugin.json").read_text())
+        plugin = json.loads((self.ROOT / "plugin/.claude-plugin/plugin.json").read_text())
         market = json.loads((self.ROOT / ".claude-plugin/marketplace.json").read_text())
         entry = market["plugins"][0]
         self.assertEqual({plugin["version"], entry["version"]}, {__version__})
         self.assertEqual((plugin["name"], entry["name"]), ("reachweaver", "reachweaver"))
-        self.assertEqual(entry["source"], "./")
-        self.assertTrue((self.ROOT / plugin["skills"] / "reachweaver" / "SKILL.md").is_file())
+        # The plugin is a lean subfolder: the directory validator times out on the whole repository.
+        self.assertEqual(entry["source"], "./plugin")
+        self.assertTrue((self.ROOT / "plugin/skills/reachweaver/SKILL.md").is_file())
+        self.assertFalse((self.ROOT / ".claude-plugin/plugin.json").exists())
+
+    def test_plugin_folder_is_lean_and_listing_ready(self):
+        plugin = self.ROOT / "plugin"
+        files = [p for p in plugin.rglob("*") if p.is_file() and "__pycache__" not in p.parts]
+        self.assertLess(len(files), 300)
+        self.assertFalse([p for p in files if p.stat().st_size > 256 * 1024], "files over 256 KiB are held by the directory")
+        images = sorted(p.relative_to(plugin).as_posix() for p in files
+                        if p.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"})
+        self.assertEqual(images, [".claude-plugin/icon.png"])
+        for name in ("tests", "docs", "reachweaver"):
+            self.assertFalse((plugin / name).exists(), name)
+        self.assertGreaterEqual(len((plugin / "README.md").read_text().split()), 40)
+        self.assertTrue((plugin / "LICENSE").is_file())
+        header = (plugin / ".claude-plugin/icon.png").read_bytes()[:24]  # listing icon: square PNG, 512 to 2048 px
+        self.assertEqual(header[:8], b"\x89PNG\r\n\x1a\n")
+        width, height = int.from_bytes(header[16:20], "big"), int.from_bytes(header[20:24], "big")
+        self.assertEqual(width, height)
+        self.assertTrue(512 <= width <= 2048)
+        self.assertLess((plugin / ".claude-plugin/icon.png").stat().st_size, 2 * 1024 * 1024)
+
+    def test_plugin_skill_mirror_matches_the_canonical_bundle(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("sync_skill", self.ROOT / "scripts/sync_skill.py")
+        sync = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sync)
+        self.assertEqual(sync.check(), [], "run python3 scripts/sync_skill.py")
 
     def test_session_hook_only_checks_and_script_exists(self):
-        hooks = json.loads((self.ROOT / "hooks/hooks.json").read_text())["hooks"]["SessionStart"]
+        hooks = json.loads((self.ROOT / "plugin/hooks/hooks.json").read_text())["hooks"]["SessionStart"]
         command = hooks[0]["hooks"][0]["command"]
         self.assertTrue(command.endswith('run.py" update --notice'))
+        self.assertIn("${CLAUDE_PLUGIN_ROOT}/skills/reachweaver/scripts/run.py", command)
         self.assertNotIn("--apply", command)
-        self.assertTrue((self.ROOT / ".claude/skills/reachweaver/scripts/run.py").is_file())
+        self.assertTrue((self.ROOT / "plugin/skills/reachweaver/scripts/run.py").is_file())
 
     def test_plugin_install_is_never_applied_in_place(self):
         fake = Path("/home/u/.claude/plugins/cache/reachweaver/reachweaver/0.2.0/x.py")

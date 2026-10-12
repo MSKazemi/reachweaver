@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/.claude/skills/reachweaver/scripts/run.py\" update --notice"
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/reachweaver/scripts/run.py\" update --notice"
           }
         ]
       }

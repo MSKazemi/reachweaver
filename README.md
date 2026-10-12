@@ -1,6 +1,6 @@
 # ReachWeaver
 
-<img src=".claude-plugin/icon.png" alt="ReachWeaver icon: Persian-inspired turquoise and gold geometric knot" align="right" width="112" height="112">
+<img src="plugin/.claude-plugin/icon.png" alt="ReachWeaver icon: Persian-inspired turquoise and gold geometric knot" align="right" width="112" height="112">
 
 **Claude Code social media skill for evidence-backed content planning, approval-first scheduling, publishing workflows, and analytics.** Turn one verified achievement into useful platform-native content, review each destination, and learn from real results.
 
@@ -10,7 +10,7 @@
 
 **At a glance:** Draft distinct social posts, propose account-aware publishing times, export unsupported networks for manual posting, and review outcomes from imported native analytics. Automatic multi-network publishing, live account authorization, and algorithm-driven reach are **not** established by the current offline tests. The release checklist separates public code review from any live-posting permission.
 
-**Visual identity:** [official icon](.claude-plugin/icon.png) · [brand usage](assets/brand/README.md)
+**Visual identity:** [official icon](plugin/.claude-plugin/icon.png) · [brand usage](assets/brand/README.md)
 
 ## Why this exists
 
@@ -431,7 +431,7 @@ Example Claude Code request:
 /plugin install reachweaver@reachweaver
 ```
 
-Use it as `/reachweaver:reachweaver` or just ask. A `SessionStart` hook runs `update --notice` (one GET to github.com at most every 24 h, silent offline) and Claude tells you when a newer release exists. To update: `/plugin marketplace update reachweaver`, then `/plugin update reachweaver@reachweaver`, then `/reload-plugins` (or turn on auto-update for the marketplace under `/plugin`). Bump `version` in `.claude-plugin/*.json` with every release (a test checks it matches `reachweaver.__version__`).
+Use it as `/reachweaver:reachweaver` or just ask. A `SessionStart` hook runs `update --notice` (one GET to github.com at most every 24 h, silent offline) and Claude tells you when a newer release exists. To update: `/plugin marketplace update reachweaver`, then `/plugin update reachweaver@reachweaver`, then `/reload-plugins` (or turn on auto-update for the marketplace under `/plugin`). The plugin is the lean `plugin/` folder (manifest, hook, README, LICENSE and a generated copy of the skill bundle; `python3 scripts/sync_skill.py` refreshes it), not the whole repository, so the Claude plugin directory can validate it quickly. Bump `version` in `plugin/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` with every release (a test checks it matches `reachweaver.__version__`).
 
 **Alternative: standalone installer** (no plugin system; copies the skill into `~/.claude/skills`):
 

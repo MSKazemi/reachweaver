@@ -1,0 +1,1042 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-10-08",
+  "decision_type": "editorial_research_hypotheses_not_predictions",
+  "reachweaver_live_status": "No real accounts connected or live publishing end-to-end verified as of 2026-10-08; Bluesky/Mastodon/Telegram/LinkedIn-member text adapters mock-tested only.",
+  "time_slot_policy": {
+    "status": "hypotheses_only",
+    "local_windows": [
+      {
+        "id": "lunch",
+        "local_time": "12:30"
+      },
+      {
+        "id": "evening",
+        "local_time": "19:00"
+      }
+    ],
+    "notes": "Illustrative audience-local candidates. Not empirically established best times; compare matched-age results."
+  },
+  "source_methodology": "Native platform scheduling requires official documentation per non-unverified status. Market ordering is editorial hypothesis, never a claim about proprietary ranking or expected account reach.",
+  "platforms": [
+    {
+      "id": "github",
+      "label": "GitHub",
+      "category": "code",
+      "scheduling": {
+        "mode": "not_applicable",
+        "scope": "Canonical code, release and contributor surface; social schedule is not applicable",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "not_applicable",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "snapcraft",
+      "label": "Snapcraft",
+      "category": "store",
+      "scheduling": {
+        "mode": "not_applicable",
+        "scope": "Store listing and installed-app conversion, not an ordinary social channel",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "not_applicable",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "dev",
+      "label": "DEV Community",
+      "category": "technical",
+      "scheduling": {
+        "mode": "native",
+        "scope": "Author editor can schedule articles in local time; write useful technical content",
+        "official_source": "https://dev.to/help/writing-editing-scheduling"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "youtube",
+      "label": "YouTube / Shorts",
+      "category": "video",
+      "scheduling": {
+        "mode": "native",
+        "scope": "YouTube Studio can schedule publication; copyright and strikes still apply",
+        "official_source": "https://support.google.com/youtube/answer/1270709?hl=en"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "linkedin",
+      "label": "LinkedIn",
+      "category": "professional",
+      "scheduling": {
+        "mode": "native_conditional",
+        "scope": "Member/Page scheduling UI differs, page admins/format restrictions apply",
+        "official_source": "https://www.linkedin.com/help/linkedin/answer/a1427297"
+      },
+      "reachweaver_delivery": "mock_tested_text",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "reddit",
+      "label": "Reddit",
+      "category": "community",
+      "scheduling": {
+        "mode": "moderator_only",
+        "scope": "Native scheduled posts require subreddit moderator permissions; normal user promotion manual and rule-dependent",
+        "official_source": "https://support.reddithelp.com/hc/en-us/articles/15484443169556-Scheduled-and-Recurring-Posts"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "bluesky",
+      "label": "Bluesky",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "third_party",
+        "scope": "No general native scheduler confirmed; external approved tool or authorized ReachWeaver worker required",
+        "official_source": "https://docs.bsky.app/docs/tutorials/creating-a-post"
+      },
+      "reachweaver_delivery": "mock_tested_text",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "mastodon",
+      "label": "Mastodon",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "api_or_client",
+        "scope": "Server status API supports scheduling; instance/client support varies; ReachWeaver itself uses local due time",
+        "official_source": "https://docs.joinmastodon.org/methods/statuses/"
+      },
+      "reachweaver_delivery": "mock_tested_text",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "telegram",
+      "label": "Telegram",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "native",
+        "scope": "Native scheduling available in app; ReachWeaver bot posting still requires channel admin rights",
+        "official_source": "https://telegram.org/blog/scheduled-reminders-themes"
+      },
+      "reachweaver_delivery": "mock_tested_text",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "product_hunt",
+      "label": "Product Hunt",
+      "category": "launch",
+      "scheduling": {
+        "mode": "launch_only",
+        "scope": "Schedule a product *launch* within current allowed window, not ordinary recurring posts",
+        "official_source": "https://help.producthunt.com/en/articles/2724119-how-to-schedule-a-post"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "x",
+      "label": "X",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "native_conditional",
+        "scope": "X Pro/eligible scheduling interface; longer premium posts may have exclusions",
+        "official_source": "https://help.x.com/en/using-x/advanced-postdeck-features"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "instagram",
+      "label": "Instagram Reels / posts",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Native or Meta Business scheduling is account/format dependent; confirm current UI",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "tiktok",
+      "label": "TikTok",
+      "category": "video",
+      "scheduling": {
+        "mode": "native_conditional",
+        "scope": "Official browser scheduler requires eligible account; 15 minutes to 10 days in cited guidance",
+        "official_source": "https://ads.tiktok.com/business/en-US/blog/introducing-video-scheduler-now-you-can-plan-tiktoks-in-advance"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "threads",
+      "label": "Threads",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "native_conditional",
+        "scope": "Meta announced web-first native post scheduling tests (2024-08-15); secondary reports (2025-01) describe an in-app scheduler up to 75 days ahead without reply scheduling. Recheck the signed-in composer, account eligibility and horizon before manually queueing. No ReachWeaver API scheduler.",
+        "official_source": "https://about.fb.com/news/2024/08/new-threads-features-for-creators-and-businesses/"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "facebook_pages",
+      "label": "Facebook Pages",
+      "category": "professional",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Meta Page admin/format and Business Suite requirements must be verified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "facebook_groups",
+      "label": "Facebook Groups",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Group owner/moderator rules control posting; no generic mass distribution",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "discord",
+      "label": "Discord",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Server-specific posting permission; no unsolicited bot posts or member DMs",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "whatsapp",
+      "label": "WhatsApp communities",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Opt-in only; no automated unsolicited broadcasts",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "indie_hackers",
+      "label": "Indie Hackers",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Founder/builders discussions, not copy-paste promotion",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "peerlist",
+      "label": "Peerlist",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Builders and developers; account and format not verified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "hashnode",
+      "label": "Hashnode",
+      "category": "technical",
+      "scheduling": {
+        "mode": "native_conditional",
+        "scope": "Native scheduled publishing offered by Hashnode Pro (paid publication plan), not a ReachWeaver publishing integration. Verify account subscription before use.",
+        "official_source": "https://hashnode.com/changelog/2026-06-11-introducing-hashnode-pro"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "hacker_news",
+      "label": "Hacker News / Show HN",
+      "category": "launch",
+      "scheduling": {
+        "mode": "prohibited",
+        "scope": "Human-written, human-edited and human-submitted only; no LLM-generated HN text or automated submission",
+        "official_source": "https://news.ycombinator.com/newsguidelines.html"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "bilibili",
+      "label": "Bilibili",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Chinese-language original video; eligibility and account verification required",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "zhihu",
+      "label": "Zhihu",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Chinese Q&A; answer genuinely useful questions in proper language",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "oschina",
+      "label": "OSCHINA",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Chinese FOSS community; community rules and localization apply",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "csdn",
+      "label": "CSDN",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Chinese developer publishing; verify platform/account eligibility",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "juejin",
+      "label": "Juejin",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Chinese technical tutorials; no unreviewed machine translation",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "gitee",
+      "label": "Gitee",
+      "category": "code",
+      "scheduling": {
+        "mode": "not_applicable",
+        "scope": "Only an authorized maintained mirror; never pretend mirror exists",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "not_applicable",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "wechat",
+      "label": "WeChat Official Accounts",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Account verification and regional compliance required",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "douyin",
+      "label": "Douyin",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Chinese short-video account permissions and original content required",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "kuaishou",
+      "label": "Kuaishou",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Regional creator verification and original content required",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "weibo",
+      "label": "Weibo",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Chinese social account and native-language verification required",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "qiita",
+      "label": "Qiita",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Japanese technical articles, community guideline review required",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "zenn",
+      "label": "Zenn",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Japanese developer tutorials; current writer/GitHub integration to check",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "pinterest",
+      "label": "Pinterest",
+      "category": "visual",
+      "scheduling": {
+        "mode": "native_conditional",
+        "scope": "Business account can schedule standard Pins up to 30 days, max 10 queued",
+        "official_source": "https://help.pinterest.com/en/business/article/schedule-pins"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    },
+    {
+      "id": "dailydev",
+      "label": "daily.dev",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Rules vary by Squad; do not drop promotional links",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-08"
+    }
+  ],
+  "markets": [
+    {
+      "id": "global",
+      "label": "Worldwide / English baseline",
+      "country": "multi",
+      "timezone": null,
+      "languages": [
+        "en"
+      ],
+      "localization_note": "No single worldwide posting time. Choose an actual target market before generating time slots.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "bluesky",
+          "mastodon",
+          "reddit",
+          "linkedin",
+          "youtube",
+          "discord"
+        ],
+        "adoption": [
+          "youtube",
+          "github",
+          "dev",
+          "linkedin",
+          "reddit",
+          "bluesky",
+          "product_hunt",
+          "instagram"
+        ],
+        "awareness": [
+          "youtube",
+          "instagram",
+          "tiktok",
+          "linkedin",
+          "x",
+          "threads",
+          "facebook_pages",
+          "bluesky"
+        ],
+        "collaboration": [
+          "linkedin",
+          "github",
+          "dev",
+          "bluesky",
+          "mastodon",
+          "peerlist",
+          "reddit"
+        ]
+      }
+    },
+    {
+      "id": "india",
+      "label": "India pilot",
+      "country": "IN",
+      "timezone": "Asia/Kolkata",
+      "languages": [
+        "en",
+        "hi"
+      ],
+      "localization_note": "English first for technical readers; human-review any Hindi material; subtitles never imply Hindi dictation support.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "hashnode",
+          "peerlist",
+          "linkedin",
+          "youtube",
+          "reddit"
+        ],
+        "adoption": [
+          "youtube",
+          "linkedin",
+          "dev",
+          "github",
+          "hashnode",
+          "peerlist",
+          "instagram"
+        ],
+        "awareness": [
+          "youtube",
+          "instagram",
+          "linkedin",
+          "tiktok",
+          "threads",
+          "facebook_pages"
+        ],
+        "collaboration": [
+          "linkedin",
+          "peerlist",
+          "dev",
+          "github",
+          "hashnode"
+        ]
+      }
+    },
+    {
+      "id": "china",
+      "label": "Mainland China pilot",
+      "country": "CN",
+      "timezone": "Asia/Shanghai",
+      "languages": [
+        "zh-Hans"
+      ],
+      "localization_note": "Human-reviewed Simplified Chinese and eligibility checks; do not claim Chinese-language product support or working Gitee mirror.",
+      "rankings": {
+        "contributors": [
+          "gitee",
+          "oschina",
+          "csdn",
+          "juejin",
+          "bilibili",
+          "zhihu",
+          "github"
+        ],
+        "adoption": [
+          "bilibili",
+          "csdn",
+          "oschina",
+          "juejin",
+          "zhihu",
+          "gitee"
+        ],
+        "awareness": [
+          "bilibili",
+          "douyin",
+          "weibo",
+          "wechat",
+          "zhihu",
+          "csdn"
+        ],
+        "collaboration": [
+          "oschina",
+          "gitee",
+          "csdn",
+          "juejin",
+          "zhihu"
+        ]
+      }
+    },
+    {
+      "id": "japan",
+      "label": "Japan pilot",
+      "country": "JP",
+      "timezone": "Asia/Tokyo",
+      "languages": [
+        "ja"
+      ],
+      "localization_note": "Native-language technical review. Localization does not establish Japanese dictation support.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "qiita",
+          "zenn",
+          "x",
+          "youtube",
+          "bluesky"
+        ],
+        "adoption": [
+          "youtube",
+          "qiita",
+          "zenn",
+          "x",
+          "github"
+        ],
+        "awareness": [
+          "youtube",
+          "x",
+          "instagram",
+          "tiktok"
+        ],
+        "collaboration": [
+          "qiita",
+          "zenn",
+          "x",
+          "github",
+          "linkedin"
+        ]
+      }
+    },
+    {
+      "id": "indonesia",
+      "label": "Indonesia pilot",
+      "country": "ID",
+      "timezone": "Asia/Jakarta",
+      "languages": [
+        "id",
+        "en"
+      ],
+      "localization_note": "Do not treat Southeast Asia as one time zone; test this country specifically.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "discord",
+          "youtube",
+          "linkedin"
+        ],
+        "adoption": [
+          "youtube",
+          "tiktok",
+          "instagram",
+          "facebook_groups",
+          "github",
+          "dev"
+        ],
+        "awareness": [
+          "tiktok",
+          "youtube",
+          "instagram",
+          "facebook_pages",
+          "threads"
+        ],
+        "collaboration": [
+          "linkedin",
+          "discord",
+          "github",
+          "dev"
+        ]
+      }
+    },
+    {
+      "id": "philippines",
+      "label": "Philippines pilot",
+      "country": "PH",
+      "timezone": "Asia/Manila",
+      "languages": [
+        "en",
+        "fil"
+      ],
+      "localization_note": "Pilot English tutorials and assess demand before making Filipino media.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "linkedin",
+          "youtube",
+          "discord"
+        ],
+        "adoption": [
+          "youtube",
+          "facebook_groups",
+          "tiktok",
+          "dev",
+          "github"
+        ],
+        "awareness": [
+          "youtube",
+          "tiktok",
+          "facebook_pages",
+          "instagram"
+        ],
+        "collaboration": [
+          "linkedin",
+          "github",
+          "dev",
+          "discord"
+        ]
+      }
+    },
+    {
+      "id": "vietnam",
+      "label": "Vietnam pilot",
+      "country": "VN",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "languages": [
+        "vi"
+      ],
+      "localization_note": "Human review Vietnamese content and local account eligibility.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "youtube",
+          "discord"
+        ],
+        "adoption": [
+          "youtube",
+          "facebook_groups",
+          "tiktok",
+          "github"
+        ],
+        "awareness": [
+          "youtube",
+          "tiktok",
+          "facebook_pages",
+          "instagram"
+        ],
+        "collaboration": [
+          "github",
+          "dev",
+          "linkedin"
+        ]
+      }
+    },
+    {
+      "id": "nigeria",
+      "label": "Nigeria pilot",
+      "country": "NG",
+      "timezone": "Africa/Lagos",
+      "languages": [
+        "en"
+      ],
+      "localization_note": "Pilot Nigerian developer communities; not a proxy for all of Africa.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "linkedin",
+          "youtube",
+          "discord"
+        ],
+        "adoption": [
+          "youtube",
+          "linkedin",
+          "facebook_groups",
+          "github",
+          "dev"
+        ],
+        "awareness": [
+          "youtube",
+          "facebook_pages",
+          "instagram",
+          "tiktok"
+        ],
+        "collaboration": [
+          "linkedin",
+          "dev",
+          "github",
+          "facebook_groups"
+        ]
+      }
+    },
+    {
+      "id": "kenya",
+      "label": "Kenya pilot",
+      "country": "KE",
+      "timezone": "Africa/Nairobi",
+      "languages": [
+        "en",
+        "sw"
+      ],
+      "localization_note": "Local Kenya audience and optional human-reviewed Swahili media.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "linkedin",
+          "youtube",
+          "discord"
+        ],
+        "adoption": [
+          "youtube",
+          "linkedin",
+          "facebook_groups",
+          "github",
+          "dev"
+        ],
+        "awareness": [
+          "youtube",
+          "facebook_pages",
+          "instagram",
+          "tiktok"
+        ],
+        "collaboration": [
+          "linkedin",
+          "github",
+          "dev",
+          "discord"
+        ]
+      }
+    },
+    {
+      "id": "south_africa",
+      "label": "South Africa pilot",
+      "country": "ZA",
+      "timezone": "Africa/Johannesburg",
+      "languages": [
+        "en"
+      ],
+      "localization_note": "Country-specific professional and technology communities; measure actual demand.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "linkedin",
+          "youtube"
+        ],
+        "adoption": [
+          "youtube",
+          "linkedin",
+          "github",
+          "facebook_groups"
+        ],
+        "awareness": [
+          "youtube",
+          "facebook_pages",
+          "instagram",
+          "tiktok"
+        ],
+        "collaboration": [
+          "linkedin",
+          "github",
+          "dev"
+        ]
+      }
+    },
+    {
+      "id": "ghana",
+      "label": "Ghana pilot",
+      "country": "GH",
+      "timezone": "Africa/Accra",
+      "languages": [
+        "en"
+      ],
+      "localization_note": "Country-specific communities; avoid unrequested broad posting.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "linkedin",
+          "youtube"
+        ],
+        "adoption": [
+          "youtube",
+          "linkedin",
+          "facebook_groups",
+          "github"
+        ],
+        "awareness": [
+          "youtube",
+          "facebook_pages",
+          "instagram"
+        ],
+        "collaboration": [
+          "linkedin",
+          "github",
+          "dev"
+        ]
+      }
+    },
+    {
+      "id": "egypt",
+      "label": "Egypt pilot",
+      "country": "EG",
+      "timezone": "Africa/Cairo",
+      "languages": [
+        "ar",
+        "en"
+      ],
+      "localization_note": "Arabic localization requires human-review and language-capability distinction.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "linkedin",
+          "youtube"
+        ],
+        "adoption": [
+          "youtube",
+          "facebook_groups",
+          "linkedin",
+          "github"
+        ],
+        "awareness": [
+          "youtube",
+          "facebook_pages",
+          "instagram",
+          "tiktok"
+        ],
+        "collaboration": [
+          "linkedin",
+          "github",
+          "dev"
+        ]
+      }
+    },
+    {
+      "id": "morocco",
+      "label": "Morocco pilot",
+      "country": "MA",
+      "timezone": "Africa/Casablanca",
+      "languages": [
+        "ar",
+        "fr"
+      ],
+      "localization_note": "Human-review Arabic/French content; verify locale and time-zone rules for each date.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "linkedin",
+          "youtube"
+        ],
+        "adoption": [
+          "youtube",
+          "facebook_groups",
+          "linkedin",
+          "github"
+        ],
+        "awareness": [
+          "youtube",
+          "facebook_pages",
+          "instagram",
+          "tiktok"
+        ],
+        "collaboration": [
+          "linkedin",
+          "github",
+          "dev"
+        ]
+      }
+    },
+    {
+      "id": "brazil",
+      "label": "Brazil pilot",
+      "country": "BR",
+      "timezone": "America/Sao_Paulo",
+      "languages": [
+        "pt-BR"
+      ],
+      "localization_note": "Global reach includes Latin America; test with native-language tutorials.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "youtube",
+          "linkedin"
+        ],
+        "adoption": [
+          "youtube",
+          "instagram",
+          "github",
+          "dev"
+        ],
+        "awareness": [
+          "youtube",
+          "instagram",
+          "tiktok",
+          "facebook_pages"
+        ],
+        "collaboration": [
+          "linkedin",
+          "github",
+          "dev"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "kind": "reachweaver.growth-plan",
+  "experiment_id": "hook-proof-vs-generic-2026-10",
+  "hypothesis": "For the same engineering topic, a proof-first opening line earns a higher link-click rate per impression than a generic announcement opening.",
+  "dimension": "hook",
+  "cohort": {"platform": "bluesky", "account_id": "my-bluesky"},
+  "primary_metric": {"signal": "link_clicks", "denominator": "impressions"},
+  "guardrail_metrics": [
+    {"signal": "saves", "denominator": "impressions"},
+    {"signal": "likes", "denominator": "impressions"}
+  ],
+  "observation_window": {
+    "metric_age_hours": 168,
+    "age_tolerance_hours": 24,
+    "start": "2026-10-12",
+    "end": "2026-12-07"
+  },
+  "minimum_pairs": 6,
+  "minimum_relative_lift": 0.2,
+  "maximum_guardrail_drop": 0.1,
+  "stopping_rule": {
+    "type": "fixed_pairs",
+    "max_pairs": 8,
+    "stop_early_only_for": ["guardrail_breach", "account_incident", "platform_policy_change"],
+    "description": "Read out once, after 8 pairs or at window end. No peeking-based early stop on a favourable result."
+  },
+  "confounders_acknowledged": {
+    "account_baseline": "Both arms of a pair use the same account in the same week.",
+    "time": "Both arms use the same Tue@10:00 Europe/Rome slot in consecutive weeks; weekday and holiday drift remain.",
+    "topic": "Each pair shares one topic; topics differ between pairs.",
+    "platform": "Bluesky only; results do not transfer to other platforms.",
+    "follower_count": "Record follower count at each send; growth during the window is a known confounder.",
+    "feed_changes": "Feed ranking can change mid-window; note any announced change and do not pool across it."
+  },
+  "variants": [
+    {
+      "id": "control-generic",
+      "role": "control",
+      "differs_in": "hook",
+      "hook": "generic-announcement",
+      "framing": "engineering-lesson",
+      "format": "text",
+      "cta_url": "https://github.com/MSKazemi/reachweaver",
+      "cta_phrase": "Review the design",
+      "timing": "Tue@10:00 Europe/Rome",
+      "text": "New post on the ReachWeaver project. We wrote up how a local outbox records approvals before anything is sent, and why an uncertain send waits for a human. Review the design: https://github.com/MSKazemi/reachweaver"
+    },
+    {
+      "id": "treatment-proof-first",
+      "role": "treatment",
+      "differs_in": "hook",
+      "hook": "proof-first",
+      "framing": "engineering-lesson",
+      "format": "text",
+      "cta_url": "https://github.com/MSKazemi/reachweaver",
+      "cta_phrase": "Review the design",
+      "timing": "Tue@10:00 Europe/Rome",
+      "text": "An interrupted send in ReachWeaver is never retried automatically: it stops in needs_review until a person reconciles it. The outbox keeps that state locally, next to each approval. Review the design: https://github.com/MSKazemi/reachweaver"
+    }
+  ],
+  "notes": "Illustrative plan. Replace the cohort with your own account and write real, distinct posts. Registration is not approval to publish."
+}

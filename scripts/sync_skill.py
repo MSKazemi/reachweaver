@@ -1,7 +1,11 @@
 """Mirror canonical CLI runtime into the standalone Claude skill.
 
-``python3 scripts/sync_skill.py``          write the bundle
+``python3 scripts/sync_skill.py``          write the bundle and the plugin mirror
 ``python3 scripts/sync_skill.py --check``  list out-of-date bundle files, exit 1, write nothing
+
+The Claude plugin directory scans the whole plugin folder, so the plugin is a lean ``plugin/``
+subfolder (manifest, hook, README, LICENSE and a byte-identical copy of the skill bundle) rather
+than the repository root with its tests and docs. ``plugin/skills/reachweaver`` is generated here.
 """
 from __future__ import annotations
 
@@ -13,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "reachweaver"
 SKILL = ROOT / ".claude/skills/reachweaver"
 TARGET = SKILL / "scripts/reachweaver"
+PLUGIN_SKILL = ROOT / "plugin/skills/reachweaver"
 REGISTRIES = ("distribution_registry.json", "platform_registry.json", "profile_audit_registry.json")
 # Canonical files mirrored into the skill's assets/ (flat, by basename).
 ASSET_SOURCES = (
@@ -46,13 +51,28 @@ def expected() -> dict[Path, bytes]:
     return files
 
 
+def _bundle_files() -> list[Path]:
+    """Files of the skill bundle that ship (no bytecode caches)."""
+    return sorted(p for p in SKILL.rglob("*") if p.is_file() and "__pycache__" not in p.parts)
+
+
+def plugin_expected() -> dict[Path, bytes]:
+    """The plugin's copy of the skill bundle, as {path: bytes}, built from the bundle on disk."""
+    return {PLUGIN_SKILL / p.relative_to(SKILL): p.read_bytes() for p in _bundle_files()}
+
+
 def check() -> list[Path]:
-    """Bundle files that are missing, differ or are stale. Never writes."""
+    """Bundle and plugin-mirror files that are missing, differ or are stale. Never writes."""
     want = expected()
     diff = [p for p, data in want.items() if not p.is_file() or p.read_bytes() != data]
     if TARGET.is_dir():
         diff += [p for p in TARGET.glob("*.py") if p not in want]
-    return sorted(diff)
+    mirror = plugin_expected()
+    diff += [p for p, data in mirror.items() if not p.is_file() or p.read_bytes() != data]
+    if PLUGIN_SKILL.is_dir():
+        diff += [p for p in PLUGIN_SKILL.rglob("*")
+                 if p.is_file() and "__pycache__" not in p.parts and p not in mirror]
+    return sorted(set(diff))
 
 
 def sync():
@@ -73,6 +93,19 @@ def sync():
     for rel in ASSET_SOURCES:
         shutil.copy2(ROOT / rel, assets / Path(rel).name)
     (TARGET.parent / "run.py").write_text(RUN_PY, encoding="utf-8")
+    # Mirror the finished bundle into the lean plugin folder; drop stale files and caches.
+    mirror = plugin_expected()
+    for path, data in mirror.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    if PLUGIN_SKILL.is_dir():
+        for path in sorted(PLUGIN_SKILL.rglob("*"), reverse=True):
+            if path.is_file() and path not in mirror:
+                path.unlink()
+            elif path.is_dir() and not any(path.iterdir()):
+                path.rmdir()
+    for cache in PLUGIN_SKILL.rglob("__pycache__"):
+        shutil.rmtree(cache)
 
 
 if __name__ == "__main__":

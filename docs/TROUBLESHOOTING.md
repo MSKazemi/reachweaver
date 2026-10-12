@@ -121,5 +121,5 @@ A registry entry is research, not permission. An alternative here does not mean 
 - **"SHA-256 mismatch"**: the download is not the published bundle. Nothing was installed; retry, and do not use the file.
 - **"source checkout or pip install"**: `update --apply` only replaces an installed skill bundle. In a clone, `git pull` and `python3 scripts/sync_skill.py`.
 - **No update notice**: `~/.cache/reachweaver/no-update-check` exists, you are offline, or the last check was under 24 h ago (cache: `~/.cache/reachweaver/update-check.json`). `update --check` always asks GitHub.
-- **Plugin install**: updates go through `/plugin marketplace update reachweaver` and `/plugin update reachweaver@reachweaver`; `update --apply` is refused on purpose. Validate manifests with `claude plugin validate .`.
+- **Plugin install**: updates go through `/plugin marketplace update reachweaver` and `/plugin update reachweaver@reachweaver`; `update --apply` is refused on purpose. Validate manifests with `claude plugin validate .` (marketplace) and `claude plugin validate plugin` (the plugin folder).
 - **Roll back**: the previous bundle is in `~/.cache/reachweaver/previous/`; move it back over `~/.claude/skills/reachweaver`.

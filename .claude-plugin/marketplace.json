@@ -1,11 +1,13 @@
 {
   "name": "reachweaver",
-  "owner": { "name": "Mohsen Seyedkazemi Ardebili" },
+  "owner": {
+    "name": "Mohsen Seyedkazemi Ardebili"
+  },
   "description": "ReachWeaver: approval-first social publishing and audience growth for Claude Code",
   "plugins": [
     {
       "name": "reachweaver",
-      "source": "./",
+      "source": "./plugin",
       "description": "Approval-first social publishing and evidence-driven audience growth",
       "version": "0.2.0",
       "category": "marketing"
