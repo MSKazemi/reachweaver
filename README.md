@@ -354,6 +354,13 @@ reachweaver signal-brief --scan scan.json --signal-id SIGNAL_ID --brand examples
 
 ## Security and reality checks
 
+**What this plugin runs, reads and sends (disclosure for plugin reviewers and users):**
+
+- **On session start** one hook runs `update --notice`: a single HTTPS GET to github.com at most every 24 h to look for a newer release. It sends no data from your machine, is silent offline, never updates by itself, and is disabled by `touch ~/.cache/reachweaver/no-update-check`.
+- **Everything else is local and offline by default.** Planning, drafting, validation, `publish` without `--live` and `manual-export` never open a network connection. Local state stays in `state/` and your ignored account config.
+- **Credentials** are read only from `REACHWEAVER_*` environment variables you set yourself, only at send time, and are used only against that platform's own API host (for example Bluesky, Mastodon, Telegram, LinkedIn). Regression tests assert they never appear in exports, reports, health output, dead letters or logs. Live sending additionally needs `REACHWEAVER_ALLOW_LIVE=1`, `REACHWEAVER_ENV=prod`, an approved due post and an explicit `--live`. Claude does not send posts on its own.
+- **Optional online checks** (identity preflight, `landing-check --online`) run only when you invoke them explicitly.
+
 - Only human-authenticated, permitted accounts. User completes MFA, official consent and app approvals.
 - Credentials loaded from environment at send time; account metadata only in ignored local JSON. `credentials-audit` checks offline for placeholder, orphaned, reused or colliding credential variables and for literal secrets in a shell history file you name, printing variable names and line numbers only. See [account onboarding](docs/ACCOUNT-ONBOARDING.md) and the threat model.
 - Never commit secrets, cookies, sessions, analytics containing personal data, private posts or confidential research.
