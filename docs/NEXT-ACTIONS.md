@@ -18,6 +18,10 @@ The command combines existing validated capabilities rather than introducing an 
 | SEO briefs | `--seo-briefs state/seo-briefs.json` | Known duplicate canonical pages and conflicting scheduled page/keyword briefs | Google indexing position or traffic uplift |
 | Experiment results | `--experiments state/experiment-results.json` | Existing `experiment-next` rule and sample history | Proof of statistical significance or a reason to exploit a winning variant automatically |
 
+## Owner-approved CSV analytics as optional evidence
+
+If you have a lawful owner export, normalized to `examples/profile-post-metrics.example.csv`, add `--metrics-csv state/my-export.csv --owner-authorized` alongside `--snapshot state/owned-profiles.json`. This adds only nonduplicated, account-matched observations **in memory**. It never calls an API, stores a CSV elsewhere, or treats provenance as cryptographically verified. See [CSV schema and limitations](PROFILE-METRICS-CSV.md). Without explicit ownership acknowledgement, the analytics file is refused.
+
 ## Safe quickstart
 
 Try the checked-in **synthetic example** first:
