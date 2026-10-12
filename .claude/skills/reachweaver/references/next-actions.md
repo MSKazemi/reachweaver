@@ -13,6 +13,8 @@ Load this reference for requests like "What is my next step to grow?", "Combine 
 - **There is an existing ReachWeaver SQLite outbox with prior user-authorized native metrics:** opt in to local query-only evaluation with `reachweaver --db state/reachweaver.sqlite suggest --include-db --json`. By default `suggest` does **not** open the database; a missing file fails. No network APIs or provider credentials are needed.
 - **Nothing was supplied:** explain that you cannot infer the user's profile reach or create fake impressions; ask for a public URL to discuss public profile fields or for the owner's sanitized native export. Offer the example under `assets/profile-post-audit.example.json` as a demonstration only.
 
+**Optional normalized native CSV:** if the user explicitly acknowledges they own/have authorization for a local exported CSV, add `--metrics-csv state/native.csv --owner-authorized` *alongside* `--snapshot state/owned-profiles.json`. The CSV is merged only in memory, with exact per-account binding and duplicate refusal; no OAuth, network, database writes or source authenticity claim. Never ask for personal tokens or contact lists to implement the import. Source: `docs/PROFILE-METRICS-CSV.md` in the full repo and `assets/profile-post-metrics.example.csv` in portable copies.
+
 ## Interpret the ranked output
 
 The exact output keys are `schema_version=reachweaver.suggestions.v1`, `source_coverage`, `actions` and `limitations`. Each action has `rank`, `priority` (P0 safety/privacy, P1 blockers, P2 known improvement/data collection, P3 test hypothesis), `evidence`, `confidence`, `platform/account_id`, and `next_step`.
