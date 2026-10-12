@@ -60,6 +60,14 @@ This document distinguishes implementation, validation and aspiration. A complet
 - [x] Add README/skill routing, privacy/creative guidance, self-contained illustrative example, Python offline tests and portable skill mirror.
 - [ ] Not yet done: consented live read-only profile APIs, platform-specific media quality/retention importers, independently verified profile content or causal reach uplift, production experiments and continuous account learning. See [full audit guide](PROFILE-AND-POST-AUDITS.md) and [issue #3](https://github.com/MSKazemi/reachweaver/issues/3). No external account touched.
 
+## Issue #6 — Evidence-ranked next actions (2026-10-12)
+
+- [x] `suggest` CLI synthesizes **existing** per-network profile/post observations, native metric coverage, queue safety, owner-exported engagement, SEO brief conflicts and experiment-next, all optional and read-only.
+- [x] Explicit urgency ordering (P0 unresolved privacy/remote ambiguity > P1 confirmed blockers > P2 actionable fixes/missing observations > P3 controlled tests), transparent provenance, no untrusted comment excerpts and withheld SEO destinations.
+- [x] Optional `--include-db` uses strictly query-only SQLite on an existing database, never silently creates or migrates it; no social APIs, automated engagement or publish permissions.
+- [x] README, architecture, Claude Code skill and offline validation/tests added. See [next actions](NEXT-ACTIONS.md) and [issue #6](https://github.com/MSKazemi/reachweaver/issues/6).
+- [ ] Additional optional integrations: owner-confirmed native account analytics export adapters, longitudinal first-party conversion readouts, interactive review dashboard and validated experiment follow-ups. This command is a deterministic review queue, not a model that predicts growth.
+
 ## P2 — Evidence-driven attention intelligence
 
 - [ ] Dataset of post ideas/outcomes per platform and project (privacy-preserving).
