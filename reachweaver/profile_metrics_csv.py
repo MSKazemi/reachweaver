@@ -84,7 +84,7 @@ def merge_authorized_csv(snapshot: dict, csv_path: Path, *, owner_authorized: bo
         records = []
         counts: Counter[str] = Counter()
         for index, row in enumerate(reader, 1):
-            if index > MAX_POSTS or len(records) + len(snapshot.get("posts", [])) >= MAX_POSTS + 1:
+            if index > MAX_POSTS or len(records) + len(snapshot.get("posts", [])) >= MAX_POSTS:
                 raise ValidationError("Audit snapshot allows at most 100 post observations")
             if None in row or any(value is None for value in row.values()):
                 raise ValidationError("CSV row has missing or extra cells; check separators and quoting")
