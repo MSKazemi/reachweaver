@@ -14,5 +14,8 @@
     "content-marketing",
     "claude-code"
   ],
-  "privacyPolicyUrl": "https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md"
+  "privacyPolicyUrl": "https://github.com/MSKazemi/reachweaver/blob/main/PRIVACY.md",
+  "documentationUrl": "https://github.com/MSKazemi/reachweaver/blob/main/plugin/README.md",
+  "termsOfServiceUrl": "https://github.com/MSKazemi/reachweaver/blob/main/TERMS.md",
+  "supportUrl": "https://github.com/MSKazemi/reachweaver/issues"
 }
