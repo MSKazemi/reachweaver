@@ -1,0 +1,15 @@
+# ReachWeaver usage terms and responsibility notice
+
+**Effective:** 12 October 2026 — experimental, community-maintained, open-source software.
+
+ReachWeaver is available under the [Apache License, Version 2.0](LICENSE). That license governs copyright permissions and includes its own warranty disclaimer and limitation-of-liability provisions. This page explains responsible operation; it **does not replace, amend or add restrictions to the Apache-2.0 license** or remove any non-waivable rights or responsibilities under applicable law.
+
+**No publishing service or agency:** Installing the plugin does not appoint its maintainer as a social-media manager, employer, agent, professional advisor or publisher of the user's posts. Operators control their own accounts, content choices, configurations and voluntary publishing actions. The plugin is experimental; it is not professional legal, advertising, privacy, tax, security or compliance advice and gives no assurance of reach, income, account approval or platform acceptance.
+
+**Operator responsibilities:** Before using live publication, verify you control the account or have authorization, have rights to all text/media and personal data, have reviewed the exact destination and content, have complied with applicable platform terms and laws (including advertising disclosures, intellectual property, defamation, privacy, marketing/anti-spam and consumer protection), and have established appropriate supervision, permissions, retention and safeguards. Do not use the tool for harassment, impersonation, unsolicited bulk promotion, deceptive engagement, evasion of restrictions, infringement or illegal purposes. Stop using any feature when an applicable platform or law forbids it.
+
+**Experimental behavior and external providers:** Offline checks, previews, prompts, approvals, rate limits, content labels and other safeguards reduce some risks; none guarantees legality, security, factual accuracy or acceptance. Unexpected API behavior, publication to the wrong account, duplicate submissions, loss of access, data disclosure, deletion gaps, account suspension and reputational or economic loss remain possible. The operator must verify completed actions on each social platform, supervise first live sends, and independently manage remote takedowns.
+
+**Warranty and liability:** The software is provided as described in the Apache-2.0 license, including Sections 7 and 8, **subject to applicable law**. Nothing on this page purports to exclude liability that the law prohibits excluding, override consumer protections, or impose an unenforceable blanket waiver. This page does **not** make the maintainer immune to claims and does not alter any separate directory-submission agreement the submitter accepts.
+
+Read the [privacy notice](PRIVACY.md), [security policy](docs/SECURITY.md), and [operator safety checklist](docs/SECURITY-CHECKLIST.md). Report security concerns privately rather than posting credentials in public issues. Contact: **mohsen.seyedkazemi@gmail.com**.
