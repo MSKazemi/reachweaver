@@ -3,7 +3,7 @@
 ``python3 scripts/sync_skill.py``          write the bundle and the plugin mirror
 ``python3 scripts/sync_skill.py --check``  list out-of-date bundle files, exit 1, write nothing
 
-The Claude plugin directory scans the whole plugin folder, so the plugin is a lean ``plugin/``
+The plugin is a lean ``plugin/``
 subfolder (manifest, hook, README, LICENSE and a byte-identical copy of the skill bundle) rather
 than the repository root with its tests and docs. ``plugin/skills/reachweaver`` is generated here.
 """

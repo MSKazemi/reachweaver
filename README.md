@@ -433,7 +433,7 @@ Example Claude Code request:
 /plugin install reachweaver@reachweaver
 ```
 
-Use it as `/reachweaver:reachweaver` or just ask. A `SessionStart` hook runs `update --notice` (one GET to github.com at most every 24 h, silent offline) and Claude tells you when a newer release exists. To update: `/plugin marketplace update reachweaver`, then `/plugin update reachweaver@reachweaver`, then `/reload-plugins` (or turn on auto-update for the marketplace under `/plugin`). The plugin is the lean `plugin/` folder (manifest, hook, README, LICENSE and a generated copy of the skill bundle; `python3 scripts/sync_skill.py` refreshes it), not the whole repository, so the Claude plugin directory can validate it quickly. Bump `version` in `plugin/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` with every release (a test checks it matches `reachweaver.__version__`).
+Use it as `/reachweaver:reachweaver` or just ask. A `SessionStart` hook runs `update --notice` (one GET to github.com at most every 24 h, silent offline) and Claude tells you when a newer release exists. To update: `/plugin marketplace update reachweaver`, then `/plugin update reachweaver@reachweaver`, then `/reload-plugins` (or turn on auto-update for the marketplace under `/plugin`). The plugin is the lean `plugin/` folder (manifest, hook, README, LICENSE and a generated copy of the skill bundle; `python3 scripts/sync_skill.py` refreshes it), not the whole repository, so an install copies only what the plugin needs. Bump `version` in `plugin/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` with every release (a test checks it matches `reachweaver.__version__`).
 
 **Alternative: standalone installer** (no plugin system; copies the skill into `~/.claude/skills`):
 
