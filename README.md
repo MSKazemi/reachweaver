@@ -70,6 +70,19 @@ reachweaver --db state/reachweaver.sqlite suggest --include-db --snapshot state/
 
 See [the next-actions runbook](docs/NEXT-ACTIONS.md). Real native account analytics need an owner-approved export or a separately authorized collector; `suggest` itself never connects to a platform, changes the queue, drafts, replies, likes, schedules or publishes.
 
+## Consent-aware native social analytics from local CSV (offline)
+
+Profiles and content audits can now incorporate **your own source-labeled native metrics**, without connecting social accounts or modifying databases. Export the metrics you are authorized to use, normalize the columns once, and run:
+
+```bash
+reachweaver post-audit --file examples/profile-post-audit.example.json \
+  --metrics-csv examples/profile-post-metrics.example.csv --owner-authorized --json
+reachweaver suggest --snapshot examples/profile-post-audit.example.json \
+  --metrics-csv examples/profile-post-metrics.example.csv --owner-authorized --json
+```
+
+The CSV is read into memory, never published or saved elsewhere; owner acknowledgement is **not** independent API verification. Blank metrics remain unknown and duplicate posts are rejected. See [native CSV import contract](docs/PROFILE-METRICS-CSV.md) and [individual platform audits](docs/PROFILE-AND-POST-AUDITS.md).
+
 ## Per-platform profile and post audits (offline, Issue #3)
 
 **ReachWeaver now audits each network on its own terms.** LinkedIn headlines and featured proof, YouTube channel organization and retention, Instagram original Reels and reach, DEV technical articles, Mastodon profile metadata and verified links, Reddit rules, Product Hunt maker stories, and Chinese developer channels receive **different profile checklists and native content experiments**. Twenty-five platform and community surfaces are described in the [complete audit playbook](docs/PROFILE-AND-POST-AUDITS.md). This is not a universal ranking formula or a guarantee of likes, impressions, views or follows.
