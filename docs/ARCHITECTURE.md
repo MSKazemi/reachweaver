@@ -43,6 +43,12 @@ Scheduled due claim (BEGIN IMMEDIATE), optionally exact --post-id
        Matched-age paired directional evaluator -> next hypothesis
 ```
 
+## One ranked, read-only next-action report (Issue #6)
+
+`reachweaver/suggest.py` composes *existing validated* profile/post audit summaries, `engagement.triage_engagement` rule labels, `attribution.seo_conflicts`, `growth.next_hypotheses`, and (only with `--include-db`) `storage.queue_health` / `storage.report`. CLI parsing resolves optional files and uses `storage.connect_readonly` (SQLite `mode=ro` + `query_only=ON`). No `storage.connect`, migrations, HTTP requests, authorization or social side effects are allowed.
+
+Priority is static workflow urgency, not a platform/ranking score: P0 remote uncertainty/opt-out, P1 blockers, P2 owner-confirmed profile/creative fixes or measurement coverage, P3 preregistered experiments. The report withholds raw commenter text/identities and private SEO URLs; account-level snapshot sources are not conflated with platform-level aggregated SQLite metrics. Missing observations are unknown, and a recommendation is never execution authorization. See [next actions](NEXT-ACTIONS.md).
+
 ## Independent offline social profile/post audits
 
 `reachweaver/profile_audit.py` and `profile_audit_registry.json` are a **local/read-only sidecar**. The commands `profile-audit` and `post-audit` execute **before** any SQLite connection and never import authorization credentials, write account metadata, stage drafts, schedule posts or invoke a social API. The strict versioned owner-snapshot contract rejects credential-like keys/values, unknown fields/metrics, invalid booleans, negative/nonfinite counts and overly large inputs. User-supplied fields are **unverified observations**.
