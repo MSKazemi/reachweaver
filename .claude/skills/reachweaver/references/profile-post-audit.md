@@ -47,6 +47,10 @@ Do not give one generic "algorithm score" to all networks. In a complete ReachWe
 | Indie Hackers / Peerlist | Credible founder/project history and proof | Substantive build story and measured lessons, not automated self-promotion |
 | Bilibili / Zhihu / OSCHINA | Locale-appropriate technical identity and publications | Locally relevant Chinese technical demonstration/Q&A; current ranking specifics **unverified** |
 
+## Optional first-party analytics overlay (no platform connection)
+
+When the operator has an authorized native post-analytics export in the **documented normalized CSV format**, permit `post-audit --file OWNER_PROFILE.json --metrics-csv OWNER_METRICS.csv --owner-authorized --json`. Without both the CSV path and the explicit `--owner-authorized` acknowledgement, do not process it. This local loader joins to **predeclared account IDs only**, refuses duplicate posts, counts blank metrics as unknown (never zero), checks offset-aware timestamps and returns source-label caveats. It does **not** authenticate, fetch insights, create drafts, persist data or publish. The owner's claim of provenance is not independent verification. Use the synthetic `assets/profile-post-metrics.example.csv` as a template and `docs/PROFILE-METRICS-CSV.md` in the full repository for field definitions.
+
 ## Format of the deliverable
 
 Return a per-platform assessment with the **evidence snapshot**, coverage, known profile strengths/fixes, unknowns, policy eligibility, category-specific native content suggestion, observational post metrics and denominator/age, confidence, a prioritized plan and the next measurement checkpoints. Do not invent private analytics, follower counts, native reach, impressions, algorithmic weights or personal brand achievements. When no account snapshot was provided, state explicitly that the user has **not yet received an audit of their real accounts**.
