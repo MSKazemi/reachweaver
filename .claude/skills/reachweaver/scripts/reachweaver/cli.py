@@ -1577,7 +1577,6 @@ def execute(args) -> int:
     if args.command == "suggest":
         from .storage import connect_readonly, database_path
         from .attribution import load_seo_briefs
-        from .growth_readout import load_results
         def _bounded(path: Path) -> Path:
             if path.is_symlink() or not path.is_file() or path.stat().st_size > 2_000_000:
                 raise ValidationError("suggest input must be an existing regular file <=2 MB (no symlinks)")
