@@ -1,0 +1,4 @@
+platform,account_id,post_id,format,source,published_at,observed_at,clicks,impressions,views,likes,hook_clear,proof_visible,original_content,relevant_cta
+linkedin,sample-linkedin,sample-p4,text,owner-native-export,2026-09-04T10:00:00+02:00,2026-09-11T10:00:00+02:00,8,100,,,true,true,true,true
+linkedin,sample-linkedin,sample-p5,text,owner-native-export,2026-09-05T10:00:00+02:00,2026-09-12T10:00:00+02:00,9,100,,,false,true,true,true
+youtube,sample-youtube,sample-y2,video,owner-native-export,2026-09-04T12:00:00+02:00,2026-09-11T12:00:00+02:00,,,240,18,true,true,true,true
