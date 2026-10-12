@@ -27,3 +27,7 @@ The author collects no data from this plugin and runs no server for it. Full pol
 ## More
 
 Source, full documentation, tests and the security model: https://github.com/MSKazemi/reachweaver (Apache-2.0).
+
+## Privacy, terms and operator responsibility
+
+The plugin processes and retains user-controlled local content, including drafts and approver labels. It is not a maintainer-hosted social media service. GitHub receives network request metadata for the periodic release check, and a configured social platform receives approved content and authentication data on user-authorized live sends. Optional online checks and configured integrations may contact other providers. Local retention requires operator configuration and explicit purge; it is **not** zero retention. Before enabling live actions, review the [privacy notice](../PRIVACY.md), [usage terms](../TERMS.md), [privacy lifecycle](../docs/PRIVACY-LIFECYCLE.md) and [security checklist](../docs/SECURITY-CHECKLIST.md). These documents cannot immunize users or maintainers against mandatory law or contractual obligations.
