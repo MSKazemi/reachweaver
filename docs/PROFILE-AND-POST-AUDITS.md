@@ -51,6 +51,10 @@ Primary documentation and evidence dates are saved per platform in [the registry
 - [DEV editor, analytics and article scheduling](https://dev.to/help/writing-editing-scheduling); [Pinterest claimed website](https://help.pinterest.com/en/business/article/claim-your-website); [Product Hunt launch guide](https://help.producthunt.com/en/articles/17350772-launch-guide), including its prohibition on soliciting upvotes.
 - [Reddit policies](https://redditinc.com/policies/reddit-rules) and [Hacker News submission guidelines](https://news.ycombinator.com/newsguidelines.html). Neither permits the generic bulk automation playbook.
 
+## Optional owner-authorized native CSV observations
+
+To avoid hand-editing large JSON post lists, supply a **normalized, local, owner-authorized** post metrics CSV. Both `post-audit` and `suggest` can merge it in memory (never a network call) when passed `--metrics-csv PATH --owner-authorized`. New rows must match the platform/account already present in the profile JSON and may not duplicate an existing post. A blank numeric cell means *unknown*. More details, example and the exact header contract: [PROFILE-METRICS-CSV.md](PROFILE-METRICS-CSV.md). This is not a verified private API connection or a social algorithm model.
+
 ## Input file and safe commands
 
 Start with the credential-free **illustrative** snapshot: [`examples/profile-post-audit.example.json`](../examples/profile-post-audit.example.json). Replace sample IDs and fields with information from **your own, permitted account**, without credentials, emails, cookies or private audience data. Keep real exports in `state/` (gitignored), NOT in GitHub.
