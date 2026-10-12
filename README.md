@@ -58,6 +58,18 @@ If no account configured yet, use the skill for research, content and plans; it 
 
 The next human-assisted milestone is a single supervised real-world pilot, not automatic mass cross-posting. Follow **[First live pilot](docs/FIRST-LIVE-PILOT.md)** (for Bluesky on a throwaway account, the copy-pasteable **[Bluesky one-post pilot](docs/BLUESKY-PILOT.md)** runbook) for local credential entry, read-only identity validation, the exact-post approval workflow, reconciliation and a private evidence checklist. **No account has been connected or live-tested in this repository.**
 
+## Evidence-ranked social growth actions (offline, Issue #6)
+
+`reachweaver suggest` combines **individual profile fixes**, **native post-metric coverage**, **unresolved publishing-safety incidents**, **owner-exported engagement triage**, **SEO destination conflicts** and **preregistered experiment history** into one evidence-ranked, human-review-only task list. Safety and privacy issues come first. It never guesses account rankings or predicts likes/impressions.
+
+```bash
+reachweaver suggest --snapshot examples/profile-post-audit.example.json --json
+# Optional: add owner-exported data from an EXISTING private DB; no DB created or modified
+reachweaver --db state/reachweaver.sqlite suggest --include-db --snapshot state/owned-profiles.json --limit 15
+```
+
+See [the next-actions runbook](docs/NEXT-ACTIONS.md). Real native account analytics need an owner-approved export or a separately authorized collector; `suggest` itself never connects to a platform, changes the queue, drafts, replies, likes, schedules or publishes.
+
 ## Per-platform profile and post audits (offline, Issue #3)
 
 **ReachWeaver now audits each network on its own terms.** LinkedIn headlines and featured proof, YouTube channel organization and retention, Instagram original Reels and reach, DEV technical articles, Mastodon profile metadata and verified links, Reddit rules, Product Hunt maker stories, and Chinese developer channels receive **different profile checklists and native content experiments**. Twenty-five platform and community surfaces are described in the [complete audit playbook](docs/PROFILE-AND-POST-AUDITS.md). This is not a universal ranking formula or a guarantee of likes, impressions, views or follows.

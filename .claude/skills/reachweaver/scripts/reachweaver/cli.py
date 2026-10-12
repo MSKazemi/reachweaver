@@ -46,6 +46,7 @@ from .media import media_check
 from .metrics_fetch import DEFAULT_MAX_POSTS, MAX_POSTS_LIMIT, fetch_metrics
 from .preview import build_preview, render_markdown as render_preview_markdown, render_text as render_preview_text
 from .profile_audit import load_snapshot as load_profile_snapshot, audit_profiles, audit_posts, render_summary as render_profile_audit
+from .suggest import build_suggestions, render_text as render_suggestions
 from .manual_export import MANUAL_PLATFORMS, build_export, write_export
 from .pilot import DEFAULT_MIN_WEEKS, load_pilot_log, pilot_report, render_report as render_pilot_report
 from .timing_analysis import analyze_posting_times
@@ -377,6 +378,14 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--brand", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True, help="New output folder; refuses existing output")
     p.add_argument("--optout", type=Path, help=optout_help)
+    p = sub.add_parser("suggest", help="Read-only ranked human review of profile, posts, SEO, engagement, experiments and local queue")
+    p.add_argument("--snapshot", type=Path, help="Owner-supplied profile/post snapshot (local JSON, no remote access)")
+    p.add_argument("--engagement-export", type=Path, help="Existing owner-exported engagement JSON; only aggregate labels are returned")
+    p.add_argument("--seo-briefs", type=Path, help="Local SEO export already used by seo-destinations")
+    p.add_argument("--experiments", type=Path, help="Local classified experiment results JSON list")
+    p.add_argument("--include-db", action="store_true", help="Explicitly read an EXISTING local SQLite DB in query-only mode")
+    p.add_argument("--limit", type=int, default=10, help="Show 1..50 ranked review tasks (default 10)")
+    p.add_argument("--json", action="store_true", help="Machine-readable curated findings; no raw comments or profile text")
     p = sub.add_parser("profile-audit", help="Offline owner-snapshot, per-platform profile readiness and fix list; no network")
     p.add_argument("--file", type=Path, required=True, help="Local JSON snapshot; no account login or network")
     p.add_argument("--platform", help="Only this platform from the profile-audit registry")
@@ -1564,6 +1573,25 @@ def execute(args) -> int:
             for key in stale:
                 print(f"WARNING: {key} verified_date older than {args.max_age_days} days; re-verify official sources")
             print("Registry is research data, not permission; unknown/gated/manual formats fail closed.")
+        return 0
+    if args.command == "suggest":
+        from .storage import connect_readonly, database_path
+        def _bounded(path: Path) -> Path:
+            if path.is_symlink() or not path.is_file() or path.stat().st_size > 2_000_000:
+                raise ValidationError("suggest input must be an existing regular file <=2 MB (no symlinks)")
+            return path
+        snapshot = load_profile_snapshot(_bounded(args.snapshot)) if args.snapshot else None
+        engagement = json.loads(_bounded(args.engagement_export).read_text(encoding="utf-8")) if args.engagement_export else None
+        seo = load_seo_briefs(_bounded(args.seo_briefs)) if args.seo_briefs else None
+        experiments = load_results(_bounded(args.experiments)) if args.experiments else None
+        if args.include_db:
+            with connect_readonly(database_path(args.db)) as db:
+                result = build_suggestions(snapshot=snapshot, engagement=engagement, seo_briefs=seo,
+                                           experiments=experiments, con=db, limit=args.limit)
+        else:
+            result = build_suggestions(snapshot=snapshot, engagement=engagement, seo_briefs=seo,
+                                       experiments=experiments, limit=args.limit)
+        print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else render_suggestions(result))
         return 0
     if args.command in ("profile-audit", "post-audit"):
         snapshot = load_profile_snapshot(args.file)
