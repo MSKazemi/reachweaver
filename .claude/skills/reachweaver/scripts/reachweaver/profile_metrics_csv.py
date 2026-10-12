@@ -81,7 +81,7 @@ def merge_authorized_csv(snapshot: dict, csv_path: Path, *, owner_authorized: bo
             raise ValidationError("Invalid CSV headers: provide required platform/account/post/time/source columns and only documented metrics or review flags")
         profiles = {(p["platform"], p["account_id"]) for p in snapshot["profiles"]}
         known = {(p["platform"], p["account_id"], p["post_id"]) for p in snapshot.get("posts", [])}
-        records = []
+        records: list[dict] = []
         counts: Counter[str] = Counter()
         for index, row in enumerate(reader, 1):
             if index > MAX_POSTS or len(records) + len(snapshot.get("posts", [])) >= MAX_POSTS:
