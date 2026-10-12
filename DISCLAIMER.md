@@ -42,6 +42,8 @@ Generated content and growth/measurement recommendations are information for hum
 
 This is a summary of the existing license, **not an independent promise that nobody can sue, an automatic user indemnity in favor of the author, or a waiver of third parties' rights**. No provision excludes or restricts responsibility where the law prohibits doing so, including applicable rules on intentional or grossly negligent conduct, mandatory public-interest obligations and non-waivable consumer rights. Separate contracts signed by a contributor may establish additional obligations that this notice cannot cancel.
 
+**Downstream support or warranties:** Apache-2.0 Section 9 allows a redistributor to offer its own support, warranty or indemnity only on its own behalf and responsibility, and requires that redistributor to protect contributors against claims arising from those added obligations, as stated in the license. This applies according to the terms of the license; it is **not** a new obligation invented by this notice.
+
 ## 6. Privacy, security and support
 
 The maintainer does not currently operate a service that collects local drafts, databases or social credentials automatically. The plugin has network-enabled functions, including its GitHub update notice; external providers may receive connection metadata and, when explicitly used, approved content or credentials. Local state may persist until the operator manages it. The exact data flows and limits are described in the [privacy policy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md) and the [data lifecycle documentation](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY-LIFECYCLE.md).
