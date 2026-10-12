@@ -151,6 +151,9 @@ class PluginTests(unittest.TestCase):
             self.assertFalse((plugin / name).exists(), name)
         self.assertGreaterEqual(len((plugin / "README.md").read_text().split()), 40)
         self.assertTrue((plugin / "LICENSE").is_file())
+        for name in ("DISCLAIMER.md", "NOTICE"):
+            self.assertTrue((plugin / name).is_file(), name)
+        self.assertIn("no warranty", (plugin / "README.md").read_text().lower())
         header = (plugin / ".claude-plugin/icon.png").read_bytes()[:24]  # listing icon: square PNG, 512 to 2048 px
         self.assertEqual(header[:8], b"\x89PNG\r\n\x1a\n")
         width, height = int.from_bytes(header[16:20], "big"), int.from_bytes(header[20:24], "big")

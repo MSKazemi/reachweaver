@@ -4,6 +4,8 @@ ReachWeaver turns your real software, research and knowledge into planned, platf
 
 Status: v0.2 experimental. No personal social account is connected by default, and nothing here promises viral reach.
 
+> **Disclaimer.** Experimental software, provided "as is" with no warranty and no liability (Apache-2.0). Independent project, not affiliated with or endorsed by Anthropic or any social platform. You alone are responsible for your accounts, content, credentials and legal compliance. Read [DISCLAIMER.md](DISCLAIMER.md) before use.
+
 ## Install
 
 ```
@@ -22,7 +24,7 @@ Then ask Claude about social media planning, or run `/reachweaver:reachweaver`. 
 
 ## Privacy
 
-The author collects no data from this plugin and runs no server for it. Full policy: [Privacy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md).
+By design the author collects no data from this plugin and runs no server for it. Full policy: [Privacy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md).
 
 ## More
 

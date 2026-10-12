@@ -5,8 +5,12 @@
 ## Summary
 
 - ReachWeaver is open-source software (Apache-2.0) that runs **on your own computer**, inside your Claude Code session and your project folder.
-- **The author does not operate a server for it, does not collect any data from it, and has no analytics or telemetry.** Nothing you write, draft, approve, measure or configure is sent to the author.
+- **By design, the author does not operate a server for it, does not collect data from it, and the software contains no analytics or telemetry.** It is not designed to send anything you write, draft, approve, measure or configure to the author. You can verify this in the open source code.
 - Data leaves your machine only in the few explicit cases listed under "Network use" below, and only to the third party named there.
+
+## No warranty
+
+This policy describes the intended behaviour of experimental software that is provided "as is" under the Apache License 2.0, without warranty and without liability. See the [disclaimer and terms of use](../DISCLAIMER.md). You are responsible for how you configure and use it, for your credentials and your computer's security, and for compliance with the laws and platform terms that apply to you.
 
 ## Who is responsible
 
@@ -23,7 +27,7 @@ All of the following stays on your computer. None of it is uploaded by ReachWeav
 | Metric snapshots you import from a platform's own export | The same database | Aggregate counts per post |
 | Update-check cache and an optional opt-out marker | `~/.cache/reachweaver/` | Holds the latest-release answer from GitHub |
 
-Credentials (tokens, app passwords) are **not stored by ReachWeaver**. They are read from environment variables that you set yourself, only when you run a live send, and the software is tested to keep them out of exports, reports, health output, dead letters and logs.
+Credentials (tokens, app passwords) are not designed to be stored by ReachWeaver. They are read from environment variables that you set yourself, when you run a live send, and automated tests check that they stay out of exports, reports, health output, dead letters and logs. Tests reduce risk but cannot prove the absence of every bug: protect your credentials yourself.
 
 The software does not store comments, replies, follower lists or other people's profiles in its database. The comment-triage command reads an export file that you provide and writes draft files only. The [data lifecycle page](PRIVACY-LIFECYCLE.md) lists every table and its personal-data risk.
 

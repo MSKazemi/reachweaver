@@ -18,6 +18,7 @@ SOURCE = ROOT / "reachweaver"
 SKILL = ROOT / ".claude/skills/reachweaver"
 TARGET = SKILL / "scripts/reachweaver"
 PLUGIN_SKILL = ROOT / "plugin/skills/reachweaver"
+PLUGIN_ROOT_FILES = ("LICENSE", "NOTICE", "DISCLAIMER.md")  # copied verbatim into plugin/
 REGISTRIES = ("distribution_registry.json", "platform_registry.json", "profile_audit_registry.json")
 # Canonical files mirrored into the skill's assets/ (flat, by basename).
 ASSET_SOURCES = (
@@ -58,7 +59,10 @@ def _bundle_files() -> list[Path]:
 
 def plugin_expected() -> dict[Path, bytes]:
     """The plugin's copy of the skill bundle, as {path: bytes}, built from the bundle on disk."""
-    return {PLUGIN_SKILL / p.relative_to(SKILL): p.read_bytes() for p in _bundle_files()}
+    files = {PLUGIN_SKILL / p.relative_to(SKILL): p.read_bytes() for p in _bundle_files()}
+    for name in PLUGIN_ROOT_FILES:
+        files[ROOT / "plugin" / name] = (ROOT / name).read_bytes()
+    return files
 
 
 def check() -> list[Path]:
