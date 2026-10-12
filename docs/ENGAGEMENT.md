@@ -229,6 +229,17 @@ Every draft states `language_guess`, `template_language`, `machine_translated: f
 - **False-positive caveats:** standalone insults (`احمق`, `کثافت`) are harassment even when they describe a thing. `همکاری` counts as collaboration only in proposal forms (`همکاری کنیم`, `پیشنهاد همکاری`), because "ممنون از همکاری" (thanks for your cooperation) is common. Urdu and other Arabic-script languages that use `پ چ گ ک ی` are guessed as Persian. Arabic text is `und` unless it contains a function word that Persian shares (`و`, `من`). That gives a low-confidence Persian guess, and every pack still runs. LRM/RLM marks, which some editors insert into right-to-left text, count as hidden bidirectional controls and make the item `suspicious`. A human then reviews it, the safe failure. The sanitizer removes ZWNJ, so excerpts show joined forms (`میکند`).
 - **Known gaps:** Dari and Tajik variants, Finglish (Persian in Latin letters) and heavy colloquial spelling are not covered.
 
+## Aging and SLA queue (`engagement-queue`, issue #45 W5, offline)
+
+```bash
+reachweaver engagement-queue export.json --now 2026-10-12T12:00:00Z          # text list
+reachweaver engagement-queue export.json --json --sla bug_report=12 --sla praise=48
+```
+
+It runs the same triage as `engagement-triage`, then lists only the items that still need a human, with their age and whether they are past a target. Items that need no reply (spam, your own comments, threads you already answered, no-reply labels), items covered by a draft already made for the same thread and opted-out authors are counted under `closed` and not queued. Order: overdue first, then label priority, then oldest. `--now` defaults to the current UTC time; a timestamp in the future counts as age 0.
+
+The overdue targets are **owner-adjustable defaults, not platform data** (harassment 12 h, suspicious, bug_report and technical_question 24 h, actionable_feedback, feature_request and collaboration_opportunity 72 h, praise 168 h). Override one with `--sla LABEL=HOURS` (1 to 8760). Reach and sentiment are not part of the export contract, so the queue does not use them. It makes no network request, opens no database, and has no send, reply, follow, like or DM path: replies remain drafts that you review and post manually.
+
 ## Approved replies (issue #17, owner-approved 2026-10-09; sending blocked by the registry until a live receipt)
 
 > **Owner-approved 2026-10-09 with every recommended decision; disabled until a live receipt.** See SECURITY-REVIEW-PROPOSAL-17-reply-send.md. The bundled capability registry sets `reachweaver_reply_adapter: "none"` for Bluesky and Mastodon. Until the owner changes that after review, every reply is held before the claim (`reply_capability_gated`) and you post replies yourself in the official app.

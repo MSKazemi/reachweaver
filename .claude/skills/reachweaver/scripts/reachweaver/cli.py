@@ -486,6 +486,13 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--issues-dir", type=Path, help="Write bug/feature GitHub issue DRAFTS here; never filed")
     p.add_argument("--json", action="store_true", help="Print the full machine-readable report")
     p.add_argument("--optout", type=Path, help=optout_help + "; listed authors get no draft")
+    p = sub.add_parser("engagement-queue", help="Offline aging/SLA review queue over an engagement export; read-only, no send path")
+    p.add_argument("input", type=Path, help="Owner-exported normalized engagement JSON")
+    p.add_argument("--docs-map", type=Path, help="Owner docs map, as for engagement-triage")
+    p.add_argument("--optout", type=Path, help=optout_help + "; listed authors are never queued")
+    p.add_argument("--now", help="ISO 8601 time with timezone for the age calculation (default: current UTC time)")
+    p.add_argument("--sla", action="append", metavar="LABEL=HOURS", help="Override one label's overdue target in hours; repeatable")
+    p.add_argument("--json", action="store_true", help="Print the full machine-readable queue")
     p = sub.add_parser("data-export", help="Offline JSON export of your local DB with secret-looking text redacted")
     p.add_argument("--out", type=Path, help="NEW owner-only (0600) file; default prints to stdout")
     p = sub.add_parser("data-purge", help="Retention purge plan (dry run); --apply deletes/minimizes local rows only")
@@ -1561,6 +1568,12 @@ def execute(args) -> int:
               f"{len(triage['issue_drafts'])} issue drafts; " + ", ".join(f"{k}={v}" for k, v in triage["counts"].items() if v))
         for path in written:
             print(f"Wrote draft file {path}", file=sys.stderr)
+        print("Nothing was sent, posted, followed, liked, messaged or filed.", file=sys.stderr)
+        return 0
+    if args.command == "engagement-queue":
+        from .engagement_queue import queue_files, render_text
+        queue = queue_files(args.input, docs_map=args.docs_map, optout_path=args.optout, now=args.now, sla_pairs=args.sla)
+        print(json.dumps(queue, indent=2, ensure_ascii=False) if args.json else render_text(queue))
         print("Nothing was sent, posted, followed, liked, messaged or filed.", file=sys.stderr)
         return 0
     if args.command == "capabilities":
