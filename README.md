@@ -1,6 +1,6 @@
 # ReachWeaver
 
-<img src="assets/brand/icon.svg" alt="ReachWeaver icon: interwoven teal and violet signal paths" align="right" width="112" height="112">
+<img src="assets/brand/icon.webp" alt="ReachWeaver icon: Persian-inspired turquoise and gold geometric knot" align="right" width="112" height="112">
 
 **Claude Code social media skill for evidence-backed content planning, approval-first scheduling, publishing workflows, and analytics.** Turn one verified achievement into useful platform-native content, review each destination, and learn from real results.
 
@@ -10,7 +10,7 @@
 
 **At a glance:** Draft distinct social posts, propose account-aware publishing times, export unsupported networks for manual posting, and review outcomes from imported native analytics. Automatic multi-network publishing, live account authorization, and algorithm-driven reach are **not** established by the current offline tests. The release checklist separates public code review from any live-posting permission.
 
-**Visual identity:** [scalable icon](assets/brand/icon.svg) · [wordmark](assets/brand/lockup-light.svg) · [social preview source](assets/brand/social-preview.svg) · [brand usage](assets/brand/README.md)
+**Visual identity:** [official icon](assets/brand/icon.webp) · [brand usage](assets/brand/README.md)
 
 ## Why this exists
 
