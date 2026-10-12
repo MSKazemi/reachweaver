@@ -21,6 +21,7 @@ ASSET_SOURCES = (
     "examples/brand-preview.reachweaver.json", "examples/campaign-preview.reachweaver.json",
     "config/accounts.example.json", "examples/example-post.txt",
     "examples/profile-post-audit.example.json",
+    "examples/profile-post-metrics.example.csv",
 )
 RUN_PY = '''#!/usr/bin/env python3
 """Standalone bundled ReachWeaver CLI; runs against the current project directory."""

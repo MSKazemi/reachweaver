@@ -52,6 +52,14 @@ This document distinguishes implementation, validation and aspiration. A complet
 - [x] Runbook for revoked permissions, LinkedIn version sunsets and Mastodon instance changes ([worker operations](WORKER-OPERATIONS.md#runbook-revoked-permissions-and-api-version-sunsets)).
 - [ ] Remaining #26: alerts, traces/retry metrics, per-provider spend ceilings, dependency-compromise and poisoned-feed tests. **Do not close #26.**
 
+## Native owner-exported profile/post CSV overlay (2026-10-12, issue #3)
+
+- [x] Normalize consent-acknowledged, owner-supplied native metrics CSV **in memory**, with explicit format/source/time/account constraints and no network or DB writes.
+- [x] Enforce duplicate-post refusal, strict booleans, exact known metric columns, limits (2MB/100 posts), timezone-aware stamps and meaningful unknown-versus-zero semantics.
+- [x] `post-audit` / `suggest` use `--metrics-csv FILE --owner-authorized`; the supplied JSON must declare each account. Preserve original inputs, reject credentials and return provenance caveats.
+- [ ] Not a direct OAuth/native analytics connector, proof of ownership or unattended sync; API read scopes, service compliance and live pilots remain separate work under #3 / #15.
+- [x] [CSV specification](PROFILE-METRICS-CSV.md), fixture and offline validation added.
+
 ## Per-network profile and post audit foundation (2026-10-11, issue #3)
 
 - [x] Add a versioned 25-platform profile/post audit registry with evidence tiers, checked dates, individual field checklists, content experiments and relevant native outcome metrics.
