@@ -46,6 +46,7 @@ from .media import media_check
 from .metrics_fetch import DEFAULT_MAX_POSTS, MAX_POSTS_LIMIT, fetch_metrics
 from .preview import build_preview, render_markdown as render_preview_markdown, render_text as render_preview_text
 from .profile_audit import load_snapshot as load_profile_snapshot, audit_profiles, audit_posts, render_summary as render_profile_audit
+from .profile_metrics_csv import merge_authorized_csv
 from .suggest import build_suggestions, render_text as render_suggestions
 from .manual_export import MANUAL_PLATFORMS, build_export, write_export
 from .pilot import DEFAULT_MIN_WEEKS, load_pilot_log, pilot_report, render_report as render_pilot_report
@@ -380,6 +381,8 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--optout", type=Path, help=optout_help)
     p = sub.add_parser("suggest", help="Read-only ranked human review of profile, posts, SEO, engagement, experiments and local queue")
     p.add_argument("--snapshot", type=Path, help="Owner-supplied profile/post snapshot (local JSON, no remote access)")
+    p.add_argument("--metrics-csv", type=Path, help="Optional normalized owner-authorized native post CSV, merged only in memory")
+    p.add_argument("--owner-authorized", action="store_true", help="Explicitly confirm the metrics CSV was lawfully exported from your own account")
     p.add_argument("--engagement-export", type=Path, help="Existing owner-exported engagement JSON; only aggregate labels are returned")
     p.add_argument("--seo-briefs", type=Path, help="Local SEO export already used by seo-destinations")
     p.add_argument("--experiments", type=Path, help="Local classified experiment results JSON list")
@@ -391,6 +394,8 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--platform", help="Only this platform from the profile-audit registry")
     p.add_argument("--json", action="store_true", help="Detailed machine-readable checklist with evidence and coverage")
     p = sub.add_parser("post-audit", help="Offline platform-specific creative checks and comparable-age outcome summaries")
+    p.add_argument("--metrics-csv", type=Path, help="Optional normalized owner-exported post observations; no DB/network writes")
+    p.add_argument("--owner-authorized", action="store_true", help="Confirm the CSV is your own authorized export")
     p.add_argument("--file", type=Path, required=True, help="Same owner-supplied profile/post snapshot")
     p.add_argument("--platform", help="Limit to one registered platform")
     p.add_argument("--age-hours", type=int, default=168, help="Native metric post age 24..720 hours (default 168)")
@@ -1581,6 +1586,14 @@ def execute(args) -> int:
                 raise ValidationError("suggest input must be an existing regular file <=2 MB (no symlinks)")
             return path
         snapshot = load_profile_snapshot(_bounded(args.snapshot)) if args.snapshot else None
+        if args.owner_authorized and not args.metrics_csv:
+            raise ValidationError("--owner-authorized applies only with --metrics-csv")
+        csv_info = None
+        if args.metrics_csv:
+            if snapshot is None:
+                raise ValidationError("--metrics-csv requires --snapshot to bind metrics to existing authorized accounts")
+            snapshot, csv_info = merge_authorized_csv(snapshot, _bounded(args.metrics_csv),
+                                                      owner_authorized=args.owner_authorized)
         engagement = json.loads(_bounded(args.engagement_export).read_text(encoding="utf-8")) if args.engagement_export else None
         seo = load_seo_briefs(_bounded(args.seo_briefs)) if args.seo_briefs else None
         experiments = load_results(_bounded(args.experiments)) if args.experiments else None
@@ -1591,16 +1604,28 @@ def execute(args) -> int:
         else:
             result = build_suggestions(snapshot=snapshot, engagement=engagement, seo_briefs=seo,
                                        experiments=experiments, limit=args.limit)
+        if csv_info is not None:
+            result["source_coverage"]["normalized_csv"] = csv_info
+            result["sources_used"].append("owner_authorized_local_csv_readonly")
         print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else render_suggestions(result))
         return 0
     if args.command in ("profile-audit", "post-audit"):
         snapshot = load_profile_snapshot(args.file)
+        csv_info = None
+        if args.command == "post-audit":
+            if args.owner_authorized and not args.metrics_csv:
+                raise ValidationError("--owner-authorized applies only with --metrics-csv")
+            if args.metrics_csv:
+                snapshot, csv_info = merge_authorized_csv(snapshot, args.metrics_csv,
+                                                          owner_authorized=args.owner_authorized)
         result = (
             audit_profiles(snapshot, platform=args.platform)
             if args.command == "profile-audit"
             else audit_posts(snapshot, platform=args.platform, age_hours=args.age_hours,
                              tolerance_hours=args.tolerance_hours, min_posts=args.min_posts)
         )
+        if csv_info is not None:
+            result["normalized_csv"] = csv_info
         print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else render_profile_audit(result))
         return 0
     if args.command == "distribution-plan":
