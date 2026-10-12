@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from reachweaver.cli import main
+from reachweaver.attribution import load_seo_briefs
 from reachweaver.policy import ValidationError
 from reachweaver.profile_audit import load_snapshot
 from reachweaver.suggest import build_suggestions, render_text
@@ -92,7 +93,7 @@ class SuggestionTests(unittest.TestCase):
         self.assertFalse(any(a["kind"] == "engagement_review" for a in result["actions"]))
 
     def test_seo_conflicts_are_aggregated_without_private_urls(self):
-        briefs = json.loads(SEO.read_text(encoding="utf-8"))
+        briefs = load_seo_briefs(SEO)
         additional = dict(briefs["briefs"][0], page_id="duplicate-page")
         briefs["briefs"].append(additional)
         result = build_suggestions(seo_briefs=briefs)
