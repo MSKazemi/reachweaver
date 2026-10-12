@@ -148,6 +148,7 @@ def load_snapshot(path: Path) -> dict:
         if (not isinstance(keywords, list) or len(keywords) > 8
                 or any(not isinstance(k, str) or not 1 <= len(k) <= 80 for k in keywords)):
             raise ValidationError("keywords must be <=8 nonempty phrases")
+    post_keys: set[tuple[str, str, str]] = set()
     for post in data.get("posts", []):
         _keys(post, REQUIRED_POST, POST_ALLOWED)
         if (post["platform"], post["account_id"]) not in identities:
@@ -156,6 +157,10 @@ def load_snapshot(path: Path) -> dict:
             raise ValidationError("Invalid post_id")
         if not isinstance(post["format"], str) or not ID.fullmatch(post["format"]):
             raise ValidationError("Invalid post format")
+        identity = (post["platform"], post["account_id"], post["post_id"])
+        if identity in post_keys:
+            raise ValidationError("Duplicate post observation; use one matched-age snapshot per unique post")
+        post_keys.add(identity)
         for label in ("source", "published_at", "observed_at"):
             if label in post and post[label] is not None and not isinstance(post[label], str):
                 raise ValidationError("Post source/timestamps must be strings or null")
