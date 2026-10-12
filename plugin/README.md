@@ -4,7 +4,7 @@ ReachWeaver turns your real software, research and knowledge into planned, platf
 
 Status: v0.2 experimental. No personal social account is connected by default, and nothing here promises viral reach.
 
-> **Legal notice.** Experimental user-operated software provided "AS IS" under Apache-2.0 Sections 7–8, with warranty and liability limits **only as allowed by applicable law**. Operators review and authorize their own accounts, content and publishing activity; no safeguard guarantees compliance. This project is not affiliated with Anthropic or the listed social networks. See the [responsibility and liability notice](DISCLAIMER.md), [privacy policy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md) and [security policy](https://github.com/MSKazemi/reachweaver/blob/main/SECURITY.md).
+> **Legal notice.** Experimental user-operated software provided "AS IS" under Apache-2.0 Sections 7–8, with **no warranty** except as required by applicable law or agreed in writing, and liability limits **only as allowed by applicable law**. Operators review and authorize their own accounts, content and publishing activity; no safeguard guarantees compliance. This project is not affiliated with Anthropic or the listed social networks. See the [responsibility and liability notice](DISCLAIMER.md), [privacy policy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md) and [security policy](https://github.com/MSKazemi/reachweaver/blob/main/SECURITY.md).
 
 ## Install
 
