@@ -49,6 +49,10 @@ Scheduled due claim (BEGIN IMMEDIATE), optionally exact --post-id
 
 Priority is static workflow urgency, not a platform/ranking score: P0 remote uncertainty/opt-out, P1 blockers, P2 owner-confirmed profile/creative fixes or measurement coverage, P3 preregistered experiments. The report withholds raw commenter text/identities and private SEO URLs; account-level snapshot sources are not conflated with platform-level aggregated SQLite metrics. Missing observations are unknown, and a recommendation is never execution authorization. See [next actions](NEXT-ACTIONS.md).
 
+## Attested normalized native CSV evidence overlay
+
+`reachweaver/profile_metrics_csv.py` loads a bounded, owner-authorized **local** CSV only when the operator explicitly supplies `--metrics-csv --owner-authorized` to `post-audit` or `suggest`. It does not call provider APIs, perform OAuth, open SQLite or write files. The strict schema joins only to accounts already in the profile snapshot; duplicate post keys are refused and metric source labels are **operator assertions**, not verified provider signatures. Dates are timezone-aware and normalized to UTC; missing metrics stay missing. The resulting in-memory posts go through the existing matched-age `post-audit` logic. See [CSV profile analytics](PROFILE-METRICS-CSV.md).
+
 ## Independent offline social profile/post audits
 
 `reachweaver/profile_audit.py` and `profile_audit_registry.json` are a **local/read-only sidecar**. The commands `profile-audit` and `post-audit` execute **before** any SQLite connection and never import authorization credentials, write account metadata, stage drafts, schedule posts or invoke a social API. The strict versioned owner-snapshot contract rejects credential-like keys/values, unknown fields/metrics, invalid booleans, negative/nonfinite counts and overly large inputs. User-supplied fields are **unverified observations**.
