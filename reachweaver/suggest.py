@@ -259,10 +259,10 @@ def build_suggestions(
     unique: list[dict] = []
     found: set[tuple] = set()
     for item in actions:
-        key = (item["kind"], item["signal"], item["platform"], item["account_id"])
-        if key in found:
+        identity = (item["kind"], item["signal"], item["platform"], item["account_id"])
+        if identity in found:
             continue
-        found.add(key)
+        found.add(identity)
         unique.append(item)
     shown = unique[:limit]
     for index, item in enumerate(shown, 1):
