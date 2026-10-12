@@ -395,7 +395,7 @@ reachweaver signal-brief --scan scan.json --signal-id SIGNAL_ID --brand examples
 
 Local data lifecycle (offline): `privacy-status`, `data-export --out FILE` and `data-purge --policy config/retention.json` (dry run; `--apply` required) — see [privacy lifecycle](docs/PRIVACY-LIFECYCLE.md). Not legal advice.
 
-See [security](docs/SECURITY.md), [architecture](docs/ARCHITECTURE.md), [platform matrix](docs/PLATFORM-MATRIX.md) and [research](docs/UPSTREAM-RESEARCH.md).
+See [privacy policy](docs/PRIVACY.md), [security](docs/SECURITY.md), [architecture](docs/ARCHITECTURE.md), [platform matrix](docs/PLATFORM-MATRIX.md) and [research](docs/UPSTREAM-RESEARCH.md).
 
 ## Documentation index
 

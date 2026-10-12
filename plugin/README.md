@@ -20,6 +20,10 @@ Then ask Claude about social media planning, or run `/reachweaver:reachweaver`. 
 - **Credentials** are read only from `REACHWEAVER_*` environment variables you set yourself, only at send time, and are used only against that platform's own API host (for example Bluesky, Mastodon, Telegram, LinkedIn). Regression tests assert they never appear in exports, reports, health output, dead letters or logs. Live sending additionally needs `REACHWEAVER_ALLOW_LIVE=1`, `REACHWEAVER_ENV=prod`, an approved due post and an explicit `--live`.
 - **Optional online checks** (identity preflight, `landing-check --online`) run only when you invoke them explicitly.
 
+## Privacy
+
+The author collects no data from this plugin and runs no server for it. Full policy: [Privacy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md).
+
 ## More
 
 Source, full documentation, tests and the security model: https://github.com/MSKazemi/reachweaver (Apache-2.0).
