@@ -520,6 +520,10 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--project", help="Restrict to briefs for this project")
     p.add_argument("--platform", help="With --campaign: also emit a UTM link for the destination")
     p.add_argument("--campaign", help="With --platform: utm_campaign for the destination link")
+    p = sub.add_parser("seo-content-check", help="Offline discoverability checks on owner-supplied post texts (length, alt text, hashtags, "
+                       "UTM links, cross-platform duplicates); read-only, never publishes")
+    p.add_argument("file", type=Path, help="Local JSON: {\"items\": [{id, platform, text, alt_text?, media_count?, link?, keywords?}]}")
+    p.add_argument("--json", action="store_true", help="Full machine-readable report")
     p = sub.add_parser("media-check", help="Offline media manifest checks: headers, platform limits, alt text, captions, rights; never uploads")
     p.add_argument("manifest", type=Path, help="Media manifest JSON; asset paths are relative to it")
     p.add_argument("--json", action="store_true", help="Machine-readable errors/warnings report")
@@ -1674,6 +1678,11 @@ def execute(args) -> int:
                                        platform=args.platform, campaign=args.campaign)
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return 0 if result["status"] == "ok" else 2
+    if args.command == "seo-content-check":
+        from .seo_content import check_file, render_text as seo_content_text
+        seo_report = check_file(args.file)
+        print(json.dumps(seo_report, indent=2, ensure_ascii=False) if args.json else seo_content_text(seo_report))
+        return 2 if seo_report["counts"]["error"] else 0
     if args.command == "media-check":
         result = media_check(args.manifest)
         if args.json:

@@ -261,6 +261,7 @@ reachweaver engagement-queue EXPORT.json [--docs-map F] [--optout F] [--now ISO]
 reachweaver utm-link URL --platform P --campaign C [--content POST_ID] [--allow-origin O...] [--sources CONFIG]  canonical UTM link; refuses private source repo URLs
 reachweaver attribution-report --analytics CSV [--github-traffic JSON]... [--json]  read-only UTM/referrer join
 reachweaver seo-destinations --briefs FILE --type release|paper|product|docs [--project P]  landing page + conflicts
+reachweaver seo-content-check FILE.json [--json]  offline discoverability checks on post texts you supply (length, alt text, hashtags, UTM link, cross-platform duplicates); every finding labelled official/repo_policy/hypothesis; read-only, exit 2 on errors
 reachweaver landing-check --briefs FILE [--campaign CAMPAIGN.json] [--online] [--allow-origin O...] [--json]  canonical URL/CTA/UTM checks; --online: status, redirects, rel=canonical, Open Graph, noindex, lang, lexical claim phrases (docs/SEO-INTEGRATION.md)
 reachweaver media-check MANIFEST [--json]      offline media headers/limits/alt text/captions/rights; never uploads
 reachweaver media-attach POST_ID --url HTTPS_URL (--alt T | --alt-file F) --online  Instagram draft: one owner-hosted JPEG URL; one read-only GET; SHA-256 + URL bound at approval (#20, owner-approved 2026-10-09; disabled until a live receipt)
