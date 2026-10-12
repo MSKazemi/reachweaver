@@ -158,11 +158,28 @@ def doctor_notes(account: dict, *, now: datetime | None = None) -> list[str]:
     """Offline notes for `doctor`; never reads the token value."""
     notes = ["INFO: Instagram image adapter is owner-approved but blocked by the capability registry until a live receipt "
              "(docs/SECURITY-REVIEW-PROPOSAL-20-instagram.md); use manual-export meanwhile"]
+    gaps = setup_gaps(account)
+    if gaps:
+        notes.append("SETUP: still to prepare (names only, docs/INSTAGRAM-SETUP.md): " + ", ".join(gaps))
     if "ig_user_id" in account:
         level, message = token_status(account, now)
         if level != "ok":
             notes.append(f"{'ERROR' if level == 'expired' else level.upper()}: {message}")
     return notes
+
+
+def setup_gaps(account: dict) -> list[str]:
+    """Names of the non-secret account fields still missing before a pilot; reads no credential and no network.
+
+    The token variable itself is reported by ``doctor`` through ``missing_credentials``.
+    """
+    gaps = []
+    for field in ("handle", "ig_user_id"):
+        if not isinstance(account.get(field), str) or not account[field].strip():
+            gaps.append(f"config field '{field}' (from GET /me)")
+    if "authorization_expires_at" not in account:
+        gaps.append("config field 'authorization_expires_at' (token expiry, 60 days)")
+    return gaps
 
 
 def content_problems(caption: str) -> list[str]:

@@ -396,6 +396,16 @@ class ConfigAndCredentialTests(Base):
         expired = instagram.doctor_notes(account(authorization_expires_at="2026-10-01T00:00:00+00:00"), now=NOW)
         self.assertIn("ERROR: instagram_token_expired", expired[1])
 
+    def test_setup_gaps_name_missing_fields_only(self):
+        self.assertEqual(instagram.setup_gaps(account(authorization_expires_at="2026-10-10T00:00:00+00:00")), [])
+        bare = {"id": "ig-me", "platform": "instagram", "env_prefix": PREFIX}
+        gaps = instagram.setup_gaps(bare)
+        self.assertEqual(len(gaps), 3)
+        self.assertTrue(any("ig_user_id" in g for g in gaps))
+        notes = instagram.doctor_notes(bare, now=NOW)
+        self.assertTrue(any(n.startswith("SETUP:") for n in notes))
+        self.assertNotIn(FAKE_TOKEN, " ".join(notes))
+
 
 class ContentRuleTests(unittest.TestCase):
     def test_official_caption_limits(self):
