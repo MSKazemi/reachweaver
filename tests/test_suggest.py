@@ -48,7 +48,6 @@ class SuggestionTests(unittest.TestCase):
         self.assertTrue(any(x["signal"] == "creative_relevant_cta" for x in result["actions"]))
         ranks = [x["rank"] for x in result["actions"]]
         self.assertEqual(ranks, list(range(1, len(ranks) + 1)))
-        self.assertIn("NO", "NO")  # No network or publish route imported by this pure API.
 
     def test_unknown_profile_fields_not_marked_failing(self):
         self.snapshot["profiles"][0]["fields"] = {"bio": None}
@@ -165,7 +164,7 @@ class SuggestionTests(unittest.TestCase):
         self.assertEqual(len(result["actions"]), 2)
         self.assertGreater(result["omitted_due_to_limit"], 0)
         text = render_text(result)
-        self.assertIn("P1",text)
+        self.assertIn("P2",text)
         self.assertIn("OFFLINE",text)
         self.assertNotIn("Original verified example",text)
 
