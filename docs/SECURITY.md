@@ -4,9 +4,9 @@
 
 Please **do not** open a public issue, discussion or pull request for a vulnerability, and never paste credentials, tokens, cookies, session files or exploit details publicly.
 
-1. Report privately through GitHub: **[MSKazemi/reachweaver → Security → Report a vulnerability](https://github.com/MSKazemi/reachweaver/security/advisories/new)** (GitHub private vulnerability reporting / security advisories). Only the maintainer and invited collaborators can see the report.
-2. If GitHub private vulnerability reporting is unavailable to you, e-mail the maintainer privately at **mohsen.seyedkazemi@gmail.com** with "ReachWeaver security" in the subject. Do not attach live credentials; describe where they leaked instead.
-3. If neither works, open a public issue that says only "requesting a private security contact" — no details — and the maintainer will arrange a private channel.
+1. **Email the maintainer privately at mohsen.seyedkazemi@gmail.com** with "ReachWeaver security" in the subject. Do not send live credentials; revoke them at the provider if exposed.
+2. If [GitHub private vulnerability reporting](https://github.com/MSKazemi/reachweaver/security/advisories/new) is **enabled**, you may use the private advisory form instead. Availability is a repository setting and must not be assumed from the link alone.
+3. If you cannot use a private channel, open a public issue containing **only** "requesting a private security contact" and no technical or personal details. Follow [the root reporting policy](../SECURITY.md).
 
 In scope: credential or token exposure (in output, logs, audit rows, errors or redirects, or through `$CREDENTIALS_DIRECTORY` file handling), any bypass of the human-approval gate, the dry-run default, the live gate (`--live` + `REACHWEAVER_ALLOW_LIVE=1` + `REACHWEAVER_ENV=prod`) or the emergency `pause`, two accounts reading the same credential despite the `env_prefix` overlap rule, automatic retry of an ambiguous send, unintended network access from offline commands or tests, and SSRF/redirect issues in platform clients. Include the affected version or commit, an offline reproduction where possible, and the impact. If you leaked a real credential while testing, **revoke it at the provider first**.
 
@@ -18,7 +18,7 @@ Supported versions: the latest `main` branch. Fixes land there; there are no lon
 
 Assets: account authority, access tokens, authenticated sessions, unpublished research, marketing schedule, account reputation, analytics and private user interactions. Trust boundaries: AI model, local host, repository/CI, external webpages and social platform APIs.
 
-The per-threat STRIDE analysis (token theft, prompt injection, wrong-account publishing, supply chain, redirects, registry poisoning, SQLite tampering, approval spoofing, replay, external backends) with code references, residual risk and the follow-ups that need owner security review is in THREAT-MODEL.md.
+Security analysis considers token theft, prompt injection, wrong-account publishing, supply-chain issues, redirects, registry poisoning, SQLite tampering, approval spoofing, replay and external backends. Further detailed working threat reviews are maintained privately by project maintainers; this public policy lists the relevant controls and residual limitations.
 
 ### Controls implemented
 
