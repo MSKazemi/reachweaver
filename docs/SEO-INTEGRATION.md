@@ -113,6 +113,27 @@ The claim check is a **lexical mismatch check, not truth verification**. A missi
 - Bodies are capped at 2 MB (`body_too_large`, checked against `Content-Length` and the bytes read). Each request times out after 25 seconds. HTML is parsed with `html.parser` only.
 - Every value read from a page is untrusted data. It is cleaned, truncated to 300 characters and reported. It is never followed as an instruction.
 
+## Post-text checks (`seo-content-check`, issue #45 W4, offline)
+
+```bash
+reachweaver seo-content-check posts.json            # text list
+reachweaver seo-content-check posts.json --json     # full report
+```
+
+Input is one local JSON file, `{"items": [{"id", "platform", "text", "alt_text"?, "media_count"?, "link"?, "keywords"?}]}` (up to 500 items; unknown keys are refused). It checks only what is in that file and opens no database or network connection:
+
+| Finding | Basis | Meaning |
+| --- | --- | --- |
+| `text_too_long` (error) | `repo_policy` | Over the conservative per-platform limit in `policy.CONSERVATIVE_TEXT_LIMITS`. |
+| `instagram_caption_rule` (error) | `official` | Instagram's documented caption, hashtag and @-tag limits (see INSTAGRAM.md). |
+| `alt_text_missing` (warn) | `hypothesis` | Media is attached but alt text is empty. |
+| `hashtag_repeated`, `hashtag_heavy` (warn) | `hypothesis` | The same hashtag twice, or over half the words are hashtags. |
+| `link_attribution` (warn) | `repo_policy` | The declared link fails the canonical UTM rules used by `utm-link`. |
+| `keywords_absent` (info) | `hypothesis` | None of your declared topic phrases appear; add one only if it fits naturally. |
+| `cross_platform_duplicate` (info) | `hypothesis` | Same wording (URLs and hashtags ignored, 90% word overlap) on different platforms. |
+
+`hypothesis` findings are editorial advice. None of them claims that a hashtag, keyword or format changes reach or search ranking, because no source supports such a claim. Exit code `2` means at least one `error` finding; warnings and info exit `0`. Link-preview (Open Graph) checks need the page, so they stay with `landing-check`.
+
 ## Not covered yet
 
 - `landing-check` checks the page a post links to. It cannot see how each platform renders the preview card (platforms cache and crop previews), and it does not check that a claim is true. Those stay manual review steps.
