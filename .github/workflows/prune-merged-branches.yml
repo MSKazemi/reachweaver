@@ -36,4 +36,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           CLOSED_PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: python scripts/prune_merged_branches.py --pr "$CLOSED_PR_NUMBER" --apply
+          CLOSED_PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python scripts/prune_merged_branches.py --pr "$CLOSED_PR_NUMBER" --expected-head "$CLOSED_PR_SHA" --apply
