@@ -1,0 +1,39 @@
+name: Guarded merged-branch cleanup
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/prune-merged-branches.yml
+      - scripts/prune_merged_branches.py
+  pull_request:
+    types: [closed]
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  prune:
+    if: >-
+      github.repository == 'MSKazemi/reachweaver' &&
+      (github.event_name == 'push' || github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Reclaim three previously merged branches (once)
+        if: github.event_name == 'push'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/prune_merged_branches.py --historical --apply
+      - name: Remove the exact merged PR head only (never forks)
+        if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CLOSED_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python scripts/prune_merged_branches.py --pr "$CLOSED_PR_NUMBER" --apply
