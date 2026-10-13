@@ -19,7 +19,12 @@ from typing import Any
 
 REPOSITORY = "MSKazemi/reachweaver"
 DEFAULT_BRANCH = "main"
-HISTORICAL_MERGED_PRS = (57, 58, 59)
+# Original PR head commits recorded at merge, never inferred from a reused branch.
+HISTORICAL_MERGED_PRS = {
+    57: "6be2ff635d2950d124185c3b872bd50768bcce2d",
+    58: "f1040e85e1e61224041181a9dea70b8090471e0a",
+    59: "fdaf3ab76f26d197ef612c505b126bc17085361a",
+}
 SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
 BRANCH_RE = re.compile(r"[A-Za-z0-9_.\-/]+\Z")
 
@@ -66,10 +71,10 @@ def branch_path(name: str) -> str:
     return urllib.parse.quote(name, safe="")
 
 
-def verified_candidate(api: GitHubAPI, pr_number: int) -> tuple[str, str] | None:
+def verified_candidate(api: GitHubAPI, pr_number: int, expected_sha: str) -> tuple[str, str] | None:
     """Return (name, exact SHA) only when PR history and remote ref agree."""
-    if pr_number <= 0:
-        raise PruneError("invalid PR number")
+    if pr_number <= 0 or not SHA_RE.fullmatch(expected_sha):
+        raise PruneError("invalid PR number or immutable expected SHA")
     pr = api.get(f"/repos/{REPOSITORY}/pulls/{pr_number}")
     if not isinstance(pr, dict):
         raise PruneError(f"PR #{pr_number} cannot be inspected")
@@ -86,6 +91,8 @@ def verified_candidate(api: GitHubAPI, pr_number: int) -> tuple[str, str] | None
     encoded = branch_path(name)
     if not isinstance(sha, str) or not SHA_RE.fullmatch(sha):
         raise PruneError("invalid head SHA")
+    if sha != expected_sha:
+        return None  # A merged branch was reused after the recorded event.
     if not isinstance(merge_sha, str) or not SHA_RE.fullmatch(merge_sha):
         raise PruneError("missing merge commit SHA")
 
@@ -134,15 +141,15 @@ def delete_with_lease(name: str, expected_sha: str, token: str) -> None:
         raise PruneError("lease-protected remote branch deletion failed")
 
 
-def prune(api: GitHubAPI, pr_number: int, *, apply: bool, token: str) -> str:
-    candidate = verified_candidate(api, pr_number)
+def prune(api: GitHubAPI, pr_number: int, expected_sha: str, *, apply: bool, token: str) -> str:
+    candidate = verified_candidate(api, pr_number, expected_sha)
     if candidate is None:
         return f"PR #{pr_number}: kept (unmerged, changed, protected, in use or absent)"
     name, sha = candidate
     if not apply:
         return f"PR #{pr_number}: eligible (dry run): {name} @ {sha}"
     # Recheck the ref immediately before an atomic, lease-protected delete.
-    fresh = verified_candidate(api, pr_number)
+    fresh = verified_candidate(api, pr_number, expected_sha)
     if fresh != candidate:
         raise PruneError(f"PR #{pr_number}: branch changed during verification")
     delete_with_lease(name, sha, token)
@@ -151,20 +158,27 @@ def prune(api: GitHubAPI, pr_number: int, *, apply: bool, token: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--pr", type=int, action="append", default=[], help="one merged PR number")
+    parser.add_argument("--pr", type=int, help="one merged PR number")
+    parser.add_argument("--expected-head", help="immutable PR head SHA recorded in merge event")
     parser.add_argument("--historical", action="store_true", help="review the known merged PRs #57-#59")
     parser.add_argument("--apply", action="store_true", help="delete eligible remote branches with SHA lease")
     args = parser.parse_args(argv)
     if os.environ.get("GITHUB_REPOSITORY") != REPOSITORY:
         parser.error("refusing to operate outside the designated public repository")
-    numbers = sorted(set(args.pr + (list(HISTORICAL_MERGED_PRS) if args.historical else [])))
-    if not numbers:
-        parser.error("choose --pr NUMBER or --historical")
+    if args.pr is not None and (not args.expected_head or not SHA_RE.fullmatch(args.expected_head)):
+        parser.error("--pr requires --expected-head with a 40-character commit SHA")
+    if args.expected_head and args.pr is None:
+        parser.error("--expected-head requires --pr")
+    candidates = dict(HISTORICAL_MERGED_PRS if args.historical else {})
+    if args.pr is not None:
+        candidates[args.pr] = args.expected_head
+    if not candidates:
+        parser.error("choose --pr NUMBER --expected-head SHA or --historical")
     try:
         token = os.environ.get("GITHUB_TOKEN", "")
         api = GitHubAPI(token)
-        for number in numbers:
-            print(prune(api, number, apply=args.apply, token=token))
+        for number, expected_sha in sorted(candidates.items()):
+            print(prune(api, number, expected_sha, apply=args.apply, token=token))
     except PruneError as exc:
         print(f"Branch cleanup blocked: {exc}", file=sys.stderr)
         return 1
