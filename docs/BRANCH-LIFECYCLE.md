@@ -28,7 +28,8 @@ Its first activation also considers only the three known merged PRs #57-#59; it
 
 The code validates: the PR is closed and merged into this repository's `main`;
 its merge commit remains an ancestor of current `main`; its head is in this
-repository; the remaining branch is unprotected, unchanged since the PR head
+repository; the branch SHA matches the immutable merged-event SHA (or the
+pinned historical PR SHA), is unprotected, unchanged since the PR head
 and has no open PR using it. It then deletes with Git's SHA-checked
 `--force-with-lease`, refusing deletion if the remote ref changed after inspection.
 All other branches, including diverged/closed-but-not-merged heads, are retained.
