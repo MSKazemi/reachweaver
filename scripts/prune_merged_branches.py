@@ -63,12 +63,12 @@ class GitHubAPI:
 
 
 def branch_path(name: str) -> str:
-    """Encode the full branch name as one REST path parameter."""
+    """Preserve safe branch slashes in the GitHub REST branch URL."""
     if (not name or not BRANCH_RE.fullmatch(name) or name == DEFAULT_BRANCH
             or name.startswith("-") or name.startswith("/") or name.endswith("/")
             or ".." in name or "//" in name or "@{" in name):
         raise PruneError("unsafe branch name")
-    return urllib.parse.quote(name, safe="")
+    return urllib.parse.quote(name, safe="/")
 
 
 def verified_candidate(api: GitHubAPI, pr_number: int, expected_sha: str) -> tuple[str, str] | None:
