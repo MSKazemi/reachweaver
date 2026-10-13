@@ -7,6 +7,7 @@ The expected SHA is also enforced *atomically* by git's --force-with-lease.
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
@@ -24,6 +25,7 @@ HISTORICAL_MERGED_PRS = {
     57: "6be2ff635d2950d124185c3b872bd50768bcce2d",
     58: "f1040e85e1e61224041181a9dea70b8090471e0a",
     59: "fdaf3ab76f26d197ef612c505b126bc17085361a",
+    62: "1d055bfc3d66b651273806cadffe5a1d6d36d883",
 }
 SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
 BRANCH_RE = re.compile(r"[A-Za-z0-9_.\-/]+\Z")
@@ -125,11 +127,14 @@ def delete_with_lease(name: str, expected_sha: str, token: str) -> None:
     """Delete only if the server still has exactly the vetted commit SHA."""
     # The token is supplied through git's environment config and not exposed
     # in command arguments, remote URL, command output, or checkout config.
+    # GitHub's Git HTTPS endpoint uses the same Basic format as actions/checkout.
+    # Do not log this generated header; the process environment is ephemeral.
+    basic = base64.b64encode(("x-access-token:" + token).encode("utf-8")).decode("ascii")
     env = os.environ.copy()
     env.update({
         "GIT_CONFIG_COUNT": "1",
         "GIT_CONFIG_KEY_0": "http.https://github.com/.extraheader",
-        "GIT_CONFIG_VALUE_0": "AUTHORIZATION: bearer " + token,
+        "GIT_CONFIG_VALUE_0": "AUTHORIZATION: basic " + basic,
         "GIT_TERMINAL_PROMPT": "0",
     })
     remote_ref = f"refs/heads/{name}"
@@ -138,7 +143,16 @@ def delete_with_lease(name: str, expected_sha: str, token: str) -> None:
     result = subprocess.run(command, env=env, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         # Deliberately do not echo stderr or anything containing credentials.
-        raise PruneError("lease-protected remote branch deletion failed")
+        detail = result.stderr.lower()
+        if "stale info" in detail or "cannot lock ref" in detail:
+            reason = "branch SHA changed during deletion"
+        elif "authentication failed" in detail or "could not read username" in detail:
+            reason = "Git authentication rejected"
+        elif "403" in detail or "permission denied" in detail or "protected branch" in detail:
+            reason = "GitHub permission or branch restriction denied deletion"
+        else:
+            reason = "Git push failed without a classified reason"
+        raise PruneError("lease-protected remote branch deletion failed: " + reason)
 
 
 def prune(api: GitHubAPI, pr_number: int, expected_sha: str, *, apply: bool, token: str) -> str:
@@ -160,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pr", type=int, help="one merged PR number")
     parser.add_argument("--expected-head", help="immutable PR head SHA recorded in merge event")
-    parser.add_argument("--historical", action="store_true", help="review the known merged PRs #57-#59")
+    parser.add_argument("--historical", action="store_true", help="review explicitly recorded merged PR heads")
     parser.add_argument("--apply", action="store_true", help="delete eligible remote branches with SHA lease")
     args = parser.parse_args(argv)
     if os.environ.get("GITHUB_REPOSITORY") != REPOSITORY:
