@@ -23,7 +23,7 @@ PRs focused. Completed work belongs on `main`, not in indefinitely retained feat
 
 The [guarded cleanup workflow](../.github/workflows/prune-merged-branches.yml)
 removes stale branches after same-repository PRs are actually merged into public `main`.
-Its first activation also considers only the three known merged PRs #57-#59; it
+Its historical cleanup considers only the pinned merged PRs #57-#59 and #62; it
 **never** deletes the unmerged/closed directory branch associated with PR #60.
 
 The code validates: the PR is closed and merged into this repository's `main`;

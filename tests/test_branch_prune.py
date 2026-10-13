@@ -1,6 +1,7 @@
 """Offline safety checks for the SHA-leased, allowlisted PR branch janitor."""
 from __future__ import annotations
 
+import base64
 import importlib.util
 import os
 import subprocess
@@ -137,8 +138,14 @@ class SafePruneTests(unittest.TestCase):
             self.assertEqual(command[0:3], ["git", "push", f"--force-with-lease=refs/heads/{BRANCH}:{HEAD}"])
             self.assertEqual(command[-1], f":refs/heads/{BRANCH}")
             self.assertNotIn("secret-not-to-log", str(command))
-            self.assertIn("secret-not-to-log", runner.call_args.kwargs["env"]["GIT_CONFIG_VALUE_0"])
+            header = runner.call_args.kwargs["env"]["GIT_CONFIG_VALUE_0"]
+            self.assertTrue(header.startswith("AUTHORIZATION: basic "))
+            self.assertEqual(base64.b64decode(header.split()[-1]).decode(), "x-access-token:secret-not-to-log")
             self.assertTrue(runner.call_args.kwargs["capture_output"])
+
+    def test_historical_pinned_head_never_uses_new_branch_state(self) -> None:
+        self.assertEqual(mod.HISTORICAL_MERGED_PRS[57], "6be2ff635d2950d124185c3b872bd50768bcce2d")
+        self.assertEqual(mod.HISTORICAL_MERGED_PRS[62], "1d055bfc3d66b651273806cadffe5a1d6d36d883")
 
     def test_git_lease_failure_is_fatal(self) -> None:
         with mock.patch.object(mod.subprocess, "run") as runner:
@@ -146,6 +153,7 @@ class SafePruneTests(unittest.TestCase):
             with self.assertRaisesRegex(mod.PruneError, "lease-protected") as ctx:
                 mod.delete_with_lease(BRANCH, HEAD, "placeholder")
             self.assertNotIn("sensitive", str(ctx.exception))
+            self.assertIn("without a classified reason", str(ctx.exception))
 
     def test_requires_specific_repository(self) -> None:
         with mock.patch.dict(os.environ, {"GITHUB_REPOSITORY": "someone/fork"}):
