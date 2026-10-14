@@ -26,7 +26,7 @@ class GlobalDistributionTests(unittest.TestCase):
 
     def test_version_and_complete_channel_coverage(self):
         self.assertEqual(self.data["schema_version"], 1)
-        self.assertEqual(self.data["reviewed_on"], "2026-10-08")
+        self.assertEqual(self.data["reviewed_on"], "2026-10-14")
         ids = {p["id"] for p in self.data["platforms"]}
         self.assertGreaterEqual(len(ids), 30)
         self.assertTrue({
@@ -43,6 +43,46 @@ class GlobalDistributionTests(unittest.TestCase):
             "kenya", "south_africa", "ghana", "egypt", "morocco",
         }.issubset(market_ids))
         self.assertEqual(validate_registry(self.data), [])
+
+    def test_added_regional_channels_remain_research_only(self):
+        added = ["xiaohongshu","wechat_channels","toutiao","baidu_tieba","douban","maimai","qzone","note_jp","naver_blog","naver_cafe","kakao_openchat","dcard","ptt","pantip","line_openchat","zalo_official_account","kaskus","sharechat","moj","vk","odnoklassniki","dzen","habr","medium","substack","snapchat","kwai"]
+        self.assertEqual(len(added), 27)
+        self.assertEqual(len(self.data["platforms"]), 63)
+        self.assertEqual(len(self.data["markets"]), 18)
+        by_id = {p["id"]: p for p in self.data["platforms"]}
+        for platform_id in added:
+            platform = by_id[platform_id]
+            self.assertEqual(platform["reachweaver_delivery"], "manual_only")
+            self.assertEqual(platform["scheduling"]["mode"], "unverified")
+            self.assertEqual(platform["scheduling"]["official_source"], "")
+            self.assertEqual(platform["checked_on"], "2026-10-14")
+            self.assertTrue(platform["research_source"].startswith("https://"))
+        self.assertEqual(by_id["bilibili"]["checked_on"], "2026-10-08")
+        for platform_id in ("baidu_tieba", "douban", "maimai", "qzone", "naver_cafe",
+                            "kakao_openchat", "dcard", "ptt", "pantip", "line_openchat",
+                            "zalo_official_account", "kaskus", "habr"):
+            self.assertTrue(by_id[platform_id]["human_only"], platform_id)
+        for region in ("south_korea", "taiwan", "thailand", "russia"):
+            for goal in GOALS:
+                plan = build_distribution_plan(region, goal)
+                self.assertEqual(plan["status"], "OFFLINE_RESEARCH_PROPOSAL_NOT_SCHEDULED")
+                self.assertFalse(plan["network_requests"])
+                self.assertFalse(plan["account_access"])
+                self.assertEqual(plan["posts_created"], 0)
+                self.assertEqual(plan["posts_scheduled"], 0)
+        self.assertEqual(build_distribution_plan("china", "awareness", limit=8)["channels"][2]["platform_id"], "xiaohongshu")
+        self.assertNotIn("tiktok", next(m for m in self.data["markets"] if m["id"] == "india")["rankings"]["awareness"])
+
+    def test_per_platform_evidence_dates_do_not_backfill_false_reviews(self):
+        data = deepcopy(self.data)
+        self.assertEqual(validate_registry(data), [])
+        data["platforms"][0]["checked_on"] = "2026-10-15"
+        self.assertTrue(any("cannot be later" in e for e in validate_registry(data)))
+        data["platforms"][0]["checked_on"] = "not-a-date"
+        self.assertTrue(any("ISO 8601" in e for e in validate_registry(data)))
+        data["platforms"][0]["checked_on"] = "2026-10-08"
+        data["platforms"][0]["research_source"] = "http://example.com"
+        self.assertTrue(any("research_source" in e for e in validate_registry(data)))
 
     def test_missing_evidence_invalidates_native_schedule(self):
         d = deepcopy(self.data)

@@ -2,6 +2,10 @@
 
 **Review date:** 2026-10-08 | **Status:** Research and offline proposals; not a production posting or first-party analytics optimizer.
 
+## Dated regional research (2026-10-14)
+
+The [regional channel expansion](REGIONAL-CHANNELS-2026-10-14.md) adds 27 manual-only surfaces and South Korea, Taiwan, Thailand and Russia pilots. `reviewed_on` is the catalog edit date; each channel's `checked_on` retains its own actual evidence-check date. A `research_source` homepage is not proof of native scheduling, API rights or account authorization. Messaging/chat communities remain human-only; the India pilot omits TikTok until current availability and law are checked.
+
 ## Authority and source of truth
 
 1. `reachweaver/distribution_registry.json` is the **versioned, testable snapshot** of channel identities, scheduling claims, integration reality, market and goal-specific editorial priorities, and experimental time windows. This file is not proof of proprietary algorithm knowledge or a future traffic forecast.

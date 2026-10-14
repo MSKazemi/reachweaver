@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reviewed_on": "2026-10-08",
+  "reviewed_on": "2026-10-14",
   "decision_type": "editorial_research_hypotheses_not_predictions",
   "reachweaver_live_status": "No real accounts connected or live publishing end-to-end verified as of 2026-10-08; Bluesky/Mastodon/Telegram/LinkedIn-member text adapters mock-tested only.",
   "time_slot_policy": {
@@ -17,7 +17,7 @@
     ],
     "notes": "Illustrative audience-local candidates. Not empirically established best times; compare matched-age results."
   },
-  "source_methodology": "Native platform scheduling requires official documentation per non-unverified status. Market ordering is editorial hypothesis, never a claim about proprietary ranking or expected account reach.",
+  "source_methodology": "Native platform scheduling requires official documentation per non-unverified status. Market ordering is editorial hypothesis, never a claim about proprietary ranking or expected account reach. reviewed_on is the catalog edit date; each platform checked_on is its actual evidence date. Research-source homepages are not API or scheduler evidence.",
   "platforms": [
     {
       "id": "github",
@@ -486,6 +486,384 @@
       "reachweaver_delivery": "manual_only",
       "human_only": false,
       "checked_on": "2026-10-08"
+    },
+    {
+      "id": "xiaohongshu",
+      "label": "Xiaohongshu / REDnote",
+      "category": "visual",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Original photo/video notes; eligibility and external posting permissions unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://creator.xiaohongshu.com/"
+    },
+    {
+      "id": "wechat_channels",
+      "label": "Weixin / WeChat Channels",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Creator-owned video feed; separate from Official Accounts and chat groups",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://www.tencent.net.cn/products/channels/"
+    },
+    {
+      "id": "toutiao",
+      "label": "Toutiao / Toutiaohao",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Original articles or video; check creator rules and qualifications",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://baike.toutiao.com/detail/242/255/0"
+    },
+    {
+      "id": "baidu_tieba",
+      "label": "Baidu Tieba",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Topic community; obtain moderator approval before human contribution",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://tieba.baidu.com/"
+    },
+    {
+      "id": "douban",
+      "label": "Douban",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Interest groups and reviews; no unsolicited promotional posts",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://www.douban.com/"
+    },
+    {
+      "id": "maimai",
+      "label": "Maimai",
+      "category": "professional",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Professional community; authentic human participation without automated outreach",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://maimai.cn/"
+    },
+    {
+      "id": "qzone",
+      "label": "Qzone",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Friends-oriented social space, not mass publication",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://qzone.qq.com/"
+    },
+    {
+      "id": "note_jp",
+      "label": "note (Japan)",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Original author articles; account and editorial eligibility unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://note.com/"
+    },
+    {
+      "id": "naver_blog",
+      "label": "Naver Blog",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Author articles and discoverability controls; native scheduling unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://help.naver.com/service/5593/contents/15555"
+    },
+    {
+      "id": "naver_cafe",
+      "label": "Naver Cafe",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Individual cafe moderation and visibility rules govern posts",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://help.naver.com/service/5622/contents/15212"
+    },
+    {
+      "id": "kakao_openchat",
+      "label": "KakaoTalk Open Chat",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Opt-in groups only; no bulk invites, unsolicited chats or DM automation",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://open.kakao.com/"
+    },
+    {
+      "id": "dcard",
+      "label": "Dcard",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Human discussion with local board rules, not promotional automation",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://www.dcard.tw/"
+    },
+    {
+      "id": "ptt",
+      "label": "PTT",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Human-written posts, individual board rules",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://www.ptt.cc/"
+    },
+    {
+      "id": "pantip",
+      "label": "Pantip",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Human-led Thai community participation and moderation",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://pantip.com/"
+    },
+    {
+      "id": "line_openchat",
+      "label": "LINE OpenChat",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Opt-in conversations, never a public broadcast feed",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://help.line.me/line/smartphone/categoryId/200000000/"
+    },
+    {
+      "id": "zalo_official_account",
+      "label": "Zalo Official Account",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Owner-managed opt-in followers; no unsolicited or automated broadcast",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://oa.zalo.me/home"
+    },
+    {
+      "id": "kaskus",
+      "label": "KASKUS",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Human-only Indonesian forums, moderator-approved",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://www.kaskus.co.id/"
+    },
+    {
+      "id": "sharechat",
+      "label": "ShareChat",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Original locally relevant Indian-language content; no assumed API",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://creators.sharechat.com/"
+    },
+    {
+      "id": "moj",
+      "label": "Moj",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Original Indian short-form creator videos; no assumed API",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://sharechat.com/about/company/"
+    },
+    {
+      "id": "vk",
+      "label": "VK",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Owner-authorized posting; local policy and sanctions screening",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://vk.com/"
+    },
+    {
+      "id": "odnoklassniki",
+      "label": "Odnoklassniki / OK",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Owner-controlled account posts, eligibility unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://ok.ru/"
+    },
+    {
+      "id": "dzen",
+      "label": "Dzen",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Author articles/video; editor and account requirements unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://dzen.ru/"
+    },
+    {
+      "id": "habr",
+      "label": "Habr",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Knowledge-first forum; no unsolicited promotion or repeated links",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_source": "https://habr.com/en/docs/help/rules/"
+    },
+    {
+      "id": "medium",
+      "label": "Medium",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Original technical articles; no ReachWeaver posting adapter",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://medium.com/"
+    },
+    {
+      "id": "substack",
+      "label": "Substack",
+      "category": "technical",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Opt-in author newsletter and publication, not cold outreach",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://substack.com/"
+    },
+    {
+      "id": "snapchat",
+      "label": "Snapchat Spotlight",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Original creator video; scheduling and account eligibility unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://www.snapchat.com/spotlight"
+    },
+    {
+      "id": "kwai",
+      "label": "Kwai",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Original short-form creator videos; regional eligibility unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://www.kwai.com/"
     }
   ],
   "markets": [
@@ -507,7 +885,8 @@
           "reddit",
           "linkedin",
           "youtube",
-          "discord"
+          "discord",
+          "medium"
         ],
         "adoption": [
           "youtube",
@@ -517,7 +896,9 @@
           "reddit",
           "bluesky",
           "product_hunt",
-          "instagram"
+          "instagram",
+          "medium",
+          "substack"
         ],
         "awareness": [
           "youtube",
@@ -527,7 +908,8 @@
           "x",
           "threads",
           "facebook_pages",
-          "bluesky"
+          "bluesky",
+          "snapchat"
         ],
         "collaboration": [
           "linkedin",
@@ -536,7 +918,8 @@
           "bluesky",
           "mastodon",
           "peerlist",
-          "reddit"
+          "reddit",
+          "medium"
         ]
       }
     },
@@ -549,7 +932,7 @@
         "en",
         "hi"
       ],
-      "localization_note": "English first for technical readers; human-review any Hindi material; subtitles never imply Hindi dictation support.",
+      "localization_note": "English first for technical readers; human-review any Hindi material; subtitles never imply Hindi dictation support. Do not recommend TikTok without current local restrictions review: Indian government listed it as blocked in 2020 (https://pib.gov.in/PressReleasePage.aspx?PRID=1635206).",
       "rankings": {
         "contributors": [
           "github",
@@ -567,13 +950,15 @@
           "github",
           "hashnode",
           "peerlist",
-          "instagram"
+          "instagram",
+          "sharechat"
         ],
         "awareness": [
           "youtube",
           "instagram",
           "linkedin",
-          "tiktok",
+          "sharechat",
+          "moj",
           "threads",
           "facebook_pages"
         ],
@@ -594,7 +979,7 @@
       "languages": [
         "zh-Hans"
       ],
-      "localization_note": "Human-reviewed Simplified Chinese and eligibility checks; do not claim Chinese-language product support or working Gitee mirror.",
+      "localization_note": "Human-reviewed Simplified Chinese and eligibility checks; do not claim Chinese-language product support or working Gitee mirror. Tieba, Douban, Maimai and Qzone are human-only community/friends spaces.",
       "rankings": {
         "contributors": [
           "gitee",
@@ -603,30 +988,39 @@
           "juejin",
           "bilibili",
           "zhihu",
-          "github"
+          "github",
+          "toutiao",
+          "maimai"
         ],
         "adoption": [
           "bilibili",
           "csdn",
           "oschina",
+          "xiaohongshu",
           "juejin",
           "zhihu",
+          "wechat_channels",
+          "toutiao",
           "gitee"
         ],
         "awareness": [
           "bilibili",
           "douyin",
+          "xiaohongshu",
+          "wechat_channels",
           "weibo",
           "wechat",
-          "zhihu",
-          "csdn"
+          "toutiao",
+          "zhihu"
         ],
         "collaboration": [
           "oschina",
           "gitee",
           "csdn",
           "juejin",
-          "zhihu"
+          "zhihu",
+          "maimai",
+          "douban"
         ]
       }
     },
@@ -644,6 +1038,7 @@
           "github",
           "qiita",
           "zenn",
+          "note_jp",
           "x",
           "youtube",
           "bluesky"
@@ -652,6 +1047,7 @@
           "youtube",
           "qiita",
           "zenn",
+          "note_jp",
           "x",
           "github"
         ],
@@ -659,6 +1055,7 @@
           "youtube",
           "x",
           "instagram",
+          "note_jp",
           "tiktok"
         ],
         "collaboration": [
@@ -666,7 +1063,8 @@
           "zenn",
           "x",
           "github",
-          "linkedin"
+          "linkedin",
+          "note_jp"
         ]
       }
     },
@@ -679,7 +1077,7 @@
         "id",
         "en"
       ],
-      "localization_note": "Do not treat Southeast Asia as one time zone; test this country specifically.",
+      "localization_note": "Do not treat Southeast Asia as one time zone; test this country specifically. KASKUS contributions are human-only and community-led.",
       "rankings": {
         "contributors": [
           "github",
@@ -707,7 +1105,8 @@
           "linkedin",
           "discord",
           "github",
-          "dev"
+          "dev",
+          "kaskus"
         ]
       }
     },
@@ -758,7 +1157,7 @@
       "languages": [
         "vi"
       ],
-      "localization_note": "Human review Vietnamese content and local account eligibility.",
+      "localization_note": "Human review Vietnamese content and local account eligibility. Zalo Official Accounts address existing opt-in subscribers, not open public discovery.",
       "rankings": {
         "contributors": [
           "github",
@@ -770,7 +1169,8 @@
           "youtube",
           "facebook_groups",
           "tiktok",
-          "github"
+          "github",
+          "zalo_official_account"
         ],
         "awareness": [
           "youtube",
@@ -1029,12 +1429,159 @@
           "youtube",
           "instagram",
           "tiktok",
-          "facebook_pages"
+          "facebook_pages",
+          "kwai"
         ],
         "collaboration": [
           "linkedin",
           "github",
           "dev"
+        ]
+      }
+    },
+    {
+      "id": "south_korea",
+      "label": "South Korea pilot",
+      "country": "KR",
+      "timezone": "Asia/Seoul",
+      "languages": [
+        "ko"
+      ],
+      "localization_note": "Human-review Korean copy. Naver Cafe and Kakao Open Chat need group permission; never blast messages.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "naver_blog",
+          "youtube",
+          "linkedin",
+          "naver_cafe"
+        ],
+        "adoption": [
+          "youtube",
+          "naver_blog",
+          "github",
+          "instagram"
+        ],
+        "awareness": [
+          "youtube",
+          "instagram",
+          "naver_blog",
+          "tiktok"
+        ],
+        "collaboration": [
+          "github",
+          "naver_cafe",
+          "kakao_openchat",
+          "linkedin"
+        ]
+      }
+    },
+    {
+      "id": "taiwan",
+      "label": "Taiwan pilot",
+      "country": "TW",
+      "timezone": "Asia/Taipei",
+      "languages": [
+        "zh-Hant"
+      ],
+      "localization_note": "Use human-reviewed Traditional Chinese. Dcard and PTT are human-only; no promotional automation.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "youtube",
+          "medium",
+          "ptt"
+        ],
+        "adoption": [
+          "youtube",
+          "github",
+          "medium",
+          "dcard"
+        ],
+        "awareness": [
+          "youtube",
+          "instagram",
+          "dcard",
+          "threads"
+        ],
+        "collaboration": [
+          "github",
+          "ptt",
+          "dcard",
+          "linkedin"
+        ]
+      }
+    },
+    {
+      "id": "thailand",
+      "label": "Thailand pilot",
+      "country": "TH",
+      "timezone": "Asia/Bangkok",
+      "languages": [
+        "th",
+        "en"
+      ],
+      "localization_note": "Human-review Thai copy. Pantip and LINE OpenChat are human-only, permissioned communities.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "youtube",
+          "linkedin",
+          "pantip"
+        ],
+        "adoption": [
+          "youtube",
+          "facebook_pages",
+          "pantip",
+          "github"
+        ],
+        "awareness": [
+          "tiktok",
+          "youtube",
+          "instagram",
+          "facebook_pages"
+        ],
+        "collaboration": [
+          "github",
+          "pantip",
+          "line_openchat",
+          "linkedin"
+        ]
+      }
+    },
+    {
+      "id": "russia",
+      "label": "Russia pilot",
+      "country": "RU",
+      "timezone": "Europe/Moscow",
+      "languages": [
+        "ru"
+      ],
+      "localization_note": "Human-review Russian copy and check local rules, legal access and sanctions. Habr bans unsolicited self-promotion; human only.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "habr",
+          "vk",
+          "youtube"
+        ],
+        "adoption": [
+          "habr",
+          "vk",
+          "dzen",
+          "youtube"
+        ],
+        "awareness": [
+          "vk",
+          "dzen",
+          "youtube",
+          "odnoklassniki"
+        ],
+        "collaboration": [
+          "habr",
+          "github",
+          "vk",
+          "linkedin"
         ]
       }
     }

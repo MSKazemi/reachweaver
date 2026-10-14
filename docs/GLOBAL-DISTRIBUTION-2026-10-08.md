@@ -6,6 +6,10 @@
 
 This narrative guide is complemented by the **[tested market/channel registry](../reachweaver/distribution_registry.json)**, the [operating change-control standard](DISTRIBUTION-GOVERNANCE.md), and [research on platform algorithms and timing](PLATFORM-ALGORITHMS-SCHEDULING-2026-10-08.md). Generate a read-only country-specific proposal with `python -m reachweaver.cli distribution-plan --region china --goal adoption --json`. It is NOT a publishing queue. New primary-source corrections belong in the registry and mirrored skill; verified native scheduling does not imply ReachWeaver API integration.
 
+## Added regional research (2026-10-14)
+
+The [regional channel register](REGIONAL-CHANNELS-2026-10-14.md) documents 27 new manual-only channels and four more market pilots (South Korea, Taiwan, Thailand, Russia). No API/scheduler or account authorization is implied; messaging groups and moderated communities remain human-only. The India awareness shortlist excludes TikTok pending updated regional availability and legal review.
+
 ## Existing footprint and evidence classification
 
 The owner reports: (1) a LinkedIn YazSes promotional post and reshare, (2) DEV Community articles dated June 22 and September 23, (3) a YazSes YouTube demonstration, (4) the main GitHub repository, and (5) Snapcraft Forum technical discussion. These are **owner-reported, not independently verified here**; collect canonical URLs and native analytics before marking them VERIFIED. All other platforms: **account/content status unknown**. Never equate the existence of a post with an authenticated ReachWeaver account.

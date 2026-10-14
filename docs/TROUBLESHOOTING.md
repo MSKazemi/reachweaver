@@ -103,8 +103,8 @@ Live text adapters (still need approval, `--live`, `REACHWEAVER_ALLOW_LIVE=1` an
 |---|---|
 | manual_export | `facebook_pages`, `instagram`, `threads`, `tiktok`, `youtube` |
 | draft_export | `dev`, `hashnode`, `pinterest`, `x` |
-| native_manual | `bilibili`, `csdn`, `dailydev`, `douyin`, `juejin`, `kuaishou`, `oschina`, `peerlist`, `product_hunt`, `qiita`, `wechat`, `weibo`, `zenn`, `zhihu` |
-| human_only | `discord`, `facebook_groups`, `hacker_news`, `indie_hackers`, `reddit`, `whatsapp` |
+| native_manual | `bilibili`, `csdn`, `dailydev`, `douyin`, `dzen`, `juejin`, `kuaishou`, `kwai`, `medium`, `moj`, `naver_blog`, `note_jp`, `odnoklassniki`, `oschina`, `peerlist`, `product_hunt`, `qiita`, `sharechat`, `snapchat`, `substack`, `toutiao`, `vk`, `wechat`, `wechat_channels`, `weibo`, `xiaohongshu`, `zenn`, `zhihu` |
+| human_only | `baidu_tieba`, `dcard`, `discord`, `douban`, `facebook_groups`, `habr`, `hacker_news`, `indie_hackers`, `kakao_openchat`, `kaskus`, `line_openchat`, `maimai`, `naver_cafe`, `pantip`, `ptt`, `qzone`, `reddit`, `whatsapp`, `zalo_official_account` |
 | unsupported | `gitee`, `github`, `snapcraft` |
 <!-- END blocker-table -->
 
