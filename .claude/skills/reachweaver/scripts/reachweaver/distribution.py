@@ -81,8 +81,13 @@ def validate_registry(registry: object) -> list[str]:
             errors.append(f"{key}: invalid ReachWeaver delivery status")
         if p.get("human_only") not in (True, False):
             errors.append(f"{key}: human_only must be boolean")
-        if p.get("checked_on") != registry.get("reviewed_on"):
-            errors.append(f"{key}: checked_on must match registry snapshot")
+        try:
+            checked = date.fromisoformat(p["checked_on"])
+            reviewed = date.fromisoformat(registry["reviewed_on"])
+            if checked > reviewed:
+                errors.append(f"{key}: checked_on cannot be after registry snapshot")
+        except (ValueError, KeyError, TypeError):
+            errors.append(f"{key}: checked_on must be an ISO date")
     for key in ("bluesky", "mastodon", "telegram", "linkedin"):
         if mapping.get(key, {}).get("reachweaver_delivery") != "mock_tested_text":
             errors.append(f"{key}: current integration must remain labelled mock-tested")

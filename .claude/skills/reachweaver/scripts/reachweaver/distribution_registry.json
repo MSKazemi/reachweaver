@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reviewed_on": "2026-10-08",
+  "reviewed_on": "2026-10-14",
   "decision_type": "editorial_research_hypotheses_not_predictions",
   "reachweaver_live_status": "No real accounts connected or live publishing end-to-end verified as of 2026-10-08; Bluesky/Mastodon/Telegram/LinkedIn-member text adapters mock-tested only.",
   "time_slot_policy": {
@@ -17,7 +17,7 @@
     ],
     "notes": "Illustrative audience-local candidates. Not empirically established best times; compare matched-age results."
   },
-  "source_methodology": "Native platform scheduling requires official documentation per non-unverified status. Market ordering is editorial hypothesis, never a claim about proprietary ranking or expected account reach.",
+  "source_methodology": "Native platform scheduling requires official documentation per non-unverified status. Market ordering is editorial hypothesis, never a claim about proprietary ranking or expected account reach. New 2026-10-14 regional entries carry research_url as a platform locator only (NOT a verified scheduling or developer-policy source); native scheduler remains unverified and delivery manual_only.",
   "platforms": [
     {
       "id": "github",
@@ -486,6 +486,306 @@
       "reachweaver_delivery": "manual_only",
       "human_only": false,
       "checked_on": "2026-10-08"
+    },
+    {
+      "id": "xiaohongshu",
+      "label": "Xiaohongshu / REDnote (小红书)",
+      "category": "lifestyle",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "China: Mandarin-first visual explainers, search and original note formats; no verified general-purpose third-party publish/schedule access",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://www.xiaohongshu.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "wechat_channels",
+      "label": "WeChat Channels / 视频号",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "China: separate video feed from WeChat Official Accounts; account eligibility and native scheduler unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://channels.weixin.qq.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "toutiao",
+      "label": "Toutiao / 今日头条",
+      "category": "news",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "China: topical news/article distribution; permission, creator program and original-content rules require verification",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://www.toutiao.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "baidu_tieba",
+      "label": "Baidu Tieba / 百度贴吧",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "China: forum communities with anti-spam/moderation rules; do not automate outreach",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_url": "https://tieba.baidu.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "douban",
+      "label": "Douban / 豆瓣",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "China: interest groups; community-first, no automated promotion or assumed bulk posting",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_url": "https://www.douban.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "maimai",
+      "label": "Maimai / 脉脉",
+      "category": "professional",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "China: professional-network participation; manual discussion only until official policies reviewed",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://maimai.cn/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "qzone",
+      "label": "Qzone / QQ空间",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "China: QQ social surface; current posting and scheduling eligibility unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://qzone.qq.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "naver_blog",
+      "label": "Naver Blog",
+      "category": "blog",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "South Korea: native blog creator flow, not an assumed public automated-writing API",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://blog.naver.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "naver_cafe",
+      "label": "Naver Cafe",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "South Korea: per-cafe community rules; manual participation, no unsolicited promotional posting",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_url": "https://cafe.naver.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "kakao_channel",
+      "label": "KakaoTalk Channel",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "South Korea: opt-in official business/channel messaging, not a general public discovery feed; API rights unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://business.kakao.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "line_official",
+      "label": "LINE Official Account",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Japan, Taiwan, Thailand: opt-in messages to followers; broadcasting differs from public social posts",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://developers.line.biz/en/docs/messaging-api/overview/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "dcard",
+      "label": "Dcard",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Taiwan: topic-specific public discussions; human-reviewed participation only",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_url": "https://www.dcard.tw/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "pixnet",
+      "label": "PIXNET / 痞客邦",
+      "category": "blog",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Taiwan: traditional-Chinese blog publishing; supported native schedule unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://www.pixnet.net/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "pantip",
+      "label": "Pantip",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Thailand: forum and Q&A community; respect moderators and prohibit spam automation",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_url": "https://pantip.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "zalo_oa",
+      "label": "Zalo Official Account",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Vietnam: opt-in official-account messages; only permission-based channel communication",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://oa.zalo.me/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "kaskus",
+      "label": "KASKUS",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Indonesia: interest forums with community norms; no automated self-promotion",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-14",
+      "research_url": "https://www.kaskus.co.id/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "sharechat",
+      "label": "ShareChat",
+      "category": "social",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "India: local-language social content; current creator/publication API not established",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://sharechat.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "moj",
+      "label": "Moj",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "India: domestic short-video creation; current native scheduling / API status unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://mojapp.in/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "vk",
+      "label": "VK",
+      "category": "social",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Russia/CIS: social network and community pages; applicable developer rules and account restrictions require verification",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://vk.com/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
+    },
+    {
+      "id": "odnoklassniki",
+      "label": "Odnoklassniki / OK",
+      "category": "social",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Russia/CIS: social groups; official publishing permissions, regional restrictions unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_url": "https://ok.ru/",
+      "research_status": "primary_site_locator_only_provider_policy_not_verified"
     }
   ],
   "markets": [
@@ -549,7 +849,7 @@
         "en",
         "hi"
       ],
-      "localization_note": "English first for technical readers; human-review any Hindi material; subtitles never imply Hindi dictation support.",
+      "localization_note": "English first for technical readers; human-review any Hindi material; subtitles never imply Hindi dictation support. TikTok is not a suitable currently available India acquisition channel: review India restrictions before ever adding it back.",
       "rankings": {
         "contributors": [
           "github",
@@ -562,6 +862,8 @@
         ],
         "adoption": [
           "youtube",
+          "sharechat",
+          "moj",
           "linkedin",
           "dev",
           "github",
@@ -572,8 +874,9 @@
         "awareness": [
           "youtube",
           "instagram",
+          "sharechat",
+          "moj",
           "linkedin",
-          "tiktok",
           "threads",
           "facebook_pages"
         ],
@@ -607,21 +910,27 @@
         ],
         "adoption": [
           "bilibili",
+          "xiaohongshu",
+          "zhihu",
           "csdn",
+          "toutiao",
           "oschina",
           "juejin",
-          "zhihu",
           "gitee"
         ],
         "awareness": [
+          "xiaohongshu",
+          "wechat_channels",
           "bilibili",
           "douyin",
           "weibo",
+          "toutiao",
           "wechat",
           "zhihu",
           "csdn"
         ],
         "collaboration": [
+          "maimai",
           "oschina",
           "gitee",
           "csdn",
@@ -649,15 +958,17 @@
           "bluesky"
         ],
         "adoption": [
-          "youtube",
           "qiita",
           "zenn",
+          "youtube",
+          "line_official",
           "x",
           "github"
         ],
         "awareness": [
           "youtube",
           "x",
+          "line_official",
           "instagram",
           "tiktok"
         ],
@@ -690,8 +1001,9 @@
         ],
         "adoption": [
           "youtube",
-          "tiktok",
           "instagram",
+          "kaskus",
+          "tiktok",
           "facebook_groups",
           "github",
           "dev"
@@ -768,14 +1080,16 @@
         ],
         "adoption": [
           "youtube",
+          "zalo_oa",
           "facebook_groups",
           "tiktok",
           "github"
         ],
         "awareness": [
           "youtube",
-          "tiktok",
+          "zalo_oa",
           "facebook_pages",
+          "tiktok",
           "instagram"
         ],
         "collaboration": [
@@ -1035,6 +1349,137 @@
           "linkedin",
           "github",
           "dev"
+        ]
+      }
+    },
+    {
+      "id": "south_korea",
+      "label": "South Korea pilot",
+      "country": "KR",
+      "timezone": "Asia/Seoul",
+      "languages": [
+        "ko"
+      ],
+      "localization_note": "Human-review Korean technology and local channel eligibility; messaging followers is not public reach.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "naver_blog",
+          "linkedin",
+          "youtube"
+        ],
+        "adoption": [
+          "naver_blog",
+          "naver_cafe",
+          "youtube",
+          "github"
+        ],
+        "awareness": [
+          "youtube",
+          "kakao_channel",
+          "instagram"
+        ],
+        "collaboration": [
+          "linkedin",
+          "naver_blog",
+          "github"
+        ]
+      }
+    },
+    {
+      "id": "taiwan",
+      "label": "Taiwan pilot",
+      "country": "TW",
+      "timezone": "Asia/Taipei",
+      "languages": [
+        "zh-Hant"
+      ],
+      "localization_note": "Use traditional Chinese and community-specific review; do not equate Taiwan and mainland China platform rules.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "youtube"
+        ],
+        "adoption": [
+          "pixnet",
+          "youtube",
+          "github",
+          "dcard"
+        ],
+        "awareness": [
+          "youtube",
+          "dcard",
+          "line_official"
+        ],
+        "collaboration": [
+          "github",
+          "dev",
+          "linkedin"
+        ]
+      }
+    },
+    {
+      "id": "thailand",
+      "label": "Thailand pilot",
+      "country": "TH",
+      "timezone": "Asia/Bangkok",
+      "languages": [
+        "th"
+      ],
+      "localization_note": "Native Thai language review required; LINE Official Account is opted-in messaging, not organic social discovery.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "youtube"
+        ],
+        "adoption": [
+          "youtube",
+          "pantip",
+          "facebook_groups"
+        ],
+        "awareness": [
+          "youtube",
+          "tiktok",
+          "line_official"
+        ],
+        "collaboration": [
+          "linkedin",
+          "github",
+          "pantip"
+        ]
+      }
+    },
+    {
+      "id": "russia",
+      "label": "Russia/CIS pilot",
+      "country": "RU",
+      "timezone": "Europe/Moscow",
+      "languages": [
+        "ru"
+      ],
+      "localization_note": "Verify user/account jurisdiction, sanctions and cross-border rules before platform use; offline planning grants no permission.",
+      "rankings": {
+        "contributors": [
+          "github",
+          "dev",
+          "vk"
+        ],
+        "adoption": [
+          "vk",
+          "youtube",
+          "github"
+        ],
+        "awareness": [
+          "vk",
+          "odnoklassniki",
+          "youtube"
+        ],
+        "collaboration": [
+          "vk",
+          "github",
+          "linkedin"
         ]
       }
     }

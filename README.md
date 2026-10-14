@@ -110,7 +110,7 @@ For a source-backed, moderation-aware 30-day plan prioritizing DEV, LinkedIn, Gi
 
 ## Worldwide audience selection: executable, offline research
 
-ReachWeaver now includes a **versioned and tested research registry** spanning 36 networks/surfaces and 14 country/global market profiles, including India, China, Japan, Southeast Asia, Africa and Brazil. It also records native scheduling evidence separately from ReachWeaver's actual account and API capabilities. Results are **editorial channel hypotheses**, never guaranteed traffic, a detected account connection, a remote scheduling receipt or publishing permission.
+ReachWeaver now includes a **versioned and tested research registry** spanning 56 networks/surfaces and 18 country/global market profiles, including India, China, Japan, Southeast Asia, Africa and Brazil. It also records native scheduling evidence separately from ReachWeaver's actual account and API capabilities. Results are **editorial channel hypotheses**, never guaranteed traffic, a detected account connection, a remote scheduling receipt or publishing permission.
 
 ```bash
 # No account credentials or network access needed. These NEVER queue or publish.

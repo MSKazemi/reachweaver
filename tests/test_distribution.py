@@ -26,9 +26,9 @@ class GlobalDistributionTests(unittest.TestCase):
 
     def test_version_and_complete_channel_coverage(self):
         self.assertEqual(self.data["schema_version"], 1)
-        self.assertEqual(self.data["reviewed_on"], "2026-10-08")
+        self.assertEqual(self.data["reviewed_on"], "2026-10-14")
         ids = {p["id"] for p in self.data["platforms"]}
-        self.assertGreaterEqual(len(ids), 30)
+        self.assertGreaterEqual(len(ids), 56)
         self.assertTrue({
             "reddit", "hacker_news", "linkedin", "youtube", "x", "bluesky",
             "mastodon", "product_hunt", "instagram", "tiktok", "threads",
@@ -43,6 +43,25 @@ class GlobalDistributionTests(unittest.TestCase):
             "kenya", "south_africa", "ghana", "egypt", "morocco",
         }.issubset(market_ids))
         self.assertEqual(validate_registry(self.data), [])
+
+    def test_new_regional_channels_are_offline_and_safely_manual(self):
+        channels = {p["id"]: p for p in self.data["platforms"]}
+        new_ids = ["xiaohongshu","wechat_channels","toutiao","baidu_tieba","douban","maimai","qzone","naver_blog","naver_cafe","kakao_channel","line_official","dcard","pixnet","pantip","zalo_oa","kaskus","sharechat","moj","vk","odnoklassniki"]
+        self.assertTrue(set(new_ids).issubset(channels))
+        for identifier in new_ids:
+            entry = channels[identifier]
+            self.assertEqual(entry["scheduling"]["mode"], "unverified")
+            self.assertEqual(entry["reachweaver_delivery"], "manual_only")
+            self.assertTrue(entry["research_url"].startswith("https://"))
+        for market in ("south_korea", "taiwan", "thailand", "russia"):
+            plan = build_distribution_plan(market, "awareness")
+            self.assertEqual(plan["status"], "OFFLINE_RESEARCH_PROPOSAL_NOT_SCHEDULED")
+            self.assertFalse(plan["account_access"])
+            self.assertEqual(plan["posts_scheduled"], 0)
+        self.assertNotIn("tiktok", self.data["markets"][1]["rankings"]["awareness"])
+        copy = deepcopy(self.data)
+        next(x for x in copy["platforms"] if x["id"] == "xiaohongshu")["scheduling"]["mode"] = "native"
+        self.assertTrue(any("xiaohongshu" in e for e in validate_registry(copy)))
 
     def test_missing_evidence_invalidates_native_schedule(self):
         d = deepcopy(self.data)
