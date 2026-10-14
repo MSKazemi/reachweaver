@@ -65,6 +65,6 @@ Prefer building fake tokens at runtime (string concatenation) so no allowlist en
 
 The pull request template asks for test evidence (command and output), documentation updates, a security evaluation of the approval, dry-run, emergency-stop, credential-isolation and ambiguous-send rules, and platform-registry updates where relevant. Use the issue templates for bugs, features and platform adapters; adapters need official documentation URLs, a verification date, the account type and the platform's approval requirements. Report vulnerabilities privately as described in [docs/SECURITY.md](docs/SECURITY.md#reporting-a-vulnerability-private), never in a public issue. Public PRs must not contain secrets, unlicensed third-party skill prose, browser cookies, session files, private analytics or copyrighted media.
 
-Use original code. The upstream research directory is an **attribution/citation catalog, not a vendoring directory**. Postiz is AGPL-3.0 and not to be pasted into this MIT repository. Preserve author credits for any separately permitted reused work.
+Use original code. The upstream research directory is an **attribution/citation catalog, not a vendoring directory**. Postiz is AGPL-3.0 and not to be pasted into this Apache-2.0 repository. Preserve author credits for any separately permitted reused work.
 
 Write issues and documentation in clear English. Identify API capabilities as VERIFIED/LIVE-TESTED, MOCK-TESTED or NOT IMPLEMENTED; never infer success from an attractive README.
