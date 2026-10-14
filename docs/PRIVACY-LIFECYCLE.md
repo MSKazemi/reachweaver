@@ -10,13 +10,13 @@ The SQLite state database (default `state/reachweaver.sqlite`, mode 0600 in a 07
 
 | Table | Contents | Personal data risk |
 | --- | --- | --- |
-| `posts` | draft/approved/published text, account id, platform, campaign, source URL, remote id/URL, timestamps, last error code, approval payload hash, approver label (`approved_by`: an OS login or a typed name) and approval channel | Post text may name or quote people; unpublished drafts are confidential; `approved_by` is personal data and appears in `data-export` |
+| `posts` | draft/approved/published text (including operator-authored outgoing reply drafts where applicable), reply-target identifier, optional image/video metadata, account id, platform, campaign, source URL, remote id/URL, timestamps, last error code, approval payload hash, approver label (`approved_by`: an OS login or a typed name) and approval channel | Post text may name or quote people; unpublished drafts are confidential; `approved_by` is personal data and appears in `data-export` |
 | `event_log` | state-transition audit (action, post id, short detail) | Low; details hold ids, counts and error codes |
 | `campaign_variants` | campaign/variant ids, fingerprint, staged evidence JSON | Evidence claims may include private plans |
 | `metric_snapshots` | per-post aggregate counts from native exports | Aggregates, normally not about an identifiable person |
 | `settings` | emergency pause flag | None |
 
-ReachWeaver does **not** currently store comments, replies, follower lists or other third-party profiles in the database. `engagement-triage` reads an owner export and writes draft files only. The [opt-out list](#opt-out-list) is a separate local file. If you add such data later, keep it in a separate store from published material and analytics (see below).
+ReachWeaver does not currently maintain a database of fetched incoming comments, follower lists or third-party profiles. **Outgoing replies authored or approved by the operator can be stored as posts**, including reply targets. `engagement-triage` reads an operator-provided export and writes draft files outside the database; imported and exported files may include other people's data. The [opt-out list](#opt-out-list) is a separate local file. Apply appropriate access and retention controls to imported data and draft files.
 
 ## Commands
 
