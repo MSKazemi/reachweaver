@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a security vulnerability privately
-    url: https://github.com/MSKazemi/reachweaver/security/advisories/new
-    about: Credential exposure, approval/dry-run bypass or unintended live sends. Never file these as public issues. See docs/SECURITY.md.
+    url: https://github.com/MSKazemi/reachweaver/blob/main/SECURITY.md
+    about: Read the verified contact options, including private email. The GitHub confidential-reporting form may be unavailable; do not post vulnerability details publicly.
   - name: Security policy
     url: https://github.com/MSKazemi/reachweaver/blob/main/docs/SECURITY.md
     about: Threat model, implemented controls and how to report a vulnerability.
