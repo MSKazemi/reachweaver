@@ -70,7 +70,7 @@ reachweaver suggest --snapshot examples/profile-post-audit.example.json --json
 reachweaver --db state/reachweaver.sqlite suggest --include-db --snapshot state/owned-profiles.json --limit 15
 ```
 
-See [the next-actions runbook](docs/NEXT-ACTIONS.md). Real native account analytics need an owner-approved export or a separately authorized collector; `suggest` itself never connects to a platform, changes the queue, drafts, replies, likes, schedules or publishes.
+`reachweaver weekly-digest --out state/digest.md` takes the same inputs and writes them as one private Markdown file; nothing is sent. See [the next-actions runbook](docs/NEXT-ACTIONS.md). Real native account analytics need an owner-approved export or a separately authorized collector; `suggest` itself never connects to a platform, changes the queue, drafts, replies, likes, schedules or publishes.
 
 ## Consent-aware native social analytics from local CSV (offline)
 
@@ -261,6 +261,7 @@ reachweaver engagement-queue EXPORT.json [--docs-map F] [--optout F] [--now ISO]
 reachweaver utm-link URL --platform P --campaign C [--content POST_ID] [--allow-origin O...] [--sources CONFIG]  canonical UTM link; refuses private source repo URLs
 reachweaver attribution-report --analytics CSV [--github-traffic JSON]... [--json]  read-only UTM/referrer join
 reachweaver seo-destinations --briefs FILE --type release|paper|product|docs [--project P]  landing page + conflicts
+reachweaver weekly-digest --out FILE.md [suggest input flags] [--include-db] [--limit N]  suggest + local report as one private (0600) Markdown file; new file only, local only, never sent (docs/NEXT-ACTIONS.md)
 reachweaver seo-content-check FILE.json [--json]  offline discoverability checks on post texts you supply (length, alt text, hashtags, UTM link, cross-platform duplicates); every finding labelled official/repo_policy/hypothesis; read-only, exit 2 on errors
 reachweaver landing-check --briefs FILE [--campaign CAMPAIGN.json] [--online] [--allow-origin O...] [--json]  canonical URL/CTA/UTM checks; --online: status, redirects, rel=canonical, Open Graph, noindex, lang, lexical claim phrases (docs/SEO-INTEGRATION.md)
 reachweaver media-check MANIFEST [--json]      offline media headers/limits/alt text/captions/rights; never uploads

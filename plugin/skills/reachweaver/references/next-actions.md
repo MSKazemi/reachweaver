@@ -15,6 +15,8 @@ Load this reference for requests like "What is my next step to grow?", "Combine 
 
 **Optional normalized native CSV:** if the user explicitly acknowledges they own/have authorization for a local exported CSV, add `--metrics-csv state/native.csv --owner-authorized` *alongside* `--snapshot state/owned-profiles.json`. The CSV is merged only in memory, with exact per-account binding and duplicate refusal; no OAuth, network, database writes or source authenticity claim. Never ask for personal tokens or contact lists to implement the import. Source: `docs/PROFILE-METRICS-CSV.md` in the full repo and `assets/profile-post-metrics.example.csv` in portable copies.
 
+**Weekly digest:** to hand the owner one file, run `reachweaver weekly-digest --out state/digest.md` with the same inputs (add `--include-db` for the local report). It refuses an existing `--out`, writes mode 0600 and sends nothing. Do not offer to e-mail or post it; delivery is the owner's step.
+
 ## Interpret the ranked output
 
 The exact output keys are `schema_version=reachweaver.suggestions.v1`, `source_coverage`, `actions` and `limitations`. Each action has `rank`, `priority` (P0 safety/privacy, P1 blockers, P2 known improvement/data collection, P3 test hypothesis), `evidence`, `confidence`, `platform/account_id`, and `next_step`.

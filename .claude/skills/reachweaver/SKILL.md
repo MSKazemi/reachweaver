@@ -137,6 +137,7 @@ python -m reachweaver.cli metrics-fetch --online --dry-run  # then without --dry
 python -m reachweaver.cli report --format markdown  # exact values only + coverage/status; json (default) or csv
 python -m reachweaver.cli engagement-fetch  # plan only; --online --out replies.json on request, then engagement-triage replies.json
 python -m reachweaver.cli engagement-queue export.json  # offline aging/SLA queue of items needing a human; read-only
+python -m reachweaver.cli weekly-digest --snapshot state/owned-profiles.json --out state/digest.md  # suggest (+ report with --include-db) as one private Markdown file; never sent
 python -m reachweaver.cli ops-metrics --format prometheus  # read-only monitoring counts
 python -m reachweaver.cli ops-summary --json  # one redacted read-only readiness + metrics report; exit 1 when blocked
 python -m reachweaver.cli experiment-evaluate --file examples/experiment.example.json

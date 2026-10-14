@@ -53,6 +53,22 @@ The `--include-db` option is **never implied**: without it the command neither o
 
 Use [`profile-audit`](PROFILE-AND-POST-AUDITS.md), [`post-audit`](PROFILE-AND-POST-AUDITS.md), `engagement-triage`, `seo-destinations`, `experiment-next`, `queue-health`, and `report` independently to investigate details. Native metrics already retrieved by separate owner-authorized tools (for example public Bluesky/Mastodon post counters through `metrics-fetch --online`) may be reflected in the local database, but **running `suggest` never invokes a collector**.
 
+## Weekly digest (`weekly-digest`, issue #45 W7)
+
+`weekly-digest` writes the same ranked actions as `suggest`, and with `--include-db` the local `report` totals, into one Markdown file you read and share (or not) yourself.
+
+```bash
+reachweaver weekly-digest --snapshot state/owned-profiles.json --out state/digest-2026-10-13.md
+reachweaver --db state/reachweaver.sqlite weekly-digest --include-db --snapshot state/owned-profiles.json --limit 15 --out state/digest.md
+```
+
+- It accepts the same input flags as `suggest` and loads them through the same code, so the two cannot disagree about what a file means. `--out` is required.
+- The file is created new with mode `0600`. An existing file or a symlink at `--out` is refused and left untouched, and the parent directory must already exist.
+- There is no send, e-mail, post or schedule path and no network access. Scheduling it (cron, a calendar reminder) and delivering it are your decisions.
+- Free text is Markdown-escaped; fixed identifiers (priority, kind, signal, source) are written as code spans after dropping unexpected characters. Post text and comments are not copied in.
+- The digest repeats the evidence labels and limits of its inputs and adds no ranking or forecast. Missing metrics stay `unknown`, never 0.
+- The file can hold account ids and local metrics, so keep it under `state/` (gitignored).
+
 ## Ranking rules
 
 Rank using an explicit **policy and evidence hierarchy**, not pseudo-scientific precision:
