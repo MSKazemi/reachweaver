@@ -289,6 +289,8 @@ The approval hash covers the stored target byte for byte. A reply is text-only: 
 
 An export item may carry an optional `kind`, one of `reply`, `mention`, `quote_post`, `comment`, `direct_message`. Anything else is refused; a missing `kind` is reported as `unspecified`. The triage report then adds an `inbox` block (counts per category and per source platform, and the action taken per category), each item carries its `kind`, and the Markdown sheet shows a category table. `kind` changes no label, rule, draft, opt-out or moderation decision: it is a grouping label only, and a claimed category never loosens a safety rule.
 
+The "five categories" are the five item kinds above. Every item then gets exactly one action (`draft_reply_requires_approval`, `human_review_required_no_draft`, `no_reply_spam`, `skip_owner_comment`, `human_authored_reply_only` and the others in the actions table) that `actions_by_kind` counts per kind. A reply proposal carries the sanitized original excerpt, its evidence (the matched rules and the docs link) and the constraints of its own platform: the conservative text limit differs by platform (for example Bluesky 300, Mastodon 450, X 260, LinkedIn 2800), `human_authored_only` platforms (DEV, Hacker News) get no draft, and a platform without a comment send path says how to post it yourself. `tests/test_engagement_constraints.py` pins this.
+
 The demo is `tests/fixtures/engagement/unified-inbox.json`: synthetic items from five mocked sources (Bluesky, Mastodon, GitHub, DEV, Hacker News) covering all five categories, with injection, harassment, spam, an opt-out request, an owner item and an author on the opt-out list (`unified-inbox-optout.json`):
 
 ```bash
