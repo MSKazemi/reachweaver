@@ -548,6 +548,207 @@ class PostizFixtureTests(unittest.TestCase):
         self.assert_nothing_leaks(out, err)
 
 
+class PausingPostiz(FakePostiz):
+    """The operator runs ``reachweaver pause`` while the read-only GET /integrations is in flight."""
+
+    def __init__(self, db_path, **kwargs):
+        super().__init__(**kwargs)
+        self.db_path = db_path
+
+    def __call__(self, req):
+        if req.get_method() == "GET" and "/integrations" in req.full_url:
+            with connect(self.db_path) as con:
+                set_paused(con, True)
+        return super().__call__(req)
+
+
+class PostizIssue56Tests(PostizTests):
+    """Issue #56 (roadmap #30) acceptance gaps closed offline: paused queue mid-preflight, backend job states,
+    credential compartments, the inspectable offline preview in ``show`` and the manual fallback. Every HTTP
+    exchange is a fake; no test reaches a host. Inherits the fixtures of ``PostizTests`` only; the inherited
+    test methods are excluded below so they run once."""
+
+    def requests_text(self, fake):
+        return " ".join(f"{r.full_url} {dict(r.header_items())} {r.data!r}" for r in fake.requests)
+
+    # --- paused queue ------------------------------------------------------
+    def test_pause_during_the_preflight_stops_the_send_at_the_claim(self):
+        pid = self.approved()
+        fake = PausingPostiz(str(self.db))
+        with patch("reachweaver.publishers._send_http", fake):
+            code, out, err = self.cli("publish", "--live", "--post-id", pid)
+        self.assertEqual(code, 2, out + err)
+        self.assertIn("pause", (out + err).lower())
+        self.assertEqual([r.get_method() for r in fake.requests], ["GET"])  # preflight only, no POST /posts
+        self.assertEqual(self.status(pid)["status"], "approved")
+        with connect(str(self.db)) as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM event_log WHERE action='send_claimed'").fetchone()[0], 0)
+
+    # --- observed remote id and permalink ----------------------------------
+    def test_backend_job_states_are_reported_and_never_reconcile(self):
+        pid = self.approved()
+        with patch("reachweaver.publishers._send_http", FakePostiz()):
+            self.cli("publish", "--live", "--post-id", pid)
+        cases = {
+            "queued": ({"posts": [{"id": "pz-post-9", "state": "QUEUE"}]}, (True, "QUEUE", None)),
+            "error": ({"posts": [{"id": "pz-post-9", "state": "ERROR", "error": "provider said SECRET-DETAIL",
+                                  "releaseURL": ""}]}, (True, "ERROR", None)),
+            "missing": ({"posts": [{"id": "someone-else", "state": "PUBLISHED"}]}, (False, None, None)),
+            "unrecognised": ({"posts": [{"id": "pz-post-9", "state": "PAUSED"}]}, (True, "unknown", None)),
+        }
+        for name, (reply, expected) in cases.items():
+            with self.subTest(name):
+                fake = FakePostiz(posts=reply)
+                with patch("reachweaver.publishers._send_http", fake):
+                    code, out, err = self.cli("postiz-check", "--account", "pz-blue", "--online", "--post-id", pid)
+                self.assertEqual(code, 0, out + err)
+                lookup = json.loads(out)["receipt_lookup"]
+                self.assertEqual((lookup["found"], lookup["state"], lookup["release_url"]), expected)
+                self.assertEqual(lookup["backend_ref"], "postiz:pz-post-9")
+                self.assertNotIn("SECRET-DETAIL", out + err)
+                self.assertTrue(all(r.get_method() == "GET" for r in fake.requests))
+                self.assertEqual(self.status(pid)["status"], "needs_review")
+
+    def test_lookup_refuses_an_ambiguous_post_without_a_backend_job_id(self):
+        pid = self.approved()
+        with patch("reachweaver.publishers._send_http", FakePostiz(create=http_error(502))):
+            self.cli("publish", "--live", "--post-id", pid)
+        self.assertEqual((self.status(pid)["status"], self.status(pid)["remote_id"]), ("needs_review", None))
+        fake = FakePostiz(posts={"posts": [{"id": "anything", "state": "PUBLISHED"}]})
+        with patch("reachweaver.publishers._send_http", fake):
+            code, _, err = self.cli("postiz-check", "--account", "pz-blue", "--online", "--post-id", pid)
+        self.assertEqual(code, 2)
+        self.assertIn("no Postiz backend reference", err)
+        self.assertFalse(any("/posts" in r.full_url for r in fake.requests))  # never guesses a job
+
+    def test_reconcile_stores_the_observed_native_id_and_permalink(self):
+        pid = self.approved()
+        with patch("reachweaver.publishers._send_http", FakePostiz()):
+            self.cli("publish", "--live", "--post-id", pid)
+        native_id = "at://did:plc:me/app.bsky.feed.post/abc"
+        permalink = "https://bsky.app/profile/me.bsky.social/post/abc"
+        code, _, err = self.cli("reconcile", pid, "--published", "--remote-id", native_id, "--remote-url", permalink, env={})
+        self.assertEqual(code, 0, err)
+        row = self.status(pid)
+        self.assertEqual((row["status"], row["remote_id"], row["remote_url"]), ("published", native_id, permalink))
+        with connect(str(self.db)) as db:
+            actions = [r[0] for r in db.execute("SELECT action FROM event_log WHERE post_id=? ORDER BY id", (pid,))]
+        self.assertEqual(actions.count("send_claimed"), 1)
+        self.assertIn("reconciled_published", actions)
+
+    # --- credential compartments -------------------------------------------
+    def test_each_backend_account_sends_only_its_own_key(self):
+        other_key = "pz-other-workspace-key-0002"  # not a real credential
+        native_marker = "native-app-pw-marker"  # not a real credential; must never be sent
+        env = {**ENV, "REACHWEAVER_PZLI_POSTIZ_API_KEY": other_key, "REACHWEAVER_N_APP_PASSWORD": native_marker}
+        pid = self.approved(account="pz-li", platform="linkedin", text="Compartment check")
+        fake = FakePostiz(create=[{"postId": "p-li", "integration": "int-li-2"}])
+        with patch("reachweaver.publishers._send_http", fake):
+            code, out, err = self.cli("publish", "--live", "--post-id", pid, env=env)
+        self.assertEqual(code, 3, out + err)
+        self.assertEqual({r.get_header("Authorization") for r in fake.requests}, {other_key})
+        sent = self.requests_text(fake)
+        self.assertNotIn(FAKE_KEY, sent)  # pz-blue's key never travels with pz-li's requests
+        self.assertNotIn(native_marker, sent)
+        self.assertNotIn(other_key, out + err)
+
+    def test_another_accounts_key_never_substitutes_for_a_missing_one(self):
+        pid = self.approved(account="pz-li", platform="linkedin", text="Missing own key")
+        env = {"REACHWEAVER_ALLOW_LIVE": "1", "REACHWEAVER_ENV": "prod", "REACHWEAVER_PZ_POSTIZ_API_KEY": FAKE_KEY}
+        fake = FakePostiz()
+        with patch("reachweaver.publishers._send_http", fake):
+            code, out, err = self.cli("publish", "--live", "--post-id", pid, env=env)
+        self.assertEqual(code, 2, out + err)
+        self.assertIn("REACHWEAVER_PZLI_POSTIZ_API_KEY", out)
+        self.assertEqual(fake.requests, [])
+        self.assertEqual(self.status(pid)["status"], "approved")
+
+    # --- inspectable offline preview and manual fallback --------------------
+    def show(self, pid, env=None):
+        with patch("reachweaver.publishers._send_http", side_effect=AssertionError("network")), \
+                patch("reachweaver.publishers.request_json", side_effect=AssertionError("network")):
+            return self.cli("show", pid, env=env or {})
+
+    def test_show_previews_the_postiz_request_not_a_native_record(self):
+        text = "Exact approved text https://example.org/a?b=1"
+        pid = self.approved(text=text)
+        code, out, err = self.show(pid)
+        self.assertEqual(code, 0, err)
+        shown = json.loads(out)
+        self.assertEqual(shown["content"], text)
+        preview = shown["platform_preview"]
+        self.assertEqual(preview["path"], "postiz")
+        self.assertEqual(preview["request"], {"method": "POST", "url": "https://api.postiz.com/public/v1/posts",
+                                              "type": "now", "shortLink": False, "integration_id": "int-blue-1"})
+        self.assertEqual((preview["network"], preview["handle"]), ("none", "me.bsky.social"))
+        self.assertNotIn("record_key", preview)  # the native Bluesky createRecord is not what this account sends
+        self.assertNotIn("service", preview)
+        self.assertNotIn("content", preview)
+        self.assertIn("needs_review", preview["receipt"])
+        self.assertIn("cancel", preview["manual_fallback"])
+        _, keyed_out, _ = self.show(pid, env={"REACHWEAVER_PZ_POSTIZ_API_KEY": FAKE_KEY})
+        self.assertNotIn(FAKE_KEY, keyed_out)
+
+    def test_native_show_preview_is_unchanged(self):
+        native = {"id": "blue", "platform": "bluesky", "env_prefix": "REACHWEAVER_N", "handle": "a.bsky.social"}
+        self.config.write_text(json.dumps({"accounts": [native]}))
+        pid = self.approved(account="blue")
+        code, out, err = self.show(pid)
+        self.assertEqual(code, 0, err)
+        preview = json.loads(out)["platform_preview"]
+        self.assertNotIn("path", preview)
+        self.assertIn("record_key", preview)
+        self.assertEqual(preview["service"], "https://bsky.social")
+
+    def test_postiz_unavailable_leaves_the_post_for_a_manual_fallback(self):
+        text = "Manual fallback text https://example.org/r"
+        pid = self.approved(text=text)
+        down = FakePostiz(integrations=URLError("unreachable"))
+        with patch("reachweaver.publishers._send_http", down), patch("reachweaver.ratelimit._sleep"):
+            code, out, _ = self.cli("publish", "--live", "--post-id", pid)
+        self.assertEqual(code, 2)
+        self.assertIn("postiz_network_or_timeout_uncertain", out)
+        self.assertEqual(down.creates, [])
+        self.assertEqual(self.status(pid)["status"], "approved")
+        code, out, _ = self.show(pid)  # exact text and destination, offline, for the owner to post natively
+        self.assertEqual(json.loads(out)["content"], text)
+        code, _, err = self.cli("cancel", pid, env={})
+        self.assertEqual(code, 0, err)
+        again = FakePostiz()
+        with patch("reachweaver.publishers._send_http", again):
+            code, _, _ = self.cli("publish", "--live", "--post-id", pid)
+        self.assertEqual((code, again.requests), (2, []))  # a cancelled post is never sent later
+
+
+for _inherited in [name for name in vars(PostizTests) if name.startswith("test_")]:
+    setattr(PostizIssue56Tests, _inherited, None)  # run the parent's tests once, in PostizTests
+
+
+class PostizIssue56DocTests(unittest.TestCase):
+    """The smoke test is documented as a ready procedure and not claimed; licensing and credential review dated."""
+
+    root = Path(__file__).resolve().parents[1]
+
+    def doc(self):
+        return (self.root / "docs" / "POSTIZ.md").read_text(encoding="utf-8")
+
+    def test_smoke_test_procedure_exists_and_is_not_claimed_without_a_receipt(self):
+        text = self.doc()
+        self.assertIn("## Owner smoke test", text)
+        for step in ("postiz-check --account", "publish --live --post-id", "reconcile POST_ID --published",
+                     "pause"):
+            self.assertIn(step, text)
+        if not list((self.root / "docs" / "receipts").glob("postiz*")):
+            self.assertIn("**Status: NOT RUN.**", text)
+
+    def test_licensing_and_credential_review_are_dated_and_sourced(self):
+        text = self.doc()
+        self.assertIn("## Licensing and credential review (2026-10-15)", text)
+        for needle in ("https://github.com/gitroomhq/postiz-app/blob/main/LICENSE", "AGPL-3.0",
+                       "https://postiz.com/terms", "{env_prefix}_POSTIZ_API_KEY", "Apache-2.0"):
+            self.assertIn(needle, text)
+
+
 class LicenseWordingTests(unittest.TestCase):
     """Issue #30 licensing record: ReachWeaver is Apache-2.0, so no skill copy may call it MIT code."""
 
