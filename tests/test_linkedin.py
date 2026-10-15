@@ -397,6 +397,25 @@ class CliLiveTests(unittest.TestCase):
         self.assertIn("REACHWEAVER_ALLOW_LIVE", err)
         send.assert_not_called()
 
+    def test_dry_run_sends_nothing_and_leaves_the_post_unpublished(self):
+        # Without --live, publish is a dry run even with the live gate open and a token present.
+        pid = self.draft()
+        with connect(str(self.db)) as db:
+            transition(db, pid, "approve")
+        env = {**ENV, "REACHWEAVER_ALLOW_LIVE": "1", "REACHWEAVER_ENV": "prod"}
+        with patch.dict(os.environ, env), patch("reachweaver.publishers._send_http") as send:
+            status, out, err = self.cli("publish", "--post-id", pid)
+        self.assertEqual(status, 0, out + err)
+        self.assertIn("DRY RUN: 1 due approved posts; no requests sent", out)
+        send.assert_not_called()
+        self.assertNotIn(FAKE_TOKEN, out + err)
+        with connect(str(self.db)) as db:
+            row = get_post(db, pid)
+            claims = db.execute("SELECT COUNT(*) FROM event_log WHERE post_id=? AND action='send_claimed'",
+                                (pid,)).fetchone()[0]
+        self.assertEqual((row["status"], row["remote_id"], row["remote_url"]), ("approved", None, None))
+        self.assertEqual(claims, 0)
+
     def test_missing_receipt_header_goes_to_needs_review_not_retried(self):
         pid = self.draft()
         with connect(str(self.db)) as db:

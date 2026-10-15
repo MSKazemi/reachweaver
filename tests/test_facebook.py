@@ -33,6 +33,7 @@ from reachweaver.credential_hygiene import audit_environment, expected_variables
 from reachweaver.policy import SUPPORTED_LIVE, ValidationError
 from reachweaver.publishers import PUBLISHERS, PublishError, reset_write_marker, write_started
 from gate_support import publish  # noqa: E402
+from reconcile_support import assert_reconcile_closes_needs_review  # noqa: E402
 from reachweaver.storage import active_provider_cooldown, add_post, connect, get_post, transition
 
 NOW = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
@@ -553,6 +554,25 @@ class FlippedCliTests(FlippedRegistry):
                 if code == 429:
                     with connect(str(self.db)) as con:
                         self.assertIsNotNone(active_provider_cooldown(con, "fb-page"))
+
+    def test_needs_review_is_closed_by_reconcile_and_never_resent(self):
+        def needs_review_post(label):
+            self.db = self.tmp / f"reconcile-{label}" / "outbox.sqlite"
+            pid = self.approved(f"Release notes {label}: https://example.com")
+            fake = FakeGraph(errors={"feed": 500})
+            with patch.dict(os.environ, LIVE_ENV), patch("reachweaver.publishers._send_http", side_effect=fake):
+                status, out, _ = self.cli("publish", "--live", "--post-id", pid)
+            self.assertEqual(status, 3, out)
+            self.assertEqual(fake.routes.count("feed"), 1)
+            return pid
+
+        def live(*argv):
+            fake = FakeGraph()
+            with patch.dict(os.environ, LIVE_ENV), patch("reachweaver.publishers._send_http", side_effect=fake):
+                status, _, _ = self.cli("publish", "--live", *argv)
+            return status, fake.routes
+
+        assert_reconcile_closes_needs_review(self, needs_review_post, live, remote_id=POST_ID, remote_url=PERMALINK)
 
     def test_emergency_pause_blocks_before_any_request(self):
         pid = self.approved()
