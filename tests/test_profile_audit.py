@@ -86,11 +86,18 @@ class PlatformAuditTests(unittest.TestCase):
         alert = next(a for a in item["alerts"] if a["kind"] == "length_review")
         self.assertEqual((alert["field"], alert["limit"], alert["length"]), ("bio", 150, 151))
         self.assertTrue(alert["source"].startswith("https://help.instagram.com/"))
-        # X's bio page could not be curl-verified on 2026-10-15, so a long X bio is not flagged.
+        # X's bio limit was read in a real browser on 2026-10-16 (curl gets a bot challenge): 161 is flagged.
         self.data["profiles"].append({
             "platform": "x", "account_id": "sample-x", "handle": "@samplex",
-            "fields": {"bio": "b" * 400}})
+            "fields": {"bio": "b" * 161}})
         item = audit_profiles(self.data, platform="x")["reports"][0]
+        alert = next(a for a in item["alerts"] if a["kind"] == "length_review")
+        self.assertEqual((alert["field"], alert["limit"], alert["length"]), ("bio", 160, 161))
+        # LinkedIn states no About/bio number on a server-rendered official page, so nothing is invented.
+        self.data["profiles"].append({
+            "platform": "linkedin", "account_id": "sample-li", "handle": "sampleli",
+            "fields": {"bio": "b" * 4000}})
+        item = audit_profiles(self.data, platform="linkedin")["reports"][0]
         self.assertNotIn("length_review", [a["kind"] for a in item["alerts"]])
         self.assertEqual(item["field_limits"]["bio"], "unknown")
         item = audit_profiles(self.data, platform="youtube")["reports"][0]
@@ -103,7 +110,7 @@ class PlatformAuditTests(unittest.TestCase):
         for pid, entry in sourced:
             with self.subTest(platform=pid, field=entry["field"]):
                 self.assertTrue(entry["source_url"].startswith("https://"))
-                self.assertEqual(entry["checked_on"], "2026-10-15")
+                self.assertIn(entry["checked_on"], ("2026-10-15", "2026-10-16"))
                 self.assertIn(str(entry["max"]), entry["quote"])
                 self.assertIn(entry["unit"], ("characters", "graphemes"))
         for p in rows:

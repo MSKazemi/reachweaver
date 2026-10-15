@@ -341,8 +341,8 @@
         "website",
         "pinned"
       ],
-      "profile_bio_limit": null,
-      "profile_bio_limit_scope": "unverified",
+      "profile_bio_limit": 160,
+      "profile_bio_limit_scope": "official_help",
       "profile_field_limits": [
         {
           "field": "display_name",
@@ -363,6 +363,16 @@
           "checked_on": "2026-10-15",
           "quote": "Typically a maximum of 15 characters long, but some historical accounts may exist with longer names",
           "note": "X API v2 user.username, without the leading @."
+        },
+        {
+          "field": "bio",
+          "max": 160,
+          "unit": "characters",
+          "scope": "official_help",
+          "source_url": "https://help.x.com/en/managing-your-account/how-to-customize-your-profile",
+          "checked_on": "2026-10-16",
+          "quote": "Bio (maximum 160 characters)",
+          "note": "Read in a real browser on 2026-10-16; help.x.com answers curl with a bot challenge, so this page cannot be re-fetched by script."
         }
       ],
       "post_strategy": {

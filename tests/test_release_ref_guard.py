@@ -225,6 +225,14 @@ class ReleaseRefGuardGitTests(unittest.TestCase):
                                             lambda ref: guard.git_commit(ref, cwd=str(outside)))
         self.assertEqual(sum("cannot resolve" in p for p in problems), 4, problems)
 
+    def test_a_resolver_returning_a_non_sha_fails_closed(self) -> None:
+        # Ported 2026-10-16 from the superseded draft tests/test_release_controls.py: a ref that resolves
+        # to something other than a 40-hex commit (e.g. a corrupted ref or a wrapper's error text) must
+        # block the release instead of being compared as if it were a commit.
+        problems = guard.release_errors(self.env(GITHUB_SHA="a" * 40), lambda _ref: "invalid")
+        for label in ("checkout", "tag", "origin/main", "GITHUB_SHA"):
+            self.assertIn(f"the {label} commit is not a SHA", problems)
+
 
 class ReleaseRefGuardStaticTests(unittest.TestCase):
     def test_the_guard_is_stdlib_only_and_never_reaches_the_network_or_a_token(self):
