@@ -230,3 +230,59 @@ def write_handoff(package: dict, destination: str | Path) -> list[str]:
         write_private_file(path, value)
         written.append(str(path))
     return written
+
+
+BATCH_STATUS = "batch_browser_handoffs_not_published"
+
+
+def build_batch(data: object) -> dict:
+    """Validate the WHOLE offline batch before any output directory is created."""
+    if not isinstance(data, dict) or data.get("schema_version") != 1 or set(data) != {"schema_version", "items"}:
+        raise ValidationError("Batch must contain only schema_version=1 and items")
+    items = data["items"]
+    if not isinstance(items, list) or not 1 <= len(items) <= 25:
+        raise ValidationError("Batch must contain 1..25 owner-selected items")
+    if _sensitive_keys(data):
+        raise ValidationError("Batch contains secret-like fields; never include credentials")
+    packages = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict) or set(item) - {"platform", "account", "variant", "at"}:
+            raise ValidationError(f"Batch item {index} must have platform, account, variant and optional at")
+        if not all(key in item for key in ("platform", "account", "variant")):
+            raise ValidationError(f"Batch item {index} lacks destination or content")
+        packages.append(build_handoff(item["platform"], item["variant"],
+                                      account=item["account"], at=item.get("at")))
+    return {"schema_version": 1, "kind": "reachweaver.browser-batch.v1",
+            "status": BATCH_STATUS, "item_count": len(packages),
+            "published": False, "scheduled": False, "packages": packages,
+            "notice": "Offline-only generated handoffs. No API, login, browser action or native schedule."}
+
+
+def write_batch(batch: dict, destination: str | Path) -> list[str]:
+    """Write a private directory of individual handoffs, no remote side effects."""
+    if batch.get("status") != BATCH_STATUS or batch.get("kind") != "reachweaver.browser-batch.v1":
+        raise ValidationError("Invalid batch or already-published state")
+    folder = Path(destination)
+    if os.path.lexists(folder):
+        raise ValidationError("Batch directory already exists; refusing to overwrite")
+    folder.parent.mkdir(parents=True, exist_ok=True)
+    os.mkdir(folder, 0o700)
+    if os.name == "posix":
+        os.chmod(folder, 0o700)
+    summary = []
+    written = []
+    for index, item in enumerate(batch["packages"]):
+        name = f"{index + 1:02d}-{item['platform']}"
+        written.extend(write_handoff(item, folder / name))
+        summary.append({"directory": name, "platform": item["platform"],
+                        "account_hint": item["account_hint"],
+                        "content_sha256": item["content_sha256"],
+                        "status": STATUS, "published": False, "scheduled": False})
+    manifest = folder / "batch-manifest.json"
+    write_private_file(manifest, json.dumps({
+        "schema_version": 1, "kind": batch["kind"], "status": batch["status"],
+        "item_count": len(summary), "items": summary, "published": False, "scheduled": False,
+        "notice": batch["notice"],
+    }, ensure_ascii=False, indent=2) + "\n")
+    written.append(str(manifest))
+    return written

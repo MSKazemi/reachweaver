@@ -27,6 +27,7 @@ ASSET_SOURCES = (
     "examples/brand-preview.reachweaver.json", "examples/campaign-preview.reachweaver.json",
     "config/accounts.example.json", "examples/example-post.txt",
     "examples/browser-variant.xiaohongshu.json",
+    "examples/browser-batch.example.json",
     "examples/profile-post-audit.example.json",
     "examples/profile-post-metrics.example.csv",
 )

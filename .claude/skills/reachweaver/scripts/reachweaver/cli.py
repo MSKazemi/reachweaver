@@ -49,7 +49,7 @@ from .profile_audit import load_snapshot as load_profile_snapshot, audit_profile
 from .profile_metrics_csv import merge_authorized_csv
 from .suggest import build_suggestions, render_text as render_suggestions
 from .manual_export import MANUAL_PLATFORMS, build_export, write_export
-from .browser_handoff import build_handoff, list_delivery_routes, write_handoff
+from .browser_handoff import build_batch, build_handoff, list_delivery_routes, write_batch, write_handoff
 from .pilot import DEFAULT_MIN_WEEKS, load_pilot_log, pilot_report, render_report as render_pilot_report
 from .timing_analysis import analyze_posting_times
 from .worker_log import claim_refusal_reason, error_code as worker_error_code, open_worker_log
@@ -556,6 +556,10 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="Machine-readable result")
     p = sub.add_parser("delivery-options", help="Offline API/browser/human-only plan for every regional social channel")
     p.add_argument("--platform", help="Optional channel ID (defaults to every registered channel)")
+    p.add_argument("--json", action="store_true")
+    p = sub.add_parser("browser-batch", help="Batch-create 1..25 separate, reviewable native-browser handoff packages")
+    p.add_argument("--file", type=Path, required=True, help="Batch JSON of per-platform variants and destination account hints")
+    p.add_argument("--out", type=Path, required=True, help="New private folder; fails on any invalid item")
     p.add_argument("--json", action="store_true")
     p = sub.add_parser("browser-handoff", help="Private non-publishing Claude-in-Chrome creator review package")
     p.add_argument("--platform", required=True, help="Distribution channel ID; human-only channels refused")
@@ -1739,6 +1743,19 @@ def execute(args) -> int:
             for item in options["channels"]:
                 print(f"{item['id']}: {item['method']} (native={item['native_scheduling']})")
             print("No accounts connected, no browser opened, no social post or schedule created.")
+        return 0
+    if args.command == "browser-batch":
+        batch = build_batch(read_json(args.file))
+        written = write_batch(batch, args.out)
+        if args.json:
+            print(json.dumps({"status": batch["status"], "item_count": batch["item_count"],
+                              "published": False, "scheduled": False}, indent=2))
+        else:
+            print(f"{batch['status']}: {batch['item_count']} separate native review packages")
+        for path in written:
+            print(f"Wrote {path}", file=sys.stderr)
+        print("No account connected or remotely posted/scheduled; final actions stay with each owner.",
+              file=sys.stderr)
         return 0
     if args.command == "browser-handoff":
         package = build_handoff(args.platform, read_json(args.variant), account=args.account, at=args.at)

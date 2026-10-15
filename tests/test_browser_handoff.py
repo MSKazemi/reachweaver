@@ -100,3 +100,52 @@ class BrowserHandoffTests(unittest.TestCase):
                                        "--out", str(out), "--json"]), 0)
             self.assertFalse(json.loads(result.getvalue())["published"])
             self.assertTrue((out / "BROWSER-TASK.md").is_file())
+
+
+class BrowserBatchTests(unittest.TestCase):
+    def test_batch_preflights_all_items_before_creating_directory(self):
+        from reachweaver.browser_handoff import build_batch, write_batch
+        base = {"schema_version": 1, "items": [
+            {"platform": "weibo", "account": "@owner", "variant": {"platform": "weibo", "text": "第一条"}},
+            {"platform": "naver_blog", "account": "@writer",
+             "variant": {"platform": "naver_blog", "text": "A technical note"}},
+        ]}
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "batch"
+            batch = build_batch(base)
+            self.assertEqual(batch["item_count"], 2)
+            self.assertFalse(batch["published"])
+            names = write_batch(batch, folder)
+            self.assertEqual(len(names), 9)
+            self.assertEqual((folder / "01-weibo" / "content.txt").read_text(), "第一条")
+            manifest = json.loads((folder / "batch-manifest.json").read_text())
+            self.assertFalse(manifest["scheduled"])
+            self.assertEqual(len(manifest["items"]), 2)
+            self.assertEqual(manifest["items"][1]["directory"], "02-naver_blog")
+            if os.name == "posix":
+                self.assertEqual(folder.stat().st_mode & 0o777, 0o700)
+            with self.assertRaises(ValidationError):
+                write_batch(batch, folder)
+            invalid = json.loads(json.dumps(base))
+            invalid["items"][1]["platform"] = "reddit"
+            invalid["items"][1]["variant"]["platform"] = "reddit"
+            with self.assertRaises(ValidationError):
+                build_batch(invalid)
+            self.assertFalse((Path(tmp) / "invalid-batch").exists())
+
+    def test_batch_cli_offline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            payload = {"schema_version": 1, "items": [
+                {"platform": "xiaohongshu", "account": "@owner",
+                 "variant": {"platform": "xiaohongshu", "text": "A verified technical demo"}},
+            ]}
+            file = root / "batch.json"
+            file.write_text(json.dumps(payload), encoding="utf-8")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                code = main(["browser-batch", "--file", str(file),
+                             "--out", str(root / "packages"), "--json"])
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(stdout.getvalue())["item_count"], 1)
+            self.assertTrue((root / "packages" / "01-xiaohongshu" / "content.txt").exists())

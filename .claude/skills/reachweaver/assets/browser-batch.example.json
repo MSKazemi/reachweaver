@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "platform": "xiaohongshu",
+      "account": "@my-account",
+      "variant": {
+        "platform": "xiaohongshu",
+        "format": "image",
+        "text": "A real, verified technical project walkthrough for a specific audience."
+      }
+    },
+    {
+      "platform": "naver_blog",
+      "account": "@my-account",
+      "variant": {
+        "platform": "naver_blog",
+        "format": "article",
+        "text": "A practical tutorial with evidence, written for an authorized audience."
+      }
+    }
+  ]
+}
