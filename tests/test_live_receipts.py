@@ -63,6 +63,12 @@ class LiveReceiptTests(unittest.TestCase):
         matrix = (ROOT / "docs/PLATFORM-MATRIX.md").read_text(encoding="utf-8")
         for area, path in RECEIPTS.items():
             self.assertIn(f"receipts/{Path(path).name}", matrix, area)
+        playbook = (ROOT / "docs/RELEASE-PLAYBOOK.md").read_text(encoding="utf-8")
+        self.assertNotIn("no area is `live_receipt_verified`", playbook)
+        self.assertIn("only Bluesky and Mastodon are `live_receipt_verified`", playbook)
+        for copy in (".claude/skills", "plugin/skills"):
+            reference = (ROOT / copy / "reachweaver/references/skill-evaluation.md").read_text(encoding="utf-8")
+            self.assertNotIn("no area is `live_receipt_verified`", reference, copy)
         for pid in ("telegram", "linkedin"):
             row = next(line for line in matrix.splitlines() if line.startswith("| ") and f"| `{pid}` |" in line and "live_text" in line)
             self.assertIn("| `none` |", row, pid)
