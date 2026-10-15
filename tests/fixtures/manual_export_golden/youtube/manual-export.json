@@ -1,0 +1,230 @@
+{
+  "kind": "reachweaver.manual-export.v1",
+  "schema_version": 1,
+  "status": "manual_export_not_published",
+  "platform": "youtube",
+  "platform_label": "YouTube",
+  "generated_at": "2026-10-15T00:00:00Z",
+  "ready_for_human_review": true,
+  "preflight": {
+    "errors": [],
+    "warnings": [
+      "no media manifest supplied: video not validated; attach the file yourself and run media-check before posting"
+    ]
+  },
+  "content": {
+    "text": "A short tour of ReachWeaver.",
+    "format": "video",
+    "title": "ReachWeaver in 60 seconds",
+    "description": "A short tour of ReachWeaver.",
+    "tags": [],
+    "shorts": null,
+    "measured": {
+      "title_chars": 25,
+      "description_utf8_bytes": 28
+    }
+  },
+  "hashtags": {
+    "items": [],
+    "count": 0,
+    "limit": null
+  },
+  "mentions": {
+    "items": [],
+    "count": 0,
+    "limit": null
+  },
+  "links": {
+    "in_text": [],
+    "link_url": null,
+    "notes": [
+      "Description URLs are clickable only for channels that meet YouTube's requirements (for example verification or Advanced Features)."
+    ]
+  },
+  "media": {
+    "required_kinds": [
+      "video"
+    ],
+    "manifest": null,
+    "validated": false,
+    "assets": [],
+    "constraints_reference": "reachweaver/media.py CONSTRAINTS (targets: youtube, youtube_shorts); run media-check MANIFEST"
+  },
+  "human_decisions": [
+    {
+      "id": "privacy_status",
+      "question": "Choose the visibility in YouTube Studio.",
+      "options": [
+        "private",
+        "unlisted",
+        "public"
+      ],
+      "selected": null,
+      "required": true,
+      "decided_by": "account holder in the native app",
+      "source": "https://developers.google.com/youtube/v3/docs/videos",
+      "note": "ReachWeaver never pre-selects visibility. Check the actual visibility in Studio after upload."
+    },
+    {
+      "id": "made_for_kids",
+      "question": "Is this video made for kids? (legal declaration; COPPA)",
+      "options": [
+        "yes, made for kids",
+        "no, not made for kids"
+      ],
+      "selected": null,
+      "required": true,
+      "decided_by": "account holder in the native app",
+      "source": "https://support.google.com/youtube/answer/9528076",
+      "note": "Required for every video. Only the creator can make this declaration."
+    },
+    {
+      "id": "altered_or_synthetic_content",
+      "question": "Does the video contain realistic altered or synthetic content that must be disclosed?",
+      "options": [
+        "yes",
+        "no"
+      ],
+      "selected": null,
+      "required": true,
+      "decided_by": "account holder in the native app",
+      "source": "https://developers.google.com/youtube/v3/docs/videos",
+      "note": ""
+    }
+  ],
+  "account": {
+    "account_id": null,
+    "handle": null,
+    "display_name": null,
+    "account_type": null
+  },
+  "account_eligibility": [
+    {
+      "item": "Signed in to the intended YouTube account: (not supplied)",
+      "source": null
+    },
+    {
+      "item": "You own or manage the YouTube channel and upload through YouTube Studio",
+      "source": "https://support.google.com/youtube/answer/9528076"
+    }
+  ],
+  "api_capability": {
+    "registry_status": "requires-review",
+    "reachweaver_adapter": "none",
+    "formats": {
+      "text": "unknown",
+      "image": "unknown",
+      "video": "api_gated",
+      "carousel": "unknown",
+      "link": "unknown"
+    },
+    "verified_date": "2026-10-08",
+    "api_publish_allowed": false,
+    "reason": "youtube video is api_gated; publish refused (fail closed)"
+  },
+  "platform_facts": {
+    "title_max_chars": {
+      "value": 100,
+      "status": "verified",
+      "source": "https://developers.google.com/youtube/v3/docs/videos",
+      "verified_date": "2026-10-08",
+      "quote": "The property value has a maximum length of 100 characters",
+      "note": ""
+    },
+    "description_max_bytes": {
+      "value": 5000,
+      "status": "verified",
+      "source": "https://developers.google.com/youtube/v3/docs/videos",
+      "verified_date": "2026-10-08",
+      "quote": "The property value has a maximum length of 5000 bytes",
+      "note": ""
+    },
+    "forbidden_characters": {
+      "value": [
+        "<",
+        ">"
+      ],
+      "status": "verified",
+      "source": "https://developers.google.com/youtube/v3/docs/videos",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "Title and description accept all valid UTF-8 characters except < and >."
+    },
+    "tags_max_chars": {
+      "value": 500,
+      "status": "verified",
+      "source": "https://developers.google.com/youtube/v3/docs/videos",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "Commas between tags count; a tag containing a space counts as if wrapped in quotation marks."
+    },
+    "privacy_status_values": {
+      "value": [
+        "private",
+        "unlisted",
+        "public"
+      ],
+      "status": "verified",
+      "source": "https://developers.google.com/youtube/v3/docs/videos",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "If the API request omits it, videos.insert defaults to public. ReachWeaver never relies on a default."
+    },
+    "made_for_kids_declaration": {
+      "value": "required",
+      "status": "verified",
+      "source": "https://support.google.com/youtube/answer/9528076",
+      "verified_date": "2026-10-08",
+      "quote": "Regardless of your location, we require you to tell us whether or not your videos are made for kids.",
+      "note": "The creator is legally responsible for the designation (COPPA)."
+    },
+    "altered_or_synthetic_disclosure": {
+      "value": "status.containsSyntheticMedia",
+      "status": "verified",
+      "source": "https://developers.google.com/youtube/v3/docs/videos",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "Lets the channel owner disclose realistic altered or synthetic content."
+    },
+    "description_links": {
+      "value": "clickable only for eligible channels",
+      "status": "verified",
+      "source": "https://developers.google.com/youtube/v3/docs/videos",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "URLs in the description render as clickable links only when the channel meets platform-level requirements such as verification or Advanced Features."
+    },
+    "api_upload_scopes": {
+      "value": [
+        "https://www.googleapis.com/auth/youtube.upload",
+        "https://www.googleapis.com/auth/youtube",
+        "https://www.googleapis.com/auth/youtubepartner",
+        "https://www.googleapis.com/auth/youtube.force-ssl"
+      ],
+      "status": "verified",
+      "source": "https://developers.google.com/youtube/v3/docs/videos/insert",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "videos.insert accepts any one of these scopes."
+    },
+    "unverified_project_private_lock": {
+      "value": null,
+      "status": "conflicting",
+      "source": "https://developers.google.com/youtube/v3/docs/videos/insert",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "The 2020-07-28 revision-history entry says videos.insert uploads from unverified API projects created after 28 July 2020 are restricted to private viewing until an audit. The videos.insert page (last updated 2026-10-08) says such uploads are not restricted to private viewing mode. Treated as unknown. It concerns API uploads only, not uploads made by the owner in YouTube Studio. Sources: https://developers.google.com/youtube/v3/docs/videos/insert ; https://developers.google.com/youtube/v3/revision_history"
+    }
+  },
+  "notice": "MANUAL EXPORT ONLY. ReachWeaver has not sent, uploaded, scheduled or shared anything on YouTube. This package is not evidence that a post exists. The account holder decides whether to post it, in the platform's own app.",
+  "checklist": [
+    "Verify every claim against its cited source (campaign-check / claims-check); this package does not prove anything is true.",
+    "Signed in to the intended YouTube account: (not supplied)",
+    "You own or manage the YouTube channel and upload through YouTube Studio",
+    "Paste title.txt as the title and description.txt as the description, exactly.",
+    "Run media-check on the media you attach (alt text, captions, rights, limits).",
+    "Make each decision yourself in the native app: privacy_status, made_for_kids, altered_or_synthetic_content. Nothing is pre-selected.",
+    "Confirm rights, consent and disclosure for all text and media.",
+    "If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver records nothing from this package."
+  ]
+}

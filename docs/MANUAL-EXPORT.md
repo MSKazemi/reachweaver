@@ -13,12 +13,37 @@ reachweaver manual-export --platform youtube --variant variant.json \
   [--media media/manifest.json] [--account-meta account.json] --out exports/youtube-tour [--json]
 ```
 
-- `--platform`: `threads`, `instagram`, `facebook`, `youtube` or `tiktok`. Other platforms use `campaign-export`.
+- `--platform`: `threads`, `instagram`, `facebook`, `youtube` or `tiktok` for the sourced packages below, or any other `manual_only` id in the distribution registry for a [generic package](#generic-package-for-every-other-manual-only-destination).
 - `--out` must be a **new** path. An existing file or directory, even an empty one, is refused. The directory is created with mode 0700, and each file with mode 0600 (`O_EXCL`, `O_NOFOLLOW`).
 - If preflight finds a blocking error, the command prints `BLOCKED`, writes nothing and exits 2.
 - Output files: `manual-export.json` (the full package), `CHECKLIST.md`, and the exact text. For YouTube that is `title.txt` and `description.txt`; for the others it is `caption.txt`. Text files contain the exact text, with no added newline.
 
 From Python: `platform_preflight(platform, variant, account_meta=None) -> (errors, warnings)`, `build_export(platform, variant, media_manifest=None, account_meta=None) -> dict`, `render_markdown(package)` and `write_export(package, out_dir)`.
+
+## Generic package for every other manual-only destination
+
+**Private #44, item C2. Offline only.** Every other destination that [`distribution_registry.json`](../reachweaver/distribution_registry.json) marks `reachweaver_delivery: manual_only` gets a generic package from the same command, for example `--platform dev`, `x`, `product_hunt`, `reddit` or `hacker_news`. The five platforms above keep their own sourced packages, byte for byte (`tests/test_manual_package.py::test_cli_output_matches_golden_bytes`). `facebook_pages` maps to `--platform facebook`. A destination that is not `manual_only` (Bluesky, Mastodon, Telegram, LinkedIn, GitHub, Snapcraft, Gitee) is refused. The code is `reachweaver/manual_package.py`: `package_preflight(platform, variant, account_meta=None)`, `build_package(...)`, `render_markdown`, `render_notes` and `write_package(package, out_dir)`. It adds no delivery mode, no browser automation, no network access and no registry change.
+
+The generic package knows only what the registries already record:
+
+- **Label and help page.** The label comes from the distribution registry. The official page is the registry's `scheduling.official_source`, with its `checked_on` date, and only when the registry has one. That page may describe scheduling rather than the composer. Otherwise the package says that the registry has no official page.
+- **Limits.** No registry field records a text limit for these destinations, so the text limit is always `limit unknown — check the platform`. Media rows come only from the `media.py` `CONSTRAINTS` table for the destination (DEV uses the `devto` table). A row without a value, and a destination without a table, also print `limit unknown — check the platform` (`tests/test_manual_package.py::test_known_media_rows_come_only_from_media_constraints`). The capability registry's `compliance_constraints` for the destination are listed as registry notes with their source and date, for example X's "Up to 4 photos, 1 GIF or 1 video per post". ReachWeaver measures the text (characters, UTF-16 units, UTF-8 bytes) but checks it against no limit.
+- **Media.** With `--media`, the manifest is validated through `media.validate_media_manifest`, exactly as above. The package lists each asset whose `targets` include the destination id (DEV also accepts `devto`): path, alt text, caption files, detected size and the rights record from the manifest (`rights_confirmed`, `license`, `attribution`, `provenance`).
+- **Checklist.** Verify claims; sign in to the intended account; open the platform yourself; paste `post.txt` (and `title.txt` if the variant has `platform_options.title`) exactly; the text-limit line; attach each asset with its alt text and rights; confirm rights, consent and disclosure; and keep the native post URL as first-party evidence. ReachWeaver has no command that records a hand-made post (`reconcile` covers only queued sends), so the package records nothing. DEV packages add DEV's rules: disclose AI assistance in the post, and no AI-generated comments ([DEV AI guidelines](https://dev.to/guidelines-for-ai-assisted-articles-on-dev/), checked 2026-10-15). Hacker News adds "do not schedule or automate" (registry scheduling `prohibited`); Reddit adds "post by hand" (`moderator_only`).
+- **Output.** `manual-export.json` (kind `reachweaver.manual-package.v1`, status `manual_export_not_published`), `CHECKLIST.md`, and `post.txt` (plus `title.txt`). The same new-directory, 0700/0600 and no-overwrite rules apply, and a blocked package writes nothing.
+
+### Human-only destinations: write it yourself
+
+Every destination the registry marks `human_only` (Reddit, Hacker News, Discord, WhatsApp communities, Facebook Groups, Indie Hackers, Lobsters, Stack Exchange and the rest) gets **no agent-written post text**. This follows the existing rules: Hacker News text is human-written only, ReachWeaver writes no Reddit text, and engagement drafts skip DEV and HN.
+
+- A variant `text` or `platform_options.title` for such a destination is a blocking error (`tests/test_manual_package.py::test_agent_text_or_title_is_blocked_for_every_human_only_destination`).
+- The variant may carry `talking_points`: at most 10 short notes of at most 200 characters each. That cap is ReachWeaver's own, not a platform limit; it keeps notes from carrying a ready-made post.
+- The package has `content.ready_to_paste: false`, no `text` field and no `post.txt`. It writes `NOTES.md` instead: a private notes form that starts with **"Write this yourself."** and has blanks for what you want to say, the community rules you checked, links, and the post URL after you post (`tests/test_manual_package.py::test_written_package_has_notes_and_no_text_file`).
+
+```bash
+reachweaver manual-export --platform hacker_news --variant notes.json --out exports/hn-notes
+# notes.json: {"talking_points": ["Offline-first design", "No auto-posting"], "link_url": "https://example.org/docs"}
+```
 
 ## Variant file
 

@@ -1,0 +1,2 @@
+manual_export_not_published: Instagram package for human review
+  WARNING: no media manifest supplied: image not validated; attach the file yourself and run media-check before posting

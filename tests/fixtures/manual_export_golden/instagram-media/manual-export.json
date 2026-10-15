@@ -1,0 +1,184 @@
+{
+  "kind": "reachweaver.manual-export.v1",
+  "schema_version": 1,
+  "status": "manual_export_not_published",
+  "platform": "instagram",
+  "platform_label": "Instagram",
+  "generated_at": "2026-10-15T00:00:00Z",
+  "ready_for_human_review": true,
+  "preflight": {
+    "errors": [],
+    "warnings": []
+  },
+  "content": {
+    "text": "Release card for ReachWeaver. #opensource #python",
+    "format": "image",
+    "measured": {
+      "chars": 49
+    }
+  },
+  "hashtags": {
+    "items": [
+      "#opensource",
+      "#python"
+    ],
+    "count": 2,
+    "limit": 30
+  },
+  "mentions": {
+    "items": [],
+    "count": 0,
+    "limit": 20
+  },
+  "links": {
+    "in_text": [],
+    "link_url": null,
+    "notes": [
+      "Do not rely on caption URLs being tappable (unverified). Put the destination on your profile."
+    ]
+  },
+  "media": {
+    "required_kinds": [
+      "image"
+    ],
+    "manifest": null,
+    "validated": true,
+    "assets": [
+      {
+        "id": "release-card",
+        "kind": "image",
+        "path": "card.jpg",
+        "alt_text": "Terminal showing ReachWeaver media-check passing on a release card",
+        "alt_text_localized": {},
+        "subtitles": [],
+        "burned_in_captions": false,
+        "detected": {
+          "detected_container": "jpeg",
+          "width": 1080,
+          "height": 1080,
+          "duration_seconds": "unknown",
+          "bytes": 138
+        }
+      }
+    ],
+    "constraints_reference": "reachweaver/media.py CONSTRAINTS (targets: instagram); run media-check MANIFEST",
+    "constraints_verified_date": "2026-10-08"
+  },
+  "human_decisions": [],
+  "account": {
+    "account_id": null,
+    "handle": null,
+    "display_name": null,
+    "account_type": null
+  },
+  "account_eligibility": [
+    {
+      "item": "Signed in to the intended Instagram account: (not supplied)",
+      "source": null
+    },
+    {
+      "item": "Any Instagram account you control can post in the app. A future API adapter would need an Instagram professional account; that is not required for this package",
+      "source": "https://developers.facebook.com/docs/instagram-platform/content-publishing"
+    }
+  ],
+  "api_capability": {
+    "registry_status": "requires-review",
+    "reachweaver_adapter": "none",
+    "formats": {
+      "text": "unavailable",
+      "image": "api_gated",
+      "video": "api_gated",
+      "carousel": "api_gated",
+      "link": "unknown"
+    },
+    "verified_date": "2026-10-08",
+    "api_publish_allowed": false,
+    "reason": "instagram image is api_gated; publish refused (fail closed)"
+  },
+  "platform_facts": {
+    "caption_max_chars": {
+      "value": 2200,
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media",
+      "verified_date": "2026-10-08",
+      "quote": "Maximum 2200 characters, 30 hashtags, and 20 @ tags.",
+      "note": ""
+    },
+    "max_hashtags": {
+      "value": 30,
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media",
+      "verified_date": "2026-10-08",
+      "quote": "Maximum 2200 characters, 30 hashtags, and 20 @ tags.",
+      "note": ""
+    },
+    "max_mentions": {
+      "value": 20,
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media",
+      "verified_date": "2026-10-08",
+      "quote": "Maximum 2200 characters, 30 hashtags, and 20 @ tags.",
+      "note": ""
+    },
+    "media_required": {
+      "value": true,
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/instagram-platform/content-publishing",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "Container creation takes image_url or video_url; text-only posts are not part of the content publishing API."
+    },
+    "api_account_eligibility": {
+      "value": "Instagram professional account",
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/instagram-platform/content-publishing",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "Applies to API publishing. The fetched pages do not split Business vs Creator."
+    },
+    "api_permissions": {
+      "value": {
+        "instagram_login": [
+          "instagram_business_basic",
+          "instagram_business_content_publish"
+        ],
+        "facebook_login": [
+          "instagram_basic",
+          "instagram_content_publish",
+          "pages_read_engagement"
+        ]
+      },
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/instagram-platform/content-publishing",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": ""
+    },
+    "alt_text": {
+      "value": "up to 1000 characters; single images and carousel images only; not Reels or stories",
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "Enforced by reachweaver/media.py CONSTRAINTS['instagram']."
+    },
+    "caption_links_clickable": {
+      "value": null,
+      "status": "unknown",
+      "source": "https://help.instagram.com/362497417173378",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "No official statement found. Do not rely on a caption URL being tappable; the Help Center documents a profile website link."
+    }
+  },
+  "notice": "MANUAL EXPORT ONLY. ReachWeaver has not sent, uploaded, scheduled or shared anything on Instagram. This package is not evidence that a post exists. The account holder decides whether to post it, in the platform's own app.",
+  "checklist": [
+    "Verify every claim against its cited source (campaign-check / claims-check); this package does not prove anything is true.",
+    "Signed in to the intended Instagram account: (not supplied)",
+    "Any Instagram account you control can post in the app. A future API adapter would need an Instagram professional account; that is not required for this package",
+    "Paste caption.txt into Instagram exactly; do not let tools add text, links or watermarks.",
+    "Attach image card.jpg; enter alt text: Terminal showing ReachWeaver media-check passing on a release card",
+    "Confirm rights, consent and disclosure for all text and media.",
+    "If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver records nothing from this package."
+  ]
+}

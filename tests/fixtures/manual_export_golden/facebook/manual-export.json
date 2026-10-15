@@ -1,0 +1,141 @@
+{
+  "kind": "reachweaver.manual-export.v1",
+  "schema_version": 1,
+  "status": "manual_export_not_published",
+  "platform": "facebook",
+  "platform_label": "Facebook Pages",
+  "generated_at": "2026-10-15T00:00:00Z",
+  "ready_for_human_review": true,
+  "preflight": {
+    "errors": [],
+    "warnings": []
+  },
+  "content": {
+    "text": "ReachWeaver release notes for our Page.",
+    "format": "text",
+    "measured": {
+      "chars": 39
+    }
+  },
+  "hashtags": {
+    "items": [],
+    "count": 0,
+    "limit": null
+  },
+  "mentions": {
+    "items": [],
+    "count": 0,
+    "limit": null
+  },
+  "links": {
+    "in_text": [],
+    "link_url": null,
+    "notes": [
+      "Links in Page posts stay as typed; ReachWeaver adds none."
+    ]
+  },
+  "media": {
+    "required_kinds": [],
+    "manifest": null,
+    "validated": false,
+    "assets": [],
+    "constraints_reference": "reachweaver/media.py CONSTRAINTS (targets: facebook); run media-check MANIFEST"
+  },
+  "human_decisions": [],
+  "account": {
+    "account_id": null,
+    "handle": null,
+    "display_name": null,
+    "account_type": null,
+    "target_type": "page"
+  },
+  "account_eligibility": [
+    {
+      "item": "Signed in to the intended Facebook Pages account: (not supplied)",
+      "source": null
+    },
+    {
+      "item": "Target is a Facebook Page you manage (declared: page); never a personal profile or group",
+      "source": "https://developers.facebook.com/docs/pages-api/posts"
+    }
+  ],
+  "api_capability": {
+    "registry_status": "requires-review",
+    "reachweaver_adapter": "none",
+    "formats": {
+      "text": "api_gated",
+      "image": "unknown",
+      "video": "unknown",
+      "carousel": "unknown",
+      "link": "api_gated"
+    },
+    "verified_date": "2026-10-08",
+    "api_publish_allowed": false,
+    "reason": "facebook text is api_gated; publish refused (fail closed)"
+  },
+  "platform_facts": {
+    "target": {
+      "value": "Facebook Page only",
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/pages-api/posts",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "Page posts use a Page access token from a person who can perform CREATE_CONTENT, MANAGE and MODERATE tasks on the Page."
+    },
+    "api_permissions": {
+      "value": [
+        "pages_manage_engagement",
+        "pages_manage_posts",
+        "pages_read_engagement",
+        "pages_read_user_engagement",
+        "publish_video (video only)"
+      ],
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/pages-api/posts",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": ""
+    },
+    "personal_profile": {
+      "value": "not supported",
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/graph-api/reference/user/feed",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "The User feed reference states that creating a post is not possible on this endpoint."
+    },
+    "groups": {
+      "value": "not supported",
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/graph-api/changelog/version19.0",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "Groups API permissions, including publish_to_groups, were removed from all versions on 2024-04-22."
+    },
+    "text_max_chars": {
+      "value": null,
+      "status": "unknown",
+      "source": "https://developers.facebook.com/docs/pages-api/posts",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "Not stated on the fetched page; ReachWeaver applies its conservative cap from policy.py instead."
+    },
+    "media_constraints": {
+      "value": null,
+      "status": "unknown",
+      "source": "https://developers.facebook.com/docs/pages-api/posts",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "No Facebook table in reachweaver/media.py yet."
+    }
+  },
+  "notice": "MANUAL EXPORT ONLY. ReachWeaver has not sent, uploaded, scheduled or shared anything on Facebook Pages. This package is not evidence that a post exists. The account holder decides whether to post it, in the platform's own app.",
+  "checklist": [
+    "Verify every claim against its cited source (campaign-check / claims-check); this package does not prove anything is true.",
+    "Signed in to the intended Facebook Pages account: (not supplied)",
+    "Target is a Facebook Page you manage (declared: page); never a personal profile or group",
+    "Paste caption.txt into Facebook Pages exactly; do not let tools add text, links or watermarks.",
+    "Confirm rights, consent and disclosure for all text and media.",
+    "If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver records nothing from this package."
+  ]
+}
