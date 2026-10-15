@@ -32,3 +32,5 @@ secrets/
 .DS_Store
 .claude/memory/
 .claude/plans/
+*.local
+.vscode/
