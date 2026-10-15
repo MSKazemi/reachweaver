@@ -165,6 +165,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "text",
@@ -202,8 +203,19 @@
         "highlights",
         "category"
       ],
-      "profile_bio_limit": null,
-      "profile_bio_limit_scope": "unverified",
+      "profile_bio_limit": 150,
+      "profile_bio_limit_scope": "official_help",
+      "profile_field_limits": [
+        {
+          "field": "bio",
+          "max": 150,
+          "unit": "characters",
+          "scope": "official_help",
+          "source_url": "https://help.instagram.com/728994388226960/",
+          "checked_on": "2026-10-15",
+          "quote": "You can write a bio of up to 150 characters on your Instagram profile"
+        }
+      ],
       "post_strategy": {
         "formats": [
           "reel",
@@ -240,8 +252,20 @@
         "website",
         "cta"
       ],
-      "profile_bio_limit": null,
-      "profile_bio_limit_scope": "unverified",
+      "profile_bio_limit": 100,
+      "profile_bio_limit_scope": "official_api_reference",
+      "profile_field_limits": [
+        {
+          "field": "bio",
+          "max": 100,
+          "unit": "characters",
+          "scope": "official_api_reference",
+          "source_url": "https://developers.facebook.com/docs/graph-api/reference/page/",
+          "checked_on": "2026-10-15",
+          "quote": "Limit of 100 characters",
+          "note": "Graph API Page `about` field, which 'maps to the Description setting in the Edit Page Info user interface'. An API-documented limit, not a Help Center statement."
+        }
+      ],
       "post_strategy": {
         "formats": [
           "video",
@@ -280,6 +304,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "text",
@@ -316,8 +341,30 @@
         "website",
         "pinned"
       ],
-      "profile_bio_limit": 160,
-      "profile_bio_limit_scope": "official_help",
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [
+        {
+          "field": "display_name",
+          "max": 50,
+          "unit": "characters",
+          "scope": "official_api_reference",
+          "source_url": "https://docs.x.com/x-api/fundamentals/data-dictionary",
+          "checked_on": "2026-10-15",
+          "quote": "Typically capped at 50 characters, but subject to change",
+          "note": "X API v2 user.name; the documentation itself hedges ('typically')."
+        },
+        {
+          "field": "handle",
+          "max": 15,
+          "unit": "characters",
+          "scope": "official_api_reference",
+          "source_url": "https://docs.x.com/x-api/fundamentals/data-dictionary",
+          "checked_on": "2026-10-15",
+          "quote": "Typically a maximum of 15 characters long, but some historical accounts may exist with longer names",
+          "note": "X API v2 user.username, without the leading @."
+        }
+      ],
       "post_strategy": {
         "formats": [
           "text",
@@ -357,6 +404,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "short_video",
@@ -394,6 +442,28 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [
+        {
+          "field": "about",
+          "max": 1000,
+          "unit": "characters",
+          "scope": "official_api_reference",
+          "source_url": "https://developers.google.com/youtube/v3/docs/channels",
+          "checked_on": "2026-10-15",
+          "quote": "The property's value has a maximum length of 1000 characters",
+          "note": "YouTube Data API channel snippet.description and brandingSettings.channel.description (the URL redirects to developers.google.com/youtube/data/reference/rest/v3/channels)."
+        },
+        {
+          "field": "handle",
+          "max": 30,
+          "unit": "characters",
+          "scope": "official_help",
+          "source_url": "https://support.google.com/youtube/answer/11585688?hl=en",
+          "checked_on": "2026-10-15",
+          "quote": "Is between 3-30 characters",
+          "note": "Han/Hangul handles are 1-10 and Ethiopic/Hiragana/Katakana 2-20 characters; only the general 30-character maximum is checked."
+        }
+      ],
       "post_strategy": {
         "formats": [
           "shorts",
@@ -429,8 +499,30 @@
         "pinned",
         "starter_pack"
       ],
-      "profile_bio_limit": null,
-      "profile_bio_limit_scope": "unverified",
+      "profile_bio_limit": 256,
+      "profile_bio_limit_scope": "official_api_schema",
+      "profile_field_limits": [
+        {
+          "field": "display_name",
+          "max": 64,
+          "unit": "graphemes",
+          "scope": "official_api_schema",
+          "source_url": "https://raw.githubusercontent.com/bluesky-social/bsky/main/lexicons/app/bsky/actor/profile.json",
+          "checked_on": "2026-10-15",
+          "quote": "\"maxGraphemes\": 64",
+          "note": "app.bsky.actor.profile record lexicon, displayName property (protocol schema limit)."
+        },
+        {
+          "field": "bio",
+          "max": 256,
+          "unit": "graphemes",
+          "scope": "official_api_schema",
+          "source_url": "https://raw.githubusercontent.com/bluesky-social/bsky/main/lexicons/app/bsky/actor/profile.json",
+          "checked_on": "2026-10-15",
+          "quote": "\"maxGraphemes\": 256",
+          "note": "app.bsky.actor.profile record lexicon, description property (protocol schema limit)."
+        }
+      ],
       "post_strategy": {
         "formats": [
           "text",
@@ -470,6 +562,38 @@
       ],
       "profile_bio_limit": 500,
       "profile_bio_limit_scope": "instance_default_verify_actual_server",
+      "profile_field_limits": [
+        {
+          "field": "display_name",
+          "max": 40,
+          "unit": "characters",
+          "scope": "instance_default_verify_actual_server",
+          "source_url": "https://raw.githubusercontent.com/mastodon/mastodon/v4.7.3/app/models/account.rb",
+          "checked_on": "2026-10-15",
+          "quote": "DISPLAY_NAME_LENGTH_LIMIT = 40",
+          "note": "Default in the Mastodon v4.7.3 release source; the user guide (https://docs.joinmastodon.org/user/profile/) still says 'up to 30 characters by default'. Each server reports its own limits in its instance configuration."
+        },
+        {
+          "field": "bio",
+          "max": 500,
+          "unit": "characters",
+          "scope": "instance_default_verify_actual_server",
+          "source_url": "https://docs.joinmastodon.org/user/profile/",
+          "checked_on": "2026-10-15",
+          "quote": "You can set a bio of up to 500 characters by default",
+          "note": "Links count as 23 characters; servers can change the default (v4.7.3 source: NOTE_LENGTH_LIMIT = 500)."
+        },
+        {
+          "field": "handle",
+          "max": 30,
+          "unit": "characters",
+          "scope": "instance_default_verify_actual_server",
+          "source_url": "https://raw.githubusercontent.com/mastodon/mastodon/v4.7.3/app/models/account.rb",
+          "checked_on": "2026-10-15",
+          "quote": "USERNAME_LENGTH_LIMIT = 30",
+          "note": "Local username part only (before @server), from the Mastodon v4.7.3 release source."
+        }
+      ],
       "post_strategy": {
         "formats": [
           "text",
@@ -508,6 +632,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "text",
@@ -545,6 +670,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "discussion",
@@ -579,6 +705,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "human_only"
@@ -612,8 +739,40 @@
         "technical_articles",
         "topics"
       ],
-      "profile_bio_limit": null,
-      "profile_bio_limit_scope": "unverified",
+      "profile_bio_limit": 200,
+      "profile_bio_limit_scope": "official_open_source_code",
+      "profile_field_limits": [
+        {
+          "field": "display_name",
+          "max": 100,
+          "unit": "characters",
+          "scope": "official_open_source_code",
+          "source_url": "https://raw.githubusercontent.com/forem/forem/main/app/models/user.rb",
+          "checked_on": "2026-10-15",
+          "quote": "validates :name, length: { in: 1..100 }",
+          "note": "DEV runs Forem ('Forem is the open source software which powers DEV', forem/forem README); the dev.to deployment can differ from the main branch."
+        },
+        {
+          "field": "bio",
+          "max": 200,
+          "unit": "characters",
+          "scope": "official_open_source_code",
+          "source_url": "https://raw.githubusercontent.com/forem/forem/main/app/validators/profile_validator.rb",
+          "checked_on": "2026-10-15",
+          "quote": "MAX_SUMMARY_LENGTH = 200",
+          "note": "DEV runs Forem ('Forem is the open source software which powers DEV', forem/forem README); the dev.to deployment can differ from the main branch."
+        },
+        {
+          "field": "handle",
+          "max": 30,
+          "unit": "characters",
+          "scope": "official_open_source_code",
+          "source_url": "https://raw.githubusercontent.com/forem/forem/main/app/models/user.rb",
+          "checked_on": "2026-10-15",
+          "quote": "USERNAME_MAX_LENGTH = 30",
+          "note": "DEV runs Forem ('Forem is the open source software which powers DEV', forem/forem README); the dev.to deployment can differ from the main branch."
+        }
+      ],
       "post_strategy": {
         "formats": [
           "article",
@@ -650,6 +809,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "article",
@@ -684,8 +844,19 @@
         "claimed_domain",
         "boards"
       ],
-      "profile_bio_limit": null,
-      "profile_bio_limit_scope": "unverified",
+      "profile_bio_limit": 500,
+      "profile_bio_limit_scope": "official_help",
+      "profile_field_limits": [
+        {
+          "field": "bio",
+          "max": 500,
+          "unit": "characters",
+          "scope": "official_help",
+          "source_url": "https://help.pinterest.com/en/article/edit-your-profile",
+          "checked_on": "2026-10-15",
+          "quote": "enter your bio (up to 500 characters)"
+        }
+      ],
       "post_strategy": {
         "formats": [
           "pin",
@@ -723,6 +894,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "launch",
@@ -759,6 +931,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "discussion",
@@ -794,6 +967,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "case_study",
@@ -830,6 +1004,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "project_update",
@@ -865,6 +1040,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "video",
@@ -900,6 +1076,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "answer",
@@ -935,6 +1112,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "article",
@@ -970,8 +1148,20 @@
         "readme",
         "contribution_guide"
       ],
-      "profile_bio_limit": null,
-      "profile_bio_limit_scope": "unverified",
+      "profile_bio_limit": 160,
+      "profile_bio_limit_scope": "official_help",
+      "profile_field_limits": [
+        {
+          "field": "bio",
+          "max": 160,
+          "unit": "characters",
+          "scope": "official_help",
+          "source_url": "https://docs.github.com/en/account-and-profile/tutorials/personalize-your-profile",
+          "checked_on": "2026-10-15",
+          "quote": "The bio field is limited to 160 characters",
+          "note": "Personal account bio. GitHub Docs state no limit for an organization profile description."
+        }
+      ],
       "post_strategy": {
         "formats": [
           "release",
@@ -1008,6 +1198,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "spotlight",
@@ -1043,6 +1234,7 @@
       ],
       "profile_bio_limit": null,
       "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
       "post_strategy": {
         "formats": [
           "text",

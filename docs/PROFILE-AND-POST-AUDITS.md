@@ -19,9 +19,9 @@ The machine-readable source of truth is `reachweaver/profile_audit_registry.json
 | **LinkedIn** | Authentic headshot, clear role/keywords in headline, credible About, work sample, website, relevant banner | Original design decision/diagram with real trade-offs; short technical video or evidence-backed document | Reach/impressions, conversation quality, link clicks; distinguish *personal* from *Page* account and eligible Featured features |
 | **DEV Community (DEV.to)** | About, avatar, relevant tags, technical articles, portfolio link | Detailed original reproducible walkthrough and helpful code snippets | Article views, quality comments and downstream repo visits; editorial standards and transparent AI assistance |
 | **YouTube** | Banner, channel About/handle, trailer, sections and useful playlists | Real software demo; searchable accurate title/thumbnail and compelling first 30 seconds; separately trial Shorts | Traffic sources, CTR and retention for eligible videos; **publish time isn't known to affect long-term video performance** |
-| **X** | Bio (official 160-character max), header, one destination link, pinned proof | Standalone engineering lesson, screenshot, useful follow-up thread | Impressions/reposts/clicks; no magical hashtag/engagement weights; require original discussion |
+| **X** | Concise bio (length limit **not curl-verifiable** on 2026-10-15; see below), header, one destination link, pinned proof | Standalone engineering lesson, screenshot, useful follow-up thread | Impressions/reposts/clicks; no magical hashtag/engagement weights; require original discussion |
 | **Bluesky** | Honest bio and avatar, website/domain handle when authorized, context-rich pinned post, relevant starter packs | Reproducible observation that belongs in a specific developer custom feed | Reposts and genuine discussion where observable; discovery depends on multiple user-selected feeds |
-| **Mastodon** | Instance-aware bio (default 500 characters), link verification/profile metadata, accessible header/avatar | Useful technical explanation, relevant hashtags and alt text; ask knowledgeable community members | Boosts, favorites and replies; instance metrics differ; do **not** invent global impressions |
+| **Mastodon** | Instance-aware bio (default 500 characters; servers can change it), link verification/profile metadata, accessible header/avatar | Useful technical explanation, relevant hashtags and alt text; ask knowledgeable community members | Boosts, favorites and replies; instance metrics differ; do **not** invent global impressions |
 | **Threads** | Clear identity/bio, relevant topic signals, useful pinned context where eligible | Short interesting idea and authentic question/reply | Views/replies measured by native insights when available; avoid engagement bait |
 | **Reddit** | Community-specific history and rules, authentic profile, disclosure when referencing owned projects | Answer a real subreddit problem thoroughly; owner writes/submits manually | Meaningful comments/upvotes and approved referrals; **moderation/rules outrank reach advice**, no bulk publishing |
 | **Hacker News** | Profile About/link and genuine history; know submission guidelines | **Human-written, human-posted only** original technical story, when appropriate | Constructive discussion only; no AI-generated or AI-edited HN submission text |
@@ -47,9 +47,36 @@ Primary documentation and evidence dates are saved per platform in [the registry
 - [LinkedIn profile intro](https://www.linkedin.com/help/linkedin/answer/a547248) and [Page best practices](https://business.linkedin.com/advertise/linkedin-pages/best-practices).
 - [YouTube channel customization](https://support.google.com/youtube/answer/3027950?hl=en), [retention analysis](https://support.google.com/youtube/answer/9314415) and [publish-time FAQ](https://support.google.com/youtube/answer/141805?hl=en).
 - [TikTok content recommendation](https://support.tiktok.com/en/using-tiktok/exploring-videos/how-tiktok-recommends-content); [Instagram Professional Dashboard](https://about.fb.com/news/2024/10/best-practices-education-hub-creators-instagram/); [Facebook original content](https://about.fb.com/news/2026/03/rewarding-original-creators-on-facebook/).
-- [X profile fields and 160-character bio](https://help.x.com/en/managing-your-account/how-to-customize-your-profile); [Bluesky custom feeds](https://bsky.social/about/blog/7-27-2023-custom-feeds); [Mastodon default bio/profile metadata](https://docs.joinmastodon.org/user/profile/).
+- [X profile fields](https://help.x.com/en/managing-your-account/how-to-customize-your-profile) (behind a bot challenge for `curl` on 2026-10-15, so its bio limit is not applied); [Bluesky custom feeds](https://bsky.social/about/blog/7-27-2023-custom-feeds); [Mastodon default bio/profile metadata](https://docs.joinmastodon.org/user/profile/).
 - [DEV editor, analytics and article scheduling](https://dev.to/help/writing-editing-scheduling); [Pinterest claimed website](https://help.pinterest.com/en/business/article/claim-your-website); [Product Hunt launch guide](https://help.producthunt.com/en/articles/17350772-launch-guide), including its prohibition on soliciting upvotes.
 - [Reddit policies](https://redditinc.com/policies/reddit-rules) and [Hacker News submission guidelines](https://news.ycombinator.com/newsguidelines.html). Neither permits the generic bulk automation playbook.
+
+## Sourced profile field limits
+
+`profile-audit` checks a text field's length only when `profile_field_limits` in the registry holds a **sourced** limit: the official URL, the checked date and a short verbatim quote that was confirmed with `curl -sL URL | grep -o '<quote>'` on **2026-10-15**. The loader refuses an entry without a `https://` URL, an ISO date, or a quote that contains the number. A field over its limit raises an advisory `length_review` alert (with the field, measured length, limit, unit, scope and source). Each report also carries `field_limits`, which shows every audited text field and the handle as either its sourced limit or `"unknown"`. An unknown limit is never guessed and never checked. API and protocol-schema limits are labeled as such: they describe what the API or record accepts, which can differ from the app editor.
+
+**16 sourced limits on 9 of 25 networks** (all checked 2026-10-15):
+
+| Network | Field | Max | Scope | Source |
+| --- | --- | --- | --- | --- |
+| Instagram | bio | 150 characters | official help | [Add a bio](https://help.instagram.com/728994388226960/) |
+| Facebook Page | bio (`about`) | 100 characters | API reference | [Graph API Page](https://developers.facebook.com/docs/graph-api/reference/page/) |
+| X | display name | 50 characters ("typically") | API reference | [X API data dictionary](https://docs.x.com/x-api/fundamentals/data-dictionary) |
+| X | handle | 15 characters ("typically") | API reference | [X API data dictionary](https://docs.x.com/x-api/fundamentals/data-dictionary) |
+| YouTube | about (channel description) | 1000 characters | API reference | [Data API channels](https://developers.google.com/youtube/v3/docs/channels) |
+| YouTube | handle | 30 characters (Latin script) | official help | [YouTube handles](https://support.google.com/youtube/answer/11585688?hl=en) |
+| Bluesky | display name | 64 graphemes | protocol schema | [app.bsky.actor.profile](https://raw.githubusercontent.com/bluesky-social/bsky/main/lexicons/app/bsky/actor/profile.json) |
+| Bluesky | bio (description) | 256 graphemes | protocol schema | [app.bsky.actor.profile](https://raw.githubusercontent.com/bluesky-social/bsky/main/lexicons/app/bsky/actor/profile.json) |
+| Mastodon | display name | 40 characters (server default) | release source v4.7.3 | [account.rb](https://raw.githubusercontent.com/mastodon/mastodon/v4.7.3/app/models/account.rb); the [user guide](https://docs.joinmastodon.org/user/profile/) still says 30 |
+| Mastodon | bio | 500 characters (server default) | official docs | [Setting up your profile](https://docs.joinmastodon.org/user/profile/) |
+| Mastodon | handle (local part) | 30 characters (server default) | release source v4.7.3 | [account.rb](https://raw.githubusercontent.com/mastodon/mastodon/v4.7.3/app/models/account.rb) |
+| DEV | display name | 100 characters | open-source code (Forem) | [user.rb](https://raw.githubusercontent.com/forem/forem/main/app/models/user.rb) |
+| DEV | bio (summary) | 200 characters | open-source code (Forem) | [profile_validator.rb](https://raw.githubusercontent.com/forem/forem/main/app/validators/profile_validator.rb) |
+| DEV | handle | 30 characters | open-source code (Forem) | [user.rb](https://raw.githubusercontent.com/forem/forem/main/app/models/user.rb) |
+| Pinterest | bio (About) | 500 characters | official help | [Edit your profile](https://help.pinterest.com/en/article/edit-your-profile) |
+| GitHub | bio (personal account) | 160 characters | official docs | [Personalize your profile](https://docs.github.com/en/account-and-profile/tutorials/personalize-your-profile) |
+
+**Tried on 2026-10-15 and left unknown:** X bio (help.x.com returns a Cloudflare challenge to `curl`, so the 160-character figure recorded on 2026-10-11 is no longer applied); LinkedIn headline/About (the server-rendered LinkedIn Help pages found state no number); Threads bio (the help page states no number); TikTok (support.tiktok.com redirects to a JavaScript-only app); Reddit and Discord (Help Centers return a Cloudflare challenge); Snapchat (business help is JavaScript-rendered); Telegram (the API config documents a 70-byte *user* bio, but the registry audits a *channel*, so it is not applied); Hashnode, Product Hunt, WhatsApp Channels, Peerlist, Indie Hackers, Bilibili, Zhihu, OSCHINA and Hacker News (no official page with a number was found). Third-party blogs are never used.
 
 ## Optional owner-authorized native CSV observations
 
@@ -106,7 +133,7 @@ For actual post text, use `references/creative-playbook.md` and `references/plat
 
 - **No automatic profile fetch or account login.** Public URLs/screenshots may help a human audit manually, but this command never reads a live profile or configures accounts.
 - **No long-term causal attribution.** Observational creative flags and median rates cannot prove recommendation ranking or generate statistically sound uplift without experimental controls.
-- **No exact bio-length guarantee for most networks.** Only documented X and Mastodon default limits are annotated; Mastodon servers can differ and Unicode/provider counters vary.
+- **No exact length guarantee.** Only the 16 sourced limits on 9 networks listed under *Sourced profile field limits* are checked; every other field is `unknown`. Mastodon servers can differ, grapheme counting is approximate, and provider counters vary (for example Mastodon counts each link as 23 characters).
 - **No automated post creation or scheduling.** The profile/post audit commands do not call `draft`, `approve`, `schedule`, `publish` or change any account.
 - **No deep visual or language quality scoring.** A person's judgement is needed for screenshots, creative hooks, tone, community suitability and multilingual nuance.
 - **No universal social exposure denominator.** Native impressions, views, reach and follower snapshots are not comparable between platforms or interchangeable.
