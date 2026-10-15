@@ -233,3 +233,16 @@ These were registered from the regional-channels work with only a landing page a
 
 **Not verified:** Medium rules, scheduling and import (help pages returned 403); Substack scheduling, API and self-promotion rules (support pages returned 403); VK API access, `wall.post` scheduling and limits (the developer page was down for maintenance); Naver scheduling, limits and any cafe-level rule, and Naver Blog limits; the LINE OpenChat guideline and Kakao Open Chat rules (JavaScript-only pages); every Snapchat rule. A statement that an API was "not found" means it is not in the pages named above, not that none exists. Every entry stays `manual_only` with `unverified` scheduling.
 
+## LINE Official Account and Kakao Talk Channel (`line_official_account`, `kakao_talk_channel`; #25, #26)
+
+#25 asks about LINE official-account posting and #26 about Kakao channel posting; the earlier entries covered only the OpenChat group products. Read directly on 2026-10-15. Short quotes (25 words or fewer) are from the pages named; the rest is **not verified**.
+
+| Surface | What was read | What it says |
+|---|---|---|
+| LINE Official Account | [Messaging API overview](https://developers.line.biz/en/docs/messaging-api/overview/) | Bots work through a LINE Official Account; "you can send messages directly to users at all times"; the API counts reply, push, multicast and broadcast messages; "Anyone can use the Messaging API to send a message from a LINE Official Account"; free messages per month "depends on the subscription plan". |
+| Kakao Talk Channel | [Kakao Talk Channel concepts](https://developers.kakao.com/docs/latest/en/kakaotalk-channel/common) | The API covers adding a channel, starting a 1:1 chat, and customer-group and relationship management for administrators, including targeted messages; "You can connect a Kakao Talk Channel only to an app owned by the same business operator"; "The review takes about 3 to 5 business days" for a Business Channel. |
+
+**Decision:** both are the owner's own opt-in channel (people who added it as a friend), so `human_only` is no, and both stay `manual_only` with `unverified` scheduling: ReachWeaver has no adapter, and nothing here is permission to message anyone.
+
+**Not verified:** LINE native scheduling, the per-plan free allowance (the plan page is Japanese-only), media limits, and LINE's automation and promotion rules; Kakao message pricing, scheduling, limits and promotion rules (the Customer Center pages are JavaScript-only); **Kakao Story**, which #26 names, was not researched and has no entry.
+

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 RESEARCH_IDS = (
     "medium", "substack", "lobsters", "lemmy", "github_discussions", "huggingface", "quora", "stackexchange", "tumblr",
-    "xing", "vk", "naver_blog", "naver_cafe", "kakao_openchat", "line_openchat", "beehiiv", "ghost", "vimeo", "twitch",
+    "xing", "vk", "naver_blog", "naver_cafe", "kakao_openchat", "kakao_talk_channel", "line_openchat", "line_official_account", "beehiiv", "ghost", "vimeo", "twitch",
     "snapchat", "flipboard", "researchgate", "behance", "dribbble", "viber", "slack_communities")
 HEADER = ("| Surface | Registry id | Category | ReachWeaver delivery | Human only | Native scheduling | Checked | Source "
           "| Not verified |")

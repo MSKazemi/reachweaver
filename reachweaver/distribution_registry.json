@@ -642,6 +642,20 @@
       "research_source": "https://developers.kakao.com/docs/latest/en/kakaotalk-channel/common"
     },
     {
+      "id": "kakao_talk_channel",
+      "label": "Kakao Talk Channel",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "The owner's own Kakao Talk Channel (the business home on Kakao Talk), reaching people who added it as a friend; opt-in only. The Kakao Developers Channel API (read 2026-10-15) covers adding a channel, opening a 1:1 chat, and customer-group and relationship management for administrators, including sending targeted messages; it needs a Biz app connected to a Business Channel owned by the same business operator, and Kakao's review of a Business Channel takes about 3 to 5 business days. Message pricing, scheduling, limits and the automation and promotion rules are unverified, and the Kakao Customer Center pages are JavaScript-only.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://developers.kakao.com/docs/latest/en/kakaotalk-channel/common"
+    },
+    {
       "id": "dcard",
       "label": "Dcard",
       "category": "community",
@@ -694,6 +708,20 @@
       },
       "reachweaver_delivery": "manual_only",
       "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://developers.line.biz/en/docs/messaging-api/overview/"
+    },
+    {
+      "id": "line_official_account",
+      "label": "LINE Official Account",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "The owner's own LINE Official Account, messaging only people who added it as a friend; opt-in, never cold outreach. The Messaging API overview (read 2026-10-15) says bots can send reply messages and, \"at all times\", messages directly to users, and it counts reply, push, multicast and broadcast messages. Anyone can use the API for free up to a monthly message allowance that depends on the account's subscription plan (the plan page is Japanese-only and was not read). Native scheduling, per-plan limits, media limits and the platform's automation and promotion rules are unverified.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
       "checked_on": "2026-10-15",
       "research_source": "https://developers.line.biz/en/docs/messaging-api/overview/"
     },

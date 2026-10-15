@@ -131,7 +131,8 @@ class ResearchDocTests(unittest.TestCase):
         self.assertNotIn("| `reddit`", self.doc)
 
 
-REREAD = {"medium", "substack", "vk", "naver_blog", "naver_cafe", "line_openchat", "kakao_openchat", "snapchat"}
+REREAD = {"medium", "substack", "vk", "naver_blog", "naver_cafe", "line_openchat", "kakao_openchat", "snapchat",
+          "line_official_account", "kakao_talk_channel"}
 
 
 class RereadEntryTests(unittest.TestCase):
@@ -141,7 +142,7 @@ class RereadEntryTests(unittest.TestCase):
     def setUpClass(cls):
         cls.entries = {p["id"]: p for p in load_registry()["platforms"]}
         cls.doc = DOC.read_text(encoding="utf-8")
-        cls.section = cls.doc.split("## Re-read of eight earlier entries", 1)[1]
+        cls.section = cls.doc.split("## Re-read of eight earlier entries", 1)[1]  # also covers the LINE and Kakao channel section below it
 
     def test_each_entry_names_its_source_date_and_what_is_unverified(self):
         for pid in REREAD:

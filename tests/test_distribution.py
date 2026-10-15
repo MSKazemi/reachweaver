@@ -47,8 +47,9 @@ class GlobalDistributionTests(unittest.TestCase):
     def test_added_regional_channels_remain_research_only(self):
         added = ["xiaohongshu","wechat_channels","toutiao","baidu_tieba","douban","maimai","qzone","note_jp","naver_blog","naver_cafe","kakao_openchat","dcard","ptt","pantip","line_openchat","zalo_official_account","kaskus","sharechat","moj","vk","odnoklassniki","dzen","habr","medium","substack","snapchat","kwai"]
         self.assertEqual(len(added), 27)
-        # 72 global and regional entries plus the 18 community and creator surfaces of tests/test_platform_research_batch.py
-        self.assertEqual(len(self.data["platforms"]), 72 + 18)
+        # 72 global and regional entries, the 18 community and creator surfaces of tests/test_platform_research_batch.py
+        # and the LINE Official Account and Kakao Talk Channel entries (#25, #26)
+        self.assertEqual(len(self.data["platforms"]), 72 + 18 + 2)
         self.assertEqual(len(self.data["markets"]), 18)
         by_id = {p["id"]: p for p in self.data["platforms"]}
         for platform_id in added:
@@ -253,7 +254,7 @@ class PlatformMatrixResearchTableTests(unittest.TestCase):
         cls.doc = (ROOT / "docs/PLATFORM-MATRIX.md").read_text(encoding="utf-8")
 
     def test_every_researched_surface_has_a_row_equal_to_its_registry_entry(self):
-        self.assertEqual(len(self.rows.RESEARCH_IDS), 26)  # 25 issues; Naver is one issue with two surfaces
+        self.assertEqual(len(self.rows.RESEARCH_IDS), 28)  # 25 issues; Naver has two surfaces, LINE and Kakao each two entries
         self.assertIn(self.rows.HEADER, self.doc)
         for pid in self.rows.RESEARCH_IDS:
             with self.subTest(platform=pid):
