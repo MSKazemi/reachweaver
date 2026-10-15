@@ -4,8 +4,10 @@ Industry windows are uncertain starting points, not platform-ranking rules.
 """
 from __future__ import annotations
 
+import math
 import re
 from datetime import date, datetime, time, timedelta, timezone
+from fractions import Fraction
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .policy import SUPPORTED_LIVE, ValidationError
@@ -30,6 +32,9 @@ _DAY = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 _EVIDENCE_URL = "https://buffer.com/resources/best-time-to-post-social-media/"
 # Native queue caps are not API authorization; recheck provider UI before handoff.
 _NATIVE_HORIZON_DAYS = {"tiktok": 10, "pinterest": 30}
+# Issue #16 R3: at most this share of proposed posts may go to exploration slots, so most of a
+# batch stays on the evidence-backed (exploit) slots.
+EXPLORE_SHARE_CAP = 0.5
 
 
 def _date(value: str) -> date:
@@ -82,6 +87,30 @@ def generic_baseline_slots(platform: str) -> dict | None:
     return {"slots": windows, "evidence": evidence, "confidence": confidence, "evidence_url": _EVIDENCE_URL}
 
 
+def _slot_name(weekday: int, clock: time) -> str:
+    return f"{_WD_NAMES[weekday]}@{clock.isoformat(timespec='minutes')}"
+
+
+def _explore_windows(share: float, explore_slots: list[str] | None, platform: str,
+                     windows: list[tuple[int, time]]) -> tuple[Fraction, list[tuple[int, time]]]:
+    """Validate ``--explore-share``/``--explore-slot`` (issue #16 R3); (0, []) when unused."""
+    if isinstance(share, bool) or not isinstance(share, (int, float)) or not math.isfinite(share):
+        raise ValidationError("--explore-share must be a number")
+    if share == 0:
+        if explore_slots:
+            raise ValidationError("--explore-slot needs --explore-share above 0")
+        return Fraction(0), []
+    if not 0 < share <= EXPLORE_SHARE_CAP:
+        raise ValidationError(f"--explore-share must be above 0 and at most {EXPLORE_SHARE_CAP}")
+    if not explore_slots:
+        raise ValidationError("--explore-share needs at least one --explore-slot Weekday@HH:MM: exploration "
+                              "times are your own hypotheses, and the planner invents none")
+    chosen, _, _ = _slots(platform, explore_slots)
+    if set(chosen) & set(windows):
+        raise ValidationError("An --explore-slot repeats an exploit slot; exploration must try a different time")
+    return Fraction(str(share)), chosen
+
+
 def _aware(day: date, clock: time, zone: ZoneInfo) -> datetime:
     """Reject non-existent/ambiguous DST times instead of silently choosing a fold."""
     wall = datetime.combine(day, clock)
@@ -115,6 +144,7 @@ def propose_calendar(
     slots: list[str] | None = None, blackout: list[str] | None = None,
     limit: int = 30, now: datetime | None = None,
     audience_activity: dict | None = None,
+    explore_share: float = 0.0, explore_slots: list[str] | None = None,
 ) -> dict:
     """Plan without modifying approval or scheduling state; no network I/O.
 
@@ -122,6 +152,12 @@ def propose_calendar(
     issue #16). When given, its top hours replace the generic prior, every entry carries the
     slot's provenance, and DST-gap/fold occurrences are skipped (listed) instead of failing.
     When it is None the output is unchanged. The planner stays advisory either way.
+
+    ``explore_share`` (0 < F <= ``EXPLORE_SHARE_CAP``, issue #16 R3) sends floor(F x posts) of
+    the posts, evenly interleaved by post order, to the operator's ``explore_slots``; the rest
+    stay on the exploit windows above. Every entry then carries ``role`` and the result an
+    ``exploration`` block. The split is deterministic, never random. With the default 0 the
+    output is unchanged.
     """
     if not isinstance(account_id, str) or not account_id.strip():
         raise ValidationError("Account ID required")
@@ -150,6 +186,7 @@ def propose_calendar(
         windows, evidence, confidence = list(provenance), audience_activity["evidence"], "unverified"
     else:
         windows, evidence, confidence = _slots(platform, slots)
+    share, explore_windows = _explore_windows(explore_share, explore_slots, platform, windows)
     dst_skipped: list[str] = []
     current = now or datetime.now(timezone.utc)
     if current.tzinfo is None or current.utcoffset() is None:
@@ -177,14 +214,15 @@ def propose_calendar(
             raise ValidationError("Only draft/approved posts may be previewed; apply needs individually approved posts")
 
     candidates = []
+    tagged = [(w, "exploit") for w in windows] + [(w, "explore") for w in explore_windows]
     for offset in range(days):
         day = first + timedelta(days=offset)
         if day in blocked:
             continue
-        for weekday, clock in windows:
+        for (weekday, clock), role in tagged:
             if weekday != day.weekday():
                 continue
-            if provenance:
+            if provenance and role == "exploit":
                 try:
                     local = _aware(day, clock, zone)
                 except ValidationError:
@@ -194,13 +232,17 @@ def propose_calendar(
                 local = _aware(day, clock, zone)
             utc = local.astimezone(timezone.utc)
             if utc >= current + timedelta(minutes=5):
-                candidates.append((utc, local))
+                candidates.append((utc, local, role))
     candidates.sort(key=lambda x: x[0])
     booked = _snapshot(con, account_id)
     gap = timedelta(hours=spacing_hours)
     rows = []
-    for post in posts:
-        option = next(((utc, local) for utc, local in candidates if all(abs(utc - t) >= gap for t in booked)), None)
+    for index, post in enumerate(posts):
+        # Evenly spaced and capped: post i explores when floor((i+1)F) > floor(iF), so exactly
+        # floor(n x F) posts explore. Fixed by post order, not randomized.
+        role = "explore" if share and math.floor((index + 1) * share) > math.floor(index * share) else "exploit"
+        option = next(((utc, local) for utc, local, kind in candidates
+                       if kind == role and all(abs(utc - t) >= gap for t in booked)), None)
         if option is None:
             raise ValidationError(f"Insufficient collision-free slots between {first} and {end}; add days/slots or adjust blackout and spacing")
         utc, local = option
@@ -218,7 +260,11 @@ def propose_calendar(
             "delivery": "reachweaver_local_queue" if platform in SUPPORTED_LIVE else "manual_native_handoff",
             "schedule_status": "proposed_only",
         }
-        if provenance:
+        if share:
+            row["role"] = role
+        if role == "explore":  # the operator's hypothesis, not the exploit evidence
+            row.update(evidence="operator_explore_hypothesis", confidence="unverified", evidence_url=None)
+        elif provenance:
             row["provenance"] = provenance[(local.weekday(), local.time().replace(tzinfo=None))]
         rows.append(row)
     result = {
@@ -234,6 +280,31 @@ def propose_calendar(
         summary["dst_skipped_local"] = dst_skipped
         summary["advisory_only"] = "Proposals only: the planner never approves, schedules or publishes on its own."
         result["audience_activity"] = summary
+    if share:
+        explore_count = sum(1 for row in rows if row["role"] == "explore")
+        exploit_names = [_slot_name(wd, clock) for wd, clock in windows]
+        explore_names = [_slot_name(wd, clock) for wd, clock in explore_windows]
+        # The generic prior IS baseline-eval's baseline, so only non-generic exploit slots are arms.
+        arms = [] if evidence == "industry_observational" else [f"exploit:{name}" for name in exploit_names]
+        notes = [
+            "Roles follow a fixed, evenly spaced order of the selected posts. Nothing is randomized, so "
+            "explore-versus-exploit outcomes stay associational.",
+            "Explore slots are the operator's own hypotheses (evidence=operator_explore_hypothesis, "
+            "confidence=unverified), not measured better times.",
+            "Proposals only: the planner never approves, schedules or publishes on its own; --apply "
+            "gating, spacing and blackouts are unchanged.",
+        ]
+        if explore_count == 0:
+            notes.append(f"Too few selected posts for an explore slot at this share: floor({len(rows)} x "
+                         f"{float(share)}) = 0.")
+        result["exploration"] = {
+            "explore_share": float(share), "explore_share_cap": EXPLORE_SHARE_CAP,
+            "explore_entries": explore_count, "exploit_entries": len(rows) - explore_count,
+            "exploit_slots": exploit_names, "exploit_evidence": evidence, "explore_slots": explore_names,
+            "assignment": "deterministic_interleave", "randomized": False,
+            "baseline_eval_slots": arms + [f"explore:{name}" for name in explore_names],
+            "notes": notes,
+        }
     return result
 
 

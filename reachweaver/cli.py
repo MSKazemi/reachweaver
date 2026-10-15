@@ -237,6 +237,11 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--audience-top-hours", type=int, metavar="N", help="With --audience-activity: top activity hours used, 1..24 (default 5)")
     p.add_argument("--audience-max-age-days", type=int, metavar="N",
                    help="With --audience-activity: warn when as_of is older than N days (default 90)")
+    p.add_argument("--explore-share", type=float, default=0.0, metavar="FRACTION",
+                   help="Send this share of the posts (above 0, at most 0.5; default 0 = off) to --explore-slot "
+                        "times, labelled role=explore; the rest stay on the exploit slots. Not randomized")
+    p.add_argument("--explore-slot", action="append", metavar="Wed@11:00",
+                   help="With --explore-share: an audience-local time to explore, distinct from the exploit slots; repeat")
     p = sub.add_parser("calendar-gaps", help="Read-only: empty and overloaded slots per account from the local queue; "
                        "never approves, schedules or publishes")
     p.add_argument("--account", required=True, help="One configured social account ID")
@@ -2456,6 +2461,7 @@ def execute(args) -> int:
                 spacing_hours=args.spacing_hours, post_ids=args.post_id,
                 include_drafts=args.include_drafts, slots=args.slot,
                 blackout=args.blackout, limit=args.limit, audience_activity=audience,
+                explore_share=args.explore_share, explore_slots=args.explore_slot,
             )
             if args.apply:
                 proposal = apply_calendar(db, proposal)

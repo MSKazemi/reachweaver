@@ -170,6 +170,119 @@ class CalendarTests(unittest.TestCase):
 
 
 
+class ExplorationShareTests(unittest.TestCase):
+    """Issue #16 R3: a capped, labelled explore/exploit split; proposals only, never randomized."""
+
+    setUp = CalendarTests.setUp
+    post = CalendarTests.post
+    plan = CalendarTests.plan
+
+    def test_golden_output_is_unchanged_without_the_flag(self):
+        import json
+        self.post('a')
+        self.post('b')
+
+        def entry(pid, local, utc):
+            return {
+                "native_horizon_days": None, "within_native_horizon_now": None,
+                "post_id": pid, "account_id": "personal", "platform": "bluesky",
+                "post_status": "approved", "audience_timezone": "Europe/Rome",
+                "scheduled_local": local, "scheduled_utc": utc,
+                "evidence": "industry_observational", "confidence": "low",
+                "evidence_url": "https://buffer.com/resources/best-time-to-post-social-media/",
+                "delivery": "reachweaver_local_queue", "schedule_status": "proposed_only",
+            }
+        golden = {
+            "account_id": "personal", "platform": "bluesky",
+            "start_date": "2026-10-12", "end_date": "2026-10-25", "spacing_hours": 20,
+            "delivery_note": "This is only a proposed local calendar; no credentials or platforms contacted. "
+                             "Native scheduling needs a separate confirmed platform receipt.",
+            "entries": [entry('a', '2026-10-12T18:00+02:00', '2026-10-12T16:00:00+00:00'),
+                        entry('b', '2026-10-13T18:00+02:00', '2026-10-13T16:00:00+00:00')],
+        }
+        expected = json.dumps(golden, indent=2)
+        self.assertEqual(json.dumps(self.plan(), indent=2), expected)
+        self.assertEqual(json.dumps(self.plan(explore_share=0), indent=2), expected)
+        self.assertEqual(json.dumps(self.plan(explore_share=0.0, explore_slots=None), indent=2), expected)
+
+    def test_capped_interleaved_roles_and_labels(self):
+        for pid in 'abcd':
+            self.post(pid)
+        plan = self.plan(explore_share=0.5, explore_slots=['Sat@11:00'])
+        entries = plan['entries']
+        self.assertEqual([e['role'] for e in entries], ['exploit', 'explore', 'exploit', 'explore'])
+        self.assertEqual([e['scheduled_local'] for e in entries],
+                         ['2026-10-12T18:00+02:00', '2026-10-17T11:00+02:00',
+                          '2026-10-13T18:00+02:00', '2026-10-24T11:00+02:00'])
+        for e in entries:
+            self.assertEqual(e['schedule_status'], 'proposed_only')
+            if e['role'] == 'explore':
+                self.assertEqual((e['evidence'], e['confidence'], e['evidence_url']),
+                                 ('operator_explore_hypothesis', 'unverified', None))
+            else:
+                self.assertEqual((e['evidence'], e['confidence']), ('industry_observational', 'low'))
+        block = plan['exploration']
+        self.assertEqual((block['explore_entries'], block['exploit_entries']), (2, 2))
+        self.assertEqual(block['explore_share_cap'], 0.5)
+        self.assertFalse(block['randomized'])
+        self.assertEqual(block['assignment'], 'deterministic_interleave')
+        self.assertEqual(block['explore_slots'], ['Sat@11:00'])
+        self.assertEqual(len(block['exploit_slots']), 7)
+        # The generic prior is baseline-eval's own baseline, so only the explore slot is an arm.
+        self.assertEqual(block['baseline_eval_slots'], ['explore:Sat@11:00'])
+        self.assertTrue(any('Nothing is randomized' in note for note in block['notes']))
+        self.assertEqual(self.db.execute("SELECT count(*) FROM posts WHERE status='approved'").fetchone()[0], 4)
+
+    def test_explore_count_never_exceeds_floor_of_share(self):
+        for count, share, expected in ((1, 0.3, 0), (3, 0.3, 0), (4, 0.25, 1), (7, 0.5, 3), (10, 0.3, 3)):
+            with self.subTest(count=count, share=share):
+                self.db.execute("DELETE FROM posts")
+                for i in range(count):
+                    self.post(f'p{i}')
+                plan = self.plan(days=60, explore_share=share, explore_slots=['Sat@11:00', 'Sun@11:00'])
+                self.assertEqual(plan['exploration']['explore_entries'], expected)
+                self.assertEqual(sum(e['role'] == 'explore' for e in plan['entries']), expected)
+                self.assertEqual(any('Too few selected posts' in n for n in plan['exploration']['notes']),
+                                 expected == 0)
+
+    def test_operator_exploit_slots_become_baseline_eval_arms(self):
+        self.post('a', platform='mastodon')
+        self.post('b', platform='mastodon')
+        plan = self.plan(platform='mastodon', slots=['Wed@10:00'], explore_share=0.5, explore_slots=['Thu@15:00'])
+        self.assertEqual(plan['exploration']['baseline_eval_slots'], ['exploit:Wed@10:00', 'explore:Thu@15:00'])
+        self.assertEqual(plan['exploration']['exploit_evidence'], 'operator_supplied')
+
+    def test_spacing_blackout_and_apply_gating_still_hold(self):
+        self.post('a')
+        self.post('b')
+        plan = self.plan(days=21, explore_share=0.5, explore_slots=['Mon@20:00'], blackout=['2026-10-19'])
+        # Mon 12 20:00 is 2 h after the exploit post (spacing 20 h); Mon 19 is blacked out.
+        self.assertEqual(plan['entries'][1]['scheduled_local'], '2026-10-26T20:00+01:00')
+        with self.assertRaisesRegex(ValidationError, 'Insufficient collision-free'):
+            self.plan(days=7, explore_share=0.5, explore_slots=['Mon@20:00'])
+        applied = apply_calendar(self.db, plan, now=NOW)
+        self.assertEqual([e['schedule_status'] for e in applied['entries']], ['locally_scheduled'] * 2)
+        self.assertEqual([e['role'] for e in applied['entries']], ['exploit', 'explore'])
+        self.post('c', status='draft')
+        preview = self.plan(post_ids=['c'], include_drafts=True, explore_share=0.5, explore_slots=['Sat@11:00'])
+        with self.assertRaisesRegex(ValidationError, 'lack exact-content approval'):
+            apply_calendar(self.db, preview, now=NOW)
+
+    def test_invalid_share_and_slots_are_refused(self):
+        self.post('a')
+        for share in (0.51, 1, -0.1, float('nan'), float('inf'), True):
+            with self.subTest(share=share), self.assertRaisesRegex(ValidationError, 'explore-share'):
+                self.plan(explore_share=share, explore_slots=['Sat@11:00'])
+        with self.assertRaisesRegex(ValidationError, 'needs at least one --explore-slot'):
+            self.plan(explore_share=0.2)
+        with self.assertRaisesRegex(ValidationError, '--explore-slot needs --explore-share'):
+            self.plan(explore_slots=['Sat@11:00'])
+        with self.assertRaisesRegex(ValidationError, 'repeats an exploit slot'):
+            self.plan(explore_share=0.5, explore_slots=['Mon@18:00'])
+        with self.assertRaisesRegex(ValidationError, 'Duplicate slot'):
+            self.plan(explore_share=0.5, explore_slots=['Sat@11:00', 'sat@11:00'])
+
+
 class CalendarCLITests(unittest.TestCase):
     def test_cli_plan_and_apply_do_not_publish(self):
         import contextlib
@@ -214,6 +327,44 @@ class CalendarCLITests(unittest.TestCase):
                 row = db.execute("SELECT status,remote_id FROM posts WHERE id=?", (pid,)).fetchone()
                 self.assertEqual(row["status"], "scheduled")
                 self.assertIsNone(row["remote_id"])
+
+    def test_cli_explore_share_labels_roles_and_refuses_over_cap(self):
+        import contextlib
+        import io
+        import json
+        import tempfile
+        from datetime import timedelta
+        from pathlib import Path
+        from reachweaver.cli import main
+        from reachweaver.storage import connect, add_post, transition
+
+        with tempfile.TemporaryDirectory() as temp:
+            db_path = str(Path(temp) / "outbox.sqlite")
+            config = Path(temp) / "accounts.json"
+            config.write_text(json.dumps({"accounts": [
+                {"id": "my-bluesky", "platform": "bluesky", "env_prefix": "REACHWEAVER_TEST_PLAN",
+                 "handle": "test.bsky.social"}]}), encoding="utf-8")
+            with connect(db_path) as db:
+                for text in ("First factual tip", "Second factual tip"):
+                    transition(db, add_post(db, "my-bluesky", "bluesky", text), "approve")
+            start = (datetime.now(timezone.utc).date() + timedelta(days=2)).isoformat()
+            argv = ["--db", db_path, "--accounts", str(config), "calendar-plan", "--account", "my-bluesky",
+                    "--timezone", "UTC", "--start", start, "--days", "14"]
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(argv + ["--explore-share", "0.5", "--explore-slot", "Sat@11:00"]), 0)
+            proposal = json.loads(output.getvalue())
+            self.assertEqual([e["role"] for e in proposal["entries"]], ["exploit", "explore"])
+            self.assertEqual(proposal["exploration"]["baseline_eval_slots"], ["explore:Sat@11:00"])
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(argv), 0)
+            self.assertNotIn("exploration", json.loads(output.getvalue()))
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
+                self.assertEqual(main(argv + ["--explore-share", "0.6", "--explore-slot", "Sat@11:00"]), 2)
+            self.assertIn("at most 0.5", err.getvalue())
+            with connect(db_path) as db:
+                self.assertEqual(db.execute("SELECT count(*) FROM posts WHERE status='approved'").fetchone()[0], 2)
 
 if __name__ == '__main__':
     unittest.main()

@@ -92,6 +92,23 @@ The loader rejects the file on the first problem it finds, naming the line: a mi
 
 Activity measures when your audience is present. It does not measure outcomes, so it does not show that a time performs better. Check any pattern with `timing-evaluate` and `baseline-eval` ([TIMING-EVALUATION.md](TIMING-EVALUATION.md)). Without `--audience-activity`, the planner's output is byte-for-byte the same as before (regression test `tests/test_audience.py`). With or without it, the planner only proposes: `--apply` still needs individually approved posts and goes through every existing check.
 
+### 2c. Reserve a capped share for exploration (`--explore-share`, issue #16)
+
+Planning only on the slots that look best so far never tests anything else. `--explore-share` sets aside a fixed share of the batch for times you want to try, and labels every entry so you can evaluate the two groups later:
+
+```bash
+python -m reachweaver.cli calendar-plan \
+  --account my-bluesky --timezone Europe/Rome \
+  --start 2026-10-15 --days 14 \
+  --explore-share 0.25 --explore-slot 'Sat@11:00' [--explore-slot 'Sun@10:00']
+```
+
+- **Share and cap.** `FRACTION` must be above 0 and at most 0.5 (`calendar.EXPLORE_SHARE_CAP`). The default 0 turns the feature off, and the output is then byte-for-byte what it was before (golden test `tests/test_calendar.py::ExplorationShareTests`). Exactly floor(share x selected posts) posts explore: post *i* (in the planner's post order) explores when floor((*i*+1) x share) > floor(*i* x share), which spreads them evenly. A batch too small for one explore post at that share gets none, and a note says so.
+- **Exploit slots** are the ones the planner would use anyway: the generic prior, your `--slot` times or your `--audience-activity` hours, with their usual evidence and provenance. **Explore slots** are only the `--explore-slot` times you give; the planner invents none, refuses an explore slot that repeats an exploit slot, and refuses `--explore-slot` without a share (and a share without a slot).
+- **Labels.** Every entry gets `role: exploit` or `role: explore`. Explore entries carry `evidence: operator_explore_hypothesis`, `confidence: unverified` and no `evidence_url`. A top-level `exploration` block reports the share, the cap, the counts per role, both slot lists, `assignment: deterministic_interleave`, `randomized: false` and `baseline_eval_slots`: the `baseline-eval --slot` values for a later readout. Generic-prior exploit slots are left out of that list because they are `baseline-eval`'s own baseline, and `baseline-eval` refuses a `--slot` within its tolerance of the generic slot, so choose explore times away from it.
+- **Not randomized.** Which post explores depends only on its position in the batch, so explore-versus-exploit outcomes are associations, not an experiment. Use `experiment-preregister` with `assignment: randomized` for that.
+- **Unchanged safety.** Spacing, blackout dates, DST checks, collision checks and the `--limit` cap apply to both roles. The planner still only proposes: `--apply` needs individually approved posts and goes through every existing check, and nothing is published.
+
 For TikTok, a native scheduling eligibility hint flags proposals beyond the documented ten-day queue horizon. This hint does not indicate the account actually has that capability; recheck its current official UI before scheduling. Some formats and accounts cannot be scheduled natively.
 
 ## 3. Explicitly apply for the existing three local text adapters
