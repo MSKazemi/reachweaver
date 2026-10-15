@@ -115,10 +115,27 @@ These are engineering notes, not compliance determinations.
 
 ## Backup, recovery and disconnect
 
-- **Backup:** stop any worker, `reachweaver pause`, then copy the DB file with its permissions preserved (`cp -p`) or use `sqlite3 state/reachweaver.sqlite ".backup state/backup.sqlite"`. Backups hold the same private data; apply the same retention by hand.
-- **Recovery:** restore the file into a 0700 directory with mode 0600 and run `privacy-status` and `queue-health`. Reconcile every `sending`/`needs_review` post against the platform before resuming.
+- **Backup:** stop any worker, `reachweaver pause`, then copy **both** the DB file and `approval-ledger.jsonl` from the same directory, taken together, with their permissions preserved (`cp -p`), or use `sqlite3 state/reachweaver.sqlite ".backup state/backup.sqlite"` plus a copy of the ledger. The ledger records which approvals were already used; a database restored without its matching ledger either refuses to send or forgets a consumed approval (see Recovery). Backups hold the same private data (post text, handles, opt-out entries); apply the same retention by hand.
+- **Recovery:** restore the database and its ledger **together** into a 0700 directory, both mode 0600, then run `privacy-status` and `queue-health`. Reconcile every `sending`/`needs_review` post against the platform before resuming. If the ledger is missing, unreadable, symlinked, wrongly permissioned or chain-broken, nothing is claimed or approved and the error is `approval_ledger_unavailable`: restore the file from the backup taken with the database. A database restored from an older backup than the ledger makes an approval that was already sent look unused: it is refused with `approval_replay_reapproval_required`. Check the account for the native post first, then `unapprove` and `approve` again if you really want a second send. Never create an empty ledger by hand before checking the account for duplicates: it forgets every earlier consumption ([details](WORKER-OPERATIONS.md#upgrade-note-approval-nonce-and-replay-ledger-wave-9-item-1)).
 - **Permission revoked or API version sunset:** the operational steps (pause, reconcile `needs_review` posts first, re-authorize or update the pinned version) are in the [runbook](WORKER-OPERATIONS.md#runbook-revoked-permissions-and-api-version-sunsets). A revoked token does not delete local data or remote posts; if you will not reconnect, follow the disconnect step below and then export or purge.
 - **Disconnect an account:** `reachweaver pause`, revoke the app password or token at the provider, unset the env vars, remove the account from `config/accounts.json`, then export or purge as policy requires.
+
+## Incident response (operator procedure)
+
+This is the order to work in when a token, the database or an approval key may have leaked, an unexpected post went out, or the account was used by someone else. It complements the short list in [SECURITY-CHECKLIST.md](SECURITY-CHECKLIST.md#c-when-something-goes-wrong). The timings are working targets for an operator, not legal deadlines.
+
+**Roles.** ReachWeaver has one operator: the account owner, who approves every send. On a team, name an **incident owner** and a **deputy** before anything goes wrong; only they run `pause`, `resume` and `reconcile`, and the credential holder revokes at the provider.
+
+| When | Step | Command or action |
+|---|---|---|
+| Immediately | Stop every new send. | `reachweaver pause` (blocks every new claim). Stop any worker or timer. |
+| Within the hour | Cut off the credential or key. | Revoke the token or app password at the provider ([per provider](ACCOUNT-ONBOARDING.md#revoking-tokens-at-each-provider)); for a leaked approval key, replace `REACHWEAVER_APPROVAL_SECRET` everywhere and re-approve every queued post. Then unset the variable and rotate. |
+| Within the hour | Preserve evidence before changing state. | Copy the database and `approval-ledger.jsonl` together (see Backup above); keep `reachweaver dead-letter` and `reachweaver queue-health` output. Never paste a token, app password or the database into a chat, issue or screenshot. |
+| Same day | Find out what really went out. | `reachweaver queue-health` and `reachweaver dead-letter` list `needs_review` and stale `sending` posts; `reachweaver report` lists what is recorded as published. Open the account in the native app and compare, one post at a time. |
+| Same day | Make the record match reality. | Delete an unexpected post in the native app if needed, then `reachweaver reconcile POST_ID --published` or `--not-published`. Never re-send blindly. |
+| Same day | Assess exposure. | Run `reachweaver privacy-status`. If personal data of other people (for example the opt-out list or drafts quoting someone) may have been exposed, assess your notification duties with qualified advice; the GDPR notes above give the 72-hour supervisory-authority rule where it applies. |
+| After the cause is known | Recover and resume. | Re-authorize with a fresh credential, run `reachweaver doctor` and `reachweaver health`, re-approve what you still want to send, then `reachweaver resume`. |
+| Afterwards | Write it down privately. | What happened, when it was noticed, what was exposed, what was revoked, what changed. A vulnerability in ReachWeaver itself is reported privately ([SECURITY.md](SECURITY.md#reporting-a-vulnerability-private)), never in a public issue. |
 
 ## What remains open in issue #26
 
