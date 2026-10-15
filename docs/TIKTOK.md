@@ -13,6 +13,24 @@ Inbox upload comes first because it creates nothing public. The creator keeps th
 
 **Reconciling an inbox upload.** After the creator posts the draft in the app, open the video and run `reconcile POST_ID --published --remote-id VIDEO_ID --remote-url URL`. If the draft was discarded, run `reconcile POST_ID --not-published`. `dead-letter` lists these posts with that guidance. Reports and metrics never count a post that has not been reconciled.
 
+## Setup, review and audit (owner steps; ReachWeaver offers no bypass)
+
+Official page read 2026-10-15: [Content Posting API: get started](https://developers.tiktok.com/doc/content-posting-api-get-started), which shows "Last updated August 4, 2026". Everything below is the owner's to do in TikTok's own portal and app. ReachWeaver never creates an app, requests a scope, logs in for you or handles a login challenge.
+
+| Step | Who | What the official page says |
+|---|---|---|
+| 1. Register an app and add the product | Owner | Register an app, then "Add the Content Posting API product to your app". |
+| 2. Pick the mode | Owner | **Direct Post:** enable the Direct Post configuration and get `video.publish` approved: "Your app must be approved for the video.publish scope." **Creator inbox:** uses `video.upload`, which is documented in the upload guide listed under Sources, not on the page above. |
+| 3. Authorize the app | The TikTok user (the external user) | "The target TikTok user must have authorized your app for the video.publish scope." The user does this in their own TikTok session, including any login or verification TikTok asks for. (Not from this page: token lifetimes are in the token-management guide under Sources, and ReachWeaver's error hints assume a 24-hour access token. The owner supplies a fresh token through an environment variable.) |
+| 4. Audit before public posts | Owner | "All content posted by unaudited clients will be restricted to private viewing mode." To lift that, "your API client must undergo an audit to verify compliance with our Terms of Service." |
+| 5. Creator options before each post | ReachWeaver, read-only | The app must query the creator's current options before a Direct Post. ReachWeaver does this in the preflight and refuses a privacy level the creator is not offered. |
+
+Until the audit passes, a Direct Post can only be private (`SELF_ONLY`), and ReachWeaver records it as `needs_review`, never as published, unless TikTok returns a public post id. The creator-inbox mode creates nothing public at all.
+
+**No bypass.** ReachWeaver will not work around the audit, the private-viewing restriction, a missing scope or a TikTok challenge: no scraping, no unofficial endpoints, no browser or UI automation and no shared logins. TikTok's Terms of Service (last updated 1 December 2025, section 5) bar users from "use automated scripts to collect information from or otherwise interact with the Services". If the app is not approved or audited, the supported path is the creator-inbox mode or the manual package from `manual-export`, and the creator finishes the post in the TikTok app.
+
+**Not verified:** how long an audit takes, what it requires beyond Terms-of-Service compliance, whether there is a cap on the number of users or posts for an unaudited client, and how the `video.upload` scope is approved. The page above does not say. Do not assume them.
+
 ## Commands (offline)
 
 ```bash
