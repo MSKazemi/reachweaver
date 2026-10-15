@@ -254,6 +254,7 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--timing-source", help="Annotate empty slots with timing-evaluate evidence from this exact imported source")
     p.add_argument("--timing-metric", choices=METRIC_FIELDS, help="With --timing-source: goal numerator, e.g. clicks")
     p.add_argument("--timing-denominator", choices=("views", "impressions"), help="With --timing-source")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
     p = sub.add_parser("link-health", help="Read-only: broken, redirected or preview-less links in stored posts; "
                        "offline unless --online (robots.txt first, one GET per page, never posts)")
     p.add_argument("--status", action="append", metavar="STATUS",
