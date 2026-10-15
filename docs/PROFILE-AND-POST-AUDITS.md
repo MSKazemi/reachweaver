@@ -68,6 +68,19 @@ reachweaver post-audit --file state/my-social-snapshot.json --age-hours 168 --to
 
 The snapshot uses `schema_version: "reachweaver.profile-post-audit.v1"`, a list of `profiles`, optional `brand_name`/`preferred_handle`, and optional `posts`. Each profile has `platform`, `account_id`, `handle`, optional `profile_kind`, `fields` (platform rules), and optional `keywords`. All field values may be **null**, meaning not observed; explicit `false` means the owner actually checked and found the feature missing. Profile completion is **not** calculated from missing fields. For organizations, handle/name deviations from the declared brand are **advisory**, not score penalties.
 
+### Profile snapshot as CSV
+
+`profile-audit --file` also reads a **profile CSV** (a `.csv` file name), for owners who keep their profile facts in a spreadsheet: [`examples/profile-snapshot.example.csv`](../examples/profile-snapshot.example.csv). It is long format, one row per field: columns `platform,account_id,handle,profile_kind,keywords,field,value`, plus optional `brand_name` and `preferred_handle` (the same on every row where filled in).
+
+- Rows with the same `platform` and `account_id` build one profile. `handle`, `profile_kind` and `keywords` (separated by `;`) may be repeated or left blank on later rows, but a later row can never contradict an earlier one.
+- `field` must be one of the profile fields in the registry. A **blank `value` is unknown**, never false and never an empty string; boolean fields accept only `true`, `false` or blank. A blank `field` declares a profile with no fields yet.
+- Posts are not read from CSV: keep them in the JSON snapshot, and use `--metrics-csv` ([PROFILE-METRICS-CSV.md](PROFILE-METRICS-CSV.md)) for native metrics.
+- The file goes through the same validation as the JSON snapshot (size limit, credential-like names and values refused, unknown fields refused). Errors name a row number and never print the row. No network is used.
+
+### Cross-platform consistency
+
+`profile-audit` also compares the profiles of one `profile_kind` across platforms and reports an **advisory** `cross_platform_consistency` block (and a short summary in the text output): whether display names, handle stems and website hosts agree, and whether any two bios, headlines or about texts share at least one significant word. Handles and bios legitimately differ by platform, so every finding is a prompt to confirm intent. It never changes a score. Fields left unknown are skipped and listed under `not_compared`; nothing is guessed. The comparison uses every profile in the snapshot even when `--platform` limits the per-platform reports.
+
 An optional post observation has `platform`, `account_id`, `post_id`, `format`, `source` (the exact owner's native export label), `published_at`, `observed_at` (offset-aware ISO 8601), `metrics` and `review_flags` (explicit booleans for hook, proof, originality, CTA, captions, alt text and policy review). The CLI never guesses these qualitative flags from a model. It never contacts an account to verify the fields.
 
 The post report returns a per-post fix list and a **descriptive action/exposure rate**, when that particular platform/source exports both comparable native metrics. Rates are grouped only for the same **platform + account + format + source**, at matching ages. The command does **not** predict expected views and does not rank accounts using synthetic weights. Some platforms do not export both metrics, resulting in `insufficient_data` rather than a fake zero.

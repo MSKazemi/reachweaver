@@ -430,7 +430,7 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--include-db", action="store_true", help="Also read an EXISTING local SQLite DB in query-only mode (queue health and report)")
     p.add_argument("--limit", type=int, default=10, help="Show 1..50 ranked review tasks (default 10)")
     p = sub.add_parser("profile-audit", help="Offline owner-snapshot, per-platform profile readiness and fix list; no network")
-    p.add_argument("--file", type=Path, required=True, help="Local JSON snapshot; no account login or network")
+    p.add_argument("--file", type=Path, required=True, help="Local JSON snapshot, or a profile .csv (platform,account_id,handle,profile_kind,keywords,field,value); no account login or network")
     p.add_argument("--platform", help="Only this platform from the profile-audit registry")
     p.add_argument("--json", action="store_true", help="Detailed machine-readable checklist with evidence and coverage")
     p = sub.add_parser("post-audit", help="Offline platform-specific creative checks and comparable-age outcome summaries")

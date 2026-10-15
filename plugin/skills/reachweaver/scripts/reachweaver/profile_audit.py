@@ -5,6 +5,8 @@ Scores describe *observed completeness*, not reach, ranking or causal effects.
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 import math
 import re
@@ -98,13 +100,95 @@ def load_registry() -> dict:
     return registry
 
 
+CSV_COLUMNS = ("platform", "account_id", "handle", "profile_kind", "keywords", "field", "value")
+CSV_OPTIONAL = frozenset({"brand_name", "preferred_handle"})
+MAX_CSV_ROWS = 2000
+
+
+def _csv_value(field: str, raw: str, row: int):
+    """One CSV cell as a snapshot value: blank is unknown (None), never false or an empty string."""
+    text = raw.strip()
+    if not text:
+        return None
+    if field in BOOL_FIELDS:
+        if text.casefold() not in ("true", "false"):
+            raise ValidationError(f"Profile CSV row {row}: {field} must be true, false or blank")
+        return text.casefold() == "true"
+    return text
+
+
+def snapshot_from_csv(text: str) -> dict:
+    """A long-format profile CSV (one row per field) as the JSON snapshot ``load_snapshot`` validates.
+
+    Columns ``platform,account_id,handle,profile_kind,keywords,field,value`` plus optional constant
+    ``brand_name`` and ``preferred_handle``. Rows of one ``platform``+``account_id`` build one profile;
+    ``handle``, ``profile_kind`` and ``keywords`` (``;`` separated) may be repeated or left blank on later
+    rows but never contradict the first. A blank ``field`` declares a profile with no fields. A blank
+    ``value`` is unknown. Posts are not read from CSV (use JSON, and ``--metrics-csv`` for metrics).
+    Errors name a row number, never the row's content.
+    """
+    if "\x00" in text:
+        raise ValidationError("Profile CSV must be plain UTF-8 text")
+    reader = csv.DictReader(io.StringIO(text, newline=""))
+    names = reader.fieldnames or []
+    if (len(set(names)) != len(names) or any(c not in names for c in CSV_COLUMNS)
+            or set(names) - set(CSV_COLUMNS) - CSV_OPTIONAL):
+        raise ValidationError("Profile CSV header must be platform,account_id,handle,profile_kind,keywords,field,value "
+                              "(optional brand_name, preferred_handle)")
+    profiles: dict[tuple[str, str], dict] = {}
+    constants: dict[str, str] = {}
+    seen_fields: set[tuple[str, str, str]] = set()
+    for number, row in enumerate(reader, start=2):
+        if number - 1 > MAX_CSV_ROWS:
+            raise ValidationError(f"Profile CSV has more than {MAX_CSV_ROWS} rows")
+        if None in row or any(v is None for v in row.values()):
+            raise ValidationError(f"Profile CSV row {number} has the wrong number of columns")
+        platform, account = row["platform"].strip(), row["account_id"].strip()
+        if not platform or not account:
+            raise ValidationError(f"Profile CSV row {number} needs platform and account_id")
+        for name in CSV_OPTIONAL & set(names):
+            value = row[name].strip()
+            if value and constants.setdefault(name, value) != value:
+                raise ValidationError(f"Profile CSV row {number}: {name} must be the same on every row")
+        entry = profiles.setdefault((platform, account), {
+            "platform": platform, "account_id": account, "fields": {}})
+        for column in ("handle", "profile_kind", "keywords"):
+            value = row[column].strip()
+            if not value:
+                continue
+            parsed = [k.strip() for k in value.split(";") if k.strip()] if column == "keywords" else value
+            key = column
+            if key in entry and entry[key] != parsed:
+                raise ValidationError(f"Profile CSV row {number}: {column} contradicts an earlier row of the same profile")
+            entry[key] = parsed
+        field = row["field"].strip()
+        if field:
+            if (platform, account, field) in seen_fields:
+                raise ValidationError(f"Profile CSV row {number}: duplicate field for the same profile")
+            seen_fields.add((platform, account, field))
+            if field not in KNOWN_FIELDS:
+                raise ValidationError(f"Profile CSV row {number}: unknown profile field")
+            entry["fields"][field] = _csv_value(field, row["value"], number)
+        elif row["value"].strip():
+            raise ValidationError(f"Profile CSV row {number}: a value needs a field name")
+    if not profiles:
+        raise ValidationError("Profile CSV has no rows")
+    for entry in profiles.values():
+        entry.setdefault("handle", "")  # load_snapshot then refuses a profile that never declared one
+    snapshot: dict = {"schema_version": SCHEMA, "profiles": list(profiles.values())}
+    snapshot.update(constants)
+    return snapshot
+
+
 def load_snapshot(path: Path) -> dict:
+    """The owner's snapshot from a ``.json`` file, or a profile ``.csv`` (see ``snapshot_from_csv``)."""
     try:
         if path.stat().st_size > 2_000_000:
             raise ValidationError("Audit input must be <=2 MB; keep sensitive exports local")
-        data = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_text(encoding="utf-8")
+        data = snapshot_from_csv(raw) if path.suffix.casefold() == ".csv" else json.loads(raw)
     except (OSError, json.JSONDecodeError, UnicodeError) as exc:
-        raise ValidationError("Could not read JSON audit snapshot (no network requests were made)") from exc
+        raise ValidationError("Could not read the audit snapshot as JSON or profile CSV (no network requests were made)") from exc
     _reject_sensitive(data)
     _keys(data, frozenset({"schema_version", "profiles"}), ROOT_ALLOWED)
     if data["schema_version"] != SCHEMA:
@@ -185,6 +269,82 @@ def _url_state(value: str) -> tuple[bool, str]:
     if any(key.lower().startswith("utm_") or key.lower() in ("gclid", "fbclid") for key, _ in params):
         return False, "Profile website link should be a clean, canonical destination, not a campaign tracking link"
     return True, "Canonical profile URL provided (HTTP reachability NOT verified)"
+
+
+STOPWORDS = frozenset({
+    "about", "after", "also", "and", "are", "for", "from", "have", "into", "more", "that", "the", "their", "them",
+    "then", "this", "with", "your", "you", "our", "its", "who", "how", "what", "when", "where", "which", "will"})
+WORD = re.compile(r"[^\W\d_]{4,}", re.UNICODE)
+
+
+def _terms(fields: dict) -> set[str]:
+    text = " ".join(str(fields.get(k) or "") for k in ("bio", "headline", "about"))
+    return {w for w in (m.casefold() for m in WORD.findall(text)) if w not in STOPWORDS}
+
+
+def _host(value) -> str | None:
+    if not isinstance(value, str):
+        return None
+    parts = urlsplit(value.strip())
+    host = (parts.hostname or "").casefold()
+    return host.removeprefix("www.") if parts.scheme == "https" and host else None
+
+
+def cross_platform_consistency(profiles: list[dict]) -> dict:
+    """Advisory name, handle, link and bio-wording comparison across the snapshot's profiles of one kind.
+
+    Heuristic, never scored: handles and bios legitimately differ by platform, so a finding asks the owner
+    to confirm intent. Fields the owner left unknown are skipped and reported, never guessed.
+    """
+    findings: list[dict] = []
+    not_compared: list[dict] = []
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for profile in profiles:
+        groups[profile.get("profile_kind", "personal")].append(profile)
+    compared = 0
+    for kind, members in sorted(groups.items()):
+        if len(members) < 2:
+            continue
+        compared += len(members)
+        label = lambda m: f"{m['platform']}:{m['account_id']}"  # noqa: E731
+        names: dict[str, list[str]] = defaultdict(list)
+        stems: dict[str, list[str]] = defaultdict(list)
+        hosts: dict[str, list[str]] = defaultdict(list)
+        for m in members:
+            name = m["fields"].get("display_name")
+            if isinstance(name, str) and name.strip():
+                names[" ".join(name.casefold().split())].append(label(m))
+            else:
+                not_compared.append({"profile_kind": kind, "profile": label(m), "field": "display_name"})
+            stems[m["handle"].casefold().lstrip("@").split("@")[0]].append(label(m))
+            host = _host(m["fields"].get("website"))
+            if host:
+                hosts[host].append(label(m))
+            else:
+                not_compared.append({"profile_kind": kind, "profile": label(m), "field": "website"})
+        for field, buckets, message in (
+                ("display_name", names, "Display names differ across platforms; confirm one public identity is intended."),
+                ("handle", stems, "Handles differ across platforms; this is often unavoidable, so confirm it is intentional."),
+                ("website_host", hosts, "Profile links point at different sites; confirm each is the right destination.")):
+            if len(buckets) > 1:
+                findings.append({"kind": f"{field}_differs", "profile_kind": kind, "message": message,
+                                 "groups": [{"value": value, "profiles": ids} for value, ids in sorted(buckets.items())]})
+        terms = {label(m): _terms(m["fields"]) for m in members}
+        measured = {k: v for k, v in terms.items() if v}
+        for m in members:
+            if label(m) not in measured:
+                not_compared.append({"profile_kind": kind, "profile": label(m), "field": "bio"})
+        ids = sorted(measured)
+        pairs = [[a, b] for i, a in enumerate(ids) for b in ids[i + 1:] if not measured[a] & measured[b]]
+        if pairs:
+            findings.append({"kind": "bio_wording_unshared", "profile_kind": kind,
+                             "message": "These bios, headlines or about texts share no significant word; confirm they describe the same work.",
+                             "profile_pairs": pairs})
+    return {"basis": "owner-supplied snapshot text; heuristic and advisory, never part of a score",
+            "profiles_compared": compared, "findings": findings,
+            "not_compared": not_compared,
+            "scope": "all profiles in the snapshot, grouped by profile_kind, regardless of --platform"}
+
 
 
 def audit_profiles(snapshot: dict, *, platform: str | None = None) -> dict:
@@ -271,6 +431,7 @@ def audit_profiles(snapshot: dict, *, platform: str | None = None) -> dict:
         })
     return {"schema_version":SCHEMA,"kind":"profile_audit","status":"offline_descriptive_not_a_platform_rank",
             "platforms_covered":len(reports),"reports":reports,
+            "cross_platform_consistency": cross_platform_consistency(snapshot["profiles"]),
             "note":"No profile was fetched and no edits or publishing occurred. Fields are owner assertions, NOT independent verification."}
 
 
@@ -371,6 +532,11 @@ def render_summary(result: dict) -> str:
             for fix in item["fixes"][:6]:
                 lines.append(f"  {fix['priority']}: {fix['field']} — {fix['action']}")
             lines.append(f"  Next hypothesis: {item['post_hypothesis']}")
+        cross = result.get("cross_platform_consistency")
+        if cross and cross["findings"]:
+            lines.append(f"Cross-platform consistency (advisory, {cross['profiles_compared']} profiles compared):")
+            for finding in cross["findings"]:
+                lines.append(f"  {finding['kind']} [{finding['profile_kind']}]: {finding['message']}")
     else:
         lines = [f"OFFLINE post audit — {result['post_count']} supplied posts, matched age {result['age_hours']}h"]
         for item in result["format_cohorts"]:

@@ -1,0 +1,12 @@
+platform,account_id,handle,profile_kind,keywords,field,value,brand_name,preferred_handle
+linkedin,sample-linkedin,sample-dev,personal,Kubernetes;observability,display_name,Example Developer,ExampleProject (illustrative only),sample-dev
+linkedin,sample-linkedin,,,,avatar,true,,
+linkedin,sample-linkedin,,,,banner,,,
+linkedin,sample-linkedin,,,,headline,Platform engineering and Kubernetes,,
+linkedin,sample-linkedin,,,,bio,I share practical Kubernetes deployment and observability lessons.,,
+linkedin,sample-linkedin,,,,website,https://example.org/projects,,
+linkedin,sample-linkedin,,,,featured,false,,
+devto,sample-devto,sample-dev,personal,,display_name,Example Dev,,
+devto,sample-devto,,,,avatar,true,,
+devto,sample-devto,,,,bio,Technical tutorials from reproducible experiments,,
+devto,sample-devto,,,,website,https://tutorials.example.net/,,
