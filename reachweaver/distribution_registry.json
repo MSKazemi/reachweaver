@@ -990,6 +990,256 @@
       "human_only": false,
       "checked_on": "2026-10-15",
       "research_source": "https://pages.rooter.gg/"
+    },
+    {
+      "id": "lobsters",
+      "label": "Lobsters",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Invite-only computing link aggregator. The about page keeps self-promotion to under a quarter of a member's activity and flags commercial promotion as spam; no posting API or scheduling is documented. Submitting is a human act by an established member.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://lobste.rs/about"
+    },
+    {
+      "id": "lemmy",
+      "label": "Lemmy",
+      "category": "community",
+      "scheduling": {
+        "mode": "native_conditional",
+        "scope": "Federated link aggregator run as separate instances. Post scheduling is a Lemmy 1.0 feature in open beta since 2026-05-19, so it depends on the instance version. Promotion rules are per instance and per community; lemmy.world's terms bar advertising bots.",
+        "official_source": "https://join-lemmy.org/news/2026-05-19_-_Open_beta_testing_for_Lemmy_1.0.0"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://join-lemmy.org/docs/users/01-getting-started.html"
+    },
+    {
+      "id": "stackexchange",
+      "label": "Stack Overflow / Stack Exchange",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Q&A network, not a place to announce projects. Every official rule and API page could not be read by the research tools on 2026-10-15, so no rule is claimed here. Treated as human-only until the rules are read.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15"
+    },
+    {
+      "id": "github_discussions",
+      "label": "GitHub Discussions",
+      "category": "code",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Per-repository forum: any authenticated user who can view a repository can post, and a GraphQL createDiscussion mutation exists. A maintainer announcement in your own repository's Discussions fits. The Acceptable Use Policies bar bulk promotion and inauthentic automated activity, so promotion in repositories you do not maintain is human-written only. No native scheduling is documented.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://docs.github.com/en/discussions/quickstart"
+    },
+    {
+      "id": "huggingface",
+      "label": "Hugging Face community posts",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Hub Discussions on a repository, Posts (PRO accounts, one per day per the org page) and community articles (the Blog Explorers page says LLM-generated or low-quality articles are hidden from the blog). The Content Policy lists advertising and excessive bulk activity as spam. No scheduling is documented.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://huggingface.co/content-policy"
+    },
+    {
+      "id": "slack_communities",
+      "label": "Slack communities",
+      "category": "community",
+      "scheduling": {
+        "mode": "native_conditional",
+        "scope": "Public community workspaces. Users can schedule messages in the Slack apps and the API has chat.scheduleMessage, but whether a community lets an app or a promotion in is that community's admins' rule, and Slack's help centre says unsolicited promotions are against its Acceptable Use Policy.",
+        "official_source": "https://slack.com/help/articles/201457107-Send-and-read-messages"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://docs.slack.dev/reference/methods/chat.postMessage"
+    },
+    {
+      "id": "quora",
+      "label": "Quora",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Public Q&A and Spaces. Self-promotion is allowed only inside a sincere, direct answer, and repeated identical answers may be treated as spam. No official posting API or scheduling was found, and help.quora.com refused the research tools.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://business.quora.com/resources/writing-on-quora-as-a-business"
+    },
+    {
+      "id": "tumblr",
+      "label": "Tumblr",
+      "category": "writing",
+      "scheduling": {
+        "mode": "native",
+        "scope": "Blogging and reblogging network. Scheduling exists in the web editor and apps, and the v2 API can queue posts with publish_on. The User Guidelines, read through a search excerpt because the page needs JavaScript, forbid posting content automatically, systematically or programmatically.",
+        "official_source": "https://help.tumblr.com/knowledge-base/scheduled-posts/"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://raw.githubusercontent.com/tumblr/docs/master/api.md"
+    },
+    {
+      "id": "xing",
+      "label": "Xing",
+      "category": "professional",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "German-speaking professional network. Every official xing.com and dev.xing.com page was unreachable to the research tools on 2026-10-15, so nothing is claimed here. Treated as human-only until the rules are read.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15"
+    },
+    {
+      "id": "beehiiv",
+      "label": "Beehiiv",
+      "category": "writing",
+      "scheduling": {
+        "mode": "native_conditional",
+        "scope": "Newsletter platform: posts can be scheduled from the Review step of the post flow. The Create post API is available to publications on the Pro and Enterprise plans per the developer docs. The Acceptable Use Policy bars publications that rely entirely on AI-generated material and bots that simulate engagement.",
+        "official_source": "https://www.beehiiv.com/support/article/26311866535575-how-to-create-and-publish-a-post"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://www.beehiiv.com/aup"
+    },
+    {
+      "id": "ghost",
+      "label": "Ghost",
+      "category": "writing",
+      "scheduling": {
+        "mode": "native",
+        "scope": "Publishing and newsletter platform, self-hosted or Ghost(Pro). Posts can be scheduled in the editor and through the Admin API (status scheduled with a future published_at). The terms bar unsolicited promotion and accounts registered by bots; posting to your own site is not addressed.",
+        "official_source": "https://docs.ghost.org/admin-api/posts/scheduling-a-post"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://ghost.org/terms/"
+    },
+    {
+      "id": "flipboard",
+      "label": "Flipboard",
+      "category": "writing",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Curation app. Content is added by hand or by an RSS feed submitted at flipboard.com/publishers and reviewed by staff; no posting API or scheduling was found. The Community Guidelines list high-volume automated posting and unapproved advertising as spam.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://flipboard.helpshift.com/hc/en/1-flipboard/faq/751-community-guidelines-1614302844/"
+    },
+    {
+      "id": "vimeo",
+      "label": "Vimeo",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Video hosting. API upload needs approved upload access (reviewed by hand for developers without a paid plan, automatic on paid plans, per the help centre); no scheduled release for standard videos was found, and live-event scheduling is plan-limited. The Terms bar unauthorized automated access and ask for synthetic content to be labelled.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://help.vimeo.com/hc/en-us/articles/12427803706001-How-to-request-API-upload-access"
+    },
+    {
+      "id": "twitch",
+      "label": "Twitch",
+      "category": "video",
+      "scheduling": {
+        "mode": "native_conditional",
+        "scope": "Live streaming. Streams can be scheduled in the Creator Dashboard or through the Helix Schedule API with the channel:manage:schedule scope; one-off segments are for partners and affiliates only. The Community Guidelines bar spam, botting and driving users to a livestream on another platform.",
+        "official_source": "https://dev.twitch.tv/docs/api/schedule/"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://safety.twitch.tv/articles/en_US/Knowledge/Community-Guidelines"
+    },
+    {
+      "id": "behance",
+      "label": "Behance",
+      "category": "visual",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Creative portfolio community. The Community Guidelines list scripted or bulk automated uploading as a violation and expect authentic own work. The only API statement found is a 2021 Adobe reply that the API is unavailable, and Pro-plan scheduling is unverified because the help pages returned 403.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://www.behance.net/misc/community"
+    },
+    {
+      "id": "dribbble",
+      "label": "Dribbble",
+      "category": "visual",
+      "scheduling": {
+        "mode": "api_or_client",
+        "scope": "Design showcase and hiring community. Scheduling is documented only in the API (scheduled_for on shot creation, pro or team accounts, OAuth upload scope), and that documentation looks dated; Dribbble may refuse API access. The guidelines bar bots, advertising a product or service in shots and wholly AI-generated content.",
+        "official_source": "https://developer.dribbble.com/v2/shots/"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://dribbble.com/guidelines"
+    },
+    {
+      "id": "researchgate",
+      "label": "ResearchGate",
+      "category": "professional",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Researcher network for publications, data and Q&A. No posting API or native scheduling is documented. The Terms and Community Guidelines returned 403 to the research tools, so the bot and self-promotion rules are unverified.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://help.researchgate.net/research-and-publications/how-to-add-research"
+    },
+    {
+      "id": "viber",
+      "label": "Viber",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Messaging app. Channel superadmins can post through the Channels Post API to their own channel; the help centre's channel scheduling page returned 403, so scheduling is unverified. The Acceptable Use Policy bars spam, bulk and auto-messaging, and bots may message subscribers only.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://developers.viber.com/docs/tools/channels-post-api/"
     }
   ],
   "markets": [
