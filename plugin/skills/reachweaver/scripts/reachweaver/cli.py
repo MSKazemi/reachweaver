@@ -15,7 +15,7 @@ from pathlib import Path
 from .accounts import bluesky_service, credential_source, load_accounts, missing_credentials
 from .attribution import (
     CAMPAIGN_TYPES, attribution_report, build_utm_link, campaign_destinations,
-    load_analytics_csv, load_github_traffic, load_seo_briefs,
+    load_analytics_csv, load_attribution_outcomes, load_github_traffic, load_seo_briefs,
 )
 from .connections import check_connection, mastodon_instance_limits
 from .identity import IDENTITY_REQUIRED, current_fingerprint, refusal_text, verify_identity_online
@@ -479,9 +479,14 @@ def make_parser() -> argparse.ArgumentParser:
                        "calendar-plan's generic baseline over --since/--until; bootstrap CI + Holm; non-causal")
     p.add_argument("--account", required=True, help="Configured account ID; exact cohort only")
     p.add_argument("--timezone", required=True, help="Audience IANA timezone for slots and the period")
-    p.add_argument("--source", required=True, help="Exact source of imported native snapshots")
-    p.add_argument("--metric", choices=METRIC_FIELDS, required=True, help="Goal numerator, e.g. clicks")
-    p.add_argument("--denominator", choices=("views", "impressions"), required=True)
+    p.add_argument("--source", help="Exact source of imported native snapshots (required without --attribution)")
+    p.add_argument("--metric", choices=METRIC_FIELDS, help="Goal numerator, e.g. clicks (required without --attribution)")
+    p.add_argument("--denominator", choices=("views", "impressions"), help="Required without --attribution")
+    p.add_argument("--attribution", type=Path, metavar="ATTR.json",
+                   help="Saved 'attribution-report --json' output: use each post's attributed count (--outcome) "
+                        "instead of --source/--metric/--denominator; a post without one is excluded, never 0")
+    p.add_argument("--outcome", choices=("docs_visits", "repo_stars_utm"),
+                   help="With --attribution: docs_visits = attributed sessions, repo_stars_utm = attributed conversions")
     p.add_argument("--since", required=True, help="First audience-local send date YYYY-MM-DD (inclusive)")
     p.add_argument("--until", required=True, help="Last audience-local send date YYYY-MM-DD (inclusive)")
     p.add_argument("--slot", action="append", help="Personalized arm [explore:|exploit:]Wed@16:00; repeat, one comparison each")
@@ -509,6 +514,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--prereg", type=Path, required=True, help="Record written by experiment-preregister")
     p.add_argument("--posts", type=Path, required=True, help="reachweaver.growth-post-map JSON: arm id -> post id per pair")
     p.add_argument("--hash", dest="expected_hash", help="Optional externally kept plan_hash that must also match")
+    p.add_argument("--attribution", type=Path, metavar="ATTR.json",
+                   help="Saved 'attribution-report --json' output; required for a docs_visits or repo_stars_utm "
+                        "primary metric (per-post attributed sessions/conversions; unknown stays unknown, never 0)")
     p.add_argument("--json", action="store_true")
     p = sub.add_parser("experiment-next", help="Offline: deterministic next dimension from prior classified results")
     p.add_argument("--results", type=Path, required=True, help="JSON list of {experiment_id, dimension, label, direction}")
@@ -1664,6 +1672,7 @@ def execute(args) -> int:
         if account is None:
             raise ValidationError("Unknown account. Configure your own account metadata first")
         readouts = load_readouts(args.readout or [])
+        attribution = load_attribution_outcomes(args.attribution) if args.attribution is not None else None
         with connect(args.db) as db:
             result = evaluate_against_baseline(
                 db, account_id=args.account, platform=account["platform"], audience_timezone=args.timezone,
@@ -1671,7 +1680,8 @@ def execute(args) -> int:
                 until=args.until, slots=args.slot, campaign_arms=args.campaign_arm, readouts=readouts,
                 age_hours=args.age_hours, tolerance_hours=args.tolerance_hours,
                 slot_tolerance_minutes=args.slot_tolerance_minutes, min_posts=args.min_posts,
-                resamples=args.resamples, confidence=args.confidence, seed=args.seed)
+                resamples=args.resamples, confidence=args.confidence, seed=args.seed,
+                attribution=attribution, outcome=args.outcome)
         print(json.dumps(result, indent=2) if args.json else render_baseline(result))
         return 0
     if args.command == "pilot-report":
@@ -2240,7 +2250,9 @@ def execute(args) -> int:
             result = evaluate_experiment(db,read_json(args.file))
             print(json.dumps(result,indent=2))
         elif args.command == "experiment-readout":
-            result = run_readout(db, read_json(args.prereg), read_json(args.posts), expected_hash=args.expected_hash)
+            attribution = load_attribution_outcomes(args.attribution) if args.attribution is not None else None
+            result = run_readout(db, read_json(args.prereg), read_json(args.posts), expected_hash=args.expected_hash,
+                                 attribution=attribution)
             print(json.dumps(result, indent=2) if args.json else render_readout(result))
         elif args.command == "list":
             query = "SELECT id,account_id,platform,status,scheduled_at,remote_url FROM posts"

@@ -63,6 +63,12 @@ reachweaver baseline-eval \
   --readout private/hook-test.readout.json \
   [--age-hours 168] [--tolerance-hours 24] [--slot-tolerance-minutes 60] \
   [--min-posts 5] [--resamples 2000] [--confidence 0.95] [--seed 16] [--json]
+
+# Website/repository outcome instead of a platform rate (issue #16):
+reachweaver attribution-report --analytics private/analytics.csv --json > private/attribution.json
+reachweaver baseline-eval --account my-bluesky --timezone Europe/Rome \
+  --since 2026-09-01 --until 2026-10-31 --slot exploit:Tue@09:00 \
+  --attribution private/attribution.json --outcome docs_visits|repo_stars_utm
 ```
 
 How posts are grouped:
@@ -70,6 +76,7 @@ How posts are grouped:
 - Only **published** posts of the one configured account/platform whose **audience-local send date** is in `--since..--until` (both required, inclusive, at most 367 days) are used.
 - A post within `--slot-tolerance-minutes` of a `--slot` belongs to that arm. A post whose campaign equals a `--campaign-arm` belongs to that arm. A post at the generic slot that is in no arm is **baseline**. A post that matches two arms is excluded as `ambiguous_arm`; a post that matches nothing is counted as unassigned. A `--slot` whose window overlaps the generic slot, or another `--slot`, is refused.
 - Each post gets one rate: `metric / denominator` from the single exact-`--source` snapshot nearest the target age (same rule as `timing-evaluate`). A post without one is counted in `posts.excluded` as `no_matched_snapshot:<group>`, never as zero.
+- With `--attribution FILE --outcome docs_visits|repo_stars_utm` (instead of `--source/--metric/--denominator`, which are then refused), each post's value is its attributed `sessions` or `conversions` from a saved `attribution-report --json` file, and the medians compare counts per post. A post the report does not credit, with a blank count, sent before the analytics window or with less than `--age-hours` of window after it is excluded as `<reason>:<group>`, never counted as zero. The rules are the same as for `experiment-readout --attribution` ([GROWTH-EXPERIMENTS.md](GROWTH-EXPERIMENTS.md#website-and-repository-outcomes---attribution-issue-16)).
 
 What is reported for each arm (one comparison against the baseline):
 
@@ -89,7 +96,7 @@ Limits: small-sample percentile bootstrap intervals tend to be too narrow, and m
 - The database currently records `send_started_at` (start of request), not independently verified remote publication time; small timestamp error can change bins near boundaries.
 - Format is only the attachment type stored on the post row (text, image or video), not a richer format such as a carousel, thread or Short. `--stratify format`/`--stratify campaign` and a `--campaign` filter reduce, but do not eliminate, topic/format confounding, and each stratum needs its own minimum sample.
 - Cross-platform metric definitions are incompatible; per-account/source segmentation is mandatory.
-- No qualified session/GitHub referral integration yet (#15/#25); use `clicks` only when its platform definition and denominator are verified.
+- Website sessions and conversions come only from the owner's own analytics export joined by `attribution-report` (`baseline-eval --attribution`); `timing-evaluate` still reads platform snapshots only. Use `clicks` only when its platform definition and denominator are verified. Repository-level collaboration outcomes (issues, pull requests, contributors) cannot be credited to a post or slot.
 - `timing-evaluate` itself reports medians and IQRs only. Bootstrap intervals, Holm–Bonferroni correction and the comparison against the non-personalized baseline live in `baseline-eval` (above). There is no hierarchical recommender or calendar auto-optimization. Both readouts intentionally stay observational.
 - Next work in #16: consented native audience activity import, more exact format/goal cohorts, preregistered out-of-sample time trials, and running `baseline-eval` over a real multi-week pilot (#27). No real account has been evaluated yet.
 

@@ -669,6 +669,105 @@ def attribution_report(con, analytics_rows: list[dict], github: list[dict] | Non
 
 
 # ---------------------------------------------------------------------------
+# 3b. Per-post outcomes for growth readouts (issue #16 R4)
+# ---------------------------------------------------------------------------
+
+# Qualified growth signals read from a saved ``attribution-report --json`` file instead of a
+# native snapshot: the per-post field each one takes.
+ATTRIBUTION_OUTCOMES = {"docs_visits": "sessions", "repo_stars_utm": "conversions"}
+ATTRIBUTION_MAX_BYTES = 8 * 1024 * 1024
+
+
+def _optional_count(value, where: str) -> int | None:
+    if value is None:
+        return None
+    if type(value) is not int or value < 0:
+        raise ValidationError(f"{where} must be a nonnegative integer or null")
+    return value
+
+
+def load_attribution_outcomes(path) -> dict:
+    """Per-post attributed sessions/conversions from a saved ``attribution-report --json`` file.
+
+    Only ``attributed.posts`` (exact UTM matches with a post id) and
+    ``inputs.analytics_date_range`` are read. Campaign-level and referrer-only rows cannot be
+    credited to a post and are ignored. A null count stays None (unknown), never 0. Parsing
+    only: no database, no network. Errors never echo the file's content.
+    """
+    file = Path(path)
+    try:
+        if file.stat().st_size > ATTRIBUTION_MAX_BYTES:
+            raise ValidationError("--attribution file is larger than 8 MiB")
+        data = json.loads(file.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ValidationError("--attribution file cannot be read") from exc
+    except json.JSONDecodeError as exc:
+        raise ValidationError(f"--attribution is not valid JSON: {exc.msg}") from None
+    attributed = data.get("attributed") if isinstance(data, dict) else None
+    posts_in = attributed.get("posts") if isinstance(attributed, dict) else None
+    if not isinstance(posts_in, list):
+        raise ValidationError("--attribution must be saved 'attribution-report --json' output (attributed.posts)")
+    posts: dict[str, dict] = {}
+    for index, item in enumerate(posts_in):
+        where = f"attributed.posts[{index}]"
+        if not isinstance(item, dict) or not isinstance(item.get("post_id"), str) or not item["post_id"].strip():
+            raise ValidationError(f"{where} needs a post_id")
+        if item["post_id"] in posts:
+            raise ValidationError(f"{where}: post {item['post_id']} is listed twice")
+        if not isinstance(item.get("platform"), str) or not isinstance(item.get("account_id"), str):
+            raise ValidationError(f"{where} needs platform and account_id")
+        posts[item["post_id"]] = {"platform": item["platform"], "account_id": item["account_id"],
+                                  "sessions": _optional_count(item.get("sessions"), f"{where}.sessions"),
+                                  "conversions": _optional_count(item.get("conversions"), f"{where}.conversions")}
+    inputs = data.get("inputs")
+    window = inputs.get("analytics_date_range") if isinstance(inputs, dict) else None
+    date_range = None
+    if window is not None:
+        if not isinstance(window, list) or len(window) != 2:
+            raise ValidationError("inputs.analytics_date_range must be [first, last] dates or null")
+        first, last = (_day(value, "inputs.analytics_date_range") for value in window)
+        if last < first:
+            raise ValidationError("inputs.analytics_date_range ends before it starts")
+        date_range = (first, last)
+    return {"posts": posts, "analytics_date_range": date_range}
+
+
+def attributed_outcome(outcomes: dict, post, signal: str, *, age_hours: int) -> tuple[int | None, str | None]:
+    """``(count, None)`` for one published post, or ``(None, reason)`` when it is unknown.
+
+    The count is the post's attributed ``sessions`` (``docs_visits``) or ``conversions``
+    (``repo_stars_utm``) over the analytics export window. The post must have been sent on
+    or after the window's first date, and the window must run at least ``age_hours`` (rounded
+    up to whole days) past the send date, so every counted post had at least that long to
+    collect visits. A post with no exact UTM row is unknown, not 0: no tagged row can also
+    mean an untagged link or a gap in the export.
+    """
+    field = ATTRIBUTION_OUTCOMES.get(signal)
+    if field is None:
+        raise ValidationError(f"{signal} is not read from attribution-report; use one of "
+                              f"{', '.join(ATTRIBUTION_OUTCOMES)}")
+    window = outcomes["analytics_date_range"]
+    if window is None:
+        return None, "no_analytics_window"
+    try:
+        sent = date.fromisoformat(str(post["send_started_at"])[:10])
+    except ValueError:
+        return None, "invalid_send_timestamp"
+    if sent < window[0]:
+        return None, "sent_before_analytics_window"
+    if (window[1] - sent).days < -(-age_hours // 24):
+        return None, "analytics_window_shorter_than_post_age"
+    entry = outcomes["posts"].get(post["id"])
+    if entry is None:
+        return None, "no_attributed_rows"
+    if entry["platform"] != post["platform"] or entry["account_id"] != post["account_id"]:
+        return None, "attribution_cohort_mismatch"
+    if entry[field] is None:
+        return None, f"{field}_unknown"
+    return entry[field], None
+
+
+# ---------------------------------------------------------------------------
 # 4. SEO repository integration contract (issue #25)
 # ---------------------------------------------------------------------------
 

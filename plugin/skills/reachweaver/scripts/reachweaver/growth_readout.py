@@ -26,7 +26,8 @@ from pathlib import Path
 from statistics import median
 from typing import Any
 
-from .experiments import evaluate_experiment
+from .attribution import ATTRIBUTION_OUTCOMES, attributed_outcome  # parsing only; no network
+from .experiments import _snapshot_at_age, evaluate_experiment, pooled_readout
 from .growth import (
     ASSIGNMENTS, LABELS, QUALIFIED_SIGNALS, RECORD_KIND, check_plan, classify_result,
     verify_preregistration,
@@ -130,13 +131,15 @@ def _sent_day(post: sqlite3.Row) -> date:
 
 
 def growth_plan_to_experiment(prereg_record: object, post_map: object, con: sqlite3.Connection | None = None, *,
-                              expected_hash: str | None = None) -> dict[str, Any]:
+                              expected_hash: str | None = None, attribution: dict | None = None) -> dict[str, Any]:
     """Convert a hash-verified preregistration plus an arm -> post-id map into an evaluate plan.
 
     ``post_map`` is ``{"kind": "reachweaver.growth-post-map", "experiment_id": ...,
     "treatment_arm"?: ..., "pairs": [{"<control arm id>": "<post id>", "<treatment arm id>": ...}]}``.
     With ``con``, every post must be published with a send timestamp on the cohort's account
-    and platform; the database is only read.
+    and platform; the database is only read. ``attribution`` (``attribution.load_attribution_outcomes``,
+    issue #16 R4) is required for, and only accepted with, a ``docs_visits``/``repo_stars_utm``
+    primary metric; the plan then reads that per-post count instead of a snapshot field.
     """
     record, plan = _verified_plan(prereg_record, expected_hash)
     if not isinstance(post_map, dict) or post_map.get("kind") != POST_MAP_KIND:
@@ -195,10 +198,20 @@ def growth_plan_to_experiment(prereg_record: object, post_map: object, con: sqli
             min(order["control_first"], order["treatment_first"]) == 0:
         warnings.append("one arm was always sent first: send order is fully confounded with the arm")
     signal = plan["primary_metric"]["signal"]
-    primary = _snapshot_field(signal) if signal in QUALIFIED_SIGNALS else None
+    if attribution is not None and signal not in ATTRIBUTION_OUTCOMES:
+        raise ValidationError(f"--attribution reads only {', '.join(ATTRIBUTION_OUTCOMES)} primary metrics; "
+                              f"this plan's primary metric is {signal}")
+    primary: str | None
+    primary_source = "native_snapshot"
+    if attribution is not None:
+        primary, primary_source = ATTRIBUTION_OUTCOMES[signal], "attribution_report"
+    else:
+        primary = _snapshot_field(signal) if signal in QUALIFIED_SIGNALS else None
     if primary is None:
+        hint = (" Pass a saved 'attribution-report --json' file with --attribution."
+                if signal in ATTRIBUTION_OUTCOMES else "")
         raise ValidationError(f"{signal} is not a native snapshot field; read it with attribution-report, "
-                              "not experiment-evaluate")
+                              f"not experiment-evaluate.{hint}")
     denominator = plan["primary_metric"].get("denominator", "none")
     guardrail, skipped_guardrails = _guardrail(plan, primary, denominator)
     return {
@@ -214,16 +227,95 @@ def growth_plan_to_experiment(prereg_record: object, post_map: object, con: sqli
         "plan_hash": record["plan_hash"], "source_kind": RECORD_KIND, "dimension": plan["dimension"],
         "cohort": {"platform": cohort["platform"], "account_id": cohort["account_id"]},
         "assignment": assignment, "control_arm": control, "treatment_arm": treatment,
+        "primary_signal": signal, "primary_source": primary_source,
         "conversion": {"posts_checked": con is not None, "arm_order": order if con is not None else None,
                        "guardrails_not_evaluated": skipped_guardrails, "warnings": warnings},
     }
 
 
+def evaluate_attribution_experiment(con: sqlite3.Connection, plan: dict[str, Any],
+                                    attribution: dict[str, Any]) -> dict[str, Any]:
+    """``evaluate_experiment`` for a ``docs_visits``/``repo_stars_utm`` primary (issue #16 R4).
+
+    Each post's primary value is its attributed count from ``attribution`` (denominator
+    ``none``); the guardrail is still the native snapshot nearest the preregistered age. A
+    pair is skipped, never zero-filled, when either post's count or guardrail is unknown.
+    The pooled lift and the strict gate are ``experiments.pooled_readout``, unchanged.
+    """
+    signal = plan["primary_signal"]
+    used: list[dict[str, Any]] = []
+    skipped: list[dict[str, str]] = []
+    paired_direction: list[bool] = []
+    primary_num, exposures, guard_num = [0, 0], [0, 0], [0, 0]
+    prereg = datetime.fromisoformat(parse_utc(plan["pre_registered_at"]))
+    warnings = [
+        "Attributed visits are a UTM join over the analytics export window, not a matched post age: posts sent "
+        "earlier in the window had longer to collect visits. Only posts with at least the preregistered age "
+        "inside the window are used.",
+        "A post without an exact UTM row is unknown, never 0: an untagged link and a real absence look the same.",
+        "Sequential organic posts are observational: timing and algorithmic allocation confound comparisons.",
+    ]
+    for index, pair in enumerate(plan["pairs"]):
+        label = f"pair[{index}]"
+        rows = [get_post(con, pair[key]) for key in ("control", "treatment")]
+        if any(datetime.fromisoformat(parse_utc(row["send_started_at"])) < prereg for row in rows):
+            skipped.append({"pair": label, "reason": "first_publication_predates_declared_plan"})
+            continue
+        values: list[int] = []
+        guards: list[int] = []
+        reason: str | None = None
+        for arm, row in zip(("control", "treatment"), rows):
+            value, why = attributed_outcome(attribution, row, signal, age_hours=plan["metric_age_hours"])
+            if why or value is None:
+                reason = f"{why}:{arm}"
+                break
+            guard = _snapshot_at_age(con, row, plan["guardrail_metric"], plan["guardrail_metric"], "none",
+                                     plan["metric_age_hours"], plan["age_tolerance_hours"])
+            if guard is None:
+                reason = f"missing_comparable_guardrail_snapshot:{arm}"
+                break
+            values.append(value)
+            guards.append(guard["guardrail"])
+        if reason:
+            skipped.append({"pair": label, "reason": reason})
+            continue
+        paired_direction.append(values[1] > values[0])
+        used.append({"pair": label, "account_id": rows[0]["account_id"], "platform": rows[0]["platform"],
+                     "control": rows[0]["id"], "treatment": rows[1]["id"],
+                     "control_rate": values[0], "treatment_rate": values[1],
+                     "source_control": "attribution-report", "source_treatment": "attribution-report"})
+        for i in (0, 1):
+            primary_num[i] += values[i]
+            exposures[i] += 1
+            guard_num[i] += guards[i]
+    window = attribution["analytics_date_range"]
+    result = {"experiment_id": plan["experiment_id"], "primary_metric": plan["primary_metric"],
+              "primary_signal": signal, "primary_source": "attribution_report",
+              "analytics_date_range": [d.isoformat() for d in window] if window else None,
+              "guardrail_metric": plan["guardrail_metric"], "denominator": plan["denominator"],
+              "metric_age_hours": plan["metric_age_hours"], "pairs_planned": len(plan["pairs"]),
+              "pairs_usable": len(used), "pairs_skipped": skipped, "pair_results": used,
+              "verdict": "inconclusive", "relative_lift": None, "guardrail_relative_change": None,
+              "direction_agreement": None, "warnings": warnings, "windowed_snapshots_skipped": 0,
+              "note": "Directional association only; never causal or statistically significant by itself. "
+                      "Pair 'rates' are attributed counts per post (denominator none)."}
+    return pooled_readout(result, plan, paired_direction=paired_direction, primary_num=primary_num,
+                          exposures=exposures, guard_num=guard_num)
+
+
 def run_readout(con: sqlite3.Connection, prereg_record: object, post_map: object, *,
-                expected_hash: str | None = None) -> dict[str, Any]:
-    """Verify the hash, convert, evaluate against the local DB and classify. Read-only."""
-    plan = growth_plan_to_experiment(prereg_record, post_map, con, expected_hash=expected_hash)
-    evaluation = evaluate_experiment(con, plan)
+                expected_hash: str | None = None, attribution: dict | None = None) -> dict[str, Any]:
+    """Verify the hash, convert, evaluate against the local DB and classify. Read-only.
+
+    ``attribution`` (issue #16 R4) supplies per-post counts for a ``docs_visits`` or
+    ``repo_stars_utm`` primary metric; see ``evaluate_attribution_experiment``.
+    """
+    plan = growth_plan_to_experiment(prereg_record, post_map, con, expected_hash=expected_hash,
+                                     attribution=attribution)
+    if attribution is not None:
+        evaluation = evaluate_attribution_experiment(con, plan, attribution)
+    else:
+        evaluation = evaluate_experiment(con, plan)
     classified = classify_result(evaluation, plan)
     design = describe_design(plan["assignment"])
     explanations = list(classified["explanations"])
