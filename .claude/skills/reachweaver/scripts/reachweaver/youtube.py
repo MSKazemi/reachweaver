@@ -271,6 +271,26 @@ def decode_video(text: str) -> dict | None:
     return decode(text)
 
 
+def visibility_note(video_json: str | None) -> str | None:
+    """One plain line saying what the approved privacy means after a successful upload.
+
+    A finished upload of a ``private`` or ``unlisted`` video is not a public video, so the publish
+    output must never read as if it were (public issue #22/#52). None when there is no stored spec.
+    """
+    try:
+        record = decode_video(video_json) if video_json else None
+    except ValidationError:
+        return None  # a malformed stored record is reported elsewhere; the publish output must never fail on it
+    options = record.get("platform_options") if isinstance(record, dict) else None
+    privacy = options.get("privacy_status") if isinstance(options, dict) else None
+    if privacy == "public":
+        return "YouTube privacy_status=public, as approved"
+    if privacy in ("private", "unlisted"):
+        return (f"YouTube privacy_status={privacy}: the upload succeeded, but the video is NOT public; "
+                "change its visibility yourself in YouTube Studio when you want it public")
+    return None
+
+
 def bound_view(record: dict) -> dict:
     """What the approval hash binds (``approval/video-1``): the whole record except its path."""
     from .video import bound_view as bound

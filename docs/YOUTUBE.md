@@ -40,6 +40,15 @@
 
 **Not verified:** the channel and video id shapes, the public watch URL `https://www.youtube.com/watch?v=ID` (stored as a convenience; the video id is the receipt), and whether the session-initiation POST alone can create a video (the protocol returns `201 Created` only on the final chunk, so ReachWeaver treats initiation as creating nothing).
 
+## What the publish output says about visibility
+
+A finished upload is not a public video. After `PUBLISHED <id>: <watch url>`, `publish` prints a second line for every YouTube post, taken from the privacy you approved:
+
+- `private` or `unlisted`: `NOTE <id>: YouTube privacy_status=private: the upload succeeded, but the video is NOT public; change its visibility yourself in YouTube Studio when you want it public`.
+- `public`: `NOTE <id>: YouTube privacy_status=public, as approved`. The receipt must also say `public`; otherwise the post goes to `needs_review` and is never reported as published.
+
+The line only adds information: it changes no state and cannot fail the send (a malformed stored record prints no note). `youtube-analytics` repeats the same `privacy_status` from the receipt. Tests: `tests/test_youtube_visibility.py`, which also feeds an adapter receipt through the sampling report and checks that every metric stays `unknown`, never zero, until you import real numbers.
+
 ## Analytics sampling report
 
 `reachweaver youtube-analytics [--account ID] [--post-id ID]` is read-only and offline. It opens the database with `storage.connect_readonly` (never created, never migrated; an older schema exits 2 and names the gap), reads the metric snapshots you already imported (`metrics` or `import-metrics`, from a native Studio export) and prints JSON. It fetches nothing from YouTube and has no network path, so a missing number stays missing.
