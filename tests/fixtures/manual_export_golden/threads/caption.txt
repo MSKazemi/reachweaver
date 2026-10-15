@@ -1,0 +1,1 @@
+ReachWeaver ships offline manual export. #opensource

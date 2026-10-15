@@ -1,0 +1,159 @@
+{
+  "kind": "reachweaver.manual-export.v1",
+  "schema_version": 1,
+  "status": "manual_export_not_published",
+  "platform": "threads",
+  "platform_label": "Threads",
+  "generated_at": "2026-10-15T00:00:00Z",
+  "ready_for_human_review": true,
+  "preflight": {
+    "errors": [],
+    "warnings": []
+  },
+  "content": {
+    "text": "ReachWeaver ships offline manual export. #opensource",
+    "format": "text",
+    "measured": {
+      "threads_chars": 52
+    }
+  },
+  "hashtags": {
+    "items": [
+      "#opensource"
+    ],
+    "count": 1,
+    "limit": 1
+  },
+  "mentions": {
+    "items": [],
+    "count": 0,
+    "limit": null
+  },
+  "links": {
+    "in_text": [],
+    "link_url": null,
+    "notes": [
+      "At most 5 links per post.",
+      "Links stay as typed; ReachWeaver adds none."
+    ]
+  },
+  "media": {
+    "required_kinds": [],
+    "manifest": null,
+    "validated": false,
+    "assets": [],
+    "constraints_reference": "reachweaver/media.py CONSTRAINTS (targets: threads); run media-check MANIFEST"
+  },
+  "human_decisions": [],
+  "account": {
+    "account_id": null,
+    "handle": null,
+    "display_name": null,
+    "account_type": null
+  },
+  "account_eligibility": [
+    {
+      "item": "Signed in to the intended Threads account: (not supplied)",
+      "source": null
+    },
+    {
+      "item": "You control a Threads profile; posting happens in the Threads app or website",
+      "source": "https://developers.facebook.com/docs/threads/get-started"
+    }
+  ],
+  "api_capability": {
+    "registry_status": "requires-review",
+    "reachweaver_adapter": "none",
+    "formats": {
+      "text": "api_gated",
+      "image": "api_gated",
+      "video": "api_gated",
+      "carousel": "unknown",
+      "link": "api_gated"
+    },
+    "verified_date": "2026-10-08",
+    "api_publish_allowed": false,
+    "reason": "threads text is api_gated; publish refused (fail closed)"
+  },
+  "platform_facts": {
+    "text_max_chars": {
+      "value": 500,
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/threads/posts",
+      "verified_date": "2026-10-08",
+      "quote": "Text posts are limited to 500 characters.",
+      "note": "Emojis are counted as their UTF-8 byte length; ReachWeaver counts emoji-like code points by UTF-8 bytes (conservative)."
+    },
+    "max_links": {
+      "value": 5,
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/threads/posts",
+      "verified_date": "2026-10-08",
+      "quote": "The number of links is restricted to 5 or less.",
+      "note": ""
+    },
+    "topic_tags_per_post": {
+      "value": 1,
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/threads/posts",
+      "verified_date": "2026-10-08",
+      "quote": "Only one topic tag is allowed per post.",
+      "note": ""
+    },
+    "topic_tag_length": {
+      "value": [
+        1,
+        50
+      ],
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/threads/posts",
+      "verified_date": "2026-10-08",
+      "quote": "Topic tags must be at least 1 character and no more than 50 characters long.",
+      "note": ""
+    },
+    "api_permissions": {
+      "value": [
+        "threads_basic",
+        "threads_content_publish"
+      ],
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/threads/get-started",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "threads_basic is required for all endpoints; threads_content_publish for publishing endpoints."
+    },
+    "app_review": {
+      "value": "App Review approval of each permission, with the app released, before users without an app role can grant it; invited Threads testers can grant it earlier",
+      "status": "verified",
+      "source": "https://developers.facebook.com/docs/threads/get-started",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": ""
+    },
+    "account_eligibility": {
+      "value": null,
+      "status": "unknown",
+      "source": "https://developers.facebook.com/docs/threads/get-started",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "The fetched page does not state account-type requirements for publishing."
+    },
+    "media_constraints": {
+      "value": null,
+      "status": "unknown",
+      "source": "https://developers.facebook.com/docs/threads/posts",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "No Threads table in reachweaver/media.py yet; media-check skips Threads limits with a warning."
+    }
+  },
+  "notice": "MANUAL EXPORT ONLY. ReachWeaver has not sent, uploaded, scheduled or shared anything on Threads. This package is not evidence that a post exists. The account holder decides whether to post it, in the platform's own app.",
+  "checklist": [
+    "Verify every claim against its cited source (campaign-check / claims-check); this package does not prove anything is true.",
+    "Signed in to the intended Threads account: (not supplied)",
+    "You control a Threads profile; posting happens in the Threads app or website",
+    "Paste caption.txt into Threads exactly; do not let tools add text, links or watermarks.",
+    "Confirm rights, consent and disclosure for all text and media.",
+    "If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver records nothing from this package."
+  ]
+}

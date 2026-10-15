@@ -1,0 +1,222 @@
+{
+  "kind": "reachweaver.manual-export.v1",
+  "schema_version": 1,
+  "status": "manual_export_not_published",
+  "platform": "tiktok",
+  "platform_label": "TikTok",
+  "generated_at": "2026-10-15T00:00:00Z",
+  "ready_for_human_review": true,
+  "preflight": {
+    "errors": [],
+    "warnings": [
+      "no media manifest supplied: video not validated; attach the file yourself and run media-check before posting"
+    ]
+  },
+  "content": {
+    "text": "How ReachWeaver checks captions #devtools",
+    "format": "video",
+    "measured": {
+      "utf16_units": 41
+    }
+  },
+  "hashtags": {
+    "items": [
+      "#devtools"
+    ],
+    "count": 1,
+    "limit": null
+  },
+  "mentions": {
+    "items": [],
+    "count": 0,
+    "limit": null
+  },
+  "links": {
+    "in_text": [],
+    "link_url": null,
+    "notes": [
+      "Do not rely on caption URLs being tappable (unverified). Use your profile link."
+    ]
+  },
+  "media": {
+    "required_kinds": [
+      "video"
+    ],
+    "manifest": null,
+    "validated": false,
+    "assets": [],
+    "constraints_reference": "reachweaver/media.py CONSTRAINTS (targets: tiktok); run media-check MANIFEST"
+  },
+  "human_decisions": [
+    {
+      "id": "privacy_level",
+      "question": "Who can view this video? Pick it yourself in TikTok; there is no default.",
+      "options": [
+        "PUBLIC_TO_EVERYONE",
+        "MUTUAL_FOLLOW_FRIENDS",
+        "FOLLOWER_OF_CREATOR",
+        "SELF_ONLY"
+      ],
+      "selected": null,
+      "required": true,
+      "decided_by": "account holder in the native app",
+      "source": "https://developers.tiktok.com/doc/content-sharing-guidelines",
+      "note": "Only the options your account offers apply. ReachWeaver never pre-selects public. Content Posting API audit status: unknown. Unaudited API clients are limited to private viewing; ReachWeaver has no TikTok API client and this package is for the TikTok app."
+    },
+    {
+      "id": "interactions",
+      "question": "Allow comments, Duets and Stitches?",
+      "options": [
+        "allow",
+        "do not allow"
+      ],
+      "selected": null,
+      "required": true,
+      "decided_by": "account holder in the native app",
+      "source": "https://developers.tiktok.com/doc/content-sharing-guidelines",
+      "note": "TikTok's guidelines for API clients start these unchecked."
+    },
+    {
+      "id": "commercial_content",
+      "question": "Is this commercial content?",
+      "options": [
+        "no",
+        "your brand",
+        "branded content (paid partnership)"
+      ],
+      "selected": null,
+      "required": true,
+      "decided_by": "account holder in the native app",
+      "source": "https://developers.tiktok.com/doc/content-sharing-guidelines",
+      "note": "Branded content cannot be private on TikTok."
+    },
+    {
+      "id": "ai_generated_label",
+      "question": "Does the video contain AI-generated content that needs a label?",
+      "options": [
+        "yes",
+        "no"
+      ],
+      "selected": null,
+      "required": true,
+      "decided_by": "account holder in the native app",
+      "source": "https://developers.tiktok.com/doc/content-posting-api-reference-direct-post",
+      "note": ""
+    }
+  ],
+  "account": {
+    "account_id": null,
+    "handle": null,
+    "display_name": null,
+    "account_type": null,
+    "tiktok_api_audit": "unknown"
+  },
+  "account_eligibility": [
+    {
+      "item": "Signed in to the intended TikTok account: (not supplied)",
+      "source": null
+    },
+    {
+      "item": "You are the creator of the TikTok account and post in the TikTok app; the caption stays editable and no watermark is added",
+      "source": "https://developers.tiktok.com/doc/content-sharing-guidelines"
+    }
+  ],
+  "api_capability": {
+    "registry_status": "requires-review",
+    "reachweaver_adapter": "none",
+    "formats": {
+      "text": "unknown",
+      "image": "unknown",
+      "video": "api_gated",
+      "carousel": "unknown",
+      "link": "unknown"
+    },
+    "verified_date": "2026-10-09",
+    "api_publish_allowed": false,
+    "reason": "tiktok video is api_gated; publish refused (fail closed)"
+  },
+  "platform_facts": {
+    "caption_max_utf16": {
+      "value": 2200,
+      "status": "verified",
+      "source": "https://developers.tiktok.com/doc/content-posting-api-reference-direct-post",
+      "verified_date": "2026-10-08",
+      "quote": "The maximum length is 2200 in UTF-16 runes.",
+      "note": ""
+    },
+    "privacy_level_options": {
+      "value": [
+        "PUBLIC_TO_EVERYONE",
+        "MUTUAL_FOLLOW_FRIENDS",
+        "FOLLOWER_OF_CREATOR",
+        "SELF_ONLY"
+      ],
+      "status": "verified",
+      "source": "https://developers.tiktok.com/doc/content-posting-api-reference-direct-post",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "An API value must match one of the creator's privacy_level_options from creator_info."
+    },
+    "privacy_no_default": {
+      "value": true,
+      "status": "verified",
+      "source": "https://developers.tiktok.com/doc/content-sharing-guidelines",
+      "verified_date": "2026-10-08",
+      "quote": "Users must manually select the privacy status from a dropdown and there should be no default value.",
+      "note": ""
+    },
+    "interaction_defaults_off": {
+      "value": true,
+      "status": "verified",
+      "source": "https://developers.tiktok.com/doc/content-sharing-guidelines",
+      "verified_date": "2026-10-08",
+      "quote": "Users must manually turn on these interaction settings and none should be checked by default.",
+      "note": ""
+    },
+    "unaudited_client_visibility": {
+      "value": "private viewing mode only",
+      "status": "verified",
+      "source": "https://developers.tiktok.com/doc/content-posting-api-get-started",
+      "verified_date": "2026-10-08",
+      "quote": "All content posted by unaudited clients will be restricted to private viewing mode.",
+      "note": "An audit is required to lift the restriction. Applies to Content Posting API clients, not to the TikTok app itself."
+    },
+    "api_permissions": {
+      "value": [
+        "video.publish"
+      ],
+      "status": "verified",
+      "source": "https://developers.tiktok.com/doc/content-posting-api-get-started",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "Direct Post requires approval for the video.publish scope and the user's authorization. Draft-upload scope names were not on the fetched page."
+    },
+    "caption_editable_no_watermark": {
+      "value": true,
+      "status": "verified",
+      "source": "https://developers.tiktok.com/doc/content-sharing-guidelines",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "Preset caption text and hashtags must stay editable; API clients must not add promotional watermarks or logos."
+    },
+    "caption_links_clickable": {
+      "value": null,
+      "status": "unknown",
+      "source": "https://developers.tiktok.com/doc/content-posting-api-reference-direct-post",
+      "verified_date": "2026-10-08",
+      "quote": "",
+      "note": "No official statement found. Do not rely on a caption URL being tappable."
+    }
+  },
+  "notice": "MANUAL EXPORT ONLY. ReachWeaver has not sent, uploaded, scheduled or shared anything on TikTok. This package is not evidence that a post exists. The account holder decides whether to post it, in the platform's own app.",
+  "checklist": [
+    "Verify every claim against its cited source (campaign-check / claims-check); this package does not prove anything is true.",
+    "Signed in to the intended TikTok account: (not supplied)",
+    "You are the creator of the TikTok account and post in the TikTok app; the caption stays editable and no watermark is added",
+    "Paste caption.txt into TikTok exactly; do not let tools add text, links or watermarks.",
+    "Run media-check on the media you attach (alt text, captions, rights, limits).",
+    "Make each decision yourself in the native app: privacy_level, interactions, commercial_content, ai_generated_label. Nothing is pre-selected.",
+    "Confirm rights, consent and disclosure for all text and media.",
+    "If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver records nothing from this package."
+  ]
+}

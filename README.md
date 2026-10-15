@@ -253,7 +253,7 @@ reachweaver campaign-export --file F --brand B --out DIR [--optout F]  manual-re
 reachweaver youtube-attach POST_ID --file CLIP.mp4 --title T --made-for-kids yes|no --category-id N [--privacy private|unlisted|public] [--tag T]...  #22 (owner-approved 2026-10-09; disabled until a live receipt): bind one local MP4 + upload fields to a YouTube draft; offline; live upload stays registry-blocked (docs/YOUTUBE.md)
 reachweaver youtube-detach POST_ID         #22: remove the video from a YouTube draft; offline
 reachweaver youtube-analytics [--account ID] [--post-id ID]  #22: read-only sampling report over stored metric snapshots of published YouTube videos; labels exact / sampled / suppressed / delayed / not_available / unknown, never invents a view count, fetches nothing (docs/YOUTUBE.md#analytics-sampling-report)
-reachweaver manual-export --platform threads|instagram|facebook|youtube|tiktok --variant F [--media MANIFEST] [--account-meta F] --out DIR [--json]  creator-ready package + checklist; never sends (docs/MANUAL-EXPORT.md)
+reachweaver manual-export --platform threads|instagram|facebook|youtube|tiktok|<any other manual_only id> --variant F [--media MANIFEST] [--account-meta F] --out DIR [--json]  creator-ready package + checklist; other manual_only destinations get a generic package (limits unknown unless a registry records them; human-only ones get a write-it-yourself notes form); never sends (docs/MANUAL-EXPORT.md)
 reachweaver campaign-stage --file F --brand B [--optout F]    idempotently create draft posts only
 reachweaver experiment-evaluate --file F       analyze paired native metrics; no causal claim
 reachweaver experiment-preregister PLAN --out FILE  validate a 2-3 arm growth plan, write a NEW hashed record (docs/GROWTH-EXPERIMENTS.md)

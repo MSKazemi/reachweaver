@@ -49,6 +49,7 @@ from .profile_audit import load_snapshot as load_profile_snapshot, audit_profile
 from .profile_metrics_csv import merge_authorized_csv
 from .suggest import build_suggestions, render_text as render_suggestions
 from .manual_export import MANUAL_PLATFORMS, build_export, write_export
+from .manual_package import build_package, generic_platforms, write_package
 from .pilot import DEFAULT_MIN_WEEKS, load_pilot_log, pilot_report, render_report as render_pilot_report
 from .timing_analysis import analyze_posting_times
 from .worker_log import claim_refusal_reason, error_code as worker_error_code, open_worker_log
@@ -628,9 +629,12 @@ def make_parser() -> argparse.ArgumentParser:
                    help="Assumed player fit for non-9:16 frames: centered crop (default) or letterbox")
     p.add_argument("--safe-zones", type=Path, help="Owner UI-overlay zones JSON overriding the built-ins (sourced from paid-ad specs, accessed 2026-10-09)")
     p.add_argument("--json", action="store_true", help="Machine-readable result")
-    p = sub.add_parser("manual-export", help="Offline creator-ready package for Threads/Instagram/Facebook Pages/YouTube/TikTok; never sends")
-    p.add_argument("--platform", required=True, choices=MANUAL_PLATFORMS)
-    p.add_argument("--variant", type=Path, required=True, help="Variant JSON: text, format, link_url, platform_options")
+    p = sub.add_parser("manual-export", help="Offline creator-ready package for Threads/Instagram/Facebook Pages/YouTube/TikTok, or a generic package for any other manual_only distribution-registry destination; never sends")
+    p.add_argument("--platform", required=True, choices=MANUAL_PLATFORMS + generic_platforms(), metavar="PLATFORM",
+                   help="threads, instagram, facebook, youtube or tiktok (sourced package), or any other manual_only "
+                        "id in the distribution registry such as dev, x, product_hunt or hacker_news (generic package; "
+                        "human-only destinations get a notes form, never post text)")
+    p.add_argument("--variant", type=Path, required=True, help="Variant JSON: text, format, link_url, platform_options; talking_points for human-only destinations")
     p.add_argument("--media", type=Path, help="Media manifest JSON validated with media-check rules")
     p.add_argument("--account-meta", type=Path, help="PUBLIC account metadata JSON (handle, account_type); no secrets")
     p.add_argument("--out", type=Path, required=True, help="NEW output folder (0700, files 0600); refuses existing output")
@@ -1898,6 +1902,32 @@ def execute(args) -> int:
     if args.command == "media-storyboard":
         from .storyboard import run_command as run_storyboard
         return run_storyboard(args)
+    if args.command == "manual-export" and args.platform not in MANUAL_PLATFORMS:
+        variant = read_json(args.variant)
+        meta = read_json(args.account_meta) if args.account_meta else None
+        package = build_package(args.platform, variant, args.media, meta)
+        if package["preflight"]["errors"]:
+            print("BLOCKED: nothing written")
+            for item in package["preflight"]["errors"]:
+                print("  ERROR:", item)
+            for item in package["preflight"]["warnings"]:
+                print("  WARNING:", item)
+            return 2
+        files = write_package(package, args.out)
+        if args.json:
+            print(json.dumps(package, indent=2, ensure_ascii=False))
+        else:
+            print(f"{package['status']}: {package['platform_label']} generic manual package for human review")
+            for item in package["preflight"]["warnings"]:
+                print("  WARNING:", item)
+            print(f"  TEXT LIMIT: {package['limits']['text']['display']}")
+            if package["human_only"]:
+                print(f"  WRITE IT YOURSELF: {package['platform_label']} is human-only; no post text was packaged "
+                      "(NOTES.md is a notes form)")
+        for path in files:
+            print(f"Wrote {path}", file=sys.stderr)
+        print("Nothing was sent, uploaded, scheduled or shared.", file=sys.stderr)
+        return 0
     if args.command == "manual-export":
         variant = read_json(args.variant)
         meta = read_json(args.account_meta) if args.account_meta else None

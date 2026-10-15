@@ -1,0 +1,6 @@
+manual_export_not_published: TikTok package for human review
+  WARNING: no media manifest supplied: video not validated; attach the file yourself and run media-check before posting
+  DECIDE YOURSELF: privacy_level (nothing pre-selected)
+  DECIDE YOURSELF: interactions (nothing pre-selected)
+  DECIDE YOURSELF: commercial_content (nothing pre-selected)
+  DECIDE YOURSELF: ai_generated_label (nothing pre-selected)
