@@ -102,6 +102,8 @@ class MastodonAuthFixtureTests(RateLimitBase):
                     self.live(again)
                 self.assertEqual((again.calls, guard.attempts), ([], []))
                 self.assertEqual(self.row(pid)["status"], "needs_review")
+                with connect(self.db) as db:  # an unresolved post holds the account (#41); free it for the next subtest
+                    db.execute("UPDATE posts SET status='cancelled' WHERE id=?", (pid,))
         self.assertEqual(self.sleeps, [])
 
 
