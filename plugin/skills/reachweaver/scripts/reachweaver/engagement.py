@@ -61,6 +61,8 @@ MAX_HANDLE_CHARS = 64
 MAX_ID_CHARS = 200
 MAX_DOC_TOPICS = 200
 MAX_REPLY_EVIDENCE = 50
+SENTIMENTS = ("negative", "neutral", "positive")
+MAX_REACH = 10_000_000_000
 REPLY_EVIDENCE_KINDS = frozenset({"release", "repository", "documentation", "announcement", "paper", "benchmark", "other"})
 CLAIMS_CHECK_LIMITATION = ("Lexical grounding only: figures, release language, quotes, superlatives and feature claims "
                            "in the draft are matched against the evidence entries you list in the docs map. It does "
@@ -863,12 +865,17 @@ def load_export(data: object) -> list[dict]:
                     raise ValidationError(f"{where}: in_reply_to too long")
                 continue  # A parent item id rather than a URL.
             _https_url(value, field, where)
+        reach, sentiment = item.get("reach"), item.get("sentiment")
+        if reach is not None and (type(reach) is not int or not 0 <= reach <= MAX_REACH):
+            raise ValidationError(f"{where}: reach must be an integer 0..{MAX_REACH} (omit it when unknown)")
+        if sentiment is not None and sentiment not in SENTIMENTS:
+            raise ValidationError(f"{where}: sentiment must be one of {', '.join(SENTIMENTS)} (omit it when unknown)")
         out.append({
             "id": item["id"], "platform": platform, "account_id": item["account_id"],
             "author_handle": item["author_handle"], "author_is_owner": item["author_is_owner"],
             "text": item["text"], "url": item["url"], "created_at": parse_utc(item["created_at"]),
             "in_reply_to": item.get("in_reply_to") or None, "thread_root_url": item.get("thread_root_url") or None,
-            "kind": kind or KIND_UNSPECIFIED,
+            "kind": kind or KIND_UNSPECIFIED, "reach": reach, "sentiment": sentiment,
         })
     return out
 
@@ -1160,6 +1167,7 @@ def triage_engagement(export: object, docs_map: object = None, optout: object = 
             "id": item["id"], "platform": item["platform"], "account_id": item["account_id"],
             "author_handle": handle, "author_is_owner": item["author_is_owner"],
             "created_at": item["created_at"], "source_url": item["url"], "kind": item["kind"],
+            "reach": item["reach"], "sentiment": item["sentiment"],
             "thread_root_url": item["thread_root_url"], "in_reply_to": item["in_reply_to"],
             "thread_key": _thread_key(item, by_id), "label": label, "priority": PRIORITY[label],
             "matched_rules": matched, "language_guess": analysis["language_guess"],

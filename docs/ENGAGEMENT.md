@@ -41,6 +41,7 @@ The command refuses to overwrite an existing output or issue file, so a draft yo
 - `platform` is one of the ReachWeaver platforms plus `github` and `hackernews`.
 - `url` and `thread_root_url` must be public HTTPS URLs without credentials. A plain anchor such as `#issuecomment-1` is allowed.
 - `in_reply_to` is a parent item `id` or a parent HTTPS URL, or `null`.
+- `reach` (integer 0 to 10,000,000,000) and `sentiment` (`negative`, `neutral` or `positive`) are **optional and owner-supplied**, for example copied from a native analytics export or your own review. Use one definition of reach per export (the commenter's audience size or the comment's native views) and omit a field you do not know: an absent value is unknown, never zero or neutral. ReachWeaver never infers either from the text.
 - Ids must be unique. A run holds at most 5000 items. Secret-like field names (`token`, `password`, `session`, `cookie`, `api_key`) are rejected.
 
 ## Fetching replies (`engagement-fetch`)
@@ -251,7 +252,7 @@ reachweaver engagement-queue export.json --json --sla bug_report=12 --sla praise
 
 It runs the same triage as `engagement-triage`, then lists only the items that still need a human, with their age and whether they are past a target. Items that need no reply (spam, your own comments, threads you already answered, no-reply labels), items covered by a draft already made for the same thread and opted-out authors are counted under `closed` and not queued. Order: overdue first, then label priority, then oldest. `--now` defaults to the current UTC time; a timestamp in the future counts as age 0.
 
-The overdue targets are **owner-adjustable defaults, not platform data** (harassment 12 h, suspicious, bug_report and technical_question 24 h, actionable_feedback, feature_request and collaboration_opportunity 72 h, praise 168 h). Override one with `--sla LABEL=HOURS` (1 to 8760). Reach and sentiment are not part of the export contract, so the queue does not use them. It makes no network request, opens no database, and has no send, reply, follow, like or DM path: replies remain drafts that you review and post manually.
+The overdue targets are **owner-adjustable defaults, not platform data** (harassment 12 h, suspicious, bug_report and technical_question 24 h, actionable_feedback, feature_request and collaboration_opportunity 72 h, praise 168 h). Override one with `--sla LABEL=HOURS` (1 to 8760). The queue orders items overdue first, then by label priority, then, inside the same label, by owner-supplied negative `sentiment`, then higher owner-supplied `reach` (an absent value sorts after known ones), then oldest. `reach` and `sentiment` never change a label, a safety route (harassment, suspicious, opt-out) or whether a draft exists. It makes no network request, opens no database, and has no send, reply, follow, like or DM path: replies remain drafts that you review and post manually.
 
 ## Approved replies (issue #17, owner-approved 2026-10-09; sending blocked by the registry until a live receipt)
 
