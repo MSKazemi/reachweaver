@@ -121,9 +121,9 @@ For `kind: video` the report adds `video_codec`, `video_fourcc`, `frame_rate_fps
 
 For vertical video, the report adds a **safe-area note** only, because `media-check` reads no layout. To check where text and focal points sit, use the storyboard's box check (below). Preview each upload in the native app either way.
 
-## Platform constraint table (verified 2026-10-08)
+## Platform constraint table (verified 2026-10-08; `github` 2026-10-14, `devto` 2026-10-15)
 
-Every row carries its source URL and verification date in `reachweaver/media.py` (`CONSTRAINTS`). Where the cited documentation does not establish a value, the row is `unknown`: it is skipped with a warning, never invented. Limits change, so re-check before publishing.
+Every row carries its source URL and its own verification date in `reachweaver/media.py` (`CONSTRAINTS`); the report lists every date in `constraints_verified_dates`. Where the cited documentation does not establish a value, the row is `unknown`: it is skipped with a warning, never invented. Limits change, so re-check before publishing.
 
 | Target | Kind | Verified constraints | Unknown (skipped) | Source |
 |---|---|---|---|---|
@@ -137,6 +137,8 @@ Every row carries its source URL and verification date in `reachweaver/media.py`
 | `tiktok` | video | MP4/MOV (WebM not detected); ≤ 4 GB; ≤ 600 s; each side 360–4096 px; video H.264, H.265, VP8 or VP9; 23–60 fps | aspect, caption files, audio codec | same |
 | `linkedin` | image | JPEG/GIF/PNG; < 36,152,320 pixels; alt ≤ 4086 | file size, aspect | [Images API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/images-api) |
 | `linkedin` | video | MP4; 75 KB–500 MB; 3–1800 s; captions SRT (one file, English only) | aspect, video/audio codec, frame rate | [Videos API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api) |
+| `github` | image (repository social preview) | PNG/JPEG/GIF; < 1 MB (decimal, conservative); width ≥ 640 and height ≥ 320. **Warning only:** about 2:1, because the docs recommend 1280 × 640 for best display | alt text (no field described) | [GitHub Docs](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/customizing-your-repositorys-social-media-preview) |
+| `devto` | image (post cover) | **Warning only:** aspect near 1000 × 420 (about 2.38:1), the guide's "best size", not a limit | file types and file size (not stated) | [DEV editor guide](https://dev.to/p/editor_guide) |
 
 Where a unit is ambiguous (KB versus KiB, decimal versus binary GB), the stricter interpretation is used and noted in the row.
 
