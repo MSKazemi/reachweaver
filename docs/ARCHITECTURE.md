@@ -628,6 +628,8 @@ Not implemented: owner-authorized private analytics (LinkedIn `memberCreatorPost
 
 `reachweaver/landing.py` checks the pages that campaigns send readers to. CLI `landing-check --briefs FILE [--campaign CAMPAIGN.json] [--online] [--allow-origin O...] [--json]` is an early branch that returns before the `connect` block, so it never opens the database. The offline part reuses `attribution.normalize_destination`, `validate_utm_link`, `load_seo_briefs` and `seo_conflicts`, plus `claims.check_claims` for the grounded claim phrases.
 
+`reachweaver/link_health.py` (CLI `link-health`, public issue #10) applies the same guarded fetcher (`landing.fetch_landing`: robots.txt first, inspected redirects, https and registrable-domain rules, size cap) to the links already stored in local posts. It runs on a `connect_readonly` connection (never migrates, never creates the database), groups links by UTM-stripped destination, and sends at most one GET per distinct page and at most `--max-links` pages (1..50) per run, only with `--online`. Statuses: `ok`, `redirected`, `broken`, `blocked_by_robots`, `unusable`, `not_checked`. Only `broken` and `unusable` are errors (exit code 1). It cannot approve, schedule, publish or write.
+
 ```text
 briefs.json --canonical_url_findings--> per-page errors (https, fragment, utm/trackers, normal form)
 campaign.json --cta_url + tagged links--> validate_utm_link -> strip tags -> brief canonical_url? else cta_no_brief

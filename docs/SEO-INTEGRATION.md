@@ -90,6 +90,26 @@ Every page, and the campaign, gets a status of `ok`, `warning` or `error`. The c
 
 Untagged links in a variant body that are not declared CTAs (for example, a reference link) are not CTA errors. They still map that variant to a brief's page for the claim check below.
 
+## Monitoring links already in your posts (`link-health`)
+
+```bash
+reachweaver link-health                                  # offline: stored URLs only
+reachweaver link-health --online [--max-links 25] [--allow-origin https://www.example.net] [--json]
+```
+
+Read-only (public issue #10). It collects the links in the `content` and `source_url` of posts in `approved`, `scheduled` and `published` status (`--status` changes that, `--account` and `--campaign` narrow it), groups them by landing page with the UTM tags stripped, and reports one record per page. Offline it checks that each link is https with no credentials and that links in a post body have valid UTM tags (`utm_issue`, a warning). With `--online` it reads robots.txt first and then sends one GET per distinct page through the same guarded fetcher as `landing-check` (redirects inspected, https only, same registrable domain unless you pass `--allow-origin`, size and page caps, no image requests).
+
+| Status | Meaning |
+|---|---|
+| `ok` | The page answered 2xx. Missing `og:title`, `og:description` or `og:image` and a missing `<title>` are warnings. |
+| `redirected` | The final URL differs (`redirects`, warning), or the redirect leaves the domain and was not followed (`redirect_off_domain`, warning). |
+| `broken` | HTTP error, timeout, redirect loop or oversize body (`http_error` and others, **error**). |
+| `blocked_by_robots` | robots.txt disallows or could not be read; nothing was fetched (warning). |
+| `unusable` | The URL cannot be a public https destination: http, credentials or whitespace (**error**, found offline). |
+| `not_checked` / `not_checked_offline` | Over `--max-links`, or the run was offline. |
+
+The exit code is 1 only when an error is present. A healthy result is a point-in-time observation of the page, not of how a platform renders the preview card. The command never drafts, approves, schedules, publishes or writes to the database, and page text is treated as untrusted data (cleaned, truncated, reported).
+
 **Online checks (`--online` only).** Each `active` brief, and each brief a campaign links to, is fetched once. Draft and retired briefs that no campaign links to are skipped, and so is any brief whose canonical URL failed the offline checks. A run fetches at most 50 pages.
 
 | Reported | Finding codes |
