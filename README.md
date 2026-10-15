@@ -102,6 +102,9 @@ reachweaver post-audit --file examples/profile-post-audit.example.json --age-hou
 # observations and source-labeled native analytics kept locally under state/.
 reachweaver profile-audit --file state/owned-profiles.json --platform linkedin --json
 reachweaver post-audit --file state/owned-profiles.json --platform youtube --json
+
+# Peer benchmark from public counters you copied by hand (no fetching, nothing stored; docs/PEER-BENCHMARK.md)
+reachweaver peer-benchmark --file examples/peer-benchmark.example.json
 ```
 
 The profile score is **only an observed checklist-completion heuristic** and is omitted when less than 60% of the platform's fields have been checked. Post rates require compatible format, account, platform, native metric source and observation age; missing data is **unknown**. Inputs include no passwords or cookies and the audit commands never log in, change a profile, draft, schedule, publish, follow or generate votes. Without an actual owner-supplied snapshot, the skill offers a **general playbook**, not an audit of your real accounts. See the [portable skill reference](.claude/skills/reachweaver/references/profile-post-audit.md).

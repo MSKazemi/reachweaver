@@ -442,6 +442,12 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--tolerance-hours", type=int, default=24, help="Observation age tolerance 1..168 hours")
     p.add_argument("--min-posts", type=int, default=3, help="Minimum matched-age posts per format cohort 3..30")
     p.add_argument("--json", action="store_true", help="Detailed no-write JSON results")
+    p = sub.add_parser("peer-benchmark", help="Offline: compare your public counters with peers' public counters that you copied by hand into a local file (#11); no fetching, no logins, nothing stored")
+    p.add_argument("--file", type=Path, required=True, help="Local JSON (schema reachweaver.peer-benchmark.v1); see examples/peer-benchmark.example.json")
+    p.add_argument("--platform", help="Only this platform id")
+    p.add_argument("--include-individuals", action="store_true", help="Also accept kind: person entries (excluded by default; privacy check first)")
+    p.add_argument("--now", help="Reference time for the staleness warning (ISO 8601 with offset); default: the current time")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
     p = sub.add_parser("distribution-plan", help="Offline regional channel research and hypothetical timing windows; NEVER schedules/posts")
     p.add_argument("--region", required=True, help="Target country/market, e.g. india, china, nigeria or global")
     p.add_argument("--goal", choices=GOALS, required=True, help="One measurable audience objective")
@@ -1755,6 +1761,13 @@ def execute(args) -> int:
         if csv_info is not None:
             result["normalized_csv"] = csv_info
         print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else render_profile_audit(result))
+        return 0
+    if args.command == "peer-benchmark":
+        from . import peer_benchmark
+        peers = peer_benchmark.load_peers(args.file, include_individuals=args.include_individuals)
+        reference = peer_benchmark._when(args.now) if args.now else None
+        result = peer_benchmark.benchmark(peers, platform=args.platform, now=reference)
+        print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else peer_benchmark.render_summary(result))
         return 0
     if args.command == "distribution-plan":
         plan = build_distribution_plan(

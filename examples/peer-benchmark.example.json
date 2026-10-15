@@ -1,0 +1,18 @@
+{
+  "schema_version": "reachweaver.peer-benchmark.v1",
+  "note": "Illustrative numbers only. Replace with counters you read yourself on each PUBLIC page, with the date you saw them.",
+  "entries": [
+    {"label": "ExampleProject (own)", "platform": "mastodon", "kind": "project", "own": true, "public_data_only": true,
+     "source_url": "https://mastodon.example/@exampleproject", "observed_at": "2026-10-14T09:00:00+00:00",
+     "counters": {"followers": 420, "posts": 180}},
+    {"label": "PeerOne", "platform": "mastodon", "kind": "project", "own": false, "public_data_only": true,
+     "source_url": "https://mastodon.example/@peerone", "observed_at": "2026-10-14T09:10:00+00:00",
+     "counters": {"followers": 900, "posts": 320}},
+    {"label": "PeerTwo", "platform": "mastodon", "kind": "organization", "own": false, "public_data_only": true,
+     "source_url": "https://mastodon.example/@peertwo", "observed_at": "2026-10-14T09:12:00+00:00",
+     "counters": {"followers": 150, "posts": 90}},
+    {"label": "PeerThree", "platform": "mastodon", "kind": "community", "own": false, "public_data_only": true,
+     "source_url": "https://mastodon.example/@peerthree", "observed_at": "2026-10-14T09:15:00+00:00",
+     "counters": {"followers": 610, "posts": 410}}
+  ]
+}
