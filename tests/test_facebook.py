@@ -14,6 +14,7 @@ import copy
 import io
 import json
 import os
+import re
 import tempfile
 import unittest
 from datetime import date, datetime, timezone
@@ -264,6 +265,26 @@ class ConfigAndCredentialTests(unittest.TestCase):
         with self.assertRaisesRegex(ValidationError, "wrong_platform"):
             facebook.preflight(account(platform="threads"))
 
+    def test_declared_permissions_are_owner_declared_names_only(self):
+        loaded = self.load(account(declared_permissions=[" pages_manage_posts ", "pages_show_list"]))["fb-page"]
+        self.assertEqual(loaded["declared_permissions"], ["pages_manage_posts", "pages_show_list"])
+        for bad, needle in (("pages_manage_posts", "list of 1 to 16"),
+                            ([], "list of 1 to 16"),
+                            (["p" + str(i) for i in range(17)], "list of 1 to 16"),
+                            ([FAKE_TOKEN], "permission names"),
+                            (["pages manage posts"], "permission names"),
+                            ([7], "permission names"),
+                            (["publish_to_groups"], "Groups API permission"),
+                            (["pages_show_list", "groups_access_member_info"], "Groups API permission"),
+                            (["pages_show_list", "pages_show_list"], "listed twice")):
+            with self.subTest(bad=bad), self.assertRaisesRegex(ValidationError, needle):
+                self.load(account(declared_permissions=bad))
+        # preflight re-applies the rule, so a hand-built account cannot smuggle a group permission
+        with self.assertRaisesRegex(ValidationError, "Groups API permission"):
+            facebook.preflight(account(declared_permissions=["publish_to_groups"]), now=NOW)
+        self.assertEqual(facebook.preflight(account(declared_permissions=["pages_manage_posts"]), now=NOW),
+                         (PAGE_ID, PAGE_NAME))
+
     def test_credential_suffix_registered_for_overlap_rule_and_hygiene(self):
         self.assertEqual(CREDENTIAL_SUFFIXES["facebook"], ("_PAGE_ACCESS_TOKEN",))
         self.assertEqual(expected_variables(account()), (PREFIX + "_PAGE_ACCESS_TOKEN",))
@@ -326,6 +347,59 @@ class ConfigAndCredentialTests(unittest.TestCase):
             self.assertNotIn(FAKE_TOKEN, note)
 
 
+class DoctorPageAndScopeReportTests(unittest.TestCase):
+    """Issue #51: configuration reports the eligible Page and the (owner-declared) scopes, offline."""
+
+    def notes(self, acct):
+        with patch("reachweaver.facebook.credential") as read, patch("reachweaver.publishers._send_http") as send:
+            notes = facebook.doctor_notes(acct, now=NOW)
+        read.assert_not_called()
+        send.assert_not_called()
+        for note in notes:
+            self.assertNotIn(FAKE_TOKEN, note)
+        return notes
+
+    @staticmethod
+    def tagged(notes, tag):
+        return [n for n in notes if tag in n]
+
+    def test_eligible_page_is_named_with_id_and_only_target(self):
+        page = self.tagged(self.notes(account()), "facebook_eligible_page")
+        self.assertEqual(len(page), 1)
+        self.assertTrue(page[0].startswith("INFO: "))
+        self.assertIn(repr(PAGE_NAME), page[0])
+        self.assertIn(f"(page_id {PAGE_ID})", page[0])
+        self.assertIn("not checked offline", page[0])
+        self.assertIn("Personal profiles and groups are never targets", page[0])
+        no_name = account()
+        del no_name["page_name"]
+        for acct in (no_name, account(page_id="me"), {"platform": "facebook", "env_prefix": PREFIX}):
+            with self.subTest(acct=acct):
+                self.assertEqual(self.tagged(self.notes(acct), "facebook_eligible_page"), [])
+
+    def test_declared_permissions_reported_as_owner_declared_not_verified(self):
+        full = self.tagged(self.notes(account(declared_permissions=list(facebook.WRITE_PERMISSIONS))),
+                           "facebook_declared_permissions")
+        self.assertEqual(full, ["INFO: facebook_declared_permissions (owner-declared, not verified): "
+                                "pages_manage_posts, pages_read_engagement, pages_show_list; not declared: none"])
+        partial = self.tagged(self.notes(account(declared_permissions=["pages_manage_posts", "pages_manage_metadata"])),
+                              "facebook_declared_permissions")
+        self.assertEqual(partial, ["WARNING: facebook_declared_permissions (owner-declared, not verified): "
+                                   "pages_manage_posts, pages_manage_metadata; not declared: pages_read_engagement, "
+                                   "pages_show_list; not used by the Page adapter: pages_manage_metadata"])
+        none = self.tagged(self.notes(account()), "facebook_declared_permissions")
+        self.assertEqual(len(none), 1)
+        self.assertIn("none declared", none[0])
+        self.assertIn("never verified", none[0])
+        bad = self.tagged(self.notes({"platform": "facebook", "declared_permissions": ["publish_to_groups"]}),
+                          "facebook_declared_permissions")
+        self.assertEqual(len(bad), 1)
+        self.assertTrue(bad[0].startswith("WARNING: facebook_declared_permissions_invalid:"))
+        # The required-permission note still says unverified even with a complete declaration.
+        notes = self.notes(account(declared_permissions=list(facebook.WRITE_PERMISSIONS)))
+        self.assertEqual(len(self.tagged(notes, "facebook_write_scope_unverified")), 1)
+
+
 class PayloadTests(unittest.TestCase):
     def test_form_is_a_pure_function_of_the_approved_text(self):
         self.assertEqual(facebook.feed_form(TEXT), {"message": TEXT, "link": "https://example.com/notes"})
@@ -377,6 +451,50 @@ class FlippedLibraryTests(FlippedRegistry):
             self.assertFalse(write_started())
             if "id" in kwargs.get("me", kwargs.get("page", {})):
                 self.assertIn("identity_mismatch", str(ctx.exception))
+
+    def test_only_write_is_post_to_the_configured_page_feed(self):
+        """No request can reach /me/feed, a user feed or a group feed: one POST, to /{page_id}/feed."""
+        fake = FakeGraph()
+        self.run_publish(fake)
+        writes = [urlsplit(r.full_url).path for r in fake.requests if r.get_method() != "GET"]
+        self.assertEqual(writes, [f"/{facebook.GRAPH_API_VERSION}/{PAGE_ID}/feed"])
+        for req in fake.requests:
+            path = urlsplit(req.full_url).path
+            self.assertNotIn("/me/feed", path)
+            self.assertNotIn("group", path.lower())
+        source = Path(facebook.__file__).read_text(encoding="utf-8")
+        self.assertEqual(source.count("publishers.request_json("), 1)
+        self.assertIn('publishers.request_json(f"{API_BASE}/{page_id}/feed"', source)
+
+    def test_page_id_cannot_address_a_profile_or_group_endpoint(self):
+        with patch.dict(os.environ, ENV), patch("reachweaver.publishers._send_http") as send:
+            for bad in ("me", "me/feed", f"{PAGE_ID}/feed", f"{PAGE_ID}?x=1", "../me", f"{PAGE_ID}#x",
+                        f"{PAGE_ID}%2Ffeed", "group_1", "-1"):
+                with self.subTest(page_id=bad), self.assertRaisesRegex(ValidationError, "numeric"):
+                    facebook.publish_page_post(account(page_id=bad), "Hello", "p1")
+        send.assert_not_called()
+        group_id = "556677889900"
+        # A group id (or a person's id) configured as page_id: a Page token's /me is the Page and a
+        # User token's /me is the person, so neither equals the group id and nothing is written.
+        for me in ({"id": PAGE_ID, "name": PAGE_NAME}, {"id": USER_ID, "name": "Some Person"}):
+            fake = FakeGraph(me=me)
+            with self.subTest(me=me), self.assertRaisesRegex(ValidationError, "identity_mismatch"):
+                self.run_publish(fake, acct=account(page_id=group_id))
+            self.assertEqual(fake.routes, ["me"])
+            self.assertFalse(write_started())
+
+    def test_declared_permissions_never_shape_a_request_or_count_as_verified(self):
+        declared = account(declared_permissions=list(facebook.WRITE_PERMISSIONS))
+        plain, with_declared = FakeGraph(), FakeGraph()
+        self.run_publish(plain)
+        reset_write_marker()
+        self.run_publish(with_declared, acct=declared)
+        self.assertEqual([(r.get_method(), r.full_url, r.data) for r in with_declared.requests],
+                         [(r.get_method(), r.full_url, r.data) for r in plain.requests])
+        fake = FakeGraph()
+        with patch.dict(os.environ, ENV), patch("reachweaver.publishers._send_http", side_effect=fake):
+            result = check_connection(declared)
+        self.assertEqual(result.write_permission, "unverified")
 
     def test_preflight_http_errors_are_pre_write_and_actionable(self):
         for route, code, needle in (("me", 400, "facebook_http_400: request refused"),
@@ -620,8 +738,68 @@ class FlippedCliTests(FlippedRegistry):
         self.assertIn("fb-page: facebook;", out)
         self.assertIn("blocked by the capability registry", out)
         self.assertIn("fb-page: INFO: facebook_write_scope_unverified: the Page token needs pages_manage_posts", out)
+        self.assertIn(f"fb-page: INFO: facebook_eligible_page: the only publishing target is the Facebook Page "
+                      f"{PAGE_NAME!r} (page_id {PAGE_ID})", out)
+        self.assertIn("fb-page: INFO: facebook_declared_permissions: none declared", out)
         self.assertNotIn("SETUP:", out)
         send.assert_not_called()
+
+
+class FacebookDocsTests(unittest.TestCase):
+    """Issue #51: the matrix and onboarding docs cite official Meta sources with review dates."""
+
+    ROOT = Path(__file__).resolve().parents[1]
+    PAGE_FEED = "https://developers.facebook.com/docs/graph-api/reference/page/feed"
+    USER_FEED = "https://developers.facebook.com/docs/graph-api/reference/user/feed"
+    GROUPS_V19 = "https://developers.facebook.com/docs/graph-api/changelog/version19.0"
+    DATED = re.compile(r"(checked|re-read|read) 20[0-9]{2}-[0-9]{2}-[0-9]{2}")
+
+    def doc(self, name):
+        return (self.ROOT / "docs" / name).read_text(encoding="utf-8")
+
+    def one_line(self, text, prefix):
+        lines = [line for line in text.splitlines() if line.startswith(prefix)]
+        self.assertEqual(len(lines), 1, prefix)
+        return lines[0]
+
+    def test_platform_matrix_row_cites_official_sources_with_a_date(self):
+        text = self.doc("PLATFORM-MATRIX.md")
+        row = self.one_line(text, "| Facebook Pages | `facebook` |")
+        for url in (self.PAGE_FEED, self.USER_FEED, self.GROUPS_V19):
+            self.assertIn(url, row)
+        self.assertRegex(row, self.DATED)
+        self.assertIn("owner-declared", row)
+        refs = self.one_line(text, "Official references:")
+        self.assertIn("[Facebook Pages](https://developers.facebook.com/docs/pages-api/posts)", refs)
+        segment = refs.split("[Facebook Pages]", 1)[1].split("[TikTok]", 1)[0]
+        self.assertRegex(segment, r"re-checked 20[0-9]{2}-[0-9]{2}-[0-9]{2}")
+
+    def test_onboarding_rows_cite_official_sources_with_a_date(self):
+        text = self.doc("ACCOUNT-ONBOARDING.md")
+        credential = self.one_line(text, "| Facebook Page (adapter disabled) |")
+        self.assertIn(self.PAGE_FEED, credential)
+        self.assertRegex(credential, self.DATED)
+        self.assertIn("eligible Page", credential)
+        declared = self.one_line(text, "| `declared_permissions` | Facebook Page |")
+        self.assertIn("Owner-declared, not verified", declared)
+        self.assertIn(self.GROUPS_V19, declared)
+        self.assertRegex(declared, self.DATED)
+
+    def test_facebook_guide_example_config_loads_and_sources_are_dated(self):
+        text = self.doc("FACEBOOK.md")
+        block = text.split("```json", 1)[1].split("```", 1)[0]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "accounts.json"
+            path.write_text(json.dumps({"accounts": [json.loads(block)]}), encoding="utf-8")
+            loaded = load_accounts(path)["my-page"]
+        self.assertEqual(loaded["declared_permissions"], list(facebook.WRITE_PERMISSIONS))
+        sources = text.split("## Sources", 1)[1]
+        for url in (self.USER_FEED, self.GROUPS_V19, self.PAGE_FEED):
+            self.assertIn(url, sources)
+        for line in sources.splitlines():
+            if self.USER_FEED in line or self.GROUPS_V19 in line:
+                self.assertRegex(line, self.DATED)
+        self.assertIn("Personal-profile residual", text)
 
 
 if __name__ == "__main__":

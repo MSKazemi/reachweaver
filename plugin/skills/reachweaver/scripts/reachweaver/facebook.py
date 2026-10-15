@@ -43,6 +43,11 @@ Facts read 2026-10-09 from official Meta developer docs (developers.facebook.com
   https://developers.facebook.com/docs/graph-api/guides/error-handling
   Throttling codes 4, 17, 32, 613 and 80001 (Page token BUC limit, 4800 calls x engaged users per
   24 h), again without HTTP statuses. https://developers.facebook.com/docs/graph-api/overview/rate-limiting
+* User feed reference: "Creating: You can't perform this operation on this endpoint" (re-read
+  2026-10-15), so a personal timeline is never a target. Groups API permissions (publish_to_groups,
+  groups_access_member_info) were removed from all versions on 2024-04-22 (re-read 2026-10-15).
+  https://developers.facebook.com/docs/graph-api/reference/user/feed
+  https://developers.facebook.com/docs/graph-api/changelog/version19.0
 * ``Authorization: Bearer`` on graph.facebook.com is documented in the WhatsApp Cloud API token
   guide ("include your token in an authorization request header, preceded by Bearer", example
   on ``graph.facebook.com/v25.0``), not on the Pages pages, whose examples use ``access_token``.
@@ -52,7 +57,16 @@ Not verified (fail closed or documented, never relied on): the HTTP status Meta 
 error code, so errors are mapped by HTTP status only and error bodies are never read; the
 exact post id shape (``{page-id}_{post-id}`` is required here; anything else is ambiguous);
 that the Bearer header is honoured by the Pages endpoints (if not, ``GET /me`` fails before
-the claim and nothing is sent); any Page post rate or message length limit.
+the claim and nothing is sent); any Page post rate or message length limit. ``GET /me`` and
+``GET /{page-id}`` return ``id`` and ``name`` for a User as well as a Page, so a USER token with
+``page_id`` set to that person's own id and ``page_name`` to their name passes both checks; the
+write then goes to ``/{user-id}/feed``, which the User feed reference says cannot create posts
+(after the claim: needs_review). No documented, permission-free read that tells a Page node from
+a User node before the write was found (``metadata=1`` is deprecated; Page ``category`` is tied to
+PPCA/PPMA in the Page reference), so this stays a documented residual, not a silent claim.
+
+``declared_permissions`` (optional) is the owner's own list of granted permission names. It is
+reported by ``doctor`` labelled owner-declared and never verified, and it never shapes a request.
 
 Credentials come only from ``{env_prefix}_PAGE_ACCESS_TOKEN`` via ``accounts.credential``, sent
 only in the ``Authorization`` header, never in a URL or form body. No error raised here contains
@@ -78,7 +92,14 @@ PAGE_ID_PATTERN = re.compile(r"^[0-9]{1,40}$")  # documented as a numeric string
 POST_ID_PATTERN = re.compile(r"^([0-9]{1,40})_([0-9]{1,40})$")  # assumed {page-id}_{post-id}; unverified
 PAGE_NAME_MAX = 200  # fail-closed local bound; Meta documents no Page name length
 PERMALINK_HOSTS = frozenset({"www.facebook.com"})
-_ALLOWED_KEYS = frozenset({"id", "platform", "env_prefix", "page_id", "page_name"})
+_ALLOWED_KEYS = frozenset({"id", "platform", "env_prefix", "page_id", "page_name", "declared_permissions"})
+DECLARED_PERMISSIONS_FIELD = "declared_permissions"
+DECLARED_PERMISSIONS_MAX = 16
+_PERMISSION_NAME = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
+# Groups API permissions deprecated in v19.0 and removed from all versions on 2024-04-22
+# (https://developers.facebook.com/docs/graph-api/changelog/version19.0, re-read 2026-10-15).
+# Declaring one is refused: this adapter targets one Page, never a group.
+GROUP_PERMISSIONS = frozenset({"publish_to_groups", "groups_access_member_info"})
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 
@@ -105,6 +126,29 @@ def normalize_page_name(value: object) -> str:
     return text
 
 
+def normalize_declared_permissions(value: object) -> list[str]:
+    """The optional owner-declared permission names: what the owner says was granted, never verified.
+
+    Names only (no token, no secret). The list never reaches a request, a gate or the approval hash;
+    ``doctor`` reports it labelled owner-declared next to the permissions the Page feed reference lists.
+    """
+    if not isinstance(value, list) or not value or len(value) > DECLARED_PERMISSIONS_MAX:
+        raise ValidationError(f"declared_permissions must be a list of 1 to {DECLARED_PERMISSIONS_MAX} "
+                              "Meta permission names (owner-declared, never verified)")
+    names: list[str] = []
+    for item in value:
+        name = item.strip() if isinstance(item, str) else ""
+        if not _PERMISSION_NAME.fullmatch(name):
+            raise ValidationError("declared_permissions entries must be permission names like pages_manage_posts")
+        if name in GROUP_PERMISSIONS:
+            raise ValidationError(f"declared_permissions: {name} is a Groups API permission (removed 2024-04-22); "
+                                  "the adapter publishes on one Page, never in a group")
+        if name in names:
+            raise ValidationError(f"declared_permissions: {name} is listed twice")
+        names.append(name)
+    return names
+
+
 def _same_name(remote: object, expected: str) -> bool:
     return isinstance(remote, str) and " ".join(remote.split()).casefold() == expected.casefold()
 
@@ -126,6 +170,8 @@ def validate_account_config(raw: dict, account_id: str) -> None:
                                   "only text/link posts on one Page are supported")
         raw["page_id"] = normalize_page_id(raw.get("page_id"))
         raw["page_name"] = normalize_page_name(raw.get("page_name"))
+        if DECLARED_PERMISSIONS_FIELD in raw:
+            raw[DECLARED_PERMISSIONS_FIELD] = normalize_declared_permissions(raw[DECLARED_PERMISSIONS_FIELD])
     except ValidationError as exc:
         raise ValidationError(f"{exc} (account {account_id})") from None
 
@@ -155,8 +201,42 @@ def doctor_notes(account: dict, *, now: datetime | None = None) -> list[str]:
     gaps = setup_gaps(account)
     if gaps:
         notes.append("SETUP: still to prepare (names only, docs/FACEBOOK.md): " + ", ".join(gaps))
+    page = eligible_page_note(account)
+    if page:
+        notes.append(page)
     notes.append(f"INFO: {SCOPE_UNVERIFIED_NOTE}")
+    notes.append(declared_permissions_note(account))
     return notes
+
+
+def eligible_page_note(account: dict) -> str | None:
+    """The one Page the adapter may target, as configured; None while page_id or page_name is unusable."""
+    try:
+        page_id = normalize_page_id(account.get("page_id"))
+        page_name = normalize_page_name(account.get("page_name"))
+    except ValidationError:
+        return None
+    return (f"INFO: facebook_eligible_page: the only publishing target is the Facebook Page {page_name!r} "
+            f"(page_id {page_id}), from config and not checked offline; before any write GET /me and "
+            "GET /{page_id} must return this id and name. Personal profiles and groups are never targets.")
+
+
+def declared_permissions_note(account: dict) -> str:
+    """Report the owner-declared permission names against WRITE_PERMISSIONS. Offline; never a proof."""
+    if DECLARED_PERMISSIONS_FIELD not in account:
+        return ("INFO: facebook_declared_permissions: none declared; optionally list the permissions you granted "
+                f"in '{DECLARED_PERMISSIONS_FIELD}' (owner-declared, never verified by ReachWeaver)")
+    try:
+        declared = normalize_declared_permissions(account[DECLARED_PERMISSIONS_FIELD])
+    except ValidationError as exc:
+        return f"WARNING: facebook_declared_permissions_invalid: {exc}"
+    missing = [name for name in WRITE_PERMISSIONS if name not in declared]
+    unused = [name for name in declared if name not in WRITE_PERMISSIONS]
+    text = ("facebook_declared_permissions (owner-declared, not verified): " + ", ".join(declared)
+            + "; not declared: " + (", ".join(missing) or "none"))
+    if unused:
+        text += "; not used by the Page adapter: " + ", ".join(unused)
+    return ("WARNING: " if missing else "INFO: ") + text
 
 
 # Permissions the Page feed reference lists for POST /{page-id}/feed (read 2026-10-15,
@@ -213,6 +293,8 @@ def preflight(account: dict, *, now: datetime | None = None) -> tuple[str, str]:
         raise ValidationError("facebook_unsupported_fields: " + ", ".join(extra))
     page_id = normalize_page_id(account.get("page_id"))
     page_name = normalize_page_name(account.get("page_name"))
+    if DECLARED_PERMISSIONS_FIELD in account:  # names only; never used to decide or shape a request
+        normalize_declared_permissions(account[DECLARED_PERMISSIONS_FIELD])
     level, message = version_status((now or _utc_now()).date())
     if level == "error":
         raise ValidationError(message)
