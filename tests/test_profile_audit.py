@@ -80,13 +80,92 @@ class PlatformAuditTests(unittest.TestCase):
 
     def test_only_sourced_bio_limit_flags_and_unverified_limits_not_invented(self):
         self.data["profiles"].append({
-            "platform": "x", "account_id": "sample-x", "handle":"@samplex",
-            "fields":{"bio": "b" * 161}
-        })
+            "platform": "instagram", "account_id": "sample-ig", "handle": "@sampleig",
+            "fields": {"bio": "b" * 151}})
+        item = audit_profiles(self.data, platform="instagram")["reports"][0]
+        alert = next(a for a in item["alerts"] if a["kind"] == "length_review")
+        self.assertEqual((alert["field"], alert["limit"], alert["length"]), ("bio", 150, 151))
+        self.assertTrue(alert["source"].startswith("https://help.instagram.com/"))
+        # X's bio page could not be curl-verified on 2026-10-15, so a long X bio is not flagged.
+        self.data["profiles"].append({
+            "platform": "x", "account_id": "sample-x", "handle": "@samplex",
+            "fields": {"bio": "b" * 400}})
         item = audit_profiles(self.data, platform="x")["reports"][0]
-        self.assertIn("length_review", [a["kind"] for a in item["alerts"]])
+        self.assertNotIn("length_review", [a["kind"] for a in item["alerts"]])
+        self.assertEqual(item["field_limits"]["bio"], "unknown")
         item = audit_profiles(self.data, platform="youtube")["reports"][0]
         self.assertNotIn("length_review", [a["kind"] for a in item["alerts"]])
+
+    def test_every_sourced_field_limit_has_url_date_and_quote_naming_the_number(self):
+        rows = load_registry()["platforms"]
+        sourced = [(p["id"], e) for p in rows for e in p.get("profile_field_limits", [])]
+        self.assertGreaterEqual(len({pid for pid, _ in sourced}), 9)
+        for pid, entry in sourced:
+            with self.subTest(platform=pid, field=entry["field"]):
+                self.assertTrue(entry["source_url"].startswith("https://"))
+                self.assertEqual(entry["checked_on"], "2026-10-15")
+                self.assertIn(str(entry["max"]), entry["quote"])
+                self.assertIn(entry["unit"], ("characters", "graphemes"))
+        for p in rows:
+            bio = next((e for e in p.get("profile_field_limits", []) if e["field"] == "bio"), None)
+            self.assertEqual(p["profile_bio_limit"], bio["max"] if bio else None)
+            if bio is None:
+                self.assertEqual(p["profile_bio_limit_scope"], "unverified")
+
+    def test_unsourced_fields_stay_unknown_and_are_never_length_checked(self):
+        rows = {p["id"]: p for p in load_registry()["platforms"]}
+        for pid in ("linkedin", "threads", "tiktok", "reddit", "telegram", "discord", "hashnode",
+                    "producthunt", "snapchat", "whatsapp", "hackernews"):
+            self.assertEqual(rows[pid]["profile_field_limits"], [], pid)
+            self.assertIsNone(rows[pid]["profile_bio_limit"], pid)
+        self.data["profiles"].append({
+            "platform": "linkedin", "account_id": "sample-li", "handle": "sample-li",
+            "fields": {"headline": "h" * 3900, "bio": "b" * 3900}})
+        item = audit_profiles(self.data, platform="linkedin")["reports"][1]
+        self.assertNotIn("length_review", [a["kind"] for a in item["alerts"]])
+        self.assertEqual(item["field_limits"], {"display_name": "unknown", "headline": "unknown",
+                                                "bio": "unknown", "handle": "unknown"})
+
+    def test_handle_and_grapheme_limits(self):
+        self.data["profiles"].append({
+            "platform": "mastodon", "account_id": "sample-m", "handle": "@" + "u" * 31 + "@example.social",
+            "fields": {"display_name": "Sample"}})
+        item = audit_profiles(self.data, platform="mastodon")["reports"][0]
+        self.assertEqual([(a["field"], a["limit"]) for a in item["alerts"] if a["kind"] == "length_review"],
+                         [("handle", 30)])
+        family = "\U0001f468‍\U0001f469‍\U0001f467"  # one grapheme, five code points
+        self.data["profiles"].append({
+            "platform": "bluesky", "account_id": "sample-b", "handle": "sample.example.org",
+            "fields": {"bio": family * 256}})
+        item = audit_profiles(self.data, platform="bluesky")["reports"][0]
+        self.assertNotIn("length_review", [a["kind"] for a in item["alerts"]])
+        self.data["profiles"][-1]["fields"]["bio"] = "é" * 257  # combining accent
+        item = audit_profiles(self.data, platform="bluesky")["reports"][0]
+        self.assertEqual(item["alerts"][0]["length"], 257)
+        self.assertIn("Length: bio is 257 graphemes", render_summary(audit_profiles(self.data, platform="bluesky")))
+
+    def test_registry_refuses_a_limit_without_evidence(self):
+        from reachweaver import profile_audit
+        registry = load_registry()
+        x = next(p for p in registry["platforms"] if p["id"] == "x")
+        bad = [dict(x["profile_field_limits"][0], quote="no number here"),
+               {k: v for k, v in x["profile_field_limits"][0].items() if k != "source_url"},
+               dict(x["profile_field_limits"][0], checked_on="recently"),
+               dict(x["profile_field_limits"][0], field="headline")]
+        for entry in bad:
+            with self.subTest(entry=entry), tempfile.TemporaryDirectory() as tmp:
+                x["profile_field_limits"] = [entry]
+                path = Path(tmp) / "registry.json"
+                path.write_text(json.dumps(registry), encoding="utf-8")
+                with patch.object(profile_audit, "REGISTRY", path), self.assertRaises(ValidationError):
+                    load_registry()
+        x["profile_field_limits"] = []
+        x["profile_bio_limit"] = 160
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "registry.json"
+            path.write_text(json.dumps(registry), encoding="utf-8")
+            with patch.object(profile_audit, "REGISTRY", path), self.assertRaises(ValidationError):
+                load_registry()
 
     def test_professional_brand_mismatch_is_advisory_not_algorithm_penalty(self):
         self.data["profiles"][1]["fields"]["display_name"] = "Different Organization"

@@ -10,6 +10,7 @@ import io
 import json
 import math
 import re
+import unicodedata
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,6 +52,16 @@ PROFILE_ALLOWED = REQUIRED_PROFILE | {"profile_kind", "keywords"}
 POST_ALLOWED = REQUIRED_POST | {"source", "published_at", "observed_at", "metrics", "review_flags"}
 ROOT_ALLOWED = frozenset({"schema_version", "brand_name", "preferred_handle", "profiles", "posts"})
 KNOWN_FIELDS = BOOL_FIELDS | URL_FIELDS | TEXT_FIELDS
+# Sourced length limits: text fields plus the top-level handle. Every entry carries an official URL,
+# a checked date and a verbatim quote; a field without an entry is unknown and is never length-checked.
+LIMIT_FIELDS = TEXT_FIELDS | {"handle"}
+LIMIT_UNITS = frozenset({"characters", "graphemes"})
+LIMIT_SCOPES = frozenset({"official_help", "official_api_reference", "official_api_schema",
+                          "official_open_source_code", "instance_default_verify_actual_server"})
+LIMIT_KEYS = frozenset({"field", "max", "unit", "scope", "source_url", "checked_on", "quote"})
+ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# Code points that join or modify the previous user-perceived character (approximate grapheme count).
+_GRAPHEME_EXTEND = re.compile("[‍︀-️\U0001f3fb-\U0001f3ff\U000e0020-\U000e007f]")
 
 
 def _reject_sensitive(obj, depth: int = 0) -> None:
@@ -96,8 +107,86 @@ def load_registry() -> dict:
                 or strategy.get("action_metric") not in METRICS
                 or strategy.get("exposure_metric") not in METRICS):
             raise ValidationError("Invalid platform outcome metric mapping")
+        _check_field_limits(p)
         seen.add(p["id"])
     return registry
+
+
+def _check_field_limits(p: dict) -> None:
+    """Refuse a limit without official URL, checked date and a quote naming the number."""
+    limits = p.get("profile_field_limits", [])
+    if not isinstance(limits, list):
+        raise ValidationError("Invalid profile field limits")
+    fields = set()
+    for entry in limits:
+        if (not isinstance(entry, dict) or not LIMIT_KEYS <= entry.keys()
+                or set(entry) - LIMIT_KEYS - {"note"}
+                or entry["field"] not in LIMIT_FIELDS or entry["field"] in fields
+                or (entry["field"] != "handle" and entry["field"] not in p["profile_checks"])
+                or not isinstance(entry["max"], int) or isinstance(entry["max"], bool) or entry["max"] < 1
+                or entry["unit"] not in LIMIT_UNITS or entry["scope"] not in LIMIT_SCOPES
+                or not isinstance(entry["source_url"], str) or not entry["source_url"].startswith("https://")
+                or not isinstance(entry["checked_on"], str) or not ISO_DATE.match(entry["checked_on"])
+                or not isinstance(entry["quote"], str) or not 0 < len(entry["quote"]) <= 200
+                or str(entry["max"]) not in entry["quote"]):
+            raise ValidationError(f"Invalid sourced field limit for {p['id']}")
+        fields.add(entry["field"])
+    bio = next((e for e in limits if e["field"] == "bio"), None)
+    if (p.get("profile_bio_limit") != (bio["max"] if bio else None)
+            or p.get("profile_bio_limit_scope") != (bio["scope"] if bio else "unverified")):
+        raise ValidationError(f"profile_bio_limit for {p['id']} must mirror its sourced bio limit")
+
+
+def _measure(value: str, unit: str) -> int:
+    """Code points, or an approximate grapheme count (combining marks, joiners, variation selectors,
+    skin-tone modifiers and tag characters attach to the previous character). Never an exact counter."""
+    if unit == "characters":
+        return len(value)
+    count, joined, flag_half = 0, False, False
+    for ch in value:
+        if unicodedata.combining(ch) or _GRAPHEME_EXTEND.match(ch):
+            joined = joined or ch == "‍"
+            continue
+        if joined:  # the character after a zero-width joiner belongs to the same emoji sequence
+            joined = False
+            continue
+        if "\U0001f1e6" <= ch <= "\U0001f1ff":  # two regional indicators form one flag
+            flag_half = not flag_half
+            if not flag_half:
+                continue
+        else:
+            flag_half = False
+        count += 1
+    return count
+
+
+def _length_alerts(rule: dict, profile: dict) -> list[dict]:
+    alerts = []
+    for entry in rule.get("profile_field_limits", []):
+        field = entry["field"]
+        value = profile.get("handle") if field == "handle" else profile["fields"].get(field)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        if field == "handle":
+            value = value.strip().lstrip("@").split("@")[0]
+        size = _measure(value, entry["unit"])
+        if size > entry["max"]:
+            alerts.append({
+                "kind": "length_review", "field": field, "length": size, "limit": entry["max"],
+                "unit": entry["unit"], "scope": entry["scope"], "checked_on": entry["checked_on"],
+                "message": (f"{field} is {size} {entry['unit']}, over the sourced {entry['max']}-{entry['unit']} "
+                            f"limit ({entry['scope']}, checked {entry['checked_on']}). Counting rules and server "
+                            "settings can differ; verify in the native editor."),
+                "source": entry["source_url"]})
+    return alerts
+
+
+def field_limit_status(rule: dict) -> dict:
+    """Each text field the platform audits (and the handle): its sourced limit, or ``unknown``."""
+    sourced = {e["field"]: e for e in rule.get("profile_field_limits", [])}
+    fields = [f for f in rule["profile_checks"] if f in TEXT_FIELDS] + ["handle"]
+    return {f: ({k: sourced[f][k] for k in ("max", "unit", "scope", "source_url", "checked_on")}
+                if f in sourced else "unknown") for f in fields}
 
 
 CSV_COLUMNS = ("platform", "account_id", "handle", "profile_kind", "keywords", "field", "value")
@@ -385,13 +474,9 @@ def audit_profiles(snapshot: dict, *, platform: str | None = None) -> dict:
                                   "reason": reason})
             checklist.append({"field": field, "description": registry["field_labels"][field][0],
                               "status": status, "evidence": "owner_supplied_snapshot" if status != "unknown" else "not_observed"})
-        alerts = []
+        alerts = _length_alerts(rule, p)
         bio = fields.get("bio")
         if isinstance(bio, str) and bio:
-            limit = rule.get("profile_bio_limit")
-            if isinstance(limit, int) and len(bio) > limit:
-                alerts.append({"kind":"length_review","message":f"Bio exceeds {limit} codepoints; platform character counting or instance limits can differ. Verify in native editor.",
-                               "source": rule["evidence"].get("official_source")})
             if VAGUE_CLAIM.search(bio):
                 alerts.append({"kind":"claim_review","message":"Bio may contain an unsupported superlative/guarantee; verify proof manually before publication."})
         keywords = p.get("keywords", [])
@@ -427,6 +512,7 @@ def audit_profiles(snapshot: dict, *, platform: str | None = None) -> dict:
             "supported_formats_hypotheses":rule["post_strategy"]["formats"],
             "source_tier":rule["evidence"]["tier"],
             "official_source":rule["evidence"].get("official_source"),
+            "field_limits": field_limit_status(rule),
             "status":"observed_only" if coverage>=0.6 else "insufficient_profile_data",
         })
     return {"schema_version":SCHEMA,"kind":"profile_audit","status":"offline_descriptive_not_a_platform_rank",
@@ -531,6 +617,9 @@ def render_summary(result: dict) -> str:
             lines.append(f"{item['platform']} [{item['account_id']}]: {score} | coverage {item['coverage']:.0%} | fixes {len(item['fixes'])}")
             for fix in item["fixes"][:6]:
                 lines.append(f"  {fix['priority']}: {fix['field']} — {fix['action']}")
+            for alert in item["alerts"]:
+                if alert["kind"] == "length_review":
+                    lines.append(f"  Length: {alert['message']}")
             lines.append(f"  Next hypothesis: {item['post_hypothesis']}")
         cross = result.get("cross_platform_consistency")
         if cross and cross["findings"]:
