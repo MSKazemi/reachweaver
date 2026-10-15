@@ -484,7 +484,8 @@ The C1/C3 boundary sits before the container POST (conservative; proposal). See 
 ```text
 check_connection -> facebook.verify_identity            (before claim_sending)
         |   offline: page_id/page_name shape, unknown keys, Graph v25.0 past 2028-07-29 -> BLOCKED
-        |   GET /v25.0/me?fields=id,name          id == page_id (a User token fails here)
+        |   GET /v25.0/me?fields=id,name          id == page_id (a User token fails here unless
+        |                                         page_id is that person's own id; FACEBOOK.md)
         |   GET /v25.0/{page_id}?fields=id,name   id == page_id, name == page_name
         v
 claim_sending -> mark_write_started()
@@ -494,7 +495,7 @@ GET /v25.0/{post_id}?fields=id,permalink_url,from,message -> remote_url if www.f
 any failure after mark_write_started() -> facebook_feed_*_uncertain -> needs_review, never retried
 ```
 
-The token is sent only in `Authorization: Bearer`. See [FACEBOOK.md](FACEBOOK.md) and the proposal.
+The token is sent only in `Authorization: Bearer`. `page_id` is digits only, so the single write is always `POST /{page_id}/feed`, never `/me/feed` or a group feed. `doctor` prints the eligible Page (`facebook_eligible_page`) and the optional owner-declared `declared_permissions` (`facebook_declared_permissions`, never verified, never sent, not in the approval binding). See [FACEBOOK.md](FACEBOOK.md) and the proposal.
 
 ## Field pilot protocol and operations-log readout (issue #27 slice)
 
