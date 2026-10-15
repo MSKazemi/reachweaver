@@ -49,6 +49,7 @@ from .profile_audit import load_snapshot as load_profile_snapshot, audit_profile
 from .profile_metrics_csv import merge_authorized_csv
 from .suggest import build_suggestions, render_text as render_suggestions
 from .manual_export import MANUAL_PLATFORMS, build_export, write_export
+from .browser_handoff import build_handoff, list_delivery_routes, write_handoff
 from .pilot import DEFAULT_MIN_WEEKS, load_pilot_log, pilot_report, render_report as render_pilot_report
 from .timing_analysis import analyze_posting_times
 from .worker_log import claim_refusal_reason, error_code as worker_error_code, open_worker_log
@@ -553,6 +554,16 @@ def make_parser() -> argparse.ArgumentParser:
                    help="Assumed player fit for non-9:16 frames: centered crop (default) or letterbox")
     p.add_argument("--safe-zones", type=Path, help="Owner UI-overlay zones JSON overriding the built-ins (sourced from paid-ad specs, accessed 2026-10-09)")
     p.add_argument("--json", action="store_true", help="Machine-readable result")
+    p = sub.add_parser("delivery-options", help="Offline API/browser/human-only plan for every regional social channel")
+    p.add_argument("--platform", help="Optional channel ID (defaults to every registered channel)")
+    p.add_argument("--json", action="store_true")
+    p = sub.add_parser("browser-handoff", help="Private non-publishing Claude-in-Chrome creator review package")
+    p.add_argument("--platform", required=True, help="Distribution channel ID; human-only channels refused")
+    p.add_argument("--variant", type=Path, required=True, help="Variant JSON; no credential or cookie values")
+    p.add_argument("--account", required=True, help="Public account hint, NOT a login or password")
+    p.add_argument("--at", help="Optional timezone-offset publish-time suggestion; not scheduled")
+    p.add_argument("--out", type=Path, required=True, help="New private output folder, never overwrite")
+    p.add_argument("--json", action="store_true")
     p = sub.add_parser("manual-export", help="Offline creator-ready package for Threads/Instagram/Facebook Pages/YouTube/TikTok; never sends")
     p.add_argument("--platform", required=True, choices=MANUAL_PLATFORMS)
     p.add_argument("--variant", type=Path, required=True, help="Variant JSON: text, format, link_url, platform_options")
@@ -1720,6 +1731,29 @@ def execute(args) -> int:
     if args.command == "media-storyboard":
         from .storyboard import run_command as run_storyboard
         return run_storyboard(args)
+    if args.command == "delivery-options":
+        options = list_delivery_routes(args.platform)
+        if args.json:
+            print(json.dumps(options, indent=2, ensure_ascii=False))
+        else:
+            for item in options["channels"]:
+                print(f"{item['id']}: {item['method']} (native={item['native_scheduling']})")
+            print("No accounts connected, no browser opened, no social post or schedule created.")
+        return 0
+    if args.command == "browser-handoff":
+        package = build_handoff(args.platform, read_json(args.variant), account=args.account, at=args.at)
+        written = write_handoff(package, args.out)
+        if args.json:
+            print(json.dumps(package, indent=2, ensure_ascii=False))
+        else:
+            print(f"{package['status']}: {package['platform_label']}, destination hint {package['account_hint']}")
+            for warning in package["warnings"]:
+                print("  WARNING:", warning)
+        for path in written:
+            print(f"Wrote {path}", file=sys.stderr)
+        print("No login, network, upload, schedule or social post occurred. Human final action required.",
+              file=sys.stderr)
+        return 0
     if args.command == "manual-export":
         variant = read_json(args.variant)
         meta = read_json(args.account_meta) if args.account_meta else None
