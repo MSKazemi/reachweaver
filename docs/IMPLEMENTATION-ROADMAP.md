@@ -8,7 +8,7 @@ This document distinguishes implementation, validation and aspiration. A complet
 - [x] Original Python CLI with human per-item approvals, immutable drafts after approval, UTC scheduler and default dry run.
 - [x] Approval bound to an immutable payload hash (#7, owner-approved 2026-10-08): re-verified in the claim, on `schedule` and on `calendar-plan --apply`; legacy approvals need re-approval and are listed by `health`. Opt-in additions (owner-approved 2026-10-09, mock-tested): D6 human-presence confirmation (`approval-mode --confirmation tty_hash_prefix`, friction only) and D7 keyed HMAC binding with `REACHWEAVER_APPROVAL_SECRET` (`approval-mode --require-key` latches it); both off by default. FIDO-signed approval and replay protection are still open (threat model T7/T8).
 - [x] Local SQLite durable outbox with concurrent claim lock, needs_review recovery, stop/resume and audit events.
-- [x] Bluesky/Mastodon/Telegram/LinkedIn-member text adapters with mocked protocol tests (real account verification pending; no live receipt exists).
+- [x] Bluesky/Mastodon/Telegram/LinkedIn-member text adapters with mocked protocol tests (Bluesky and Mastodon: one live text post each recorded in `docs/receipts/`, 2026-10-11; Telegram and LinkedIn: no live receipt).
 - [x] Manual first-party analytics import and missingness-aware summaries.
 - [ ] Verify the first live test post and failure/permission paths using user-owned test accounts. Offline account identity and Telegram permission checks implemented; real first-party receipt pending.
 - [x] Enforce protected POSIX `state/` directory and SQLite permissions; document owner-assisted environment secrets and the first pilot. No secret manager integration or OAuth wizard yet.

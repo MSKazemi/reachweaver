@@ -1,6 +1,6 @@
 # Mastodon publishing (issue #43)
 
-> **Status:** mock-tested text adapter. No live Mastodon account has been connected through ReachWeaver and no receipt from a real send exists in this repository. Everything below was checked against `reachweaver/publishers.py`, `connections.py`, `policy.py`, `accounts.py` and the offline tests, not against a live server. The two server pages it relies on are [`POST /api/v1/statuses`](https://docs.joinmastodon.org/methods/statuses/) and [media upload](https://docs.joinmastodon.org/methods/media/).
+> **Status:** mock-tested text adapter with one live receipt: a text post sent through ReachWeaver on 2026-10-11, recorded in [mastodon-2026-10-11.json](receipts/mastodon-2026-10-11.json). Everything below was checked against `reachweaver/publishers.py`, `connections.py`, `policy.py`, `accounts.py` and the offline tests; the receipt proves one real send, not the failure and rate-limit behaviour, which stays mock-tested. The two server pages it relies on are [`POST /api/v1/statuses`](https://docs.joinmastodon.org/methods/statuses/) and [media upload](https://docs.joinmastodon.org/methods/media/).
 
 Nothing here changes the human approval, the dry-run default, the emergency pause, credential isolation or ambiguous-send reconciliation. Live sending still needs an approved post, `publish --live`, `REACHWEAVER_ALLOW_LIVE=1` and `REACHWEAVER_ENV=prod`.
 

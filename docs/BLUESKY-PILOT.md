@@ -2,7 +2,7 @@
 
 A copy-pasteable runbook for the first and only live action ReachWeaver should take: **one** harmless text post, to a **throwaway Bluesky account you own**, sent by **you** from a terminal an AI agent does not drive. It condenses [FIRST-LIVE-PILOT.md](FIRST-LIVE-PILOT.md), [ACCOUNT-ONBOARDING.md](ACCOUNT-ONBOARDING.md) and [SECURITY-CHECKLIST.md](SECURITY-CHECKLIST.md); read those for the reasoning.
 
-**Status:** no live account has been connected, no post has been sent and no receipt exists in this repository. This runbook was checked against `reachweaver/cli.py` and the offline tests, not against a real Bluesky account. Nothing here is evidence of a live result. Do not report the pilot as complete until you hold a first-party receipt (the post URL you opened in the native app).
+**Status (2026-10-15):** one text post was sent through ReachWeaver to Bluesky on 2026-10-11 and is recorded as a first-party receipt ([bluesky-2026-10-11.json](receipts/bluesky-2026-10-11.json)). This runbook itself was checked against `reachweaver/cli.py` and the offline tests; it is not that account's record. Do not report a new pilot as complete until you hold a first-party receipt (the post URL you opened in the native app).
 
 Nothing in this runbook changes or bypasses the human approval, the dry-run default, the emergency pause, credential isolation or ambiguous-send reconciliation.
 

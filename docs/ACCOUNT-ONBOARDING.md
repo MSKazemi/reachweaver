@@ -7,7 +7,7 @@ This guide covers the account lifecycle with the commands that exist today: `doc
 
 It has no login wizard, no OAuth redirect flow and no keychain integration. The shell examples below show how an owner can feed those variables from a protected file or a password manager. ReachWeaver itself does not call any of these tools.
 
-**Status (2026-10-09):** no live account has been connected or tested from this repository. The steps have been checked against the code and against the provider pages cited below, not against a real account. The `LoadCredential=` path is covered by offline tests (`tests/test_hardening.py`) only; it has not been run under a real systemd unit from this repository.
+**Status (2026-10-15):** Bluesky and Mastodon each have one live text-post receipt ([docs/receipts/](receipts/)); no other platform has been connected or tested from this repository. The steps have been checked against the code and against the provider pages cited below. The `LoadCredential=` path is covered by offline tests (`tests/test_hardening.py`) only; it has not been run under a real systemd unit from this repository.
 
 Security context: threat model, [security policy](SECURITY.md), [first live pilot](FIRST-LIVE-PILOT.md).
 

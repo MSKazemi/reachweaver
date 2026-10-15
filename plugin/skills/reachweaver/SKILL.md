@@ -43,7 +43,7 @@ description: Orchestrate evidence-backed, brand-aware social media strategy and 
 | "Triage comments / mentions / draft replies / feedback to GitHub issues" | `references/engagement.md`: offline `engagement-triage` on an owner export (or a read-only `engagement-fetch --online` of public Bluesky/Mastodon replies), untrusted-text rules, drafts only (`draft_requires_approval`), no send path in triage; an owner-written `draft --reply-to` reply is approval-bound and its sending stays disabled until a live receipt |
 | "Credentials / production host / LoadCredential / export or purge my local data" | `references/security.md`: names-only `credentials-audit` findings, owner-only prod live gate, systemd `LoadCredential=`, `privacy-status` / `data-export` / dry-run `data-purge` |
 | "Check my landing page / UTM links / attribution" | `references/measurement.md`: `utm-link`, offline `landing-check` (online GET only on request), `link-health` (links already stored in posts; read-only, online only on request), `attribution-report`, `seo-destinations` |
-| "Is it release-ready / what actually works" | `references/skill-evaluation.md`: report `release_gate.py --scorecard` statuses verbatim; no area has a live receipt |
+| "Is it release-ready / what actually works" | `references/skill-evaluation.md`: report `release_gate.py --scorecard` statuses verbatim; only Bluesky and Mastodon text posts have one (`docs/receipts/`) |
 | "Check this skill / compare competitors" | `references/skill-evaluation.md` + `docs/UPSTREAM-RESEARCH.md` in the full repository: evidence-backed gap analysis and offline tests |
 
 ## Independent profile and post audits (no external writes)

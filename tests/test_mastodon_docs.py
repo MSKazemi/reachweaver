@@ -27,10 +27,12 @@ def subcommands() -> set[str]:
 
 
 class MastodonDocTests(unittest.TestCase):
-    def test_status_is_honest_about_the_missing_live_receipt(self):
+    def test_status_is_honest_about_the_single_live_receipt(self):
         head = DOC.split("## Account configuration", 1)[0]
-        self.assertIn("No live Mastodon account has been connected", head)
-        self.assertIn("no receipt from a real send exists", head)
+        self.assertIn("one live receipt", head)
+        self.assertIn("receipts/mastodon-2026-10-11.json", head)
+        self.assertIn("failure and rate-limit behaviour, which stays mock-tested", head)
+        self.assertTrue((ROOT / "docs/receipts/mastodon-2026-10-11.json").is_file())
         for claim in ("fully supported", "production-ready", "guaranteed"):
             self.assertNotIn(claim, DOC.casefold())
 

@@ -26,6 +26,22 @@ DISTRIBUTION_ALIAS = {"devto": "dev", "facebook": "facebook_pages"}
 # media/storyboard target id -> platform_registry id.
 MEDIA_ALIAS = {"youtube_shorts": "youtube"}
 DELIVERY_FOR_ADAPTER = {"live_text": "mock_tested_text", "none": "manual_only"}
+
+
+def _scorecard_receipts() -> dict[str, dict[str, str]]:
+    """Areas the readiness scorecard marks live_receipt_verified: id -> receipt file name and observed date."""
+    import json
+    data = json.loads((ROOT / "docs/release-readiness.json").read_text(encoding="utf-8"))
+    found = {}
+    for area in data["areas"]:
+        if area["status"] == "live_receipt_verified":
+            name = Path(area["receipt"]).name
+            receipt = json.loads((ROOT / area["receipt"]).read_text(encoding="utf-8"))
+            found[area["capability_id"]] = {"file": name, "date": receipt["published_at"][:10]}
+    return found
+
+
+SCORECARD_RECEIPTS = _scorecard_receipts()
 _CODE = re.compile(r"`([^`]+)`")
 
 
@@ -96,8 +112,12 @@ def mismatches(rows: list[dict[str, str]], backend_rows: list[dict[str, str]], p
             if DELIVERY_FOR_ADAPTER.get(adapter or "") != dist_entry["reachweaver_delivery"]:
                 errors.append(f"{pid}: adapter {adapter!r} contradicts distribution delivery "
                               f"{dist_entry['reachweaver_delivery']!r}")
-        if first_code(row["Owner live receipt"]) != "none":
+        receipt = SCORECARD_RECEIPTS.get(pid)
+        cell = row["Owner live receipt"]
+        if receipt is None and first_code(cell) != "none":
             errors.append(f"{pid}: an owner live receipt needs dated first-party evidence and a test update")
+        if receipt is not None and (first_code(cell) != receipt["date"] or f"receipts/{receipt['file']}" not in cell):
+            errors.append(f"{pid}: Owner live receipt cell must show {receipt['date']} and link receipts/{receipt['file']}")
         tools = codes(row["Media"])
         for tool, covered in (("media-check", pid in check_ids), ("media-storyboard", pid in board_ids),
                               ("manual-export", pid in manual_export.MANUAL_PLATFORMS)):
@@ -158,7 +178,8 @@ class PlatformMatrixDocsTests(unittest.TestCase):
 
     def test_claimed_receipt_and_wrong_analytics_are_detected(self):
         rows = deepcopy(self.rows)
-        rows[0]["Owner live receipt"] = "`2026-10-09`"
+        telegram_row = next(r for r in rows if first_code(r["Registry id"]) == "telegram")
+        telegram_row["Owner live receipt"] = "`2026-10-09`"
         telegram = next(r for r in rows if first_code(r["Registry id"]) == "telegram")
         telegram["Analytics"] = "`metrics-fetch --online`"
         errors = mismatches(rows, self.backend, self.platforms, self.dist)

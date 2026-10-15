@@ -1,0 +1,19 @@
+{
+  "area": "bluesky",
+  "first_party": true,
+  "remote_url": "https://bsky.app/profile/did:plc:cql4paaoh67ry5b73bvkxcsj/post/3mxmd2lplioaz",
+  "remote_id": "at://did:plc:cql4paaoh67ry5b73bvkxcsj/app.bsky.feed.post/3mxmd2lplioaz",
+  "observed_at": "2026-10-15T18:13:33Z",
+  "source": "Bluesky public AppView API, GET https://public.api.bsky.app/xrpc/app.bsky.feed.getPosts?uris=<remote_id>, read by plain HTTP without credentials; the returned record text is byte-equal to the approved content stored by ReachWeaver",
+  "account_handle": "mskazemi.bsky.social",
+  "published_at": "2026-10-11T15:35:03.394Z",
+  "indexed_at": "2026-10-11T15:35:04.069Z",
+  "reachweaver_post_id": "08ca86fa5bfc4658",
+  "reachweaver_event_log": "approve, send_claimed, published (the owner's working install)",
+  "engagement_at_observation": {
+    "likes": 0,
+    "reposts": 0,
+    "replies": 0
+  },
+  "limits": "Proves one text post sent through ReachWeaver on 2026-10-11 exists on the account. It says nothing about reach, growth or the other adapters."
+}

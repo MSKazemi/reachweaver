@@ -501,14 +501,15 @@ class ReleaseReadinessScorecard(unittest.TestCase):
         self.assertEqual(self.errors(self.data), [])
         self.assertEqual(self.gate.check_readiness(ROOT)["status"], "pass")
 
-    def test_no_area_claims_a_live_receipt(self):
-        # No owner account has been connected and no live send has run, so nothing may claim one.
+    def test_only_bluesky_and_mastodon_claim_a_live_receipt(self):
+        # One text post each was sent through ReachWeaver on 2026-10-11 (docs/receipts/); nothing else has run live.
         statuses = {a["id"]: a["status"] for a in self.data["areas"]}
-        self.assertNotIn("live_receipt_verified", statuses.values(), statuses)
-        self.assertFalse([a["id"] for a in self.data["areas"] if "receipt" in a])
+        claimed = sorted(k for k, v in statuses.items() if v == "live_receipt_verified")
+        self.assertEqual(claimed, ["bluesky", "mastodon"], statuses)
+        self.assertEqual(sorted(a["id"] for a in self.data["areas"] if "receipt" in a), ["bluesky", "mastodon"])
         report = self.gate.scorecard(ROOT)
-        self.assertEqual(report["live_receipts"], 0)
-        self.assertEqual(report["summary"]["live_receipt_verified"], 0)
+        self.assertEqual(report["live_receipts"], 2)
+        self.assertEqual(report["summary"]["live_receipt_verified"], 2)
 
     def test_every_status_comes_from_the_allowed_set_and_issue_list(self):
         for area in self.data["areas"]:
@@ -522,7 +523,9 @@ class ReleaseReadinessScorecard(unittest.TestCase):
         for cap_id, entry in self.capabilities.items():
             row = next(a for a in self.data["areas"] if a.get("capability_id") == cap_id)
             if entry["reachweaver_adapter"] == "live_text":
-                self.assertEqual(row["status"], "offline_mock_tested", cap_id)
+                # Bluesky and Mastodon carry a checked-in first-party receipt (docs/receipts/); the others are mock-tested.
+                expected = "live_receipt_verified" if cap_id in ("bluesky", "mastodon") else "offline_mock_tested"
+                self.assertEqual(row["status"], expected, cap_id)
                 self.assertTrue(any(e.startswith("tests/") for e in row["evidence"]), cap_id)
             else:
                 self.assertIn(row["status"], ("manual_export_only", "blocked"), cap_id)
@@ -617,11 +620,11 @@ class ReleaseReadinessScorecard(unittest.TestCase):
         self.assertEqual(self.errors({"schema_version": 2}), ["schema_version must be 1"])
 
     def test_live_receipt_requires_a_first_party_receipt_file(self):
-        errors = self.errors(self.mutated("bluesky", status="live_receipt_verified", blockers=[]))
+        errors = self.errors(self.mutated("telegram", status="live_receipt_verified", blockers=[]))
         self.assertTrue(any("needs a first-party receipt file" in e for e in errors), errors)
-        errors = self.errors(self.mutated("bluesky", status="live_receipt_verified",
-                                          receipt="docs/receipts/bluesky.json"))
-        self.assertTrue(any("receipt docs/receipts/bluesky.json does not exist" in e for e in errors), errors)
+        errors = self.errors(self.mutated("telegram", status="live_receipt_verified",
+                                          receipt="docs/receipts/telegram.json"))
+        self.assertTrue(any("receipt docs/receipts/telegram.json does not exist" in e for e in errors), errors)
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             for area in self.data["areas"]:
@@ -631,17 +634,17 @@ class ReleaseReadinessScorecard(unittest.TestCase):
                     source = ROOT / item.split("::", 1)[0]
                     if not target.exists() and source.exists():  # private-only docs are absent in the public tree
                         shutil.copy2(source, target)
-            receipt = root / "docs" / "receipts" / "bluesky.json"
-            receipt.parent.mkdir(parents=True)
-            good = {"area": "bluesky", "remote_url": "https://bsky.app/profile/example.invalid/post/abc",
+            receipt = root / "docs" / "receipts" / "telegram.json"
+            receipt.parent.mkdir(parents=True, exist_ok=True)
+            good = {"area": "telegram", "remote_url": "https://bsky.app/profile/example.invalid/post/abc",
                     "observed_at": "2026-10-09T10:00:00+00:00", "source": "native app", "first_party": True}
             receipt.write_text(json.dumps(good), encoding="utf-8")
-            claim = self.mutated("bluesky", status="live_receipt_verified", receipt="docs/receipts/bluesky.json")
+            claim = self.mutated("telegram", status="live_receipt_verified", receipt="docs/receipts/telegram.json")
             self.assertEqual(self.errors(claim, root), [])
             for field, value, message in (("first_party", False, "first_party: true"),
                                           ("remote_url", "http://x.example/p", "https URL"),
                                           ("observed_at", "2026-10-09T10:00:00", "time zone"),
-                                          ("area", "mastodon", "not 'bluesky'")):
+                                          ("area", "mastodon", "not 'telegram'")):
                 with self.subTest(field=field):
                     receipt.write_text(json.dumps(dict(good, **{field: value})), encoding="utf-8")
                     errors = self.errors(claim, root)
@@ -653,7 +656,8 @@ class ReleaseReadinessScorecard(unittest.TestCase):
         table = self.run_cli("--scorecard")
         self.assertEqual(table.returncode, 0, table.stdout + table.stderr)
         self.assertIn("RELEASE READINESS PASS", table.stdout)
-        self.assertIn("Live receipts verified: 0. No area claims a live receipt.", table.stdout)
+        self.assertIn("Live receipts verified: 2.", table.stdout)
+        self.assertNotIn("No area claims a live receipt", table.stdout)
         for area in self.data["areas"]:
             self.assertIn(area["label"], table.stdout)
         machine = self.run_cli("--scorecard", "--json")

@@ -1,6 +1,6 @@
 # First supervised live pilot: local account authorization and one-post delivery
 
-**Status (2026-10-08):** The account-identity checks are implemented and verified with offline mocks. There is **no verified live account**, no real post receipt and no real growth measurement yet. Do not report a completed pilot until the owner runs the commands on their own device and records an actual remote post URL. The steps below are not a substitute for official API scopes, provider approval or terms of service.
+**Status (2026-10-15):** The account-identity checks are implemented and verified with offline mocks. Bluesky and Mastodon each have one first-party post receipt from 2026-10-11 ([docs/receipts/](receipts/)); there is no other verified live account and **no real growth measurement yet**. Do not report a completed pilot until the owner runs the commands on their own device and records an actual remote post URL. The steps below are not a substitute for official API scopes, provider approval or terms of service.
 
 ## Safety model
 

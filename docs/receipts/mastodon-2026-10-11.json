@@ -1,0 +1,19 @@
+{
+  "area": "mastodon",
+  "first_party": true,
+  "remote_url": "https://mastodon.social/@mskazemi/117423116834908888",
+  "remote_id": "117423116834908888",
+  "observed_at": "2026-10-15T18:13:33Z",
+  "source": "Mastodon public API of the posting server, GET https://mastodon.social/api/v1/statuses/117423116834908888, read by plain HTTP without credentials; the returned text begins with the approved content stored by ReachWeaver",
+  "account_handle": "mskazemi@mastodon.social",
+  "published_at": "2026-10-11T16:02:50.949Z",
+  "visibility": "public",
+  "reachweaver_post_id": "9ade7939349d405c",
+  "reachweaver_event_log": "approve, send_claimed, published (the owner's working install)",
+  "engagement_at_observation": {
+    "favourites": 0,
+    "reblogs": 0,
+    "replies": 0
+  },
+  "limits": "Proves one text post sent through ReachWeaver on 2026-10-11 exists on the account. It says nothing about reach, growth or the other adapters."
+}

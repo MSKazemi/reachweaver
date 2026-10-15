@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "reviewed_on": "2026-10-09",
+  "reviewed_on": "2026-10-15",
   "issue": 27,
-  "note": "Release-readiness scorecard, validated by scripts/release_gate.py --scorecard and by the release gate's readiness check. Statuses are derived from the code, the capability and distribution registries and the offline tests. No owner account has been connected and no live send has been run, so no area claims live_receipt_verified. A status here is not permission, consent or proof of delivery.",
+  "note": "Release-readiness scorecard, validated by scripts/release_gate.py --scorecard and by the release gate's readiness check. Statuses are derived from the code, the capability and distribution registries and the offline tests. Two areas, Bluesky and Mastodon, claim live_receipt_verified with a checked-in first-party receipt (one text post each, sent through ReachWeaver on 2026-10-11 and re-observed on 2026-10-15 from the platforms' public APIs); every other area has no live receipt. A status here is not permission, consent or proof of delivery.",
   "status_meaning": {
     "not_started": "No code path exists in this repository.",
     "offline_mock_tested": "Implemented and covered by offline tests with mocked HTTP or local fixtures; never run against a real account.",
@@ -16,7 +16,8 @@
       "label": "Bluesky",
       "kind": "platform",
       "capability_id": "bluesky",
-      "status": "offline_mock_tested",
+      "status": "live_receipt_verified",
+      "receipt": "docs/receipts/bluesky-2026-10-11.json",
       "issue": 12,
       "evidence": [
         "reachweaver/publishers.py",
@@ -25,31 +26,28 @@
         "tests/test_bluesky_mastodon.py::BlueskyAdapterTests",
         "tests/test_bluesky_mastodon.py::GraphemeTests",
         "tests/test_connections.py::OnlineCheckTests",
-        "docs/PLATFORMS.md"
+        "docs/PLATFORMS.md",
+        "docs/receipts/bluesky-2026-10-11.json"
       ],
-      "blockers": [
-        {"kind": "owner", "detail": "Owner creates an App Password and connects an account; none is connected."},
-        {"kind": "live", "detail": "No supervised live send has produced a verified uri/cid receipt."}
-      ]
+      "blockers": []
     },
     {
       "id": "mastodon",
       "label": "Mastodon",
       "kind": "platform",
       "capability_id": "mastodon",
-      "status": "offline_mock_tested",
+      "status": "live_receipt_verified",
+      "receipt": "docs/receipts/mastodon-2026-10-11.json",
       "issue": 13,
       "evidence": [
         "reachweaver/publishers.py",
         "reachweaver/platform_registry.json",
         "tests/test_bluesky_mastodon.py::MastodonAdapterTests",
         "tests/test_connections.py::OnlineCheckTests",
-        "docs/PLATFORMS.md"
+        "docs/PLATFORMS.md",
+        "docs/receipts/mastodon-2026-10-11.json"
       ],
-      "blockers": [
-        {"kind": "owner", "detail": "Owner registers an app on their instance and supplies a token; none is connected."},
-        {"kind": "live", "detail": "No supervised live send has produced a verified status receipt."}
-      ]
+      "blockers": []
     },
     {
       "id": "telegram",

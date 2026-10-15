@@ -117,7 +117,9 @@ class RepositoryBrandingTests(unittest.TestCase):
         self.assertIn("Claude Code", first_screen)
         self.assertIn("social media", first_screen.lower())
         self.assertIn("[quickstart](docs/quickstart.md)", first_screen.lower())
-        self.assertIn("no personal accounts are connected", first_screen.lower())
+        # honest limits: the only live sends are the two recorded receipts; everything else is mock-tested or manual
+        self.assertIn("one approved text post each was sent through reachweaver to bluesky and mastodon", first_screen.lower())
+        self.assertIn("telegram and linkedin have had no live send", first_screen.lower())
         self.assertIn("public-release safety checklist", first_screen)
 
 
