@@ -56,7 +56,9 @@ class GlobalDistributionTests(unittest.TestCase):
             self.assertEqual(platform["reachweaver_delivery"], "manual_only")
             self.assertEqual(platform["scheduling"]["mode"], "unverified")
             self.assertEqual(platform["scheduling"]["official_source"], "")
-            self.assertEqual(platform["checked_on"], "2026-10-14")
+            # these eight were re-read on 2026-10-15 (docs/COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md)
+            reread = {"medium", "substack", "vk", "naver_blog", "naver_cafe", "line_openchat", "kakao_openchat", "snapchat"}
+            self.assertEqual(platform["checked_on"], "2026-10-15" if platform_id in reread else "2026-10-14")
             self.assertTrue(platform["research_source"].startswith("https://"))
         self.assertEqual(by_id["bilibili"]["checked_on"], "2026-10-08")
         for platform_id in ("baidu_tieba", "douban", "maimai", "qzone", "naver_cafe",

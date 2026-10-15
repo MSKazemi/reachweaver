@@ -80,8 +80,8 @@ These surfaces are in `reachweaver/distribution_registry.json` as planning metad
 
 | Surface | Registry id | Category | ReachWeaver delivery | Human only | Native scheduling | Checked | Source | Not verified |
 |---|---|---|---|---|---|---|---|---|
-| Medium | `medium` | technical | `manual_only` | no | `unverified` | 2026-10-14 | [page](https://medium.com/) | Scheduling and automation limits not sourced |
-| Substack | `substack` | technical | `manual_only` | no | `unverified` | 2026-10-14 | [page](https://substack.com/) | Scheduling and automation limits not sourced |
+| Medium | `medium` | technical | `manual_only` | no | `unverified` | 2026-10-15 | [page](https://github.com/Medium/medium-api-docs) | Scheduling and automation limits not sourced |
+| Substack | `substack` | technical | `manual_only` | no | `unverified` | 2026-10-15 | [page](https://substack.com/tos) | Scheduling and automation limits not sourced |
 | Lobsters | `lobsters` | community | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://lobste.rs/about) | Scheduling and automation limits not sourced |
 | Lemmy | `lemmy` | community | `manual_only` | yes | `native_conditional` | 2026-10-15 | [page](https://join-lemmy.org/docs/users/01-getting-started.html) | Per-account and plan limits not checked |
 | GitHub Discussions | `github_discussions` | code | `manual_only` | no | `unverified` | 2026-10-15 | [page](https://docs.github.com/en/discussions/quickstart) | Scheduling and automation limits not sourced |
@@ -90,16 +90,16 @@ These surfaces are in `reachweaver/distribution_registry.json` as planning metad
 | Stack Overflow / Stack Exchange | `stackexchange` | community | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://stackoverflow.com/help/promotion) | Scheduling and automation limits not sourced |
 | Tumblr | `tumblr` | writing | `manual_only` | yes | `native` | 2026-10-15 | [page](https://raw.githubusercontent.com/tumblr/docs/master/api.md) | Per-account and plan limits not checked |
 | Xing | `xing` | professional | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://dev.xing.com/) | Scheduling and automation limits not sourced |
-| VK | `vk` | microblog | `manual_only` | no | `unverified` | 2026-10-14 | [page](https://vk.com/) | Scheduling and automation limits not sourced |
-| Naver Blog | `naver_blog` | technical | `manual_only` | no | `unverified` | 2026-10-14 | [page](https://help.naver.com/service/5593/contents/15555) | Scheduling and automation limits not sourced |
-| Naver Cafe | `naver_cafe` | community | `manual_only` | yes | `unverified` | 2026-10-14 | [page](https://help.naver.com/service/5622/contents/15212) | Scheduling and automation limits not sourced |
-| KakaoTalk Open Chat | `kakao_openchat` | messaging | `manual_only` | yes | `unverified` | 2026-10-14 | [page](https://open.kakao.com/) | Scheduling and automation limits not sourced |
-| LINE OpenChat | `line_openchat` | messaging | `manual_only` | yes | `unverified` | 2026-10-14 | [page](https://help.line.me/line/smartphone/categoryId/200000000/) | Scheduling and automation limits not sourced |
+| VK | `vk` | microblog | `manual_only` | no | `unverified` | 2026-10-15 | [page](https://vk.com/terms) | Scheduling and automation limits not sourced |
+| Naver Blog | `naver_blog` | technical | `manual_only` | no | `unverified` | 2026-10-15 | [page](https://developers.naver.com/docs/common/openapiguide/apilist.md) | Scheduling and automation limits not sourced |
+| Naver Cafe | `naver_cafe` | community | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://developers.naver.com/docs/common/openapiguide/apilist.md) | Scheduling and automation limits not sourced |
+| KakaoTalk Open Chat | `kakao_openchat` | messaging | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://developers.kakao.com/docs/latest/en/kakaotalk-channel/common) | Scheduling and automation limits not sourced |
+| LINE OpenChat | `line_openchat` | messaging | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://developers.line.biz/en/docs/messaging-api/overview/) | Scheduling and automation limits not sourced |
 | Beehiiv | `beehiiv` | writing | `manual_only` | no | `native_conditional` | 2026-10-15 | [page](https://www.beehiiv.com/aup) | Per-account and plan limits not checked |
 | Ghost | `ghost` | writing | `manual_only` | no | `native` | 2026-10-15 | [page](https://ghost.org/terms/) | Per-account and plan limits not checked |
 | Vimeo | `vimeo` | video | `manual_only` | no | `unverified` | 2026-10-15 | [page](https://help.vimeo.com/hc/en-us/articles/12427803706001-How-to-request-API-upload-access) | Scheduling and automation limits not sourced |
 | Twitch | `twitch` | video | `manual_only` | yes | `native_conditional` | 2026-10-15 | [page](https://safety.twitch.tv/articles/en_US/Knowledge/Community-Guidelines) | Per-account and plan limits not checked |
-| Snapchat Spotlight | `snapchat` | video | `manual_only` | no | `unverified` | 2026-10-14 | [page](https://www.snapchat.com/spotlight) | Scheduling and automation limits not sourced |
+| Snapchat Spotlight | `snapchat` | video | `manual_only` | no | `unverified` | 2026-10-15 | [page](https://www.snapchat.com/spotlight) | Scheduling and automation limits not sourced |
 | Flipboard | `flipboard` | writing | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://flipboard.helpshift.com/hc/en/1-flipboard/faq/751-community-guidelines-1614302844/) | Scheduling and automation limits not sourced |
 | ResearchGate | `researchgate` | professional | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://help.researchgate.net/research-and-publications/how-to-add-research) | Scheduling and automation limits not sourced |
 | Behance | `behance` | visual | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://www.behance.net/misc/community) | Scheduling and automation limits not sourced |

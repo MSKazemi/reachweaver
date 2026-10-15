@@ -605,13 +605,13 @@
       "category": "technical",
       "scheduling": {
         "mode": "unverified",
-        "scope": "Author articles and discoverability controls; native scheduling unverified",
+        "scope": "Author articles and discoverability controls; native scheduling unverified. The same Open API list names the Blog only as a search target and, through Naver Share, as a share destination; it lists no blog-writing API. Posting is a human act in the Naver editor; limits and the automation rule are unverified.",
         "official_source": ""
       },
       "reachweaver_delivery": "manual_only",
       "human_only": false,
-      "checked_on": "2026-10-14",
-      "research_source": "https://help.naver.com/service/5593/contents/15555"
+      "checked_on": "2026-10-15",
+      "research_source": "https://developers.naver.com/docs/common/openapiguide/apilist.md"
     },
     {
       "id": "naver_cafe",
@@ -619,13 +619,13 @@
       "category": "community",
       "scheduling": {
         "mode": "unverified",
-        "scope": "Individual cafe moderation and visibility rules govern posts",
+        "scope": "Individual cafe moderation and visibility rules govern posts. Naver's Open API list (read 2026-10-15) includes a login-method Cafe API that posts an article to a cafe board (POST /v1/cafe/{clubid}/menu/{menuid}/articles with a Naver Login access token). Scheduling, limits and the promotion rules of the cafe itself are unverified, and each cafe's own rules apply.",
         "official_source": ""
       },
       "reachweaver_delivery": "manual_only",
       "human_only": true,
-      "checked_on": "2026-10-14",
-      "research_source": "https://help.naver.com/service/5622/contents/15212"
+      "checked_on": "2026-10-15",
+      "research_source": "https://developers.naver.com/docs/common/openapiguide/apilist.md"
     },
     {
       "id": "kakao_openchat",
@@ -633,13 +633,13 @@
       "category": "messaging",
       "scheduling": {
         "mode": "unverified",
-        "scope": "Opt-in groups only; no bulk invites, unsolicited chats or DM automation",
+        "scope": "Opt-in groups only; no bulk invites, unsolicited chats or DM automation. The Kakao Developers documentation menu (read 2026-10-15) lists Kakao Talk Channel, Message, Share, Social and Push Notification products and no Open Chat API. The Kakao Customer Center rules page is JavaScript-only, so promotion and automation rules for Open Chat are unverified.",
         "official_source": ""
       },
       "reachweaver_delivery": "manual_only",
       "human_only": true,
-      "checked_on": "2026-10-14",
-      "research_source": "https://open.kakao.com/"
+      "checked_on": "2026-10-15",
+      "research_source": "https://developers.kakao.com/docs/latest/en/kakaotalk-channel/common"
     },
     {
       "id": "dcard",
@@ -689,13 +689,13 @@
       "category": "messaging",
       "scheduling": {
         "mode": "unverified",
-        "scope": "Opt-in conversations, never a public broadcast feed",
+        "scope": "Opt-in conversations, never a public broadcast feed. LINE's Messaging API overview (read 2026-10-15) covers bots for LINE Official Accounts that reply to and message users who added the account as a friend, and does not mention OpenChat; no OpenChat posting API was found. The OpenChat guideline page is JavaScript-only, so its spam and promotion rules are unverified.",
         "official_source": ""
       },
       "reachweaver_delivery": "manual_only",
       "human_only": true,
-      "checked_on": "2026-10-14",
-      "research_source": "https://help.line.me/line/smartphone/categoryId/200000000/"
+      "checked_on": "2026-10-15",
+      "research_source": "https://developers.line.biz/en/docs/messaging-api/overview/"
     },
     {
       "id": "zalo_official_account",
@@ -759,13 +759,13 @@
       "category": "microblog",
       "scheduling": {
         "mode": "unverified",
-        "scope": "Owner-authorized posting; local policy and sanctions screening",
+        "scope": "Owner-authorized posting; local policy and sanctions screening. The VK Terms of Service (read 2026-10-15) bar mass mailing without prior consent (6.3.6) and automated scripts that interact with the Site without specific permission from the Site Administration (6.3.9), and allow no outside commercial or political advertising in a Community (5.13.4.1). The wall.post API page was down for maintenance when fetched, so API access, scheduling and limits are unverified; ReachWeaver treats VK as a manual channel.",
         "official_source": ""
       },
       "reachweaver_delivery": "manual_only",
       "human_only": false,
-      "checked_on": "2026-10-14",
-      "research_source": "https://vk.com/"
+      "checked_on": "2026-10-15",
+      "research_source": "https://vk.com/terms"
     },
     {
       "id": "odnoklassniki",
@@ -815,13 +815,13 @@
       "category": "technical",
       "scheduling": {
         "mode": "unverified",
-        "scope": "Original technical articles; no ReachWeaver posting adapter",
+        "scope": "Original technical articles. Medium's own API repository, archived on 2023-03-02, says \"The Medium API is no longer supported. We do not recommend using it.\", so there is no supported way to post by API. The rules, scheduling and import help pages returned 403 to a direct fetch, so scheduling, limits and the automation rule are unverified; posting is a human act in the Medium editor.",
         "official_source": ""
       },
       "reachweaver_delivery": "manual_only",
       "human_only": false,
-      "checked_on": "2026-10-14",
-      "research_source": "https://medium.com/"
+      "checked_on": "2026-10-15",
+      "research_source": "https://github.com/Medium/medium-api-docs"
     },
     {
       "id": "substack",
@@ -829,13 +829,13 @@
       "category": "technical",
       "scheduling": {
         "mode": "unverified",
-        "scope": "Opt-in author newsletter and publication, not cold outreach",
+        "scope": "Opt-in author newsletter and publication, not cold outreach. The Terms of Use (updated 2026-10-06) bar crawling, scraping or spidering Substack by manual or automated means. No posting API is documented on the pages that could be read, and the support pages on scheduling and the API returned 403 to a direct fetch, so scheduling, limits and the self-promotion rule are unverified.",
         "official_source": ""
       },
       "reachweaver_delivery": "manual_only",
       "human_only": false,
-      "checked_on": "2026-10-14",
-      "research_source": "https://substack.com/"
+      "checked_on": "2026-10-15",
+      "research_source": "https://substack.com/tos"
     },
     {
       "id": "snapchat",
@@ -843,12 +843,12 @@
       "category": "video",
       "scheduling": {
         "mode": "unverified",
-        "scope": "Original creator video; scheduling and account eligibility unverified",
+        "scope": "Original creator video; scheduling and account eligibility unverified. The Spotlight help and Community Guidelines pages are JavaScript-heavy, and nothing about posting methods, API access, scheduling or limits could be read directly on 2026-10-15, so none is claimed.",
         "official_source": ""
       },
       "reachweaver_delivery": "manual_only",
       "human_only": false,
-      "checked_on": "2026-10-14",
+      "checked_on": "2026-10-15",
       "research_source": "https://www.snapchat.com/spotlight"
     },
     {

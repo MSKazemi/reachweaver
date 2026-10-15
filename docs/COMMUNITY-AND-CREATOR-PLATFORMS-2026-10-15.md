@@ -215,3 +215,21 @@ Seven other issues in the same series (#13 Medium, #14 Substack, #23 VK, #24 Nav
 - **AI content:** none found.
 - **Not verified:** the full Acceptable Use Policy text, an explicit bot-disclosure rule, any community's own rules.
 - **Decision:** `native_conditional`, `human_only` yes.
+
+## Re-read of eight earlier entries (`medium`, `substack`, `vk`, `naver_blog`, `naver_cafe`, `line_openchat`, `kakao_openchat`, `snapchat`; #13, #14, #23 to #26, #31)
+
+These were registered from the regional-channels work with only a landing page as source. They were re-read on 2026-10-15 by direct HTTP fetch. Short quotes (25 words or fewer) are from the pages named; everything not listed here is **not verified**.
+
+| Surface | What was read | What it says |
+|---|---|---|
+| Medium | [Medium API docs repository](https://github.com/Medium/medium-api-docs) | Archived 2023-03-02; "The Medium API is no longer supported. We do not recommend using it." |
+| Substack | [Terms of Use](https://substack.com/tos) | Users may not use a tool that "Crawls," "scrapes," or "spiders" any page, data, or portion of Substack "(through use of manual or automated means)". |
+| VK | [Terms of Service](https://vk.com/terms) | 6.3.6 bars "the mass mailing of messages to other Website Users without their prior consent"; 6.3.9 bars "using automated scripts (programs) for collecting information on the Site and/or interacting with the Site"; 5.13.4.1: "No outside commercial or political advertising is permitted in the Community". |
+| Naver Cafe | [Open API list](https://developers.naver.com/docs/common/openapiguide/apilist.md) | A login-method Cafe API lets an outside service join a cafe or register an article (`POST https://openapi.naver.com/v1/cafe/{clubid}/menu/{menuid}/articles`), using a Naver Login access token. |
+| Naver Blog | same list | Blog appears as a search target and, via Naver Share, a share destination; no blog-writing API is listed. |
+| LINE OpenChat | [Messaging API overview](https://developers.line.biz/en/docs/messaging-api/overview/) | "Use the Messaging API to build bots to provide personalized experiences on LINE to your users", through a LINE Official Account. OpenChat is not mentioned. |
+| KakaoTalk Open Chat | [Kakao Developers docs](https://developers.kakao.com/docs/latest/en/kakaotalk-channel/common) | The product menu lists Kakao Talk Channel, Message, Share, Social and Push Notification; it lists no Open Chat API. |
+| Snapchat Spotlight | [Spotlight page](https://www.snapchat.com/spotlight), help and Community Guidelines | JavaScript-heavy; nothing about posting, API, scheduling or limits could be read. |
+
+**Not verified:** Medium rules, scheduling and import (help pages returned 403); Substack scheduling, API and self-promotion rules (support pages returned 403); VK API access, `wall.post` scheduling and limits (the developer page was down for maintenance); Naver scheduling, limits and any cafe-level rule, and Naver Blog limits; the LINE OpenChat guideline and Kakao Open Chat rules (JavaScript-only pages); every Snapchat rule. A statement that an API was "not found" means it is not in the pages named above, not that none exists. Every entry stays `manual_only` with `unverified` scheduling.
+

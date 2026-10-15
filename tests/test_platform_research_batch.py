@@ -131,5 +131,51 @@ class ResearchDocTests(unittest.TestCase):
         self.assertNotIn("| `reddit`", self.doc)
 
 
+REREAD = {"medium", "substack", "vk", "naver_blog", "naver_cafe", "line_openchat", "kakao_openchat", "snapchat"}
+
+
+class RereadEntryTests(unittest.TestCase):
+    """The eight entries first registered with only a landing page now say what was read and what was not (#13, #14, #23-#26, #31)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.entries = {p["id"]: p for p in load_registry()["platforms"]}
+        cls.doc = DOC.read_text(encoding="utf-8")
+        cls.section = cls.doc.split("## Re-read of eight earlier entries", 1)[1]
+
+    def test_each_entry_names_its_source_date_and_what_is_unverified(self):
+        for pid in REREAD:
+            entry = self.entries[pid]
+            with self.subTest(pid=pid):
+                self.assertEqual(entry["checked_on"], CHECKED)
+                self.assertTrue(entry["research_source"].startswith("https://"))
+                self.assertEqual(entry["reachweaver_delivery"], "manual_only")
+                self.assertEqual(entry["scheduling"]["mode"], "unverified")
+                self.assertEqual(entry["scheduling"]["official_source"], "")
+                self.assertRegex(entry["scheduling"]["scope"], r"unverified|nothing about|could be read|none is claimed")
+                self.assertGreater(len(entry["scheduling"]["scope"]), 150)
+                self.assertIn(entry["research_source"], self.doc)
+
+    def test_the_quotes_in_the_entries_and_the_doc_match_each_other(self):
+        medium = self.entries["medium"]["scheduling"]["scope"]
+        self.assertIn("The Medium API is no longer supported. We do not recommend using it.", medium)
+        self.assertIn("The Medium API is no longer supported. We do not recommend using it.", self.section)
+        for text in ("6.3.6", "6.3.9", "5.13.4.1"):
+            self.assertIn(text, self.entries["vk"]["scheduling"]["scope"])
+            self.assertIn(text, self.section)
+        self.assertIn("scrapes", self.section)
+        self.assertIn("/v1/cafe/{clubid}/menu/{menuid}/articles", self.entries["naver_cafe"]["scheduling"]["scope"])
+
+    def test_the_section_lists_what_was_not_verified_and_makes_no_reach_promise(self):
+        self.assertIn("**Not verified:**", self.section)
+        self.assertIn("means it is not in the pages named above", self.section)
+        self.assertNotRegex(self.section.lower(), r"guarantee|viral|grow your|increase reach")
+
+    def test_every_quote_in_the_section_is_25_words_or_fewer(self):
+        for quote in re.findall(r'"([^"]+)"', self.section):
+            with self.subTest(quote=quote[:40]):
+                self.assertLessEqual(len(quote.split()), 25)
+
+
 if __name__ == "__main__":
     unittest.main()
