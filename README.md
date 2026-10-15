@@ -412,7 +412,7 @@ See [privacy policy](docs/PRIVACY.md), [security](docs/SECURITY.md), [architectu
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | [Security policy](docs/SECURITY.md), threat model | [Platforms and capability registry](docs/PLATFORMS.md) |
 | [Changelog](CHANGELOG.md) | [Account onboarding](docs/ACCOUNT-ONBOARDING.md), [first live pilot](docs/FIRST-LIVE-PILOT.md) | [Schemas](docs/SCHEMAS.md), [manual export](docs/MANUAL-EXPORT.md) |
 | [Contributing](CONTRIBUTING.md) | [Worker operations](docs/WORKER-OPERATIONS.md), [privacy lifecycle](docs/PRIVACY-LIFECYCLE.md) | [Release playbook](docs/RELEASE-PLAYBOOK.md), [field pilot protocol](docs/FIELD-PILOT-PROTOCOL.md) |
-| [Platform matrix](docs/PLATFORM-MATRIX.md) | Platform guides: [LinkedIn](docs/LINKEDIN.md), [Postiz](docs/POSTIZ.md) | Disabled adapters: [Threads](docs/THREADS.md), [Facebook Page](docs/FACEBOOK.md), [Instagram](docs/INSTAGRAM.md), [YouTube](docs/YOUTUBE.md), [TikTok](docs/TIKTOK.md) |
+| [Platform matrix](docs/PLATFORM-MATRIX.md) | Platform guides: [LinkedIn](docs/LINKEDIN.md), [Mastodon](docs/MASTODON.md), [Postiz](docs/POSTIZ.md) | Disabled adapters: [Threads](docs/THREADS.md), [Facebook Page](docs/FACEBOOK.md), [Instagram](docs/INSTAGRAM.md), [YouTube](docs/YOUTUBE.md), [TikTok](docs/TIKTOK.md) |
 
 **Every blocked platform has an alternative.** Platforms without a live adapter get a `manual-export` creator package, `campaign-export` drafts, or an explicit human-only or unsupported marker; Reddit and Hacker News stay human-only. The generated table is in [troubleshooting](docs/TROUBLESHOOTING.md#blocked-platforms-and-their-alternatives), and the release gate fails if a new blocked platform has none.
 
