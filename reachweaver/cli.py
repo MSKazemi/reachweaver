@@ -1535,7 +1535,8 @@ def _publish(db, args, wlog) -> int:
                 print(f"PUBLISHED {post['id']}: {remote_url or remote_id}")
                 if post["platform"] == "youtube":
                     from .youtube import visibility_note
-                    visibility = visibility_note(post["video_json"])
+                    visibility = visibility_note(post["video_json"],
+                                                 (getattr(receipt, "extra", None) or {}).get("upload_status"))
                     if visibility:
                         print(f"NOTE {post['id']}: {visibility}")
                 wlog.published(post, remote_id, remote_url)
