@@ -6,6 +6,28 @@ The playbook turns one public release of a project you own into a small campaign
 
 Paths such as `private/` are placeholders for a directory outside any public repository.
 
+## Maintainer release checks
+
+This section is about releasing **ReachWeaver itself** as a GitHub Release (`skill.zip` and its checksum), not about posting to any social account. The [release workflow](../.github/workflows/release.yml) starts only when a `vMAJOR.MINOR.PATCH` tag is pushed, and has two jobs:
+
+- **`verify`** runs with read-only repository permission and a checkout that keeps no credentials (`persist-credentials: false`). It runs `scripts/release_ref_guard.py`, then the same hygiene checks as CI (tracked-file secret scan, stdlib lint, byte compilation, runtime-dependency guard, and Ruff and mypy at the versions and flags pinned in `ci.yml`), `python scripts/sync_skill.py --check`, the tag-equals-`__version__` check, and `python scripts/release_gate.py --tag "$GITHUB_REF_NAME"` **with** the unit tests. No step may skip tests or ignore a failure.
+- **`publish`** runs only after `verify` passed, and only when both the actor who pushed the tag and whoever started the run are the repository owner. It is the only job with `contents: write`. It builds `skill.zip`, tests the archive (`python -m zipfile -t`), writes and checks `skill.zip.sha256`, runs the guard again on its own checkout, then `gh release create ... --verify-tag`, which refuses to create a tag that is not already on GitHub.
+
+`scripts/release_ref_guard.py` reads GitHub's default `GITHUB_*` variables and the job's own checkout (fetched with `fetch-depth: 0`); it uses no token and no network. It fails closed unless the run is a tag push, the tag is exactly `vMAJOR.MINOR.PATCH`, the pushing and triggering actors are the repository owner (login and account id), and the checked-out commit, the tag, `GITHUB_SHA` and `origin/main` are one commit. `GITHUB_SHA` is the same in both jobs, so `publish` releases the commit `verify` checked. A tag pushed before `main` moved on, or re-run after it moved, is refused: cut a fresh version from the current reviewed `main` instead of working around the check. The guard sees `main` as fetched at the start of its job; a push to `main` in the seconds between that fetch and the release is not detected.
+
+Sources, read 2026-10-15: [`actions/checkout`](https://github.com/actions/checkout/blob/main/README.md) (`fetch-depth: 0` fetches "all history for all branches and tags"; `persist-credentials: false` opts out of keeping the token in the git config), [GitHub's default variables](https://docs.github.com/en/actions/reference/workflows-and-actions/variables) (`GITHUB_REF_TYPE`, `GITHUB_ACTOR_ID`, `GITHUB_REPOSITORY_OWNER_ID`, and `GITHUB_TRIGGERING_ACTOR`, which differs from `GITHUB_ACTOR` on a re-run), [expressions](https://docs.github.com/en/actions/reference/workflows-and-actions/expressions) ("GitHub ignores case when comparing strings") and [`gh release create`](https://cli.github.com/manual/gh_release_create) (`--verify-tag`: "Abort in case the git tag doesn't already exist in the remote repository").
+
+Before pushing the tag, on the reviewed release commit:
+
+```bash
+make check
+make ruff
+make typecheck
+make release-gate TAG=vX.Y.Z
+```
+
+**What this does not do.** The workflow cannot turn on branch protection: required reviews, required status checks and blocking force pushes on `main` are repository settings the owner configures and verifies in GitHub, and nothing in this repository proves they are on. Where a plan does not offer branch rules, the remaining control is manual: the owner reviews each commit and waits for green CI on it before tagging. A green release run is technical evidence only. It is not legal, rights, licensing or privacy clearance, it does not review Git history or release assets for secrets, and it is not a receipt that anything was posted to a social platform; those stay separate owner checks.
+
 ## Before you start: what ReachWeaver itself is ready for
 
 ```bash

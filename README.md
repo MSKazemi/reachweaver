@@ -492,7 +492,7 @@ python3 scripts/pilot_benchmark.py [--posts N] [--json]  # offline mock-only har
 # When using the skill-creator validator in a compatible environment, validate and package the skill.
 ```
 
-CI runs pure offline tests only, plus a hygiene job (secret scan, stdlib lint, compileall, pinned ruff hard-error rules, runtime-dependency guard, pinned mypy). Runtime and tooling decisions are recorded in ADR-0002. See [contributing](CONTRIBUTING.md) for fresh-clone commands, [security](docs/SECURITY.md#reporting-a-vulnerability-private) for private vulnerability reporting, and the [roadmap](docs/ROADMAP.md).
+CI runs pure offline tests only, plus a hygiene job (secret scan, stdlib lint, compileall, pinned ruff hard-error rules, runtime-dependency guard, pinned mypy). A pushed `vX.Y.Z` tag re-runs those checks and the full release gate in a read-only job before a separate owner-only job publishes the GitHub Release ([maintainer release checks](docs/RELEASE-PLAYBOOK.md#maintainer-release-checks)). Runtime and tooling decisions are recorded in ADR-0002. See [contributing](CONTRIBUTING.md) for fresh-clone commands, [security](docs/SECURITY.md#reporting-a-vulnerability-private) for private vulnerability reporting, and the [roadmap](docs/ROADMAP.md).
 
 ## Relationship with existing projects
 

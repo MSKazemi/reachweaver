@@ -1,20 +1,46 @@
 name: Release skill bundle
-# Runs only when the owner pushes a vX.Y.Z tag. Publishes skill.zip + skill.zip.sha256, which
+# Runs only when a vX.Y.Z tag is pushed. Publishes skill.zip + skill.zip.sha256, which
 # `scripts/install_skill.py` and `reachweaver update` download and verify. No social platform
-# is contacted and no credential is used.
+# is contacted and no provider credential is read.
+# `verify` is read-only and runs every check; only `publish` may write, and only after `verify`
+# passed and only for the repository owner. scripts/release_ref_guard.py (run by both jobs)
+# refuses anything but the owner's vX.Y.Z tag at the current origin/main commit.
+# This workflow cannot turn on branch protection, and a green run is not legal, rights or
+# privacy clearance nor proof of any social-platform post (docs/RELEASE-PLAYBOOK.md).
 on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+']
 permissions:
-  contents: write
+  contents: read
 jobs:
-  release:
+  verify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # all branches and tags, so the guard can compare the tag with origin/main
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
+      - name: Owner tag at the current main commit
+        run: python scripts/release_ref_guard.py
+      - name: Secret scan of tracked files (values are never printed)
+        run: python scripts/secret_scan.py
+      - name: Stdlib lint (syntax of every tracked .py, JSON/JSONL validity)
+        run: python scripts/lint.py
+      - name: Byte-compile runtime, scripts and tests
+        run: python -m compileall -q reachweaver scripts tests
+      - name: No runtime dependencies (adding one requires a pip-audit step first)
+        run: python scripts/check_runtime_deps.py
+      - name: Ruff hard-error rules (syntax, undefined names), pinned as in ci.yml
+        run: pipx run --spec ruff==0.16.10 ruff check --no-cache --select E9,F63,F7,F82 --target-version py311 reachweaver scripts tests
+      - name: Type check reachweaver/ with mypy, pinned as in ci.yml
+        run: pipx run --spec mypy==2.4.0 mypy
+      - name: Skill bundle and plugin mirror are in sync
+        run: python scripts/sync_skill.py --check
       - name: Tag must match the package version and the bundle must be in sync
         run: |
           python - <<'PY'
@@ -30,12 +56,32 @@ jobs:
         # scripts/release_gate.py runs the offline unit tests itself and exits 0 only when every check passed.
         # Never add --skip-tests here: that mode can never exit 0. No network, credential or publishing is used.
         run: python scripts/release_gate.py --tag "$GITHUB_REF_NAME"
-      - name: Build bundle and checksum
+  publish:
+    needs: verify
+    if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # the only write in this workflow: creating the GitHub Release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Build bundle and checksum, then test both
         run: |
           find .claude/skills/reachweaver -name __pycache__ -prune -exec rm -rf {} +
           (cd .claude/skills && python -m zipfile -c ../../skill.zip reachweaver)
+          python -m zipfile -t skill.zip
           sha256sum skill.zip > skill.zip.sha256
-      - name: Publish GitHub Release
+          sha256sum --check --strict skill.zip.sha256
+      - name: Recheck owner tag at the current main commit, immediately before publishing
+        # Same guard as in verify, on this job's own checkout: GITHUB_SHA ties both jobs to one commit.
+        run: python scripts/release_ref_guard.py
+      - name: Publish GitHub Release from the existing tag
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" skill.zip skill.zip.sha256 --title "$GITHUB_REF_NAME" --generate-notes
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "$GITHUB_REF_NAME" skill.zip skill.zip.sha256 --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
