@@ -67,6 +67,10 @@
 
 India is not one content-language cohort: choose a genuine audience (e.g. English, Hindi, Tamil, Telugu, Bengali, Marathi, Kannada, Malayalam, Gujarati), have a fluent human review claims and scripts, and measure native results separately. A translated caption must not be treated as evidence that the advertised app supports the language. `distribution-plan --region india --goal awareness --limit 12 --json` proposes channels only; it neither uploads videos nor schedules posts. **Do not describe 2026 provider homepages as proof of current self-service API authorization.**
 
+## Official API feasibility (issue #68)
+
+The [regional API feasibility matrix](REGIONAL-API-FEASIBILITY-2026-10-15.md) reads the official developer documentation for Douyin, LINE Official Account, WeChat Official Accounts, WeChat Channels, Bilibili, Weibo, Xiaohongshu and Kuaishou: scopes, account eligibility, quotas, content types, scheduling, data retention and the confirmation each API returns. Every verdict is NO-GO or owner-gated CONDITIONAL; no adapter, account or registry delivery value changed, and the Douyin findings say nothing about Toutiao.
+
 ## Separate enablement gate
 
 To move any surface beyond this safe catalog, first document official API/scopes and eligibility for the relevant country/account/content format, current native scheduling evidence, approved application access, rate limits and terms; conduct the security/privacy/IP review and a supervised owner-authorized pilot. Do not use scraping, browser impersonation to avoid restrictions, unsolicited direct messages, fake engagement or copied media. Keep exact-destination approval, dry-run default, emergency stop, credentials isolation and ambiguous-send reconciliation intact. The `distribution-plan` command remains **offline and non-executing**.

@@ -74,6 +74,8 @@ Official references: [Bluesky](https://docs.bsky.app/docs/tutorials/creating-a-p
 
 **Planning versus posting:** `calendar-plan` proposes audience-local timing for configured accounts, but cannot send or remotely queue posts on platforms whose adapter is `none`. The optional `--apply` records **local due times only** for already-approved Bluesky, Mastodon, Telegram and LinkedIn member text posts. Other platforms need native scheduling by the owner, official app permissions or a future consented adapter. Full instructions: [calendar planner](CALENDAR-PLANNER.md).
 
+**Regional official APIs (issue #68):** the [regional API feasibility matrix](REGIONAL-API-FEASIBILITY-2026-10-15.md) records what the official Douyin, LINE, WeChat, Bilibili, Weibo, Xiaohongshu and Kuaishou developer documentation says about posting. It is research only: none of those surfaces gains a row in the adapter matrix above, a ReachWeaver adapter or a receipt.
+
 ## Research-only registry surfaces (issues #13 to #37)
 
 These surfaces are in `reachweaver/distribution_registry.json` as planning metadata. None has a ReachWeaver adapter, a connected owner account or a live receipt: every one is `manual_only`, and `human_only` surfaces are never drafted or scheduled by a tool. "Native scheduling" is what the platform itself offers (`unverified` means no official page was found that says), never something ReachWeaver does for you. The last column says what could not be verified. Entries dated 2026-10-14 come from the regional-channels research (#64); those dated 2026-10-15 from the community and creator batch ([notes](COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md)). This table is checked against the registry by `tests/test_distribution.py`; edit the registry first, then the row.
