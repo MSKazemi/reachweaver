@@ -32,6 +32,8 @@ Scheduled due claim (BEGIN IMMEDIATE), optionally exact --post-id
                          |      Mastodon images, Bluesky/Mastodon replies (registry switch),
                          |      YouTube / TikTok video (SUPPORTED_LIVE_VIDEO + registry switch)
                          +--> Unsupported: manual-only, no fake success
+                         +--> Offline browser-handoff (never signs in/schedules/sends)
+                         |      owner logs in, reviews, and submits in native UI
                          |
                          v
               Remote receipt or needs_review (never blind retry)

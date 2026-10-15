@@ -74,3 +74,9 @@ For expanded platform coverage, evaluate a supported third-party scheduler/MCP/A
 - YouTube: https://developers.google.com/youtube/v3/docs/videos/insert
 
 Recheck scope and policy on official current docs before enabling new live adapters.
+
+## Regional `delivery-options` and `browser-handoff`
+
+`reachweaver delivery-options [--platform ID] [--json]` classifies 56 researched channels by safe available delivery route, with strict separation of four gated API paths and unknown regional APIs. No account connection or native scheduling is implied.
+
+`reachweaver browser-handoff --platform xiaohongshu --variant examples/browser-variant.xiaohongshu.json --account @my-account --out NEW_DIR` writes mode-0600 private files including the exact text and a local browser task. The user signs into Chrome and each platform **personally**, handles MFA/CAPTCHA, checks the final preview and performs the final Post/Publish/Schedule action. Claude in Chrome may fill fields only if site terms permit; it must stop before submission. Never ask for passwords, use cookie capture, bypass anti-bot protections, or assert a remote receipt based on this offline folder. Human-only forums are refused. See `docs/BROWSER-HANDOFF.md` in full checkout.

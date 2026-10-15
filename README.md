@@ -20,6 +20,17 @@ A valuable paper, GitHub release or engineering demo deserves to reach the peopl
 
 **Compared with standalone social writing skills:** ReachWeaver adds executable dry-run publishing, per-item approval and account isolation, local SQLite outbox state, ambiguous-send reconciliation, a pause switch, measurement coverage and research documentation. It does **not** yet replace commercial social suites or provide platform-wide OAuth, media upload or analytics aggregation.
 
+## Regional delivery and browser-assisted native posting
+
+ReachWeaver can now **select an honest delivery route for all 56 worldwide channels**: existing approval-gated official-API adapters, platform-specific creator packages, a Claude-in-Chrome-assisted manual composer, human-only community participation, or not-a-publishing-target. **No additional remote publishing adapters or accounts were enabled.**
+
+```bash
+python3 -m reachweaver delivery-options --platform xiaohongshu --json
+python3 -m reachweaver browser-handoff --platform xiaohongshu --variant examples/browser-variant.xiaohongshu.json --account @my-account --out state/xiaohongshu-review
+```
+
+The second command creates private files holding the exact text, a SHA-256 checksum, a browser-assistant prompt and an owner checklist. You personally log into your Chrome browser account, complete MFA, verify the destination and make final privacy/publish/schedule decisions. Claude in Chrome may help with allowed navigation and draft form filling; it must stop before irreversible submission. The export is never a live publication, native queue or login, and never handles cookies or credentials. [Browser-assisted guide](docs/BROWSER-HANDOFF.md).
+
 ## 5-minute setup
 
 Requirements: Python 3.11+; no third-party runtime dependencies.

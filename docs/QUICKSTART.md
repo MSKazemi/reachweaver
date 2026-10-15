@@ -73,6 +73,15 @@ python3 -m reachweaver manual-export --platform threads --variant examples/manua
 
 Reddit and Hacker News are **human-only**: ReachWeaver writes no text for them. The full per-platform list is in [troubleshooting](TROUBLESHOOTING.md#blocked-platforms-and-their-alternatives).
 
+### Assisted handoff for regional platforms
+
+```bash
+python3 -m reachweaver delivery-options --platform xiaohongshu
+python3 -m reachweaver browser-handoff --platform xiaohongshu --variant examples/browser-variant.xiaohongshu.json --account @my-account --out state/quickstart-xiaohongshu
+```
+
+After you log in yourself, Claude in Chrome can assist with permitted **draft preparation** using the created private files. The user must review the final composer and personally click Post or Schedule. No browser is launched and nothing is posted or scheduled by these commands. See [the browser guide](BROWSER-HANDOFF.md).
+
 ## 6. What you did, and what you did not do
 
 You created a local database, a draft, an approval bound to that exact text, a dry-run preview and two manual packages. You did **not** contact any social platform, store or read any credential, or publish anything. `health` would report the example accounts as `blocked` or `attention` for missing credentials, which is correct for this state.
