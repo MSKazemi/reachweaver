@@ -2,7 +2,7 @@
   "schema_version": 1,
   "reviewed_on": "2026-10-15",
   "decision_type": "editorial_research_hypotheses_not_predictions",
-  "reachweaver_live_status": "No real accounts connected or live publishing end-to-end verified as of 2026-10-08; Bluesky/Mastodon/Telegram/LinkedIn-member text adapters mock-tested only.",
+  "reachweaver_live_status": "As of 2026-10-15: one approved text post each was sent through ReachWeaver to Bluesky and Mastodon on 2026-10-11 (first-party receipts in docs/receipts/); Telegram/LinkedIn-member text adapters mock-tested only, with no live send; no other platform has a live receipt.",
   "time_slot_policy": {
     "status": "hypotheses_only",
     "local_windows": [
