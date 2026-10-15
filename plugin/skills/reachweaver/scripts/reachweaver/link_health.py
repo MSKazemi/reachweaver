@@ -15,6 +15,12 @@ requested. Every value read from a page is untrusted data: cleaned, truncated an
 never followed as an instruction.
 
 Nothing here drafts, approves, schedules, publishes or writes to the database.
+
+Every URL the report prints goes through ``attribution.report_landing_page``: scheme, host, path and
+the canonical ``utm_*`` parameters only, then ``privacy.redact``. A stored link whose query carries a
+token or an e-mail address (``?token=``, ``?email=``) is still grouped and, with ``--online``, fetched
+by its full destination, but the query values never reach the output; such a link is marked
+``"redacted": true`` (issues #15, #26).
 """
 from __future__ import annotations
 
@@ -22,11 +28,12 @@ import re
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
-from .attribution import normalize_destination, normalize_origin, validate_utm_link
+from .attribution import normalize_destination, normalize_origin, report_landing_page, validate_utm_link
 from .landing import (
     HTML_TYPES, MAX_PAGES, MAX_REDIRECTS, _clean, _decode, _finding, fetch_landing, parse_landing,
 )
 from .policy import ValidationError
+from .privacy import redact
 from .sources import RobotsCache
 
 REPORT = "link_health"
@@ -146,6 +153,31 @@ def _classify_fetch(fetched: dict, destination: str) -> tuple[str, dict, list[di
     return status, summary, findings
 
 
+def _scrub_text(text: str) -> str:
+    """Report-safe text: each URL cut to origin, path and utm_* parameters, then secrets and e-mails redacted."""
+    return redact(_URL.sub(lambda match: report_landing_page(match.group(0)), text), emails=True)
+
+
+def _scrub(value: Any) -> Any:
+    if isinstance(value, str):
+        return _scrub_text(value)
+    if isinstance(value, list):
+        return [_scrub(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _scrub(item) for key, item in value.items()}
+    return value
+
+
+def _report_safe(link: dict) -> dict:
+    """Strip query values, secrets and e-mail addresses from what is printed (not from what is fetched)."""
+    destination = _scrub_text(link["destination"])
+    safe = {**link, "destination": destination, "findings": _scrub(link["findings"]),
+            "online": _scrub(link["online"])}
+    if destination != link["destination"]:
+        safe["redacted"] = True
+    return safe
+
+
 def link_health(con, *, statuses=DEFAULT_STATUSES, account_id: str | None = None, campaign: str | None = None,
                 online: bool = False, allow_origins=None, max_links: int = DEFAULT_MAX_LINKS,
                 robots: RobotsCache | None = None, fetch=fetch_landing) -> dict:
@@ -178,6 +210,7 @@ def link_health(con, *, statuses=DEFAULT_STATUSES, account_id: str | None = None
         links.append({"destination": item["url"], "post_ids": [item["post_id"]], "platforms": [],
                       "links_in_posts": 1, "status": "unusable", "online": None,
                       "findings": [_finding("unusable_link", "error", item["problem"], where=item["where"])]})
+    links = [_report_safe(link) for link in links]  # after every fetch: only the printed copy is cut
     counts: dict[str, int] = {}
     for link in links:
         counts[link["status"]] = counts.get(link["status"], 0) + 1

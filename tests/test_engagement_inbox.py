@@ -52,6 +52,33 @@ class UnifiedInboxDemoTests(unittest.TestCase):
         self.assertEqual(set(inbox["by_platform"]), {"bluesky", "mastodon", "github", "devto", "hackernews"})
         self.assertEqual(sum(inbox["by_platform"].values()), len(self.report["items"]))
 
+    def test_five_action_labels_and_spam_each_come_from_two_sources_or_more(self):
+        # Issue #17 scope: actionable feedback, technical question, bug report, feature request and
+        # collaboration opportunity (the five action labels), plus off-topic/spam, all in one demo.
+        five = ("actionable_feedback", "technical_question", "bug_report", "feature_request",
+                "collaboration_opportunity")
+        counts = self.report["counts"]
+        for label in (*five, "spam", "off_topic"):
+            self.assertGreaterEqual(counts[label], 1, label)
+        for label in ("actionable_feedback", "spam"):
+            sources = {entry["platform"] for entry in self.report["items"] if entry["label"] == label}
+            self.assertGreaterEqual(len(sources), 2, label)
+        self.assertEqual(self.items["inbox-reply-feedback"]["label"], "actionable_feedback")
+        self.assertEqual(self.items["inbox-comment-feedback"]["label"], "actionable_feedback")
+        drafted = {draft["item_id"] for draft in self.report["drafts"]}
+        self.assertTrue({"inbox-reply-feedback", "inbox-comment-feedback"} <= drafted)
+        for item_id in ("inbox-mention-spam", "inbox-comment-spam"):
+            self.assertEqual((self.items[item_id]["label"], self.items[item_id]["action"]), ("spam", "no_reply_spam"))
+            self.assertNotIn(item_id, drafted)
+        inbox = self.report["inbox"]
+        self.assertEqual(inbox["by_kind"], {"reply": 4, "mention": 3, "quote_post": 1, "comment": 4,
+                                            "direct_message": 2, KIND_UNSPECIFIED: 1})
+        self.assertEqual(inbox["by_platform"], {"bluesky": 5, "devto": 2, "github": 2, "hackernews": 1, "mastodon": 5})
+        self.assertEqual(inbox["actions_by_kind"]["comment"], {"draft_reply_requires_approval": 2,
+                                                               "human_review_required_no_draft": 1, "no_reply_spam": 1})
+        self.assertEqual(inbox["actions_by_kind"]["mention"], {"draft_reply_requires_approval": 1,
+                                                               "human_review_required_no_draft": 1, "no_reply_spam": 1})
+
     def test_kind_is_carried_and_defaults_to_unspecified(self):
         self.assertEqual(self.items["inbox-quote-praise"]["kind"], "quote_post")
         self.assertEqual(self.items["inbox-dm-optout"]["kind"], "direct_message")
