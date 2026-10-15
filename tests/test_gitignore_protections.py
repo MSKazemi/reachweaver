@@ -4,9 +4,11 @@ Uses ``git check-ignore`` on the real ``.gitignore`` and reads the CI workflow; 
 """
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -21,9 +23,21 @@ class GitignoreProtectionTests(unittest.TestCase):
     def setUpClass(cls):
         if shutil.which("git") is None or not (ROOT / ".git").exists():
             raise unittest.SkipTest("needs a git checkout")
+        # A throwaway repository holding only the tracked .gitignore, so a local .git/info/exclude or a global
+        # excludes file can never hide a gap in the file that is actually committed.
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.sandbox = Path(cls.tmp.name)
+        cls.env = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}
+        subprocess.run(["git", "init", "-q"], cwd=cls.sandbox, env=cls.env, check=True)
+        shutil.copy(ROOT / ".gitignore", cls.sandbox / ".gitignore")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
 
     def ignored(self, path: str) -> bool:
-        result = subprocess.run(["git", "check-ignore", "-q", "--no-index", path], cwd=ROOT, capture_output=True, check=False)
+        result = subprocess.run(["git", "check-ignore", "-q", path], cwd=self.sandbox, env=self.env,
+                                capture_output=True, check=False)
         return result.returncode == 0
 
     def test_credentials_and_local_state_are_ignored(self):
