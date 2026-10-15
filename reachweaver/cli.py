@@ -1025,6 +1025,12 @@ def _publish(db, args, wlog) -> int:
               f"minimum {args.min_gap_minutes} min between attempts.")
         if caps_path:
             print(f"Caps file {caps_path}: per-account values apply only where stricter (tighten-only).")
+        if due:  # #39: what the sends are documented to cost, from the sourced registry (no money is metered here)
+            from .capabilities import api_cost_note
+            for platform_id in sorted({post["platform"] for post in due}):
+                cost_note = api_cost_note(platform_id)
+                print(f"API cost ({platform_id}): {cost_note['api_fees']} (registry verified {cost_note['verified_date']}); "
+                      "ReachWeaver meters no money, limits are attempt caps and cooldowns.")
         if args.scheduled_only:
             print(f"Scheduled-only safe worker preview: exclude unscheduled approvals and "
                   f"slots older than {args.max_lateness_minutes} minutes.")
@@ -2361,6 +2367,8 @@ def execute(args) -> int:
             platform_preview = _platform_preview(post, _optional_account(args, post["account_id"], post["platform"]))
             if platform_preview is not None:
                 shown["platform_preview"] = platform_preview
+            from .capabilities import api_cost_note
+            shown["api_cost"] = api_cost_note(post["platform"])  # #39: estimated platform/API cost
             print(json.dumps(shown,indent=2,ensure_ascii=False))
         elif args.command == "check":
             post = get_post(db,args.post_id)

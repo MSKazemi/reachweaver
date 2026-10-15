@@ -285,6 +285,23 @@ def load_registry(path: Path | None = None) -> dict:
     return registry
 
 
+def api_cost_note(platform: str, registry: dict | None = None) -> dict:
+    """What sending one post to ``platform`` is documented to cost, for the approval preview (#39). Read-only.
+
+    The fee text and its date come from the sourced capability registry (``fees``, ``verified_date``); a
+    platform with no entry is reported as unknown, never as free. ReachWeaver charges nothing and meters no
+    money, so there is no monetary cap: the limits that are enforced before each attempt are the rolling
+    attempt cap, the minimum gap, provider session budgets and cooldowns.
+    """
+    entry = next((p for p in (registry or load_registry())["platforms"] if p["id"] == platform), None)
+    return {"platform": platform,
+            "api_fees": entry["fees"] if entry and entry.get("fees") else "unknown (no registry entry)",
+            "verified_date": entry.get("verified_date") if entry else None,
+            "source": "reachweaver/platform_registry.json, which cites the official pages; prices can change",
+            "reachweaver_charges": "nothing; it meters no money",
+            "enforced_before_each_attempt": "rolling send-attempt cap, minimum gap, provider session budgets and cooldowns; no monetary cap"}
+
+
 def stale_entries(registry: dict, *, max_age_days: int = DEFAULT_MAX_AGE_DAYS,
                   today: date | None = None) -> list[str]:
     """Platform IDs whose verified_date is older than max_age_days (warning, not error)."""

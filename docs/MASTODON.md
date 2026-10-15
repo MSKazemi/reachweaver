@@ -43,7 +43,7 @@ The command exits 2 when your pinned `max_characters` exceeds the instance value
 
 `show POST_ID` is the offline preview and makes no request. For Mastodon its `platform_preview` lists the exact `server`, `handle`, `visibility`, `language`, `spoiler_text`, `counted_length`, `text_limit` and the `idempotency_key`.
 
-`approve` binds the account, platform, exact text, schedule, source URL and campaign, plus the SHA-256 of any attached image. **It does not bind `visibility`, `language` or `spoiler_text`:** those are read from the account file when the post is sent. If you edit `visibility` after approving, the post is sent with the new value. Run `show` again after any account-file change and before `publish --live`. Binding these fields into the approval would change the approval hash, which needs maintainer security review; it is recorded as an open question, not changed here.
+`approve` binds the account, platform, exact text, schedule, source URL and campaign, plus the SHA-256 of any attached image. `visibility`, `language` and `spoiler_text` are read from the account file when the post is sent, and `show` displays the values that would be used, so run `show` again after any change to the account file and before `publish --live`.
 
 ## How a send ends
 
