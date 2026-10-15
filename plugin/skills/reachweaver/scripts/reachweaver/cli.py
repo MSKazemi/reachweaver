@@ -824,6 +824,21 @@ def _media_view(post) -> dict | None:
 def _platform_preview(post, account: dict | None) -> dict | None:
     """Compact, offline description of what an adapter would send (no network)."""
     content = post["content"]
+    if account is not None and account.get("backend") is not None:
+        # Issue #30/#56: a backend account never reaches the native adapter, so show the backend's
+        # own offline preview (no credential, no network) instead of a native record it would not send.
+        from .publishers import backend_for
+        try:
+            preview = dict(backend_for(account).preview(account, content))
+        except ValidationError as exc:
+            return {"path": account["backend"], "refused": str(exc), "network": "none"}
+        preview.pop("content", None)  # 'show' already prints the exact text once
+        preview["handle"] = account.get("handle")
+        preview["receipt"] = ("a backend acceptance is needs_review, never published, until a human checks the "
+                              "native post and runs 'reconcile' with its id and URL")
+        preview["manual_fallback"] = ("if the backend is unavailable the post stays approved; post this exact "
+                                      "text natively yourself, then 'cancel' it here so it is never sent")
+        return preview
     if post["platform"] == "bluesky":
         preview = bluesky_preview(content)
         try:

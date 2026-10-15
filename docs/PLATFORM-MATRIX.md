@@ -58,7 +58,7 @@ Column meanings:
 | Postiz | `postiz` | Optional, owner opt-in per account (`"backend": "postiz"`); cloud or self-hosted instance; REST API only (MCP not used); mock-tested only, no instance or account connected | `bluesky`, `mastodon`, `telegram`, `threads`, `linkedin`, `facebook` | ReachWeaver only: per-item approval, `publish --live` with the live environment flag, emergency stop, budgets and the approval hash all still apply; Postiz type `now` only, never Postiz drafts, schedules or approvals | `none`: a Postiz acceptance sets `needs_review` with `remote_id postiz:<id>` until the owner confirms the native post and runs `reconcile` |
 <!-- backend-matrix:end -->
 
-`metrics-fetch` skips Postiz-backed posts (`backend_account_remote_id_is_not_a_platform_id`), because `postiz:<id>` is not a platform post id. Full flow, verified Postiz API facts and sources: [POSTIZ.md](POSTIZ.md), ADR-0001.
+`metrics-fetch` skips Postiz-backed posts (`backend_account_remote_id_is_not_a_platform_id`), because `postiz:<id>` is not a platform post id. The owner smoke test for Postiz is documented and **not run**. There is no Postiz receipt in [receipts/](receipts/). Full flow, verified Postiz API facts and sources: [POSTIZ.md](POSTIZ.md), ADR-0001.
 
 ## Notes
 
