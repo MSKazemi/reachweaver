@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reviewed_on": "2026-10-14",
+  "reviewed_on": "2026-10-15",
   "decision_type": "editorial_research_hypotheses_not_predictions",
   "reachweaver_live_status": "No real accounts connected or live publishing end-to-end verified as of 2026-10-08; Bluesky/Mastodon/Telegram/LinkedIn-member text adapters mock-tested only.",
   "time_slot_policy": {
@@ -17,7 +17,7 @@
     ],
     "notes": "Illustrative audience-local candidates. Not empirically established best times; compare matched-age results."
   },
-  "source_methodology": "Native platform scheduling requires official documentation per non-unverified status. Market ordering is editorial hypothesis, never a claim about proprietary ranking or expected account reach. reviewed_on is the catalog edit date; each platform checked_on is its actual evidence date. Research-source homepages are not API or scheduler evidence.",
+  "source_methodology": "Native platform scheduling requires official documentation per non-unverified status. Market ordering is editorial hypothesis, never a claim about proprietary ranking or expected account reach. reviewed_on is the catalog edit date; each platform checked_on is its actual evidence date. Research-source homepages are not API or scheduler evidence. Nine India-focused entries were checked as candidate platform surfaces on 2026-10-15; website/help references do not establish account eligibility, native scheduling or publishing API access.",
   "platforms": [
     {
       "id": "github",
@@ -864,6 +864,132 @@
       "human_only": false,
       "checked_on": "2026-10-14",
       "research_source": "https://www.kwai.com/"
+    },
+    {
+      "id": "josh",
+      "label": "Josh",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Original regional-language creator short videos; approved owner access and API scheduling unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://myjosh.in/"
+    },
+    {
+      "id": "chingari",
+      "label": "Chingari",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Original short-form video and live creator content; app permissions and native scheduling unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://blog.chingari.io/how-to/"
+    },
+    {
+      "id": "hipi",
+      "label": "Hipi",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Original short-form creator video; app posting eligibility and scheduler unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://hipihelpcenter.zee5.com/portal/en/kb/articles/how-do-i-download-hipi"
+    },
+    {
+      "id": "public_app",
+      "label": "Public App",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Genuine locally relevant Indian short-video updates only; creator approval/editorial access not established",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://inshorts.group/"
+    },
+    {
+      "id": "kutumb",
+      "label": "Kutumb",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Member-controlled communities; human-authored contributions only with group/admin permission; never bulk invitations",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://www.kutumbapp.com/"
+    },
+    {
+      "id": "arattai_channels",
+      "label": "Arattai Channels",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Only the creator/admin may post to their own opt-in public channel; no cold messages or assumed third-party API",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://help.arattai.in/portal/en/kb/articles/about-channels"
+    },
+    {
+      "id": "localcircles",
+      "label": "LocalCircles",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Human-authored genuine participation in relevant Indian civic/startup circles; no outreach automation",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-15",
+      "research_source": "https://www.localcircles.com/a/"
+    },
+    {
+      "id": "pratilipi",
+      "label": "Pratilipi",
+      "category": "writing",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Only original audience-suitable literature/stories in the author's own account; not a generic technology promotional feed",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://english.pratilipi.com/help/articles/75903534-how-do-i-publish-a-story-or-a-story-part"
+    },
+    {
+      "id": "rooter",
+      "label": "Rooter",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Gaming/live-streaming specific creator content; only suitable for a genuine gaming/software audience",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-15",
+      "research_source": "https://pages.rooter.gg/"
     }
   ],
   "markets": [
@@ -932,7 +1058,7 @@
         "en",
         "hi"
       ],
-      "localization_note": "English first for technical readers; human-review any Hindi material; subtitles never imply Hindi dictation support. Do not recommend TikTok without current local restrictions review: Indian government listed it as blocked in 2020 (https://pib.gov.in/PressReleasePage.aspx?PRID=1635206).",
+      "localization_note": "English first for technical readers; human-review any Hindi material; subtitles never imply Hindi dictation support. Do not recommend TikTok without current local restrictions review: Indian government listed it as blocked in 2020 (https://pib.gov.in/PressReleasePage.aspx?PRID=1635206). Research additions checked 2026-10-15: Josh/Chingari/Hipi are candidate local-language short video; Public App is hyperlocal; Pratilipi is original storytelling; Rooter is gaming-only; Kutumb/LocalCircles and Arattai Channels require human-only, relevant, opt-in participation. These are platform-use hypotheses, not language support or ranking promises.",
       "rankings": {
         "contributors": [
           "github",
@@ -951,14 +1077,19 @@
           "hashnode",
           "peerlist",
           "instagram",
-          "sharechat"
+          "sharechat",
+          "josh",
+          "chingari"
         ],
         "awareness": [
           "youtube",
           "instagram",
           "linkedin",
           "sharechat",
+          "josh",
           "moj",
+          "chingari",
+          "hipi",
           "threads",
           "facebook_pages"
         ],
@@ -967,7 +1098,9 @@
           "peerlist",
           "dev",
           "github",
-          "hashnode"
+          "hashnode",
+          "localcircles",
+          "kutumb"
         ]
       }
     },

@@ -1,6 +1,6 @@
 # Regional social channels and country pilots — 2026-10-14
 
-**Research-only expansion ([issue #64](https://github.com/MSKazemi/reachweaver/issues/64)).** The [distribution registry](../reachweaver/distribution_registry.json) adds 27 distinct channels and four markets. The separate [API capability matrix](PLATFORM-MATRIX.md) is intentionally unchanged. **No OAuth, API adapter, remote scheduler, account access, scraping, content generation for human-only channels, or posts have been enabled.** All new entries are `manual_only`, scheduling `unverified`, checked on 2026-10-14; provider home/help pages are pointers for follow-up review, **not proof of access or scheduling support**.
+**Research-only expansion ([issue #64](https://github.com/MSKazemi/reachweaver/issues/64)).** The [distribution registry](../reachweaver/distribution_registry.json) adds 36 distinct channels (27 on 2026-10-14 plus 9 India-focused surfaces on 2026-10-15) and four markets. The separate [API capability matrix](PLATFORM-MATRIX.md) is intentionally unchanged. **No OAuth, API adapter, remote scheduler, account access, scraping, content generation for human-only channels, or posts have been enabled.** All new entries are `manual_only`, scheduling `unverified`, and carry their own `checked_on` dates (2026-10-14 or 2026-10-15); provider home/help pages are pointers for follow-up review, **not proof of access or scheduling support**.
 
 | ID | Channel | Research audience | Path | Provider starting point |
 |---|---|---|---|---|
@@ -23,6 +23,15 @@
 | `kaskus` | KASKUS | Indonesia | human only | [Provider page](https://www.kaskus.co.id/) |
 | `sharechat` | ShareChat | India | native manual | [Provider page](https://creators.sharechat.com/) |
 | `moj` | Moj | India | native manual | [Provider page](https://sharechat.com/about/company/) |
+| `josh` | Josh | India | native manual | [Provider page](https://myjosh.in/) |
+| `chingari` | Chingari | India | native manual | [Provider page](https://blog.chingari.io/how-to/) |
+| `hipi` | Hipi | India | native manual | [Provider page](https://hipihelpcenter.zee5.com/portal/en/kb/articles/how-do-i-download-hipi) |
+| `public_app` | Public App | India | native manual | [Provider page](https://inshorts.group/) |
+| `kutumb` | Kutumb | India | human only | [Provider page](https://www.kutumbapp.com/) |
+| `arattai_channels` | Arattai Channels | India | human only | [Provider page](https://help.arattai.in/portal/en/kb/articles/about-channels) |
+| `localcircles` | LocalCircles | India | human only | [Provider page](https://www.localcircles.com/a/) |
+| `pratilipi` | Pratilipi | India | native manual | [Provider page](https://english.pratilipi.com/help/articles/75903534-how-do-i-publish-a-story-or-a-story-part) |
+| `rooter` | Rooter | India | native manual | [Provider page](https://pages.rooter.gg/) |
 | `vk` | VK | Russia | native manual | [Provider page](https://vk.com/) |
 | `odnoklassniki` | Odnoklassniki / OK | Russia | native manual | [Provider page](https://ok.ru/) |
 | `dzen` | Dzen | Russia | native manual | [Provider page](https://dzen.ru/) |
@@ -40,9 +49,23 @@
 - **South Korea:** Naver Blog is article-oriented; [its search visibility help](https://help.naver.com/service/5593/contents/15555) explains visibility settings. [Naver Cafe help](https://help.naver.com/service/5622/contents/15212) describes group-mediated posting. Cafe and KakaoTalk Open Chat are human-only and not message-broadcast tools.
 - **Taiwan, Thailand and Japan:** Use human-reviewed Traditional Chinese, Thai and Japanese respectively. Dcard, PTT, Pantip and [LINE OpenChat](https://help.line.me/line/smartphone/categoryId/200000000/) are community conversations, not automated distribution. Japanese note is an author platform.
 - **Vietnam:** [Zalo Official Account](https://oa.zalo.me/home) is for communicating with a legitimate opted-in audience; no cold messaging, contact harvesting or presumed broadcast API.
-- **India:** ShareChat/Moj are candidate locally relevant creator surfaces. [ShareChat's creator rules](https://help.sharechat.com/faq/original-creator/) describe original vs copied posts. India's [2020 government blocking notice](https://pib.gov.in/PressReleasePage.aspx?PRID=1635206) included TikTok and WeChat. Since this notice is historical, check present law/availability; do **not** recommend TikTok in the India pilot without independent reassessment.
+- **India:** ShareChat/Moj plus Josh, Chingari and Hipi are *candidate original-video surfaces*, not interchangeable supported APIs. [ShareChat's creator rules](https://help.sharechat.com/faq/original-creator/) distinguish original work from copies. Josh's [official creator page](https://myjosh.in/) and [VerSe parent site](https://www.verse.in/) describe local-language short video; [Chingari](https://blog.chingari.io/how-to/) has 2026 creator materials; [Hipi's help](https://hipihelpcenter.zee5.com/portal/en/kb/articles/how-do-i-download-hipi) describes the video app. [Public App's parent company](https://inshorts.group/) describes hyperlocal creator videos, not general-purpose promotion. [Kutumb](https://www.kutumbapp.com/) and [LocalCircles](https://www.localcircles.com/a/) are moderated human-only communities. [Arattai Channels](https://help.arattai.in/portal/en/kb/articles/about-channels) are opt-in, admin-managed follower feeds; its [Zoho Flow integration](https://help.arattai.in/portal/en/kb/articles/integrating-zoho-flow-with-arattai) documents a separate owner-authorized automation path, **not** a ReachWeaver connector or permission to message anyone. [Pratilipi](https://english.pratilipi.com/help/articles/75903534-how-do-i-publish-a-story-or-a-story-part) is original-language storytelling, not a tech ad feed; [Rooter](https://pages.rooter.gg/) is a gaming-specific creator surface. India's [2020 government blocking notice](https://pib.gov.in/PressReleasePage.aspx?PRID=1635206) listed TikTok/WeChat; current law and service availability require a separate check. [Koo announced closure in July 2024](https://indianexpress.com/article/technology/social/indian-social-media-app-koo-is-shutting-down-9430164/) and is **not** registered as an active channel.
 - **Russia:** VK, OK, Dzen and Habr are research candidates. Review local law, lawful platform availability and applicable sanctions before action. [Habr rules](https://habr.com/en/docs/help/rules/) restrict advertising and self-promotion, so Habr is human-only knowledge sharing rather than a marketing channel.
 - **Indonesia, Brazil, global:** KASKUS remains human-only; Kwai, Medium, Substack and Snapchat Spotlight are manual/author-controlled discovery experiments, not enabled ReachWeaver publishers.
+
+
+## India pilot design (research update 2026-10-15)
+
+| Audience/content fit | Candidate examples | ReachWeaver posture |
+|---|---|---|
+| Software demos for vernacular viewers | ShareChat, Moj, Josh, Chingari, Hipi | Manual original short video; do not assume automated scheduling, APIs, or reach metrics |
+| Local civic/educational relevance | Public App | Only genuinely local updates; creator/editor access unverified |
+| Communities or professional discussion | Kutumb, LocalCircles | Human-written and human-posted, follow moderator rules, no unsolicited cross-posting |
+| A channel with an *existing opted-in audience* | Arattai Channels | Owner-admin only; no contact harvesting, DMs or automated sends in ReachWeaver |
+| Original literary storytelling | Pratilipi | Native original author workflow only; don't reuse it for a generic software advertisement |
+| Gaming and livestream audiences | Rooter | Manually created relevant gaming content; not the default developer growth channel |
+
+India is not one content-language cohort: choose a genuine audience (e.g. English, Hindi, Tamil, Telugu, Bengali, Marathi, Kannada, Malayalam, Gujarati), have a fluent human review claims and scripts, and measure native results separately. A translated caption must not be treated as evidence that the advertised app supports the language. `distribution-plan --region india --goal awareness --limit 12 --json` proposes channels only; it neither uploads videos nor schedules posts. **Do not describe 2026 provider homepages as proof of current self-service API authorization.**
 
 ## Separate enablement gate
 

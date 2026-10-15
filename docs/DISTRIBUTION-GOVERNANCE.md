@@ -2,6 +2,10 @@
 
 **Review date:** 2026-10-08 | **Status:** Research and offline proposals; not a production posting or first-party analytics optimizer.
 
+## India-focused research extension (2026-10-15)
+
+Nine candidate India-origin networks, media/creator surfaces and community systems are now classified in the [regional catalog](REGIONAL-CHANNELS-2026-10-14.md). They are manual-only/unverified; Kutumb, LocalCircles and Arattai Channels are human-only and require group/owner permission or opted-in followers. A separate Zoho Flow integration for Arattai does not authorize a ReachWeaver publisher. Koo is not active and is intentionally excluded. Preserve per-platform evidence dates and the India TikTok restriction review.
+
 ## Dated regional research (2026-10-14)
 
 The [regional channel expansion](REGIONAL-CHANNELS-2026-10-14.md) adds 27 manual-only surfaces and South Korea, Taiwan, Thailand and Russia pilots. `reviewed_on` is the catalog edit date; each channel's `checked_on` retains its own actual evidence-check date. A `research_source` homepage is not proof of native scheduling, API rights or account authorization. Messaging/chat communities remain human-only; the India pilot omits TikTok until current availability and law are checked.

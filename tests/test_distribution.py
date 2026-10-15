@@ -26,7 +26,7 @@ class GlobalDistributionTests(unittest.TestCase):
 
     def test_version_and_complete_channel_coverage(self):
         self.assertEqual(self.data["schema_version"], 1)
-        self.assertEqual(self.data["reviewed_on"], "2026-10-14")
+        self.assertEqual(self.data["reviewed_on"], "2026-10-15")
         ids = {p["id"] for p in self.data["platforms"]}
         self.assertGreaterEqual(len(ids), 30)
         self.assertTrue({
@@ -47,7 +47,7 @@ class GlobalDistributionTests(unittest.TestCase):
     def test_added_regional_channels_remain_research_only(self):
         added = ["xiaohongshu","wechat_channels","toutiao","baidu_tieba","douban","maimai","qzone","note_jp","naver_blog","naver_cafe","kakao_openchat","dcard","ptt","pantip","line_openchat","zalo_official_account","kaskus","sharechat","moj","vk","odnoklassniki","dzen","habr","medium","substack","snapchat","kwai"]
         self.assertEqual(len(added), 27)
-        self.assertEqual(len(self.data["platforms"]), 63)
+        self.assertEqual(len(self.data["platforms"]), 72)
         self.assertEqual(len(self.data["markets"]), 18)
         by_id = {p["id"]: p for p in self.data["platforms"]}
         for platform_id in added:
@@ -73,10 +73,41 @@ class GlobalDistributionTests(unittest.TestCase):
         self.assertEqual(build_distribution_plan("china", "awareness", limit=8)["channels"][2]["platform_id"], "xiaohongshu")
         self.assertNotIn("tiktok", next(m for m in self.data["markets"] if m["id"] == "india")["rankings"]["awareness"])
 
+    def test_india_regional_networks_do_not_gain_live_send_capabilities(self):
+        india_ids = ["josh","chingari","hipi","public_app","kutumb","arattai_channels","localcircles","pratilipi","rooter"]
+        self.assertEqual(len(india_ids), 9)
+        by_id = {p["id"]: p for p in self.data["platforms"]}
+        self.assertNotIn("koo", by_id)  # Service announced closure in July 2024.
+        self.assertEqual(by_id["sharechat"]["checked_on"], "2026-10-14")
+        for platform_id in india_ids:
+            platform = by_id[platform_id]
+            self.assertEqual(platform["reachweaver_delivery"], "manual_only")
+            self.assertEqual(platform["scheduling"]["mode"], "unverified")
+            self.assertEqual(platform["scheduling"]["official_source"], "")
+            self.assertEqual(platform["checked_on"], "2026-10-15")
+            self.assertTrue(platform["research_source"].startswith("https://"))
+        for platform_id in ("kutumb", "arattai_channels", "localcircles"):
+            self.assertTrue(by_id[platform_id]["human_only"], platform_id)
+        for platform_id in ("josh", "chingari", "hipi", "public_app", "pratilipi", "rooter"):
+            self.assertFalse(by_id[platform_id]["human_only"], platform_id)
+        for goal in GOALS:
+            plan = build_distribution_plan("india", goal, limit=20)
+            self.assertEqual(plan["status"], "OFFLINE_RESEARCH_PROPOSAL_NOT_SCHEDULED")
+            self.assertFalse(plan["network_requests"])
+            self.assertFalse(plan["account_access"])
+            self.assertFalse(plan["publishing_approval_granted"])
+            self.assertEqual(plan["posts_created"], 0)
+            self.assertEqual(plan["posts_scheduled"], 0)
+            self.assertTrue(all(p["account_connected"] == "unknown_not_verified" for p in plan["channels"]))
+        awareness = [p["platform_id"] for p in build_distribution_plan("india", "awareness", limit=20)["channels"]]
+        self.assertTrue({"sharechat", "moj", "josh", "chingari", "hipi"}.issubset(awareness))
+        self.assertNotIn("tiktok", awareness)
+        self.assertEqual(build_distribution_plan("india", "awareness")["channels"][-1]["platform_id"], "josh")
+
     def test_per_platform_evidence_dates_do_not_backfill_false_reviews(self):
         data = deepcopy(self.data)
         self.assertEqual(validate_registry(data), [])
-        data["platforms"][0]["checked_on"] = "2026-10-15"
+        data["platforms"][0]["checked_on"] = "2026-10-16"
         self.assertTrue(any("cannot be later" in e for e in validate_registry(data)))
         data["platforms"][0]["checked_on"] = "not-a-date"
         self.assertTrue(any("ISO 8601" in e for e in validate_registry(data)))
@@ -181,6 +212,8 @@ class GlobalDistributionTests(unittest.TestCase):
                 (ROOT / "reachweaver" / name).read_bytes(),
                 (SKILL / "scripts/reachweaver" / name).read_bytes(),
             )
+        self.assertEqual((SKILL / "references/global-distribution.md").read_bytes(),
+                         (ROOT / "plugin/skills/reachweaver/references/global-distribution.md").read_bytes())
         self.assertIn("references/global-distribution.md", (SKILL / "SKILL.md").read_text())
         self.assertIn("Hacker News", (SKILL / "references/global-distribution.md").read_text())
 
