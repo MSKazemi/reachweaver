@@ -102,7 +102,7 @@ Analytics rows: 8, dates 2026-09-29 to 2026-10-03; GitHub traffic files: 2.
 
 ## Decisions this evidence supports
 
-Each decision names the row it rests on. They are operational choices for next week, not findings about platforms in general.
+Each decision names the row it rests on. They are operational choices for next week, not findings about platforms in general. The prose is pinned by `tests/test_weekly_report_prose.py`: every figure quoted below must appear in the generated block above or in the synthetic fixtures, and the derived ones (69, 52 and 19 attributed sessions, 149 unattributed, 140 from a search referrer, 11 from Telegram, 37 LinkedIn link clicks) must equal what `report` and `attribution-report` compute, so a changed fixture cannot leave these decisions stale.
 
 1. **Tag the Telegram link before the next post.** Section E lists `5e0b000000000004` under both `published_posts_with_untagged_links` and `published_posts_without_matching_utm_rows`. The 11 sessions in section C reach Telegram only at domain level (`t.me` referrer), so they cannot be credited to that post. Next action: build the link with `reachweaver utm-link --platform telegram --campaign rw-v0-3-release --content <post id>`.
 2. **Fix conversion tracking before comparing conversions across platforms.** The LinkedIn post has 52 attributed sessions but conversions `unknown (0)`, and `conversions_unknown_rows` is 2. A conversion rate for LinkedIn would be invented, so no conversion ranking is made this week. Next action: check that the analytics goal fired on the docs landing page for those rows.
