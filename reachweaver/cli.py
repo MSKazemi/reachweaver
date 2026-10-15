@@ -237,6 +237,24 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--audience-top-hours", type=int, metavar="N", help="With --audience-activity: top activity hours used, 1..24 (default 5)")
     p.add_argument("--audience-max-age-days", type=int, metavar="N",
                    help="With --audience-activity: warn when as_of is older than N days (default 90)")
+    p = sub.add_parser("calendar-gaps", help="Read-only: empty and overloaded slots per account from the local queue; "
+                       "never approves, schedules or publishes")
+    p.add_argument("--account", required=True, help="One configured social account ID")
+    p.add_argument("--timezone", required=True, help="Audience IANA zone, e.g. Europe/Rome")
+    p.add_argument("--start", help="First local day YYYY-MM-DD (default: today in the audience zone)")
+    p.add_argument("--days", type=int, default=14, help="Window length 1..60 days (default 14)")
+    p.add_argument("--slot", action="append", help="Audience-local preferred slot Wed@16:00; repeat (as calendar-plan)")
+    p.add_argument("--blackout", action="append", help="Exclude day YYYY-MM-DD; repeat")
+    p.add_argument("--audience-activity", type=Path, metavar="FILE", help="Owner-exported activity CSV; as calendar-plan")
+    p.add_argument("--audience-top-hours", type=int, metavar="N", help="With --audience-activity: top hours used, 1..24")
+    p.add_argument("--audience-max-age-days", type=int, metavar="N", help="With --audience-activity: stale after N days")
+    p.add_argument("--tolerance-minutes", type=int, default=90, help="A queued post within this many minutes fills a slot (1..720, default 90)")
+    p.add_argument("--max-per-day", type=int, default=2, help="More queued posts than this on one local day is overloaded (1..20, default 2)")
+    p.add_argument("--min-spacing-hours", type=int, default=20, help="Queued posts closer than this are flagged (1..168, default 20)")
+    p.add_argument("--timing-source", help="Annotate empty slots with timing-evaluate evidence from this exact imported source")
+    p.add_argument("--timing-metric", choices=METRIC_FIELDS, help="With --timing-source: goal numerator, e.g. clicks")
+    p.add_argument("--timing-denominator", choices=("views", "impressions"), help="With --timing-source")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
     p = sub.add_parser("publish", help="Preview due work; --live + opt-in env flag required to send")
     p.add_argument("--live", action="store_true", help="Opt in to actual network publishing")
     p.add_argument("--limit", type=int, default=10, help="Maximum eligible posts (default 10, max 100)")
@@ -1434,13 +1452,51 @@ def _run_publish(db, args) -> int:
 
 # Commands that only read the state database: opened with connect_readonly, so a missing
 # database fails (exit 2) instead of being created, and an older schema is never migrated.
-READ_ONLY_DB_COMMANDS = ("engagement-fetch", "ops-metrics", "youtube-analytics", "ops-summary")
+READ_ONLY_DB_COMMANDS = ("engagement-fetch", "ops-metrics", "youtube-analytics", "ops-summary", "calendar-gaps")
 OPS_METRICS_TABLES = ("posts", "event_log", "settings")
 
 
 def _execute_read_only(args) -> int:
     from .storage import connect_readonly, database_path, schema_gaps
     database = database_path(args.db)
+    if args.command == "calendar-gaps":  # SELECT statements only, no network, nothing scheduled
+        from .calendar_gaps import find_calendar_gaps, render_text as render_gaps_text
+        timing_args = (args.timing_source, args.timing_metric, args.timing_denominator)
+        if any(timing_args) and not all(timing_args):
+            raise ValidationError("--timing-source, --timing-metric and --timing-denominator go together")
+        account = _accounts(args).get(args.account)
+        if account is None:
+            raise ValidationError("Unknown calendar account; configure the owner account and run doctor")
+        audience = None
+        if args.audience_activity is not None:
+            today = datetime.now(timezone.utc).date()
+            audience = derive_audience_slots(
+                load_audience_activity(args.audience_activity, today=today), args.account,
+                target_timezone=args.timezone, today=today,
+                top_hours=AUDIENCE_TOP_HOURS if args.audience_top_hours is None else args.audience_top_hours,
+                max_age_days=AUDIENCE_MAX_AGE_DAYS if args.audience_max_age_days is None else args.audience_max_age_days,
+            )
+        elif args.audience_top_hours is not None or args.audience_max_age_days is not None:
+            raise ValidationError("--audience-top-hours/--audience-max-age-days need --audience-activity FILE")
+        with connect_readonly(database) as db:
+            needed = ("posts", "metric_snapshots") if args.timing_source else ("posts",)
+            gaps = schema_gaps(db, needed)
+            if gaps:
+                raise ValidationError(f"{database} predates this version's schema (missing {', '.join(gaps)}); "
+                                      "calendar-gaps is read-only and never migrates. Run 'reachweaver init' "
+                                      "once to upgrade it, then retry")
+            timing = None
+            if args.timing_source:
+                timing = analyze_posting_times(
+                    db, account_id=args.account, platform=account["platform"], audience_timezone=args.timezone,
+                    source=args.timing_source, metric=args.timing_metric, denominator=args.timing_denominator)
+            report = find_calendar_gaps(
+                db, account_id=args.account, platform=account["platform"], audience_timezone=args.timezone,
+                start=args.start, days=args.days, slots=args.slot, blackout=args.blackout,
+                audience_activity=audience, timing=timing, tolerance_minutes=args.tolerance_minutes,
+                max_per_day=args.max_per_day, min_spacing_hours=args.min_spacing_hours)
+        print(json.dumps(report, indent=2, ensure_ascii=False) if args.json else render_gaps_text(report))
+        return 0
     if args.command == "engagement-fetch":  # network only with --online
         from .engagement_fetch import fetch_engagement, write_export as write_engagement_export
         if args.online and args.out is None:
