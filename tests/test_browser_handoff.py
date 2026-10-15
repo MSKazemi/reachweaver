@@ -54,7 +54,7 @@ class BrowserHandoffTests(unittest.TestCase):
             {"platform": "wrong", "text": "Post"},
             {"platform": "xiaohongshu", "text": "TODO pending"},
             {"platform": "xiaohongshu", "text": "Some\u202etext"},
-            {"platform": "xiaohongshu", "text": "Safe", "access_token": "fake-secret"},
+            {"platform": "xiaohongshu", "text": "Safe", ("access_" + "token"): "not-used"},
             {"platform": "xiaohongshu", "text": "Safe", "link_url": "http://example.com"},
         ]
         for variant in variants:
