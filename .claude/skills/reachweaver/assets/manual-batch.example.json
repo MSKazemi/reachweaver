@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "platform": "xiaohongshu",
+      "variant": {
+        "platform": "xiaohongshu",
+        "format": "text",
+        "text": "A real, verified technical project walkthrough, localized and reviewed by the account owner.",
+        "link_url": "https://example.org/docs"
+      },
+      "account_meta": {"handle": "@my-account"},
+      "at": "2026-11-02T19:00:00+08:00"
+    },
+    {
+      "platform": "naver_blog",
+      "variant": {
+        "platform": "naver_blog",
+        "text": "A practical tutorial with evidence, written for the audience of this blog.",
+        "platform_options": {"title": "Practical tutorial"}
+      }
+    },
+    {
+      "platform": "threads",
+      "variant": {
+        "platform": "threads",
+        "text": "One short, sourced update for Threads. https://example.org/docs"
+      }
+    }
+  ]
+}

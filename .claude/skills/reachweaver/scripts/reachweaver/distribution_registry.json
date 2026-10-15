@@ -684,6 +684,20 @@
       "research_source": "https://www.ptt.cc/"
     },
     {
+      "id": "pixnet",
+      "label": "PIXNET",
+      "category": "blog",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Taiwan: the owner's own Traditional Chinese blog; native scheduling, API access and posting rules unverified",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-14",
+      "research_source": "https://www.pixnet.net/"
+    },
+    {
       "id": "pantip",
       "label": "Pantip",
       "category": "community",
@@ -1909,7 +1923,8 @@
           "youtube",
           "github",
           "medium",
-          "dcard"
+          "dcard",
+          "pixnet"
         ],
         "awareness": [
           "youtube",

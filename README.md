@@ -87,7 +87,7 @@ The CSV is read into memory, never published or saved elsewhere; owner acknowled
 
 ## International social discovery (research only, issue #64)
 
-The offline distribution planner catalogs **90 channels across 18 market pilots**, including India-focused ShareChat, Moj, Josh, Chingari, Hipi, Public App, Kutumb, Arattai Channels, LocalCircles, Pratilipi and Rooter; plus Xiaohongshu/REDnote, Weixin Channels, Naver, VK and other regional platforms. See [regional channel research and India use cases](docs/REGIONAL-CHANNELS-2026-10-14.md) and [community, creator and publishing platform research](docs/COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md) and try `reachweaver distribution-plan --region india --goal awareness --limit 12 --json`. New entries are **manual-only** with `unverified` native scheduling; community discussion and opt-in channel messages stay human-only. No new API adapter, account connection or remote publication is implied.
+The offline distribution planner catalogs **93 channels across 18 market pilots**, including India-focused ShareChat, Moj, Josh, Chingari, Hipi, Public App, Kutumb, Arattai Channels, LocalCircles, Pratilipi and Rooter; plus Xiaohongshu/REDnote, Weixin Channels, Naver, VK and other regional platforms. See [regional channel research and India use cases](docs/REGIONAL-CHANNELS-2026-10-14.md) and [community, creator and publishing platform research](docs/COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md) and try `reachweaver distribution-plan --region india --goal awareness --limit 12 --json`. New entries are **manual-only** with `unverified` native scheduling; community discussion and opt-in channel messages stay human-only. No new API adapter, account connection or remote publication is implied.
 
 ## Per-platform profile and post audits (offline, Issue #3)
 
@@ -117,7 +117,7 @@ For a source-backed, moderation-aware 30-day plan prioritizing DEV, LinkedIn, Gi
 
 ## Worldwide audience selection: executable, offline research
 
-ReachWeaver now includes a **versioned and tested research registry** spanning 36 networks/surfaces and 14 country/global market profiles, including India, China, Japan, Southeast Asia, Africa and Brazil. It also records native scheduling evidence separately from ReachWeaver's actual account and API capabilities. Results are **editorial channel hypotheses**, never guaranteed traffic, a detected account connection, a remote scheduling receipt or publishing permission.
+ReachWeaver now includes a **versioned and tested research registry** spanning 93 networks/surfaces and 18 country/global market profiles, including India, China, Japan, Southeast Asia, Africa and Brazil. It also records native scheduling evidence separately from ReachWeaver's actual account and API capabilities. Results are **editorial channel hypotheses**, never guaranteed traffic, a detected account connection, a remote scheduling receipt or publishing permission.
 
 ```bash
 # No account credentials or network access needed. These NEVER queue or publish.
@@ -254,6 +254,8 @@ reachweaver youtube-attach POST_ID --file CLIP.mp4 --title T --made-for-kids yes
 reachweaver youtube-detach POST_ID         #22: remove the video from a YouTube draft; offline
 reachweaver youtube-analytics [--account ID] [--post-id ID]  #22: read-only sampling report over stored metric snapshots of published YouTube videos; labels exact / sampled / suppressed / delayed / not_available / unknown, never invents a view count, fetches nothing (docs/YOUTUBE.md#analytics-sampling-report)
 reachweaver manual-export --platform threads|instagram|facebook|youtube|tiktok|<any other manual_only id> --variant F [--media MANIFEST] [--account-meta F] --out DIR [--json]  creator-ready package + checklist; other manual_only destinations get a generic package (limits unknown unless a registry records them; human-only ones get a write-it-yourself notes form); never sends (docs/MANUAL-EXPORT.md)
+reachweaver manual-export-batch --file BATCH.json --out DIR [--json]  1-25 manual-export items preflighted as a whole (one blocking error writes nothing), one package folder each plus a manifest with the SHA-256 of every exact-text file; human-only destinations refused; an item's `at` is advisory, never scheduled (docs/MANUAL-EXPORT.md#batch-of-manual-packages)
+reachweaver delivery-options [--platform ID] [--json]  offline route per distribution-registry channel: official API adapter (the four mock-tested ones), manual package, human-only notes form or unsupported, with the exact manual-export command; connects, posts and schedules nothing
 reachweaver campaign-stage --file F --brand B [--optout F]    idempotently create draft posts only
 reachweaver experiment-evaluate --file F       analyze paired native metrics; no causal claim
 reachweaver experiment-preregister PLAN --out FILE  validate a 2-3 arm growth plan, write a NEW hashed record (docs/GROWTH-EXPERIMENTS.md)

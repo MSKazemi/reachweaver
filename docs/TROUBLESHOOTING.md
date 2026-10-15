@@ -104,12 +104,12 @@ Live text adapters (still need approval, `--live`, `REACHWEAVER_ALLOW_LIVE=1` an
 |---|---|
 | manual_export | `facebook_pages`, `instagram`, `threads`, `tiktok`, `youtube` |
 | draft_export | `dev`, `hashnode`, `pinterest`, `x` |
-| native_manual | `beehiiv`, `bilibili`, `chingari`, `csdn`, `dailydev`, `douyin`, `dzen`, `ghost`, `github_discussions`, `hipi`, `josh`, `juejin`, `kakao_talk_channel`, `kuaishou`, `kwai`, `line_official_account`, `medium`, `moj`, `naver_blog`, `note_jp`, `odnoklassniki`, `oschina`, `peerlist`, `pratilipi`, `product_hunt`, `public_app`, `qiita`, `rooter`, `sharechat`, `snapchat`, `substack`, `toutiao`, `viber`, `vimeo`, `vk`, `wechat`, `wechat_channels`, `weibo`, `xiaohongshu`, `zenn`, `zhihu` |
+| native_manual | `beehiiv`, `bilibili`, `chingari`, `csdn`, `dailydev`, `douyin`, `dzen`, `ghost`, `github_discussions`, `hipi`, `josh`, `juejin`, `kakao_talk_channel`, `kuaishou`, `kwai`, `line_official_account`, `medium`, `moj`, `naver_blog`, `note_jp`, `odnoklassniki`, `oschina`, `peerlist`, `pixnet`, `pratilipi`, `product_hunt`, `public_app`, `qiita`, `rooter`, `sharechat`, `snapchat`, `substack`, `toutiao`, `viber`, `vimeo`, `vk`, `wechat`, `wechat_channels`, `weibo`, `xiaohongshu`, `zenn`, `zhihu` |
 | human_only | `arattai_channels`, `baidu_tieba`, `behance`, `dcard`, `discord`, `douban`, `dribbble`, `facebook_groups`, `flipboard`, `habr`, `hacker_news`, `huggingface`, `indie_hackers`, `kakao_openchat`, `kaskus`, `kutumb`, `lemmy`, `line_openchat`, `lobsters`, `localcircles`, `maimai`, `naver_cafe`, `pantip`, `ptt`, `quora`, `qzone`, `reddit`, `researchgate`, `slack_communities`, `stackexchange`, `tumblr`, `twitch`, `whatsapp`, `xing`, `zalo_official_account` |
 | unsupported | `gitee`, `github`, `snapcraft` |
 <!-- END blocker-table -->
 
-A registry entry is research, not permission. An alternative here does not mean the platform allows a given post: check its rules, your account type and the [platform notes](PLATFORMS.md) first.
+`reachweaver delivery-options [--platform ID] [--json]` prints the same classification per channel, offline, with the exact `manual-export` command (and `official_api_adapter` for the four live text adapters). A registry entry is research, not permission. An alternative here does not mean the platform allows a given post: check its rules, your account type and the [platform notes](PLATFORMS.md) first.
 
 ## Still stuck
 

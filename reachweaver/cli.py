@@ -646,6 +646,13 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--account-meta", type=Path, help="PUBLIC account metadata JSON (handle, account_type); no secrets")
     p.add_argument("--out", type=Path, required=True, help="NEW output folder (0700, files 0600); refuses existing output")
     p.add_argument("--json", action="store_true", help="Print the full machine-readable package")
+    p = sub.add_parser("manual-export-batch", help="Offline: preflight 1-25 manual-export items as a whole, then write one package folder each with SHA-256 of the exact text; never sends or schedules")
+    p.add_argument("--file", type=Path, required=True, help="Batch JSON: schema_version 1 and items of platform, variant, optional account_meta and at (advisory time with offset); human-only destinations refused")
+    p.add_argument("--out", type=Path, required=True, help="NEW output folder (0700, files 0600); one blocking error anywhere writes nothing")
+    p.add_argument("--json", action="store_true", help="Print the batch manifest as JSON")
+    p = sub.add_parser("delivery-options", help="Offline delivery route per distribution-registry channel (official API adapter, manual package, human-only notes or unsupported); never connects, posts or schedules")
+    p.add_argument("--platform", help="One distribution-registry channel id (default: every channel)")
+    p.add_argument("--json", action="store_true", help="Machine-readable routes")
     p = sub.add_parser("claims-check", help="Offline LEXICAL claim grounding of variants vs declared evidence; not truth verification")
     p.add_argument("campaign", type=Path, help="Campaign JSON file")
     p.add_argument("--brand", type=Path, required=True, help="Brand JSON (banned_phrases, required_disclosure)")
@@ -1946,6 +1953,33 @@ def execute(args) -> int:
     if args.command == "media-storyboard":
         from .storyboard import run_command as run_storyboard
         return run_storyboard(args)
+    if args.command == "delivery-options":
+        from .delivery_options import list_delivery_routes, render_text as render_routes
+        routes = list_delivery_routes(args.platform)
+        if args.json:
+            print(json.dumps(routes, indent=2, ensure_ascii=False))
+        else:
+            print(render_routes(routes), end="")
+        return 0
+    if args.command == "manual-export-batch":
+        from .manual_batch import build_batch, manifest as batch_manifest, render_text as render_batch, write_batch
+        batch = build_batch(read_json(args.file))
+        if batch["errors"]:
+            if args.json:
+                print(json.dumps({"status": "BLOCKED", "errors": batch["errors"], "warnings": batch["warnings"],
+                                  "written": False}, indent=2, ensure_ascii=False))
+            else:
+                print(render_batch(batch), end="")
+            return 2
+        files = write_batch(batch, args.out)
+        if args.json:
+            print(json.dumps(batch_manifest(batch), indent=2, ensure_ascii=False))
+        else:
+            print(render_batch(batch), end="")
+        for path in files:
+            print(f"Wrote {path}", file=sys.stderr)
+        print("Nothing was sent, uploaded, scheduled or shared.", file=sys.stderr)
+        return 0
     if args.command == "manual-export" and args.platform not in MANUAL_PLATFORMS:
         variant = read_json(args.variant)
         meta = read_json(args.account_meta) if args.account_meta else None
