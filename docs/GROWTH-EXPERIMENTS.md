@@ -241,7 +241,7 @@ These are rejected by code or remain out of scope:
 - Likes, views or impressions as the success metric.
 - Early stopping on a favourable result. Editing the metric, thresholds or window after registration (`experiment-verify` detects this).
 - Pooling accounts or platforms. Calling a result proven or causal.
-- Automatic publishing or scheduling of experiment arms. Every arm still needs per-item human approval, the dry-run default, the per-account caps (`--max-per-24h`, `--min-gap-minutes`) and the emergency stop.
+- Automatic publishing or scheduling of experiment arms. Every arm still needs per-item human approval, the dry-run default, the per-account caps (`--max-per-24h`, `--min-gap-minutes`) and the emergency stop. This is tested, not just stated (`tests/test_growth_policy.py`): an AST guard proves the advice modules (`growth`, `growth_readout`, `baseline_eval`, `timing_analysis`, `experiments`, `audience`) import no publisher, adapter or network module and only read helpers from `storage`, and name no claim, approve, schedule or send function; and two experiment arms driven through the CLI stay drafts until approved, are a dry run by default, are refused without the live opt-in, are held to one send per account in a sweep by the minimum gap, stop on `pause`, and are blocked when edited after approval.
 - Scraping, fake engagement or buying reach to fill a sample.
 
 ## Not implemented
