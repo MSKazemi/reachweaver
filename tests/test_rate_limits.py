@@ -23,6 +23,7 @@ from urllib.error import HTTPError
 
 from test_no_network import NetworkGuard
 
+from hold_support import claim as claim_sending
 from reachweaver import ratelimit
 from reachweaver.caps import (
     effective_caps, effective_rate_limits, load_caps, providers_for, validate_caps,
@@ -38,7 +39,7 @@ from reachweaver.ratelimit import (
     parse_telegram_retry_after, parse_x_ratelimit_reset, preflight_retries, preflight_with_backoff,
 )
 from reachweaver.storage import (
-    active_provider_cooldown, add_post, claim_sending, connect, event, get_post, provider_cooldowns,
+    active_provider_cooldown, add_post, connect, event, get_post, provider_cooldowns,
     queue_health, record_provider_cooldown, set_paused, transition, uncertain_send,
 )
 
@@ -551,6 +552,7 @@ class PostClaimRateLimitTests(RateLimitBase):
         # A body above 4 KB is ignored as a whole: the default applies.
         with connect(self.db) as db:
             db.execute("DELETE FROM event_log WHERE action IN ('provider_cooldown','send_claimed')")
+            db.execute("UPDATE posts SET status='cancelled' WHERE id=?", (first,))  # #41: the unresolved first send holds the account
         second = self.approved("rl-telegram", text="Channel note two")
         big = json.dumps({"parameters": {"retry_after": 999}, "pad": "x" * 5000}).encode()
         wire = Wire({**TG_PREFLIGHT, ("POST", "/sendMessage"): [lambda: http(429, body=big)]})
@@ -635,6 +637,8 @@ class PostClaimRateLimitTests(RateLimitBase):
                 with self.subTest(adapter=adapter, failure=name):
                     with connect(self.db) as db:
                         db.execute("DELETE FROM event_log WHERE action IN ('send_claimed','bluesky_create_session')")
+                        # #41: the previous iteration left a needs_review post, which holds the account
+                        db.execute("UPDATE posts SET status='cancelled' WHERE status='needs_review'")
                     pid = self.approved(account, text=f"Note for {adapter} {name}")
                     wire = Wire(ok_routes(adapter, [failure]))
                     code, out, err = self.live(wire, "--post-id", pid)

@@ -71,7 +71,7 @@ from .ratelimit import (
 from .report_format import REPORT_FORMATS, render_report
 from .richtext import bluesky_preview, deterministic_tid, mastodon_length
 from .storage import (
-    APPROVAL_KEY_CREDENTIAL, APPROVAL_KEY_UNAVAILABLE, BINDING_MEDIA_CHANGED, BINDING_VIDEO_CHANGED, METRIC_FIELDS, active_provider_cooldown,
+    APPROVAL_KEY_CREDENTIAL, APPROVAL_KEY_UNAVAILABLE, BINDING_MEDIA_CHANGED, BINDING_VIDEO_CHANGED, METRIC_FIELDS, account_send_hold, active_provider_cooldown, hold_refusal,
     add_post, approval_binding_problem, identity_mode_required, latch_identity_mode, approval_key_mode, approval_payload_sha256, latch_keyed_mode, offline_key_mode,
     binding_refusal, check_approval_binding, claim_sending, connect, cooldown_refusal, finish_send, get_post,
     approval_rebind_required, is_paused, parse_utc, pending, post_media, post_video,
@@ -1062,8 +1062,11 @@ def _publish(db, args, wlog) -> int:
                 cooling += 1
                 print(f"    SKIPPED {post['id']}: {cooldown_refusal(cooldown)}; "
                       "--live would skip it before any claim or request")
+            hold = account_send_hold(db, post["account_id"], post["id"])
+            if hold:
+                print(f"    SKIPPED {post['id']}: {hold_refusal(hold)}; --live would skip it before any claim or request")
             budget: str | None = None
-            if post["platform"] == "bluesky" and not (reason or problem or cooldown):
+            if post["platform"] == "bluesky" and not (reason or problem or cooldown or hold):
                 key = post["account_id"]
                 usage = recorded_session_usage(db, key)  # None: never metered, nothing to refuse
                 if usage is not None:
@@ -1245,6 +1248,15 @@ def _publish(db, args, wlog) -> int:
             print(f"SKIPPED {post['id']}: {cooldown_refusal(cooldown)}; not claimed, post stays "
                   f"{post['status']}, no request sent")
             wlog.skipped(post, "cooldown")
+            if args.post_id:
+                return 2
+            continue
+        # Unresolved send (#41): another post of this account is needs_review or sending, so its real
+        # state is unknown. Pre-claim and pre-network; claim_sending re-checks under its lock.
+        hold = account_send_hold(db, post["account_id"], post["id"])
+        if hold:
+            print(f"SKIPPED {post['id']}: {hold_refusal(hold)}; not claimed, post stays {post['status']}, no request sent")
+            wlog.skipped(post, "unresolved_send_hold")
             if args.post_id:
                 return 2
             continue

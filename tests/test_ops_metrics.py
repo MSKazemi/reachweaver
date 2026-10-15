@@ -17,6 +17,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from hold_support import claim as claim_sending
 from reachweaver.cli import main
 from reachweaver.ops_metrics import (
     collect, parse_since, render_json, render_prometheus, write_textfile,
@@ -24,7 +25,7 @@ from reachweaver.ops_metrics import (
 from reachweaver.optout import validate_optout
 from reachweaver.policy import ValidationError
 from reachweaver.storage import (
-    add_post, claim_sending, connect, finish_send, reconcile, record_provider_cooldown, set_paused,
+    add_post, connect, finish_send, reconcile, record_provider_cooldown, set_paused,
     transition, uncertain_send,
 )
 

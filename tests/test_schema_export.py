@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from hold_support import claim
 from reachweaver import storage
 from reachweaver.cli import main
 from reachweaver.policy import ValidationError
@@ -60,32 +61,32 @@ def seed(con) -> dict[str, str]:
     storage.transition(con, pid, "schedule", "2026-10-15T07:00:00+00:00")
     pid = post("sending")
     storage.transition(con, pid, "approve")
-    storage.claim_sending(con, pid)
+    claim(con, pid)
     pid = post("published")
     storage.transition(con, pid, "approve")
-    storage.claim_sending(con, pid)
+    claim(con, pid)
     storage.finish_send(con, pid, "at://did:plc:abc/app.bsky.feed.post/3kpub",
                         "https://bsky.app/profile/did:plc:abc/post/3kpub")
     storage.store_metrics(con, pid, "2026-10-16T08:00:00+00:00", "native-export", views=120, clicks=4)
     pid = post("reconciled", platform="mastodon", account="my-mastodon")
     storage.transition(con, pid, "approve")
-    storage.claim_sending(con, pid)
+    claim(con, pid)
     storage.uncertain_send(con, pid, "network_or_timeout_uncertain")
     storage.reconcile(con, pid, True, "109876543210", "https://mastodon.social/@example/109876543210")
     pid = post("needs-review")
     storage.transition(con, pid, "approve")
-    storage.claim_sending(con, pid)
+    claim(con, pid)
     storage.uncertain_send(con, pid, "network_or_timeout_uncertain")
     pid = post("redrafted")
     storage.transition(con, pid, "approve")
-    storage.claim_sending(con, pid)
+    claim(con, pid)
     storage.uncertain_send(con, pid, "network_or_timeout_uncertain")
     storage.reconcile(con, pid, False)
     storage.transition(con, post("cancelled"), "cancel")
     # Edge cases that must be reported, never guessed.
     pid = post("free-text-error")
     storage.transition(con, pid, "approve")
-    storage.claim_sending(con, pid)
+    claim(con, pid)
     storage.uncertain_send(con, pid, "Something odd happened")
     pid = post("unstaged", staged=False)
     storage.store_metrics(con, pid, "2026-10-16T08:00:00+00:00", "native-export", views=1)

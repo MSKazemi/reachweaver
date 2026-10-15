@@ -228,6 +228,7 @@ class PostizTests(unittest.TestCase):
             with self.subTest(failure=repr(failure)[:40]):
                 with connect(str(self.db)) as db:  # isolate the rolling budget and the 429 cooldown (#11)
                     db.execute("DELETE FROM event_log WHERE action IN ('send_claimed','provider_cooldown')")
+                    db.execute("UPDATE posts SET status='cancelled' WHERE status='needs_review'")  # #41: the previous iteration's hold
                 pid = self.approved(text=f"Release candidate {number}")
                 fake = FakePostiz(create=failure)
                 with patch("reachweaver.publishers._send_http", fake):

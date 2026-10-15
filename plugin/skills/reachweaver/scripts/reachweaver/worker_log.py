@@ -53,6 +53,7 @@ SKIP_REASONS = (
     "optout_blocked",             # mentions an opt-out listed handle (issue #26)
     "rebind_required",            # approval hash missing or mismatched (issue #7)
     "cooldown",                   # provider cooldown after a 429 (issue #11, including a shared scope)
+    "unresolved_send_hold",       # another post of the account is needs_review or sending (issue #41)
     "session_budget",             # Bluesky createSession local budget exhausted (#11)
     "capability_refused",         # capability registry refused text publish
     "credentials_missing",        # credential variables absent (names are not logged)

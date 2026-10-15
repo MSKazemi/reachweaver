@@ -153,6 +153,7 @@ REPLY_MEDIA_REFUSED = "reply_media_unsupported: a reply carries text only, never
 # is claimed. A claimed post is never released or resent because of it (D16).
 COOLDOWN_EVENT = "provider_cooldown"
 COOLDOWN_REFUSAL = "account_provider_cooldown_active"
+HOLD_REFUSAL = "account_unresolved_send_hold"
 COOLDOWN_STAGES = ("preflight", "send")
 SEND_CLASSES = ("certain_not_sent", "likely_not_created", "ambiguous")
 _COOLDOWN_TOKEN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -1239,6 +1240,43 @@ def active_provider_cooldown(con, account_id: str, now: str | None = None, *,
     return {**best, "account_id": account_id, "recorded_by": best["account_id"], "ceiling_clamped": clamped}
 
 
+def account_send_hold(con, account_id: str, exclude_post_id: str | None = None, now: str | None = None) -> dict | None:
+    """#41: another post of this account whose outcome is unknown, or None.
+
+    A post in ``needs_review`` (an ambiguous send waiting for a human) means the account's real state is
+    not known, and so does a post left in ``sending`` for longer than the reconcile threshold (a crash, a
+    lost worker). While one exists no further post may be claimed for the account until a person checks the
+    native account and runs ``reconcile``. A ``sending`` post newer than the threshold does not hold: it is a
+    live send of a cooperating run, which the rolling caps and minimum gap already pace.
+
+    Derived from the posts table, so there is no separate hold to forget, and no command or flag lifts it
+    except resolving that post. Read-only.
+    """
+    current = datetime.fromisoformat(parse_utc(now or utc_now()))
+    rows = con.execute("""SELECT id, status, send_started_at FROM posts
+                          WHERE account_id=? AND status IN ('needs_review','sending') AND id<>?
+                          ORDER BY CASE status WHEN 'needs_review' THEN 0 ELSE 1 END, id""",
+                       (account_id, exclude_post_id or "")).fetchall()
+    for row in rows:
+        if row["status"] == "sending":
+            try:
+                started = datetime.fromisoformat(parse_utc(row["send_started_at"])) if row["send_started_at"] else None
+            except (ValueError, TypeError, ValidationError):
+                started = None
+            if started is not None and current - started < timedelta(minutes=RECONCILE_MIN_SENDING_MINUTES):
+                continue  # a live send, not an unknown outcome
+        return {"post_id": row["id"], "status": row["status"], "account_id": account_id}
+    return None
+
+
+def hold_refusal(hold: dict) -> str:
+    resolve = ("reachweaver reconcile {id} --published|--not-published (after checking the native account)"
+               if hold["status"] == "needs_review" else
+               "reachweaver reconcile {id} --not-published --force only after checking that no send is in flight")
+    return (f"{HOLD_REFUSAL}: post {hold['post_id']} on account {hold['account_id']} is {hold['status']}, so the "
+            f"account's real state is unknown; resolve it first: " + resolve.format(id=hold["post_id"]))
+
+
 def cooldown_refusal(cooldown: dict) -> str:
     text = (f"{COOLDOWN_REFUSAL} until={cooldown['until']} account={cooldown['account_id']} "
             f"source={cooldown['source']}")
@@ -1429,6 +1467,10 @@ def claim_sending(con, post_id: str, now: str | None = None, *,
             cooldown = active_provider_cooldown(con, row["account_id"], now, scopes=scopes)
             if cooldown:
                 raise ValidationError(cooldown_refusal(cooldown) + "; post stays approved/scheduled")
+            # #41: an unresolved earlier send on this account holds every later claim (nothing is written).
+            hold = account_send_hold(con, row["account_id"], post_id, now)
+            if hold:
+                raise ValidationError(hold_refusal(hold) + "; post stays approved/scheduled")
             if max_per_24h is not None or min_gap_minutes:
                 attempts = _recent_send_claims(con, row["account_id"], now)
                 if max_per_24h is not None and len(attempts) >= max_per_24h:
