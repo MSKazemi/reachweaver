@@ -1025,12 +1025,13 @@
       "category": "community",
       "scheduling": {
         "mode": "unverified",
-        "scope": "Q&A network, not a place to announce projects. Every official rule and API page could not be read by the research tools on 2026-10-15, so no rule is claimed here. Treated as human-only until the rules are read.",
+        "scope": "Q&A network, not a place to announce projects. The Help Center (read 2026-10-15) says the community \"tends to vote down overt self-promotion and flag it as spam\" and that mentioning your own product requires disclosing your affiliation. The v2.3 API supports authenticated writes (the write_access scope, for example /questions/add) for applications registered on Stack Apps, under throttles; no scheduling is documented. Treated as human-only: a project announcement does not fit.",
         "official_source": ""
       },
       "reachweaver_delivery": "manual_only",
       "human_only": true,
-      "checked_on": "2026-10-15"
+      "checked_on": "2026-10-15",
+      "research_source": "https://stackoverflow.com/help/promotion"
     },
     {
       "id": "github_discussions",
@@ -1108,12 +1109,13 @@
       "category": "professional",
       "scheduling": {
         "mode": "unverified",
-        "scope": "German-speaking professional network. Every official xing.com and dev.xing.com page was unreachable to the research tools on 2026-10-15, so nothing is claimed here. Treated as human-only until the rules are read.",
+        "scope": "German-speaking professional network. The XING Developer site (read 2026-10-15) lists only plugins: Share on XING, Login with XING and partner job integration; it lists no member posting API. The member terms page is JavaScript-rendered and could not be read, so the rules on promotion, automation and scheduling are unverified. Treated as human-only until they are read.",
         "official_source": ""
       },
       "reachweaver_delivery": "manual_only",
       "human_only": true,
-      "checked_on": "2026-10-15"
+      "checked_on": "2026-10-15",
+      "research_source": "https://dev.xing.com/"
     },
     {
       "id": "beehiiv",

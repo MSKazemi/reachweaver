@@ -87,9 +87,9 @@ These surfaces are in `reachweaver/distribution_registry.json` as planning metad
 | GitHub Discussions | `github_discussions` | code | `manual_only` | no | `unverified` | 2026-10-15 | [page](https://docs.github.com/en/discussions/quickstart) | Scheduling and automation limits not sourced |
 | Hugging Face community posts | `huggingface` | community | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://huggingface.co/content-policy) | Scheduling and automation limits not sourced |
 | Quora | `quora` | community | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://business.quora.com/resources/writing-on-quora-as-a-business) | Scheduling and automation limits not sourced |
-| Stack Overflow / Stack Exchange | `stackexchange` | community | `manual_only` | yes | `unverified` | 2026-10-15 | none | No official page could be read; no rule is claimed |
+| Stack Overflow / Stack Exchange | `stackexchange` | community | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://stackoverflow.com/help/promotion) | Scheduling and automation limits not sourced |
 | Tumblr | `tumblr` | writing | `manual_only` | yes | `native` | 2026-10-15 | [page](https://raw.githubusercontent.com/tumblr/docs/master/api.md) | Per-account and plan limits not checked |
-| Xing | `xing` | professional | `manual_only` | yes | `unverified` | 2026-10-15 | none | No official page could be read; no rule is claimed |
+| Xing | `xing` | professional | `manual_only` | yes | `unverified` | 2026-10-15 | [page](https://dev.xing.com/) | Scheduling and automation limits not sourced |
 | VK | `vk` | microblog | `manual_only` | no | `unverified` | 2026-10-14 | [page](https://vk.com/) | Scheduling and automation limits not sourced |
 | Naver Blog | `naver_blog` | technical | `manual_only` | no | `unverified` | 2026-10-14 | [page](https://help.naver.com/service/5593/contents/15555) | Scheduling and automation limits not sourced |
 | Naver Cafe | `naver_cafe` | community | `manual_only` | yes | `unverified` | 2026-10-14 | [page](https://help.naver.com/service/5622/contents/15212) | Scheduling and automation limits not sourced |

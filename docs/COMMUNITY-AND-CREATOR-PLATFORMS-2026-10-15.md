@@ -20,9 +20,9 @@ Research behind the registry entries for public issues #15-#22, #27-#30, #32-#37
 | GitHub Discussions (`github_discussions`) | #17 | `unverified` | no | Own-repository announcements fit; bulk promotion elsewhere is barred by the Acceptable Use Policies |
 | Hugging Face (`huggingface`) | #18 | `unverified` | yes | Content Policy lists advertising and bulk activity as spam; Posts are PRO-only; articles are screened |
 | Quora (`quora`) | #19 | `unverified` | yes | Self-promotion only inside a sincere, direct answer; repeated identical answers may be spam |
-| Stack Exchange (`stackexchange`) | #20 | `unverified` | yes | **Nothing could be read**: official pages refused the research tools; conservative default |
+| Stack Exchange (`stackexchange`) | #20 | `unverified` | yes | Help Center promotion rule and API v2.3 read directly (curl, 2026-10-15); no scheduling documented; human-only |
 | Tumblr (`tumblr`) | #21 | `native` | yes | Scheduling exists, but the guidelines (via search excerpt) forbid automatic or programmatic posting |
-| Xing (`xing`) | #22 | `unverified` | yes | **Nothing could be read**: official pages unreachable; conservative default |
+| Xing (`xing`) | #22 | `unverified` | yes | Developer site read (plugins only, no posting API listed); member terms JavaScript-only, unverified; human-only |
 | Beehiiv (`beehiiv`) | #27 | `native_conditional` | no | Own newsletter; the Create post API is on Pro and Enterprise plans; fully AI-generated publications are barred |
 | Ghost (`ghost`) | #28 | `native` | no | Own site; editor and Admin API scheduling documented |
 | Vimeo (`vimeo`) | #29 | `unverified` | no | Own video through an approved-app API; no standard-video scheduling found |
@@ -59,8 +59,9 @@ Seven other issues in the same series (#13 Medium, #14 Substack, #23 VK, #24 Nav
 
 ## Stack Overflow / Stack Exchange (`stackexchange`, #20)
 
-- **Nothing could be read.** Every official stackoverflow.com, stackexchange.com and api.stackexchange.com page, including the help centre, the promotion and AI policies and the API docs, refused the research tools on 2026-10-15. No rule is claimed. Third-party mirrors were not used.
-- **Decision:** `unverified`, `human_only` yes as a conservative default, because Stack Overflow is a Q&A site, not a place to announce projects. Read the pages in a browser, then revisit this entry.
+- **Read directly on 2026-10-15** (the first research pass was refused by the summarising tool; a plain HTTP fetch of the same pages worked): the [promotion page](https://stackoverflow.com/help/promotion) says "The community here tends to vote down overt self-promotion and flag it as spam" and that mentioning your product, website or other contribution means you "must disclose your affiliation in your post". The [API v2.3 documentation](https://api.stackexchange.com/docs) describes authentication and write support (`write_access` scope, for example `/questions/add`), applications registered on Stack Apps, and throttles.
+- **Not verified:** the AI-content policy, per-site rules (each Stack Exchange site has its own meta), and any scheduling feature (none is documented in the pages above).
+- **Decision:** `unverified` scheduling, `human_only` yes, because a project announcement does not fit a Q&A site and undisclosed promotion is flagged as spam.
 
 ## GitHub Discussions (`github_discussions`, #17)
 
@@ -107,8 +108,9 @@ Seven other issues in the same series (#13 Medium, #14 Substack, #23 VK, #24 Nav
 
 ## Xing (`xing`, #22)
 
-- **Nothing could be read.** Every xing.com and dev.xing.com page was refused by the research tools on 2026-10-15, and the search tool is blocked from the domain. Posting methods, company-page posting, API status, scheduling, limits, terms, automation and AI rules are all unverified.
-- **Decision:** `unverified`, `human_only` yes as a conservative default. Re-research when the pages are readable.
+- **Read directly on 2026-10-15:** the [XING Developer site](https://dev.xing.com/) lists only plugins (Share on XING, Login with XING, partner Job Integration and Apply with XING). It lists no API for creating member or company posts.
+- **Not verified:** the member terms and community rules (`xing.com/terms` is a JavaScript page that returns no text without a browser), company-page posting, scheduling, automation and AI rules.
+- **Decision:** `unverified`, `human_only` yes as a conservative default. Read the terms in a browser before changing it.
 
 ## Beehiiv (`beehiiv`, #27)
 

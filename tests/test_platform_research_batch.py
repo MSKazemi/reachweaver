@@ -37,7 +37,7 @@ EXPECTED = {
     "viber": (36, "unverified", False),
     "slack_communities": (37, "native_conditional", True),
 }
-NO_RESEARCH_SOURCE = {"stackexchange", "xing"}  # every official page was unreachable; no source is claimed
+PARTLY_UNREADABLE = {"xing"}  # the developer site was read; the member terms are JavaScript-only and stay unverified
 
 
 class BatchEntryTests(unittest.TestCase):
@@ -74,15 +74,14 @@ class BatchEntryTests(unittest.TestCase):
                 else:
                     self.assertEqual(sched["official_source"], "", "no source, so no claim: the mode must stay unverified")
 
-    def test_research_source_is_https_and_absent_only_where_nothing_could_be_read(self):
+    def test_every_entry_has_an_https_research_source_and_unread_parts_are_named(self):
         for pid in EXPECTED:
             with self.subTest(pid=pid):
-                source = self.entries[pid].get("research_source")
-                if pid in NO_RESEARCH_SOURCE:
-                    self.assertIsNone(source)
-                    self.assertRegex(self.entries[pid]["scheduling"]["scope"], r"could not be read|unreachable|refused")
-                else:
-                    self.assertTrue(source.startswith("https://"))
+                self.assertTrue(self.entries[pid]["research_source"].startswith("https://"))
+                if pid in PARTLY_UNREADABLE:
+                    self.assertRegex(self.entries[pid]["scheduling"]["scope"], r"could not be read|unverified")
+                    self.assertEqual(self.entries[pid]["scheduling"]["mode"], "unverified")
+                    self.assertTrue(self.entries[pid]["human_only"])
 
     def test_scope_text_is_specific_and_makes_no_reach_or_virality_promise(self):
         for pid in EXPECTED:
