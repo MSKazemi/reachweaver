@@ -14,9 +14,9 @@ from reachweaver.youtube_analytics import sampling_report
 from tests.test_youtube import CHANNEL, VIDEO_ID, FakeYouTube, FlippedRegistry
 
 
-def receipt(privacy):
+def receipt(privacy, upload_status="uploaded"):
     return {"id": VIDEO_ID, "snippet": {"channelId": CHANNEL, "title": "Demo"},
-            "status": {"privacyStatus": privacy, "uploadStatus": "uploaded", "selfDeclaredMadeForKids": False}}
+            "status": {"privacyStatus": privacy, "uploadStatus": upload_status, "selfDeclaredMadeForKids": False}}
 
 
 class VisibilityNoteTests(unittest.TestCase):
@@ -27,9 +27,9 @@ class VisibilityNoteTests(unittest.TestCase):
 
 
 class PublishOutputTests(FlippedRegistry):
-    def publish(self, privacy):
+    def publish(self, privacy, upload_status="uploaded"):
         pid, path = self.draft(privacy=privacy)
-        fake = FakeYouTube(size=path.stat().st_size, final=receipt(privacy))
+        fake = FakeYouTube(size=path.stat().st_size, final=receipt(privacy, upload_status))
         code, out, err = self.run_live(pid, fake)
         self.assertEqual(code, 0, out + err)
         return pid, out
@@ -53,6 +53,34 @@ class PublishOutputTests(FlippedRegistry):
         line = next(line for line in out.splitlines() if line.startswith(f"NOTE {pid}:"))
         self.assertIn("privacy_status=public, as approved", line)
         self.assertNotIn("NOT public", line)
+
+    def test_a_public_upload_still_processing_says_processing_is_not_confirmed(self):
+        # private #22: uploadStatus=uploaded means YouTube has the file, not that processing finished
+        pid, out = self.publish("public", "uploaded")
+        line = next(line for line in out.splitlines() if line.startswith(f"NOTE {pid}:"))
+        self.assertIn("privacy_status=public, as approved", line)
+        self.assertIn("upload_status=uploaded", line)
+        self.assertIn("processing is not confirmed yet", line)
+        self.assertIn("YouTube Studio", line)
+        self.assertIn("videos.list part=status", line)
+        row = self.post(pid)
+        self.assertEqual((row["status"], row["remote_id"]), ("published", VIDEO_ID))
+
+    def test_a_processed_public_upload_has_no_processing_warning(self):
+        pid, out = self.publish("public", "processed")
+        line = next(line for line in out.splitlines() if line.startswith(f"NOTE {pid}:"))
+        self.assertTrue(line.endswith("privacy_status=public, as approved"), line)
+
+    def test_the_processing_warning_is_only_for_public_uploads(self):
+        stored = {privacy: self.post(self.draft(privacy=privacy)[0])["video_json"]
+                  for privacy in ("private", "unlisted", "public")}
+        for privacy in ("private", "unlisted"):
+            with self.subTest(privacy=privacy):
+                self.assertNotIn("processing is not confirmed", youtube.visibility_note(stored[privacy], "uploaded"))
+        self.assertIn("processing is not confirmed", youtube.visibility_note(stored["public"], "uploaded"))
+        for status in (None, "processed"):
+            self.assertEqual(youtube.visibility_note(stored["public"], status),
+                             "YouTube privacy_status=public, as approved")
 
     def test_the_note_is_added_after_the_published_line_and_changes_no_state(self):
         pid, out = self.publish("private")

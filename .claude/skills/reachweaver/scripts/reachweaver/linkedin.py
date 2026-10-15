@@ -101,6 +101,7 @@ PERSON_URN_PREFIX = "urn:li:person:"
 POST_URN_PATTERN = re.compile(r"^urn:li:(?:share|ugcPost):[0-9]{1,40}$")
 # little text format reserved characters, from the documented Text grammar.
 RESERVED_CHARACTERS = frozenset("\\|{}@[]()<>#*_~")
+VISIBILITY = "PUBLIC"  # the only visibility build_post_payload sends; no account field changes it
 _ORG_KEYS = re.compile(r"(organi[sz]ation|company|page|^author(?:_?(?:urn|id))?$)", re.I)
 
 
@@ -262,7 +263,7 @@ def build_post_payload(person_id: str, content: str) -> dict:
     return {
         "author": author_urn(person_id),
         "commentary": escape_commentary(content),
-        "visibility": "PUBLIC",
+        "visibility": VISIBILITY,
         "distribution": {
             "feedDistribution": "MAIN_FEED",
             "targetEntities": [],

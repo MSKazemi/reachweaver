@@ -63,6 +63,12 @@ class LiveReceiptTests(unittest.TestCase):
         matrix = (ROOT / "docs/PLATFORM-MATRIX.md").read_text(encoding="utf-8")
         for area, path in RECEIPTS.items():
             self.assertIn(f"receipts/{Path(path).name}", matrix, area)
+        playbook = (ROOT / "docs/RELEASE-PLAYBOOK.md").read_text(encoding="utf-8")
+        self.assertNotIn("no area is `live_receipt_verified`", playbook)
+        self.assertIn("only Bluesky and Mastodon are `live_receipt_verified`", playbook)
+        for copy in (".claude/skills", "plugin/skills"):
+            reference = (ROOT / copy / "reachweaver/references/skill-evaluation.md").read_text(encoding="utf-8")
+            self.assertNotIn("no area is `live_receipt_verified`", reference, copy)
         for pid in ("telegram", "linkedin"):
             row = next(line for line in matrix.splitlines() if line.startswith("| ") and f"| `{pid}` |" in line and "live_text" in line)
             self.assertIn("| `none` |", row, pid)
@@ -79,6 +85,19 @@ class LiveReceiptTests(unittest.TestCase):
         for label in verified:
             self.assertIn(label, note)
         self.assertIn("no other platform, format or account has been verified end to end", note)
+
+    def test_the_distribution_registry_live_status_does_not_deny_the_receipts(self):
+        """reachweaver_live_status once said no live publishing was verified as of 2026-10-08; it must name the receipts."""
+        scorecard = json.loads((ROOT / "docs/release-readiness.json").read_text(encoding="utf-8"))
+        verified = sorted(a["label"] for a in scorecard["areas"] if a["status"] == "live_receipt_verified")
+        status = json.loads((ROOT / "reachweaver/distribution_registry.json").read_text(encoding="utf-8"))["reachweaver_live_status"]
+        self.assertNotRegex(status.lower(), r"no real accounts connected|no live publishing|live publishing end-to-end verified as of")
+        self.assertIn("docs/receipts/", status)
+        self.assertIn("2026-10-11", status)
+        for label in verified:
+            self.assertIn(label, status)
+        self.assertIn("Telegram/LinkedIn-member text adapters mock-tested only, with no live send", status)
+        self.assertIn("no other platform has a live receipt", status)
 
 
 if __name__ == "__main__":

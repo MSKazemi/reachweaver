@@ -271,11 +271,20 @@ def decode_video(text: str) -> dict | None:
     return decode(text)
 
 
-def visibility_note(video_json: str | None) -> str | None:
+PROCESSING_NOT_CONFIRMED = (
+    "upload_status=uploaded: YouTube has the file but processing is not confirmed yet, so the video may "
+    "not play for viewers; check it in YouTube Studio, or read status.uploadStatus later with videos.list "
+    "part=status ('processed' means done). ReachWeaver does not re-check it")
+
+
+def visibility_note(video_json: str | None, upload_status: str | None = None) -> str | None:
     """One plain line saying what the approved privacy means after a successful upload.
 
     A finished upload of a ``private`` or ``unlisted`` video is not a public video, so the publish
-    output must never read as if it were (public issue #22/#52). None when there is no stored spec.
+    output must never read as if it were (public issue #22/#52). A ``public`` upload whose receipt
+    says ``uploaded`` (not ``processed``) is not confirmed watchable yet (private #22); the note says
+    so and how to check. Text only: the receipt check and the send are unchanged. None when there is
+    no stored spec.
     """
     try:
         record = decode_video(video_json) if video_json else None
@@ -284,6 +293,8 @@ def visibility_note(video_json: str | None) -> str | None:
     options = record.get("platform_options") if isinstance(record, dict) else None
     privacy = options.get("privacy_status") if isinstance(options, dict) else None
     if privacy == "public":
+        if upload_status == "uploaded":
+            return f"YouTube privacy_status=public, as approved; {PROCESSING_NOT_CONFIRMED}"
         return "YouTube privacy_status=public, as approved"
     if privacy in ("private", "unlisted"):
         return (f"YouTube privacy_status={privacy}: the upload succeeded, but the video is NOT public; "
