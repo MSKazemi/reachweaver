@@ -276,5 +276,30 @@ class PlatformMatrixResearchTableTests(unittest.TestCase):
         self.assertIn(f"The distribution registry tracks {len(self.registry['platforms'])} planning surfaces", self.doc)
 
 
+class IndiaBlockingReviewTests(unittest.TestCase):
+    """docs/REGIONAL-CHANNELS-2026-10-14.md records the India blocking-order check and its limits (issue #64)."""
+
+    INDIA = ("sharechat", "moj", "josh", "chingari", "hipi", "public_app", "kutumb", "arattai_channels",
+             "localcircles", "pratilipi", "rooter")
+
+    def test_the_review_names_its_sources_its_result_and_what_was_not_reviewed(self):
+        text = (ROOT / "docs/REGIONAL-CHANNELS-2026-10-14.md").read_text(encoding="utf-8")
+        section = text.split("## India: blocking orders checked", 1)[1]
+        for needle in ("PRID=1635206", "PRID=1650669", "section 69A", "**Not reviewed:**", "not legal advice",
+                       "None of the eleven India surfaces"):
+            self.assertIn(needle, section)
+
+    def test_every_india_entry_exists_and_stays_manual_only_and_unverified(self):
+        data = json.loads((ROOT / "reachweaver/distribution_registry.json").read_text(encoding="utf-8"))
+        by_id = {p["id"]: p for p in data["platforms"]}
+        for goal in GOALS:  # TikTok is named in both 2020 notices; no India plan may list it as a channel
+            channels = {c["platform_id"] for c in build_distribution_plan("india", goal)["channels"]}
+            self.assertNotIn("tiktok", channels, goal)
+        for pid in self.INDIA:
+            with self.subTest(platform=pid):
+                self.assertEqual((by_id[pid]["reachweaver_delivery"], by_id[pid]["scheduling"]["mode"]),
+                                 ("manual_only", "unverified"))
+
+
 if __name__ == "__main__":
     unittest.main()
