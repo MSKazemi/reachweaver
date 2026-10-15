@@ -1429,6 +1429,11 @@ def claim_sending(con, post_id: str, now: str | None = None, *,
             cooldown = active_provider_cooldown(con, row["account_id"], now, scopes=scopes)
             if cooldown:
                 raise ValidationError(cooldown_refusal(cooldown) + "; post stays approved/scheduled")
+            # #38: the owner disconnected this account on this installation; nothing is claimed for it.
+            from . import disconnect as _disconnect
+            since = _disconnect.disconnected_since(con, row["account_id"])
+            if since is not None:
+                raise ValidationError(_disconnect.refusal(row["account_id"], since) + "; post stays approved/scheduled")
             if max_per_24h is not None or min_gap_minutes:
                 attempts = _recent_send_claims(con, row["account_id"], now)
                 if max_per_24h is not None and len(attempts) >= max_per_24h:

@@ -236,6 +236,8 @@ reachweaver privacy-status [--policy F]   offline DB perms/size/row counts/oldes
 reachweaver data-export [--out FILE]      redacted JSON export of local DB (new 0600 file)
 reachweaver data-purge [--policy F] [--apply]  retention plan (dry run); --apply purges local rows only
 reachweaver pause / resume               emergency publishing switch
+reachweaver disconnect --account ID     #38 (draft): stop publishing to one account on this installation (tighten-only, local; lists the credential variable names and revocation steps, revokes nothing itself)
+reachweaver reconnect --account ID      #38 (draft): lift it; human-only (interactive terminal plus a fresh challenge typed on /dev/tty)
 reachweaver approval-mode [--confirmation tty_hash_prefix|off] [--require-key] [--require-identity]  #7 D6/D7 and wave 9 item 2 (--require-identity: plain approve is refused and approvals without a stored identity are not sent; tighten-only, no command removes it): show or tighten approval safeguards; opt-in terminal + typed hash prefix for approve and publish --live; keyed HMAC binding with REACHWEAVER_APPROVAL_SECRET (docs/SECURITY-REVIEW-PROPOSAL-7-d6-d7.md)
 reachweaver reconcile POST_ID --published --remote-id ID [--remote-url URL]
 reachweaver reconcile POST_ID --not-published  manual outcome review

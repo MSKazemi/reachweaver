@@ -70,6 +70,7 @@ from .ratelimit import (
 )
 from .report_format import REPORT_FORMATS, render_report
 from .richtext import bluesky_preview, deterministic_tid, mastodon_length
+from . import disconnect as account_disconnect
 from .storage import (
     APPROVAL_KEY_CREDENTIAL, APPROVAL_KEY_UNAVAILABLE, BINDING_MEDIA_CHANGED, BINDING_VIDEO_CHANGED, METRIC_FIELDS, active_provider_cooldown,
     add_post, approval_binding_problem, identity_mode_required, latch_identity_mode, approval_key_mode, approval_payload_sha256, latch_keyed_mode, offline_key_mode,
@@ -117,6 +118,12 @@ def make_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("connect-check", help="Explicit online, non-publishing account identity check")
     p.add_argument("--account", required=True, help="One account id from local ignored config")
     p.add_argument("--online", action="store_true", help="Required: allow authentication/read-only remote API requests")
+    p = sub.add_parser("disconnect", help="Stop publishing to one account on this installation (#38): tighten-only, local; "
+                       "lists the credential variable names and the steps to revoke at the provider; revokes nothing itself")
+    p.add_argument("--account", required=True, help="One account id from local ignored config")
+    p = sub.add_parser("reconnect", help="Lift a local disconnect (#38). Human-only: needs an interactive terminal and a "
+                       "fresh challenge typed on /dev/tty")
+    p.add_argument("--account", required=True, help="The disconnected account id")
     p = sub.add_parser("postiz-check", help="Explicit online, READ-ONLY Postiz integration listing/receipt lookup; never posts")
     p.add_argument("--account", required=True, help="One account with \"backend\": \"postiz\" in local ignored config")
     p.add_argument("--online", action="store_true", help="Required: allow read-only GET requests to the Postiz API")
@@ -1057,6 +1064,10 @@ def _publish(db, args, wlog) -> int:
             if problem:
                 unbound += 1
                 print(f"    BLOCKED {binding_refusal(problem, post['id'])}; --live would refuse it")
+            since = account_disconnect.disconnected_since(db, post["account_id"])
+            if since is not None:
+                print(f"    SKIPPED {post['id']}: {account_disconnect.refusal(post['account_id'], since)}; "
+                      "--live would skip it before any claim or request")
             cooldown = active_provider_cooldown(db, post["account_id"])  # + recorded scope membership
             if cooldown:
                 cooling += 1
@@ -1297,6 +1308,14 @@ def _publish(db, args, wlog) -> int:
                 if args.post_id:
                     return 2
                 continue
+        since = account_disconnect.disconnected_since(db, post["account_id"])
+        if since is not None:
+            print(f"SKIPPED {post['id']}: {account_disconnect.refusal(post['account_id'], since)}; not claimed, "
+                  f"post stays {post['status']}, no request sent")
+            wlog.skipped(post, "account_disconnected")
+            if args.post_id:
+                return 2
+            continue
         missing = missing_credentials(account)
         if missing:
             print(f"SKIPPED {post['id']}: configure environment variables: {', '.join(missing)}")
@@ -1936,9 +1955,31 @@ def execute(args) -> int:
         if account["platform"] == "mastodon":  # public GET /api/v2/instance, no token sent
             instance = mastodon_instance_limits(account)
             output["instance"] = instance
+        with connect(args.db) as db:
+            since = account_disconnect.disconnected_since(db, args.account)
+        output["local_state"] = "disconnected" if since is not None else "connected"
+        if since is not None:
+            output["disconnected_since"] = since
         output["note"] = "No content posted. Human-approved live pilot still required."
         print(json.dumps(output,indent=2))
         return 2 if instance is not None and not instance["ok"] else 0
+    if args.command == "disconnect":
+        account = _accounts(args).get(args.account)
+        if account is None:
+            raise ValidationError("Unknown account. Run 'doctor' for account IDs")
+        with connect(args.db) as db:
+            first = account_disconnect.disconnect(db, args.account)
+        print(("Disconnected " if first else "Already disconnected ") + f"{args.account}: nothing will be claimed or sent for it "
+              "on this installation. This revoked nothing at the provider.")
+        for step in account_disconnect.revocation_steps(account):
+            print(step)
+        return 0
+    if args.command == "reconnect":
+        with connect(args.db) as db:
+            lifted = account_disconnect.reconnect(db, args.account)
+        print(f"Reconnected {args.account}. Run connect-check --online before the next live send." if lifted
+              else f"{args.account} is not disconnected; nothing changed.")
+        return 0
     if args.command == "postiz-check":
         if not args.online:
             raise ValidationError("postiz-check requires explicit --online. Offline 'doctor' does not use network.")
