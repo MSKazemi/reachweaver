@@ -295,6 +295,36 @@ class ConfigAndCredentialTests(unittest.TestCase):
         self.assertIn("blocked by the capability registry", notes[0])
         self.assertIn("manual-export metadata only", notes[1])
 
+    def test_doctor_names_permissions_and_setup_gaps_offline(self):
+        """Names only: no credential read, no request, and the permissions stay unverified."""
+        with patch("reachweaver.facebook.credential") as read, patch("reachweaver.publishers._send_http") as send:
+            complete = facebook.doctor_notes(account(), now=NOW)
+            no_name = account()
+            del no_name["page_name"]
+            missing_name = facebook.doctor_notes(no_name, now=NOW)
+            manual = facebook.doctor_notes({"platform": "facebook", "env_prefix": PREFIX}, now=NOW)
+        read.assert_not_called()
+        send.assert_not_called()
+        scope = [n for n in complete if "facebook_write_scope_unverified" in n]
+        self.assertEqual(len(scope), 1)
+        self.assertTrue(scope[0].startswith("INFO: "))
+        for permission in ("pages_manage_posts", "pages_read_engagement", "pages_show_list"):
+            self.assertIn(permission, scope[0])
+        self.assertIn("unverified until checked live", scope[0])
+        self.assertIn("needs_review", scope[0])
+        self.assertFalse(any(n.startswith("SETUP:") for n in complete))
+        setup = [n for n in missing_name if n.startswith("SETUP:")]
+        self.assertEqual(len(setup), 1)
+        self.assertIn("'page_name'", setup[0])
+        self.assertNotIn("'page_id'", setup[0])
+        manual_setup = [n for n in manual if n.startswith("SETUP:")][0]
+        self.assertIn("'page_id'", manual_setup)
+        self.assertIn("'page_name'", manual_setup)
+        self.assertEqual(facebook.setup_gaps(account(page_name="   ")), [
+            "config field 'page_name' (the Page name from GET /{page_id}?fields=id,name)"])
+        for note in complete + missing_name + manual:
+            self.assertNotIn(FAKE_TOKEN, note)
+
 
 class PayloadTests(unittest.TestCase):
     def test_form_is_a_pure_function_of_the_approved_text(self):
@@ -589,6 +619,8 @@ class FlippedCliTests(FlippedRegistry):
         self.assertEqual(status, 0)
         self.assertIn("fb-page: facebook;", out)
         self.assertIn("blocked by the capability registry", out)
+        self.assertIn("fb-page: INFO: facebook_write_scope_unverified: the Page token needs pages_manage_posts", out)
+        self.assertNotIn("SETUP:", out)
         send.assert_not_called()
 
 

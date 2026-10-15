@@ -144,7 +144,7 @@ def version_status(today: date | None = None) -> tuple[str, str]:
 
 
 def doctor_notes(account: dict, *, now: datetime | None = None) -> list[str]:
-    """Offline notes for `doctor`; never reads the token value."""
+    """Offline notes for `doctor`; never reads the token value and makes no request."""
     notes = ["INFO: Facebook Page adapter is owner-approved but blocked by the capability registry until a live receipt "
              "(docs/SECURITY-REVIEW-PROPOSAL-21-facebook-page.md); use manual-export meanwhile"]
     level, message = version_status((now or _utc_now()).date())
@@ -152,7 +152,34 @@ def doctor_notes(account: dict, *, now: datetime | None = None) -> list[str]:
         notes.append(f"{level.upper()}: {message}")
     if "page_id" not in account:
         notes.append("INFO: no page_id configured; this account is manual-export metadata only")
+    gaps = setup_gaps(account)
+    if gaps:
+        notes.append("SETUP: still to prepare (names only, docs/FACEBOOK.md): " + ", ".join(gaps))
+    notes.append(f"INFO: {SCOPE_UNVERIFIED_NOTE}")
     return notes
+
+
+# Permissions the Page feed reference lists for POST /{page-id}/feed (read 2026-10-15,
+# https://developers.facebook.com/docs/graph-api/reference/page/feed). Names only: ReachWeaver
+# never asks Meta which permissions a token holds.
+WRITE_PERMISSIONS = ("pages_manage_posts", "pages_read_engagement", "pages_show_list")
+SCOPE_UNVERIFIED_NOTE = ("facebook_write_scope_unverified: the Page token needs " + ", ".join(WRITE_PERMISSIONS)
+                         + "; they are unverified until checked live (GET /me and GET /{page_id} prove identity "
+                         "only). A token without pages_manage_posts is refused only at POST /{page_id}/feed, after "
+                         "the claim, and the post goes to needs_review.")
+
+
+def setup_gaps(account: dict) -> list[str]:
+    """Names of the non-secret Page fields still missing; reads no credential and no network.
+
+    The token variable itself is reported by ``doctor`` through ``missing_credentials``.
+    """
+    gaps = []
+    if not isinstance(account.get("page_id"), str) or not account["page_id"].strip():
+        gaps.append("config field 'page_id' (the numeric id from GET /me with the Page token)")
+    if not isinstance(account.get("page_name"), str) or not account["page_name"].strip():
+        gaps.append("config field 'page_name' (the Page name from GET /{page_id}?fields=id,name)")
+    return gaps
 
 
 def derived_link(content: str) -> str | None:
