@@ -36,6 +36,14 @@ The token is sent **only** in the `Authorization: Bearer` header. It never goes 
 - Any other key on an account that has `page_id` is refused, including `target_type`, `group_id`, `published`, `link` and `authorization_expires_at`. An account without `page_id` is treated as manual-export metadata and loads as before, but the adapter preflight refuses it.
 - The token is read only from `{env_prefix}_PAGE_ACCESS_TOKEN`, through `accounts.credential` (the environment or systemd `$CREDENTIALS_DIRECTORY`). `_PAGE_ACCESS_TOKEN` is in `accounts.CREDENTIAL_SUFFIXES`, so the env_prefix overlap rule and `credentials-audit` cover Facebook accounts. Use a **long-lived Page token**. According to Meta these "do not have an expiration date", but they can be invalidated.
 
+## Checking the setup offline (`doctor`)
+
+`reachweaver doctor` reads no token and makes no request. For a Facebook account (no `backend`) it prints:
+
+- the missing variable **name** `{env_prefix}_PAGE_ACCESS_TOKEN`, never its value;
+- `SETUP: still to prepare (names only, docs/FACEBOOK.md): ...` when `page_id` or `page_name` is missing;
+- `INFO: facebook_write_scope_unverified: the Page token needs pages_manage_posts, pages_read_engagement, pages_show_list; they are unverified until checked live ...`. These are the permissions the [Page feed reference](https://developers.facebook.com/docs/graph-api/reference/page/feed) lists for publishing with a Page token (re-read 2026-10-15). The permissions reference lists `pages_read_engagement` and `pages_show_list` as dependencies of `pages_manage_posts`. ReachWeaver never asks Meta which permissions a token holds (that would need `debug_token` and an app credential on the host, a credential-isolation change that needs security review). `GET /me` and `GET /{page_id}` prove the Page identity only. A token without `pages_manage_posts` is therefore refused only at `POST /{page_id}/feed`, after the claim, and the post goes to `needs_review`.
+
 ## Text rules
 
 Meta's Pages pages state no message length limit. ReachWeaver keeps its own conservative cap of 4,500 code points (`policy.py`), and `validate_post` applies its usual control, bidi and invisible-character checks.
@@ -61,5 +69,7 @@ Errors are fixed codes. They never contain the token, the URL, request headers o
 - Long-lived Page tokens: <https://developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived/>
 - Permissions (`pages_manage_posts` depends on `pages_read_engagement` and `pages_show_list`; Business Verification for Advanced Access): <https://developers.facebook.com/docs/permissions/reference/pages_manage_posts>
 - Bearer header on `graph.facebook.com` (WhatsApp Cloud API token guide): <https://developers.facebook.com/documentation/business-messaging/whatsapp/access-tokens/>
+
+**Re-checked 2026-10-15** with `curl` (plain user agent; the English text needs `?locale=en_US`, otherwise the page may be served translated): the [Page feed reference](https://developers.facebook.com/docs/graph-api/reference/page/feed/?locale=en_US) still lists "A Page access token", "The pages_manage_posts permission", "The pages_read_engagement permission" and "The pages_show_list permission" for publishing. Its wording is now "Either `link` or `message` must be supplied" and "If the viewer or app cannot see the url of `link`, the post will fail". Its example now uses `v26.0`; the adapter stays pinned to `v25.0`. The [permissions reference](https://developers.facebook.com/docs/permissions/reference/pages_manage_posts) (now served at `developers.facebook.com/documentation/development/permissions`) lists `pages_read_engagement` and `pages_show_list` as dependencies of `pages_manage_posts` and says "Business Verification ... is required for all apps making requests for Advanced Access". The [rate-limiting page](https://developers.facebook.com/docs/graph-api/overview/rate-limiting/?locale=en_US) gives, for Pages API calls with a Page access token, "Calls within 24 hours = 4800 * Number of Engaged Users". That is an API call budget, not a post limit.
 
 **Not verified:** the HTTP status that goes with each Meta error code; the exact shape of post ids; whether the Pages endpoints accept the Bearer header (if they do not, step 1 fails before the claim); any limit on the number of Page posts.

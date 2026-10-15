@@ -9,7 +9,7 @@
     "unavailable": "Format is not offered by the platform for this kind of post",
     "unknown": "Not verified from an official source on verified_date; treated as blocked"
   },
-  "note": "A registry entry is never consent, account authorization or proof of delivery. Only reachweaver_adapter=live_text platforms have mock-tested ReachWeaver text adapters; no owner account has been verified end to end.",
+  "note": "A registry entry is never consent, account authorization or proof of delivery. Only reachweaver_adapter=live_text platforms have mock-tested ReachWeaver text adapters. Bluesky and Mastodon each have one first-party receipt for a text post sent through ReachWeaver on 2026-10-11 (docs/receipts/, named in docs/release-readiness.json); no other platform, format or account has been verified end to end.",
   "platforms": [
     {
       "id": "bluesky",
@@ -126,10 +126,10 @@
         "not_published": ["A Posts API (POST /rest/posts) specific throttle: the Posts API page documents only 429 TOO_MANY_REQUESTS"]
       },
       "fees": "None documented for the open Share on LinkedIn product",
-      "compliance_constraints": ["Linkedin-Version must be pinned per account; each version is supported for a minimum of one year and ReachWeaver refuses live sends from month 12", "Member (personal profile) text posts only; organization pages and urn:li:organization authors are refused", "No idempotency key documented: any post-claim failure goes to needs_review", "Organic carousels are not supported by the Posts API", "No automated engagement or scraping"],
+      "compliance_constraints": ["Linkedin-Version must be pinned per account; each version is supported for a minimum of one year and ReachWeaver refuses live sends from month 12", "Member (personal profile) text posts only; organization pages and urn:li:organization authors are refused", "No idempotency key documented: any post-claim failure goes to needs_review", "Organic carousels are not supported by the Posts API", "No automated engagement or scraping", "Text length (checked 2026-10-15): the Posts API and post schema pages state no commentary maximum and document only FIELD_LENGTH_TOO_LONG; the official UGC Post API page states 'The maximum length of the text of a UGC Post is 3000 characters'. ReachWeaver caps text at 2,800 code points and the escaped commentary it sends at 3,000 characters"],
       "verified_date": "2026-10-08",
-      "verification_basis": "official Microsoft Learn LinkedIn docs fetched 2026-10-08 (Posts API, post schema, versioning, error responses, little text format, Share on LinkedIn, getting access, authorization code flow, OpenID Connect userinfo); Share on LinkedIn throttle table re-read 2026-10-09 (page last updated 2025-02-05)",
-      "sources": ["https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api", "https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/post-api-schema", "https://learn.microsoft.com/en-us/linkedin/marketing/versioning", "https://learn.microsoft.com/en-us/linkedin/marketing/error-responses", "https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/little-text-format", "https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/share-on-linkedin", "https://learn.microsoft.com/en-us/linkedin/shared/authentication/getting-access", "https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow", "https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2"],
+      "verification_basis": "official Microsoft Learn LinkedIn docs fetched 2026-10-08 (Posts API, post schema, versioning, error responses, little text format, Share on LinkedIn, getting access, authorization code flow, OpenID Connect userinfo); Share on LinkedIn throttle table re-read 2026-10-09 (page last updated 2025-02-05); text length re-checked 2026-10-15 (Posts API and post schema pages state no maximum; UGC Post API page states 3000 characters)",
+      "sources": ["https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api", "https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/post-api-schema", "https://learn.microsoft.com/en-us/linkedin/marketing/versioning", "https://learn.microsoft.com/en-us/linkedin/marketing/error-responses", "https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/little-text-format", "https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/share-on-linkedin", "https://learn.microsoft.com/en-us/linkedin/shared/authentication/getting-access", "https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow", "https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2", "https://learn.microsoft.com/en-us/linkedin/compliance/integrations/shares/ugc-post-api"],
       "reachweaver_adapter": "live_text"
     },
     {
@@ -156,18 +156,28 @@
       "label": "Threads",
       "status": "requires-review",
       "official_docs_url": "https://www.postman.com/meta/threads/collection/dht3nzz/threads-api",
-      "supported_account_types": ["Threads profile linked to Instagram"],
+      "supported_account_types": ["Threads profile, public or private: the official pages read 2026-10-15 state no business, creator or professional requirement for publishing; a private profile's 90-day permission grant cannot be extended and must be granted again"],
       "auth": {"method": "Meta Threads OAuth", "scopes": ["threads_basic", "threads_content_publish"]},
-      "user_approval_requirements": "Meta app with granted permissions; app review for publishing outside test users",
+      "user_approval_requirements": "Meta app with the Threads use case; Threads testers (app role) can grant threads_basic and threads_content_publish at any time; app users without a role need each permission approved through App Review and a published app (get started, read 2026-10-15)",
       "formats": {"text": "api_gated", "image": "api_gated", "video": "api_gated", "carousel": "unknown", "link": "api_gated"},
       "metrics_access": "Insights depend on granted permissions; manual import in ReachWeaver",
       "edit_delete": "unknown (not re-verified)",
-      "rate_limits": {"summary": "unknown (not re-verified)", "source": ""},
+      "rate_limits": {
+        "summary": "Per Threads profile per 24-hour moving period: 250 API-published posts (a carousel counts as one; enforced at threads_publish), 1,000 replies, 100 deletions and 500 location searches; app calls per app-user pair: 4800 * number of impressions per rolling 24 hours",
+        "source": "https://developers.facebook.com/docs/threads/overview",
+        "accessed": "2026-10-15",
+        "facts": [
+          {"scope": "profile", "action": "API-published posts (POST /{threads-user-id}/threads_publish; a carousel counts as one)", "limit": 250, "unit": "posts", "window_seconds": 86400},
+          {"scope": "profile", "action": "replies", "limit": 1000, "unit": "replies", "window_seconds": 86400},
+          {"scope": "profile", "action": "deletions", "limit": 100, "unit": "deletions", "window_seconds": 86400},
+          {"scope": "profile", "action": "location searches", "limit": 500, "unit": "searches", "window_seconds": 86400}
+        ]
+      },
       "fees": "None documented",
-      "compliance_constraints": ["Meta platform terms", "Available features depend on granted permissions"],
+      "compliance_constraints": ["Meta platform terms", "Available features depend on granted permissions", "Text posts are limited to 500 characters (overview, read 2026-10-15)", "threads_basic is required for all endpoints; threads_content_publish only for publishing endpoints"],
       "verified_date": "2026-10-08",
-      "verification_basis": "repo research snapshot (docs/PLATFORM-RESEARCH.md); auth scopes from official Threads get-started page fetched 2026-10-08",
-      "sources": ["https://www.postman.com/meta/threads/collection/dht3nzz/threads-api", "https://developers.facebook.com/docs/threads/get-started", "https://developers.facebook.com/docs/threads/posts"],
+      "verification_basis": "repo research snapshot (docs/PLATFORM-RESEARCH.md); auth scopes from official Threads get-started page fetched 2026-10-08; permissions, approval route, account types and rate limits re-checked 2026-10-15 against the official get started, overview, Threads use case and permissions pages (curl; formats not re-verified and left unchanged)",
+      "sources": ["https://www.postman.com/meta/threads/collection/dht3nzz/threads-api", "https://developers.facebook.com/docs/threads/get-started", "https://developers.facebook.com/docs/threads/posts", "https://developers.facebook.com/docs/threads/overview", "https://developers.facebook.com/docs/permissions", "https://developers.facebook.com/documentation/development/create-an-app/threads-use-case"],
       "reachweaver_adapter": "none"
     },
     {
@@ -176,17 +186,26 @@
       "status": "requires-review",
       "official_docs_url": "https://www.postman.com/meta/instagram/collection/6yqw8pt/instagram-api",
       "supported_account_types": ["professional (Business or Creator) only"],
-      "auth": {"method": "Meta/Instagram Login OAuth (integration model dependent)", "scopes": ["instagram_business_basic + instagram_business_content_publish (Instagram Login)", "instagram_basic + instagram_content_publish + pages_read_engagement (Facebook Login)"]},
-      "user_approval_requirements": "Eligible professional account plus Meta app review; consumer accounts cannot be assumed",
+      "auth": {"method": "Business Login for Instagram (Instagram User token, graph.instagram.com, no Facebook Page needed; the ReachWeaver adapter's choice) or Facebook Login for Business (Facebook User or Page token, graph.facebook.com, account linked to a Facebook Page)", "scopes": ["instagram_business_basic + instagram_business_content_publish (Instagram Login)", "instagram_basic + instagram_content_publish + pages_read_engagement (Facebook Login)"]},
+      "user_approval_requirements": "Instagram professional (Business or Creator) account. Standard Access, the default, covers an app that serves only professional accounts you own or manage and have added to the app; Advanced Access, which needs App Review and Business Verification, is required to serve accounts you do not own or manage (overview and business login pages, read 2026-10-15); consumer accounts cannot be used",
       "formats": {"text": "unavailable", "image": "api_gated", "video": "api_gated", "carousel": "api_gated", "link": "unknown"},
       "metrics_access": "Insights for professional accounts via permissions; manual import in ReachWeaver",
       "edit_delete": "unknown (not re-verified)",
-      "rate_limits": {"summary": "unknown (not re-verified)", "source": ""},
+      "rate_limits": {
+        "summary": "Content publishing guide: 100 API-published posts per 24-hour moving period (a carousel counts as one; enforced at media_publish), but the same guide's carousel section says 50 and the content_publishing_limit reference gives quota_total 'currently 50', so the live content_publishing_limit is authoritative; IG User Media: 400 containers per rolling 24 hours; app calls per app-user pair: 4800 * number of impressions per rolling 24 hours",
+        "source": "https://developers.facebook.com/docs/instagram-platform/content-publishing",
+        "accessed": "2026-10-15",
+        "facts": [
+          {"scope": "account", "action": "API-published posts (content publishing guide, Rate Limit section)", "limit": 100, "unit": "posts", "window_seconds": 86400},
+          {"scope": "account", "action": "published posts (content_publishing_limit quota_total 'currently 50'; guide carousel section)", "limit": 50, "unit": "posts", "window_seconds": 86400},
+          {"scope": "account", "action": "media containers created (IG User Media reference)", "limit": 400, "unit": "containers", "window_seconds": 86400}
+        ]
+      },
       "fees": "None documented",
-      "compliance_constraints": ["Container/media workflow and rights to media", "Professional account eligibility"],
+      "compliance_constraints": ["Container/media workflow and rights to media", "Professional account eligibility", "Images: JPEG only (extended JPEG such as MPO and JPS not supported), 8 MB maximum, aspect ratio 4:5 to 1.91:1, width 320 to 1440 scaled by Instagram (content publishing guide and IG User Media reference, read 2026-10-15)", "Caption at most 2200 characters, 30 hashtags and 20 @ tags; alt_text up to 1000 characters, image posts only", "Containers expire after 24 hours", "Media must be on a public server Meta can fetch at publish time", "Facebook Login only: the account must be linked to a Page whose user can perform MANAGE or CREATE_CONTENT, and a Page that requires Page Publishing Authorization blocks publishing until it is completed"],
       "verified_date": "2026-10-08",
-      "verification_basis": "repo research snapshot (docs/PLATFORM-RESEARCH.md, issue #6); auth scopes from official content-publishing page fetched 2026-10-08",
-      "sources": ["https://developers.facebook.com/docs/instagram-platform/content-publishing", "https://www.postman.com/meta/instagram/collection/6yqw8pt/instagram-api", "https://www.postman.com/meta/instagram/documentation/23987686-9386f468-7714-490f-9bfc-9442db5c8f00"],
+      "verification_basis": "repo research snapshot (docs/PLATFORM-RESEARCH.md, issue #6); auth scopes from official content-publishing page fetched 2026-10-08; login types, scopes, access levels, rate limits and image/caption limits re-checked 2026-10-15 against the official overview, Instagram Login, get started, business login, content publishing, IG User Media and content_publishing_limit pages (curl; formats not re-verified and left unchanged)",
+      "sources": ["https://developers.facebook.com/docs/instagram-platform/content-publishing", "https://www.postman.com/meta/instagram/collection/6yqw8pt/instagram-api", "https://www.postman.com/meta/instagram/documentation/23987686-9386f468-7714-490f-9bfc-9442db5c8f00", "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media", "https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/content_publishing_limit", "https://developers.facebook.com/docs/instagram-platform/overview", "https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/get-started", "https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/business-login"],
       "reachweaver_adapter": "none"
     },
     {
@@ -195,17 +214,22 @@
       "status": "requires-review",
       "official_docs_url": "https://developers.facebook.com/docs/graph-api",
       "supported_account_types": ["Page (with role); personal profile publishing not assumed"],
-      "auth": {"method": "Meta Graph API Page access token", "scopes": ["pages_manage_posts", "pages_read_engagement", "pages_manage_engagement", "pages_read_user_engagement", "publish_video (video only)"]},
-      "user_approval_requirements": "Page role, app permissions and Meta app review must be verified before specifying formats",
+      "auth": {"method": "Meta Graph API Page access token", "scopes": ["pages_manage_posts", "pages_read_engagement", "pages_show_list", "pages_manage_engagement", "pages_read_user_engagement", "publish_video (video only)"]},
+      "user_approval_requirements": "Page role with the CREATE_CONTENT task and a Page access token; all Page permissions need App Review before an app user without a role can grant them once the app is live, and Business apps need Advanced access for such users (Pages API overview, read 2026-10-15); Business Verification is required for Advanced Access (permissions reference)",
       "formats": {"text": "api_gated", "image": "unknown", "video": "unknown", "carousel": "unknown", "link": "api_gated"},
       "metrics_access": "Page insights via permissions; manual import in ReachWeaver",
       "edit_delete": "unknown (not re-verified)",
-      "rate_limits": {"summary": "unknown (not re-verified)", "source": ""},
+      "rate_limits": {
+        "summary": "Pages API calls made with a Page or system-user access token: 4800 * number of engaged users per 24 hours (Business Use Case limit); calls with a User or app token follow the Platform rate limits. No limit on the number of Page posts is documented",
+        "source": "https://developers.facebook.com/docs/graph-api/overview/rate-limiting",
+        "accessed": "2026-10-15",
+        "not_published": ["A limit on the number of Page posts: the Page feed reference and the Pages API posts guide (read 2026-10-15) state none"]
+      },
       "fees": "None documented",
-      "compliance_constraints": ["Do not assume personal profile publishing", "Groups API permissions removed 2024-04-22", "Meta platform terms"],
+      "compliance_constraints": ["Do not assume personal profile publishing", "Groups API permissions removed 2024-04-22", "Meta platform terms", "POST /{page-id}/feed needs a Page access token, pages_manage_posts, pages_read_engagement and pages_show_list (Page feed reference, read 2026-10-15); pages_manage_posts depends on pages_read_engagement and pages_show_list (permissions reference)", "Either link or message must be supplied; if the viewer or app cannot see the link URL, the post will fail"],
       "verified_date": "2026-10-08",
-      "verification_basis": "repo research snapshot (docs/PLATFORM-RESEARCH.md); Page permissions from official Pages API posts page and Groups removal from the v19.0 changelog, fetched 2026-10-08",
-      "sources": ["https://developers.facebook.com/docs/graph-api", "https://developers.facebook.com/docs/pages-api/posts", "https://developers.facebook.com/docs/graph-api/changelog/version19.0"],
+      "verification_basis": "repo research snapshot (docs/PLATFORM-RESEARCH.md); Page permissions from official Pages API posts page and Groups removal from the v19.0 changelog, fetched 2026-10-08; publishing permissions (including pages_show_list), App Review and rate limits re-checked 2026-10-15 against the official Page feed reference, Pages API posts and overview pages, permissions reference and rate-limiting page (curl; formats not re-verified and left unchanged)",
+      "sources": ["https://developers.facebook.com/docs/graph-api", "https://developers.facebook.com/docs/pages-api/posts", "https://developers.facebook.com/docs/graph-api/changelog/version19.0", "https://developers.facebook.com/docs/graph-api/reference/page/feed", "https://developers.facebook.com/docs/permissions/reference/pages_manage_posts", "https://developers.facebook.com/docs/graph-api/overview/rate-limiting", "https://developers.facebook.com/docs/pages-api/overview"],
       "reachweaver_adapter": "none"
     },
     {

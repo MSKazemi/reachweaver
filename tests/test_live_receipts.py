@@ -67,6 +67,19 @@ class LiveReceiptTests(unittest.TestCase):
             row = next(line for line in matrix.splitlines() if line.startswith("| ") and f"| `{pid}` |" in line and "live_text" in line)
             self.assertIn("| `none` |", row, pid)
 
+    def test_the_capability_registry_note_does_not_deny_the_receipts(self):
+        """The registry note once said no owner account was verified end to end; it must name these receipts instead."""
+        scorecard = json.loads((ROOT / "docs/release-readiness.json").read_text(encoding="utf-8"))
+        verified = sorted(a["label"] for a in scorecard["areas"] if a["status"] == "live_receipt_verified")
+        self.assertEqual(verified, ["Bluesky", "Mastodon"])
+        note = json.loads((ROOT / "reachweaver/platform_registry.json").read_text(encoding="utf-8"))["note"]
+        self.assertNotIn("no owner account has been verified end to end", note)
+        self.assertIn("docs/receipts/", note)
+        self.assertIn("2026-10-11", note)
+        for label in verified:
+            self.assertIn(label, note)
+        self.assertIn("no other platform, format or account has been verified end to end", note)
+
 
 if __name__ == "__main__":
     unittest.main()
