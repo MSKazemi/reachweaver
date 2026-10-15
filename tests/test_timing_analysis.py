@@ -159,6 +159,107 @@ class TimingOutcomeTests(unittest.TestCase):
         self.assertEqual(r["posts_with_comparable_snapshots"],0)
 
 
+class StratifiedTimingTests(unittest.TestCase):
+    """Issue #16 R2: per-format/per-campaign readouts and the cold-start pointer."""
+
+    setUp = TimingOutcomeTests.setUp
+    post = TimingOutcomeTests.post
+    seed_two_groups = TimingOutcomeTests.seed_two_groups
+
+    def attach(self, post_id: str, column: str) -> None:
+        # Presence of the column value is all post_format reads; the content is never decoded.
+        self.db.execute(f"UPDATE posts SET {column}=? WHERE id=?", ('[{"x":1}]', post_id))
+
+    def readout(self, **kwargs):
+        return TimingOutcomeTests.readout(self, **({"campaign": None} | kwargs))
+
+    def seed_formats(self):
+        self.seed_two_groups()  # six text posts in two comparable dayparts
+        for day in (24, 25):
+            self.attach(self.post(datetime(2026, 9, day, 9, tzinfo=timezone.utc), 50), "media_json")
+        self.attach(self.post(datetime(2026, 9, 26, 19, tzinfo=timezone.utc), 70), "video_json")
+
+    def test_format_strata_report_a_candidate_only_where_data_suffices(self):
+        self.seed_formats()
+        result = self.readout(stratify="format")
+        self.assertEqual(result["stratified_by"], "format")
+        strata = {s["stratum"]: s for s in result["strata"]}
+        self.assertEqual(sorted(strata), ["image", "text", "video"])
+        self.assertEqual(strata["text"]["decision"], "exploratory_candidate")
+        self.assertEqual(strata["text"]["candidate"]["slot"], "weekday_18_24")
+        self.assertEqual(strata["text"]["posts_with_comparable_snapshots"], 6)
+        self.assertNotIn("cold_start", strata["text"])
+        for name in ("image", "video"):
+            with self.subTest(stratum=name):
+                self.assertEqual(strata[name]["status"], "insufficient_data")
+                self.assertEqual(strata[name]["decision"], "insufficient_comparable_slots")
+                self.assertIsNone(strata[name]["candidate"])
+                pointer = strata[name]["cold_start"]
+                self.assertEqual(pointer["fallback"], "calendar_plan_generic_baseline")
+                self.assertEqual(pointer["generic_baseline"]["confidence"], "low")
+                # calendar-plan's Bluesky prior: 18:00 audience-local, every day.
+                self.assertEqual(pointer["generic_baseline"]["slots"][0], "Mon@18:00")
+                self.assertEqual(len(pointer["generic_baseline"]["slots"]), 7)
+        self.assertEqual(strata["image"]["posts_with_comparable_snapshots"], 2)
+
+    def test_campaign_strata_and_no_campaign_label(self):
+        self.seed_two_groups()  # campaign "same-format"
+        self.post(datetime(2026, 9, 24, 9, tzinfo=timezone.utc), campaign="other-topic")
+        self.post(datetime(2026, 9, 25, 9, tzinfo=timezone.utc), campaign="")
+        result = self.readout(stratify="campaign")
+        strata = {s["stratum"]: s for s in result["strata"]}
+        self.assertEqual(sorted(strata), ["(no campaign)", "other-topic", "same-format"])
+        self.assertEqual(strata["same-format"]["decision"], "exploratory_candidate")
+        self.assertEqual(strata["other-topic"]["status"], "insufficient_data")
+
+    def test_pooled_fields_are_unchanged_by_stratify(self):
+        self.seed_formats()
+        plain = self.readout()
+        stratified = self.readout(stratify="format")
+        self.assertNotIn("strata", plain)
+        self.assertNotIn("stratified_by", plain)
+        for key in ("slots", "decision", "candidate", "excluded", "posts_with_comparable_snapshots"):
+            self.assertEqual(plain[key], stratified[key], key)
+        self.assertEqual(stratified["warnings"][:-1], plain["warnings"])
+        self.assertIn("compare within one stratum", stratified["warnings"][-1])
+
+    def test_pooled_cold_start_only_when_slots_are_insufficient(self):
+        self.seed_two_groups()
+        self.assertNotIn("cold_start", self.readout())
+        sparse = self.readout(campaign="nothing-here")
+        self.assertEqual(sparse["decision"], "insufficient_comparable_slots")
+        self.assertEqual(sparse["cold_start"]["fallback"], "calendar_plan_generic_baseline")
+
+    def test_platform_without_a_generic_prior_says_so(self):
+        self.post(datetime(2026, 9, 21, 9, tzinfo=timezone.utc), account="my-mastodon", platform="mastodon")
+        result = self.readout(account_id="my-mastodon", platform="mastodon", stratify="format")
+        pointer = result["strata"][0]["cold_start"]
+        self.assertEqual(pointer["fallback"], "none_available")
+        self.assertIsNone(pointer["generic_baseline"])
+        self.assertIn("no generic prior for mastodon", pointer["note"])
+        self.assertEqual(result["cold_start"], pointer)
+
+    def test_unknown_stratify_value_is_refused(self):
+        with self.assertRaises(ValidationError):
+            self.readout(stratify="topic")
+
+    def test_post_format_reads_presence_only(self):
+        from reachweaver.timing_analysis import post_format
+        pid = add_post(self.db, "my-bluesky", "bluesky", "Text only", "c")
+        row = lambda: self.db.execute("SELECT * FROM posts WHERE id=?", (pid,)).fetchone()  # noqa: E731
+        self.assertEqual(post_format(row()), "text")
+        self.attach(pid, "video_json")
+        self.assertEqual(post_format(row()), "video")
+        self.attach(pid, "media_json")
+        self.assertEqual(post_format(row()), "unknown")
+        legacy = sqlite3.connect(":memory:")
+        legacy.row_factory = sqlite3.Row
+        legacy.execute("CREATE TABLE posts (id TEXT, campaign TEXT)")
+        legacy.execute("INSERT INTO posts VALUES ('p', 'c')")
+        self.assertEqual(post_format(legacy.execute("SELECT * FROM posts").fetchone()), "text")
+        legacy.close()
+
+
 class TimingCLITests(unittest.TestCase):
     def test_read_only_cli_from_user_supplied_metrics(self):
         from reachweaver.storage import connect
@@ -186,6 +287,17 @@ class TimingCLITests(unittest.TestCase):
             result=json.loads(stdout.getvalue())
             self.assertEqual(result["posts_with_comparable_snapshots"],1)
             self.assertEqual(result["decision"],"insufficient_comparable_slots")
+            self.assertEqual(result["cold_start"]["fallback"],"calendar_plan_generic_baseline")
+            self.assertNotIn("strata",result)
+            stdout=io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                self.assertEqual(main(args+["--stratify","format"]),0)
+            stratified=json.loads(stdout.getvalue())
+            self.assertEqual(stratified["stratified_by"],"format")
+            self.assertEqual([s["stratum"] for s in stratified["strata"]],["text"])
+            self.assertEqual(stratified["strata"][0]["status"],"insufficient_data")
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                main(args+["--stratify","topic"])
             with connect(db_path) as db:
                 self.assertEqual(db.execute("SELECT status FROM posts WHERE id=?",(pid,)).fetchone()[0],
                                  "published")

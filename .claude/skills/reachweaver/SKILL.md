@@ -154,7 +154,7 @@ python -m reachweaver.cli draft --account my-mastodon --file reply.txt --reply-t
 python -m reachweaver.cli approval-mode  # show the opt-in approval safeguards (#7 D6 confirmation, D7 keyed binding, wave 9 identity binding); only the OWNER tightens them (--confirmation tty_hash_prefix, --require-key, --require-identity); `approve --verify-identity --online` is an owner-run approval step, never run by the agent; never turn confirmation off or handle REACHWEAVER_APPROVAL_SECRET
 python -m reachweaver.cli media-storyboard --campaign examples/campaign.reachweaver.json --out media/storyboard  # placeholder storyboard + SRT + manifest; no generation
 # Optional read-only, after REAL platform-native metrics imported; no platform writes:
-python -m reachweaver.cli timing-evaluate --account my-bluesky --timezone Europe/Rome --source native-export --metric clicks --denominator impressions
+python -m reachweaver.cli timing-evaluate --account my-bluesky --timezone Europe/Rome --source native-export --metric clicks --denominator impressions --stratify format  # per-stratum readout; a stratum with too little data names no winner and points to calendar-plan's generic baseline (cold_start)
 python -m reachweaver.cli baseline-eval --account my-bluesky --timezone Europe/Rome --source native-export --metric clicks --denominator impressions --since 2026-09-01 --until 2026-10-31 --slot exploit:Tue@09:00
 ```
 

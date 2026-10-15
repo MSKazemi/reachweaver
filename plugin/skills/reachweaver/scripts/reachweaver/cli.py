@@ -467,6 +467,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--campaign", help="Optional narrow cohort; important for topic/format comparability")
     p.add_argument("--since", help="Optional YYYY-MM-DD audience-local first date")
     p.add_argument("--until", help="Optional YYYY-MM-DD audience-local final date")
+    p.add_argument("--stratify", choices=("format", "campaign"),
+                   help="Also report each format (text/image/video) or campaign separately; a stratum with "
+                        "too little data names no winner and points to calendar-plan's generic baseline")
     p = sub.add_parser("baseline-eval", help="Read-only: personalized slots/variant campaigns/readouts vs "
                        "calendar-plan's generic baseline over --since/--until; bootstrap CI + Holm; non-causal")
     p.add_argument("--account", required=True, help="Configured account ID; exact cohort only")
@@ -2204,7 +2207,7 @@ def execute(args) -> int:
                 metric=args.metric, denominator=args.denominator,
                 age_hours=args.age_hours, tolerance_hours=args.tolerance_hours,
                 min_posts_per_slot=args.min_posts_per_slot, campaign=args.campaign,
-                since=args.since, until=args.until,
+                since=args.since, until=args.until, stratify=args.stratify,
             )
             print(json.dumps(result, indent=2))
         elif args.command == "attribution-report":

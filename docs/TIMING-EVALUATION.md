@@ -22,7 +22,8 @@ reachweaver timing-evaluate \
   --account my-bluesky --timezone Europe/Rome \
   --source native-export --metric clicks --denominator impressions \
   --age-hours 168 --tolerance-hours 24 --min-posts-per-slot 3 \
-  --campaign first-campaign --since 2026-09-01 --until 2026-10-01
+  --campaign first-campaign --since 2026-09-01 --until 2026-10-01 \
+  [--stratify format|campaign]
 ```
 
 `--timezone` denotes **audience-local** time. The source, account, format/cohort, metric definition, denominator and age window must be consistent. Importing the same cumulative post snapshot more than once does NOT add counts: the evaluator selects the one source-matching, nearest-age observation for each post.
@@ -33,6 +34,8 @@ reachweaver timing-evaluate \
 - **`slots`**: weekday/weekend x four **six-hour** windows (00–06, 06–12, 12–18, 18–24), with sample count, median metric/denominator rate, and interquartile range (p25–p75). No raw unpublished post text is included.
 - **`decision`**: `insufficient_comparable_slots` if fewer than two groups have the minimum number of matched observations; `no_clear_separation` if their medians tie; otherwise `exploratory_candidate` with the highest observed median and a comparison to another qualified time group. All are **descriptive associations**, not guaranteed future lift or statistical proof.
 - **`excluded`**: per-reason counts for missing/invalid send timestamps and missing source-matched comparable snapshots or non-positive denominator.
+- **`cold_start`** (only when `decision` is `insufficient_comparable_slots`): no slot is reported as better. Instead it points to `calendar-plan`'s generic, non-personalized slots for the platform (the same baseline `baseline-eval` uses; for example Bluesky `Mon@18:00` … `Sun@18:00`), with `evidence: industry_observational` and `confidence: low`. A platform without a generic prior (Mastodon, Telegram and others) gets `fallback: none_available`, `generic_baseline: null` and a note to choose slots from your own audience insights.
+- **`strata`** (only with `--stratify`, issue #16 R2): the same readout (`slots`, `decision`, `candidate`) for each stratum separately, sorted by name, with its own `posts_with_comparable_snapshots`. `--stratify format` groups posts as `text`, `image` (an attached image, `media_json`) or `video` (an attached video, `video_json`); only the presence of the stored attachment is read, nothing is decoded, and a row with both is `unknown`. `--stratify campaign` groups by the post's campaign, with `(no campaign)` for posts without one. A stratum with fewer than two slots at `--min-posts-per-slot` gets `status: insufficient_data`, `candidate: null` and its own `cold_start` pointer, never a winner. The pooled fields above are unchanged by the flag and still mix strata, so compare within one stratum. Topic, promotion and follower growth remain uncontrolled inside a stratum.
 - **`warnings`**: always disclose confounding by topic, format, follower count, algorithm changes, holidays, promotion and the selected winner's potential regression to the mean.
 
 Examples of **inconclusive** evidence: only three posts total, one fully populated daypart, zero denominator, unsupported cross-platform metric comparison, stale samples, or no exact source matches. The correct action is to gather clean data, not force a recommendation.
@@ -84,7 +87,7 @@ Limits: small-sample percentile bootstrap intervals tend to be too narrow, and m
 ## Limitations and next steps
 
 - The database currently records `send_started_at` (start of request), not independently verified remote publication time; small timestamp error can change bins near boundaries.
-- All current runtime-published variants are text-oriented; unsupported media/format metadata isn't modeled in the posts table. Filtering by campaign reduces, but does not eliminate, topic/format confounding.
+- Format is only the attachment type stored on the post row (text, image or video), not a richer format such as a carousel, thread or Short. `--stratify format`/`--stratify campaign` and a `--campaign` filter reduce, but do not eliminate, topic/format confounding, and each stratum needs its own minimum sample.
 - Cross-platform metric definitions are incompatible; per-account/source segmentation is mandatory.
 - No qualified session/GitHub referral integration yet (#15/#25); use `clicks` only when its platform definition and denominator are verified.
 - `timing-evaluate` itself reports medians and IQRs only. Bootstrap intervals, Holm–Bonferroni correction and the comparison against the non-personalized baseline live in `baseline-eval` (above). There is no hierarchical recommender or calendar auto-optimization. Both readouts intentionally stay observational.

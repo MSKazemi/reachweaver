@@ -259,6 +259,7 @@ reachweaver experiment-verify PLAN --hash H     detect post-hoc plan edits by re
 reachweaver experiment-readout --prereg FILE --posts MAP.json [--hash H] [--json]  read-only: verify hash, map arms to posts, label + design + flags; non-causal
 reachweaver experiment-next --results FILE [--json]  offline: next dimension from prior classified results; keeps negative results
 reachweaver experiment-simulate --seed S --pairs N --lift L --noise X [--trials T] [--json]  offline SIMULATED label distribution; never stored
+reachweaver timing-evaluate --account ID --timezone TZ --source S --metric M --denominator views|impressions [--age-hours 168] [--tolerance-hours 24] [--min-posts-per-slot 3] [--campaign C] [--since D] [--until D] [--stratify format|campaign]  read-only matched-age daypart medians; per-stratum readouts; too little data -> cold_start pointer to calendar-plan's generic baseline, never a winner (docs/TIMING-EVALUATION.md)
 reachweaver baseline-eval --account ID --timezone TZ --source S --metric M --denominator views|impressions --since D --until D [--slot [explore:|exploit:]Wed@16:00]... [--campaign-arm [explore:|exploit:]C]... [--readout FILE]... [--min-posts 5] [--resamples 2000] [--confidence 0.95] [--seed 16] [--json]  read-only: vs calendar-plan's generic baseline; seeded bootstrap CI, Holm-Bonferroni, correlational vs randomized, insufficient_data not 0 (docs/TIMING-EVALUATION.md)
 reachweaver pilot-report --log FILE.csv [--min-weeks N] [--json]  offline per-arm field-pilot log readout; blank = unknown; descriptive, refuses arms under N ISO weeks (docs/FIELD-PILOT-PROTOCOL.md)
 reachweaver schema-validate --type TYPE FILE   offline canonical schema check, versions 1.0, 1.1 and 1.2 (docs/SCHEMAS.md)
@@ -322,8 +323,10 @@ Use `--db PATH` and `--accounts PATH` as global options preceding the subcommand
 ```bash
 reachweaver timing-evaluate --account my-bluesky --timezone Europe/Rome \
   --source native-export --metric clicks --denominator impressions \
-  --age-hours 168 --tolerance-hours 24 --min-posts-per-slot 3
+  --age-hours 168 --tolerance-hours 24 --min-posts-per-slot 3 [--stratify format|campaign]
 ```
+
+`--stratify format` (text/image/video, from the post's stored attachment) or `--stratify campaign` adds the same readout per stratum. A stratum with too little data says `insufficient_data`, names no winner and points to `calendar-plan`'s generic baseline slots instead (`cold_start`); the pooled result does the same when it has too few comparable slots.
 
 `baseline-eval` measures improvement against the **non-personalized baseline**: over a required `--since/--until` period it compares posts at your own `--slot` times (or in a `--campaign-arm` variant campaign) with posts at `calendar-plan`'s generic slot. Each comparison gets a seeded percentile bootstrap interval and a permutation p-value, and Holm–Bonferroni corrects across every comparison in the run, including saved `experiment-readout` files. Results are labeled explore or exploit and split into correlational and (owner-declared) randomized. Too few posts gives `insufficient_data`, never 0. Readout labels and the strict sign-test gate are unchanged.
 
