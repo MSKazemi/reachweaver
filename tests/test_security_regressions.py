@@ -658,6 +658,108 @@ class PersonalDataReportTests(_SeededOutbox):
                 self.assertEqual(report_landing_page(expected), expected, "must be idempotent")
 
 
+class NewerReportLeakTests(_SeededOutbox):
+    """The same seeded secrets and personal data, swept through the report commands added after the first
+    sweep (issues #15, #26): ``report`` Markdown/CSV, ``weekly-digest``, ``youtube-analytics``,
+    ``link-health``, ``calendar-gaps``, ``suggest``, ``schema-export`` and ``peer-benchmark``.
+
+    The outbox gains a published YouTube video whose body pastes a credential and contact details and
+    links a landing page whose query carries a token and an e-mail address, so every command has a row
+    to read, not only an empty database."""
+
+    def setUp(self):
+        super().setUp()
+        with storage.connect(str(self.db)) as con:
+            self.video = storage.add_post(
+                con, "my-youtube", "youtube",
+                f"Demo video. Token {FAKE_ENV['REACHWEAVER_MASTODON_TOKEN']}, contact {PII[0]} or {PII[2]}. "
+                f"Docs https://example.org/welcome?token={FAKE_ENV['REACHWEAVER_GITHUB_TOKEN']}&email={PII[1]}",
+                "rw26")
+            storage.transition(con, self.video, "approve", approver="test-owner")
+            self.assertTrue(storage.claim_sending(con, self.video))
+            storage.finish_send(con, self.video, "dQw4w9WgXcQ", "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+            storage.store_metrics(con, self.video, "2026-10-08T00:00:00+00:00", "native-export", views=40,
+                                  likes="estimated:9")
+        self.peers = self.tmp / "peers.json"
+        self.peers.write_text(json.dumps(self.peer_file(
+            {"label": "PeerProject", "platform": "mastodon", "kind": "project", "own": False,
+             "public_data_only": True, "source_url": "https://mastodon.example/@peer",
+             "observed_at": "2026-10-08T09:00:00+00:00", "counters": {"followers": 90, "posts": 30}})),
+            encoding="utf-8")
+
+    @staticmethod
+    def peer_file(*peers) -> dict:
+        own = {"label": "OwnProject", "platform": "mastodon", "kind": "project", "own": True,
+               "public_data_only": True, "source_url": "https://mastodon.example/@own",
+               "observed_at": "2026-10-08T09:00:00+00:00", "counters": {"followers": 40, "posts": 10}}
+        return {"schema_version": "reachweaver.peer-benchmark.v1", "entries": [own, *peers]}
+
+    def commands(self) -> tuple[tuple, ...]:
+        return (("report", "--format", "markdown"), ("report", "--format", "csv"),
+                ("youtube-analytics",), ("youtube-analytics", "--post-id", self.video),
+                ("link-health",), ("link-health", "--json"),
+                ("calendar-gaps", "--account", "my-mastodon", "--timezone", "Europe/Rome", "--start", "2026-10-08",
+                 "--days", "3", "--slot", "Thu@16:00"),
+                ("calendar-gaps", "--account", "my-mastodon", "--timezone", "Europe/Rome", "--start", "2026-10-08",
+                 "--days", "3", "--slot", "Thu@16:00", "--json"),
+                ("suggest", "--include-db"), ("suggest", "--include-db", "--json"),
+                ("peer-benchmark", "--file", self.peers), ("peer-benchmark", "--file", self.peers, "--json"))
+
+    def outputs(self, *argv) -> str:
+        code, out, err = run_cli("--db", self.db, "--accounts", ACCOUNTS, *argv)
+        self.assertIn(code, (0, 1), err)  # link-health/health exit 1 on findings; nothing here may crash
+        return out + err
+
+    def digest(self, name: str) -> str:
+        target = self.tmp / name
+        printed = self.outputs("weekly-digest", "--include-db", "--out", target)
+        return printed + target.read_text(encoding="utf-8")
+
+    def test_env_tokens_never_appear_in_newer_reports(self):
+        for argv in self.commands():
+            with self.subTest(command=" ".join(map(str, argv))):
+                self.assert_absent(self.outputs(*argv), SECRET_VALUES.values(), argv[0])
+        self.assert_absent(self.digest("digest.md"), SECRET_VALUES.values(), "weekly-digest --include-db")
+
+    def test_personal_data_absent_from_newer_reports(self):
+        for argv in self.commands():
+            with self.subTest(command=" ".join(map(str, argv))):
+                text = self.outputs(*argv)
+                self.assert_absent(text, PII, argv[0])
+                self.assertNotIn("Draft notes", text)  # post text is not a report field
+                self.assertNotIn("Demo video", text)
+        text = self.digest("digest-pii.md")
+        self.assert_absent(text, PII, "weekly-digest --include-db")
+        self.assertNotIn("Draft notes", text)
+
+    def test_peer_benchmark_refusals_do_not_echo_the_refused_values(self):
+        # peer-benchmark reads only its own file. Person entries and URLs with a query are refused; the
+        # error names the rule, never the handle, address or token that broke it.
+        person = {"label": PII[3], "platform": "mastodon", "kind": "person", "own": False, "public_data_only": True,
+                  "source_url": "https://mastodon.example/@mallory", "observed_at": "2026-10-08T09:00:00+00:00",
+                  "counters": {"followers": 90, "posts": 30}}
+        query = dict(person, label="PeerQuery", kind="project",
+                     source_url=f"https://mastodon.example/@q?email={PII[0]}&token={FAKE_ENV['REACHWEAVER_GITHUB_TOKEN']}")
+        for name, entry in (("person", person), ("query", query)):
+            with self.subTest(entry=name):
+                path = self.tmp / f"peers-{name}.json"
+                path.write_text(json.dumps(self.peer_file(entry)), encoding="utf-8")
+                code, out, err = run_cli("--db", self.db, "--accounts", ACCOUNTS, "peer-benchmark", "--file", path)
+                self.assertEqual(code, 2, out + err)
+                self.assert_absent(out + err, [*PII, *SECRET_VALUES.values()], f"peer-benchmark ({name})")
+
+    def test_schema_export_redacts_secrets_in_stored_text(self):
+        # schema-export is the owner's own data export (like data-export), so draft text is in scope and
+        # personal data the owner typed into a draft is theirs to export. Credentials never are.
+        code, out, err = run_cli("--db", self.db, "--accounts", ACCOUNTS, "schema-export")
+        self.assertEqual(code, 0, err)
+        self.assert_absent(out + err, SECRET_VALUES.values(), "schema-export")
+        target = self.tmp / "export.jsonl"
+        code, _, err = run_cli("--db", self.db, "--accounts", ACCOUNTS, "schema-export", "--out", target)
+        self.assertEqual(code, 0, err)
+        self.assert_absent(target.read_text(encoding="utf-8"), SECRET_VALUES.values(), "schema-export --out")
+
+
 class WorkerLogLeakTests(_SeededOutbox):
     """publish --log-json (issue #26, S11): fixed codes and allow-listed ids only. Dry run only here;
     the mocked live leak test is in tests/test_structured_logs.py."""

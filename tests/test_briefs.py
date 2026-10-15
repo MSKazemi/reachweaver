@@ -76,6 +76,73 @@ def human_completes(campaign: dict, *, keep: str | None = None) -> dict:
     return done
 
 
+class ReleaseAndRssCliChainTests(unittest.TestCase):
+    """Issue #9: ``sources-scan --json`` then ``signal-brief``, both through the CLI, for one GitHub release and
+    one RSS item from local fixtures. Sockets and the HTTP seam refuse every connection."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name)
+        for target, attr in ((socket.socket, "connect"), (socket, "create_connection"), (socket, "getaddrinfo")):
+            guard = mock.patch.object(target, attr, side_effect=no_network)
+            guard.start()
+            self.addCleanup(guard.stop)
+        http = mock.patch("reachweaver.publishers._send_http", side_effect=no_network)
+        http.start()
+        self.addCleanup(http.stop)
+        config = {"schema_version": 1, "keywords": ["kubernetes", "speech", "hpc", "autoscaling"],
+                  "half_life_days": 14, "include_prereleases": False, "sources": [
+                      {"id": "tool-releases", "kind": "github_releases", "repo": "example-org/example-tool",
+                       "sensitivity": "public", "fixture": str(FIXTURES / "github-releases.json")},
+                      {"id": "blog-rss", "kind": "feed", "url": "https://blog.example.org/feed.xml",
+                       "sensitivity": "public", "fixture": str(FIXTURES / "feed-rss.xml")}]}
+        self.config = self.tmp / "sources.json"
+        self.config.write_text(json.dumps(config), encoding="utf-8")
+
+    def test_release_and_rss_signals_become_reviewable_blocked_briefs(self):
+        code, stdout, stderr = run_cli("sources-scan", "--config", str(self.config), "--top", "100", "--json")
+        self.assertEqual(code, 0, stderr)
+        scan = json.loads(stdout)
+        self.assertFalse(scan["online"])
+        self.assertEqual(scan["errors"], [])
+        scan_path = self.tmp / "scan.json"
+        scan_path.write_text(stdout, encoding="utf-8")
+        for url, source_kind, evidence_kind in ((RELEASE_URL, "github_release", "release"),
+                                                (RSS_URL, "feed_item", "announcement")):
+            with self.subTest(kind=source_kind):
+                signal = signal_for(scan, url)
+                self.assertEqual(signal["kind"], source_kind)
+                out = self.tmp / f"{source_kind}.json"
+                code, stdout, stderr = run_cli("signal-brief", "--scan", str(scan_path), "--signal-id", signal["id"],
+                                               "--brand", str(BRAND), "--accounts", str(ACCOUNTS), "--out", str(out),
+                                               "--json")
+                self.assertEqual(code, 0, stderr)
+                result = json.loads(stdout)
+                side = out.with_suffix(".brief.md")
+                self.assertEqual(result["files"], [str(out), str(side)])
+                # Reviewable, never stageable as written: placeholders block it until a human edits.
+                self.assertFalse(result["validation"]["valid"])
+                self.assertEqual(result["validation"]["expected"], "BLOCKED")
+                if os.name == "posix":
+                    for path in (out, side):
+                        self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+                campaign = read_json(out)
+                self.assertEqual(campaign["brief"]["source_signal"]["id"], signal["id"])
+                self.assertEqual((campaign["evidence"][0]["url"], campaign["evidence"][0]["kind"]), (url, evidence_kind))
+                self.assertTrue(all(item["checked_by"] == "unverified" for item in campaign["evidence"]))
+                self.assertEqual([v["account_id"] for v in campaign["variants"]], ["my-bluesky", "my-linkedin"])
+                for variant in campaign["variants"]:
+                    self.assertRegex(variant["text"], r"\{\{write: [^}]+\}\}")
+                    self.assertEqual(variant["cta_url"], url)
+                md = side.read_text(encoding="utf-8")
+                for needle in (signal["title"], f"<{url}>", "## Uncertainties", "expected: BLOCKED"):
+                    self.assertIn(needle, md)
+                code, stdout, _ = run_cli("campaign-check", "--file", str(out), "--brand", str(BRAND), "--json")
+                self.assertEqual(code, 2)
+                self.assertFalse(json.loads(stdout)["valid"])
+
+
 class BriefTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

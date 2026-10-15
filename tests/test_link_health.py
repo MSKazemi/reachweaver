@@ -123,6 +123,43 @@ class OfflineTests(Fixture):
         self.assertEqual(exit_code(report), 1)
 
 
+class ReportSafetyTests(Fixture):
+    """Issues #15/#26: a stored link whose query carries a token or an e-mail address is grouped and fetched
+    by its full destination, but the printed report keeps only origin, path and utm_* parameters."""
+
+    SECRET_LINK = "https://docs.example.org/welcome?token=rw26-link-token-value-0007&email=carol.rw26%40example.com"
+
+    def test_query_values_never_reach_the_offline_report_or_its_text(self):
+        insert(self.db, "p1", "Read " + self.SECRET_LINK + " now", status="published")
+        insert(self.db, "p2", "Bad http://docs.example.org/x?email=dan.rw26@example.com", status="published")
+        report = link_health(self.db)
+        text = json.dumps(report) + render_text(report)
+        for needle in ("rw26-link-token-value-0007", "carol.rw26", "dan.rw26", "token=", "email="):
+            self.assertNotIn(needle, text)
+        link = self.link(report, "https://docs.example.org/welcome")
+        self.assertEqual((link["post_ids"], link["status"], link["redacted"]), (["p1"], "not_checked_offline", True))
+        unusable = self.link(report, "http://docs.example.org/x")
+        self.assertEqual((unusable["status"], unusable["redacted"]), ("unusable", True))
+        self.assertEqual(report["distinct_destinations"], 1)
+
+    def test_a_clean_link_is_printed_unchanged_and_not_marked(self):
+        insert(self.db, "p1", tagged())
+        link = link_health(self.db)["links"][0]
+        self.assertEqual(link["destination"], GUIDE)
+        self.assertNotIn("redacted", link)
+
+    def test_online_fetches_the_full_destination_but_prints_the_cut_one(self):
+        insert(self.db, "p1", "Read " + self.SECRET_LINK, status="published")
+        full = "https://docs.example.org/welcome?email=carol.rw26%40example.com&token=rw26-link-token-value-0007"
+        web = FakeWeb({full: (200, HTML, GOOD_HTML.encode())})
+        report = self.run_online(web)
+        self.assertIn(full, web.urls())  # the check itself still targets the real page
+        text = json.dumps(report) + render_text(report)
+        self.assertNotIn("rw26-link-token-value-0007", text)
+        self.assertNotIn("carol.rw26", text)
+        self.assertEqual(self.link(report, "https://docs.example.org/welcome")["status"], "ok")
+
+
 class OnlineTests(Fixture):
     def test_healthy_page_is_ok_and_fetched_once_with_utm_stripped(self):
         insert(self.db, "p1", tagged())

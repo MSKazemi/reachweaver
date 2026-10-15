@@ -108,6 +108,8 @@ Read-only (public issue #10). It collects the links in the `content` and `source
 | `unusable` | The URL cannot be a public https destination: http, credentials or whitespace (**error**, found offline). |
 | `not_checked` / `not_checked_offline` | Over `--max-links`, or the run was offline. |
 
+Printed URLs are cut the way `attribution-report` cuts landing pages ([ATTRIBUTION.md](ATTRIBUTION.md#3-conversion-attribution-report)): only `scheme://host[:port]/path` and the canonical `utm_*` parameters are shown, then secret env values, token shapes and e-mail addresses are redacted. A stored link such as `https://example.org/welcome?token=...&email=...` is still grouped and, with `--online`, fetched by its full address, but it is reported as `https://example.org/welcome` with `"redacted": true`, and the same cut applies to finding messages, final URLs and redirect chains. Two pages that differ only in a non-UTM query value therefore print the same destination; their `post_ids` tell them apart.
+
 The exit code is 1 only when an error is present. A healthy result is a point-in-time observation of the page, not of how a platform renders the preview card. The command never drafts, approves, schedules, publishes or writes to the database, and page text is treated as untrusted data (cleaned, truncated, reported).
 
 **Online checks (`--online` only).** Each `active` brief, and each brief a campaign links to, is fetched once. Draft and retired briefs that no campaign links to are skipped, and so is any brief whose canonical URL failed the offline checks. A run fetches at most 50 pages.

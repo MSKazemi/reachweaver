@@ -143,6 +143,58 @@
       "created_at": "2026-10-02T09:00:00Z",
       "in_reply_to": null,
       "thread_root_url": null
+    },
+    {
+      "id": "inbox-reply-feedback",
+      "platform": "mastodon",
+      "account_id": "my-mastodon",
+      "author_handle": "fb-reader",
+      "author_is_owner": false,
+      "text": "The quickstart page is confusing; I suggest moving the prerequisites to the top.",
+      "url": "https://mastodon.social/@fb/204",
+      "kind": "reply",
+      "created_at": "2026-10-02T09:00:00Z",
+      "in_reply_to": null,
+      "thread_root_url": null
+    },
+    {
+      "id": "inbox-comment-feedback",
+      "platform": "github",
+      "account_id": "my-github",
+      "author_handle": "gh-reviewer",
+      "author_is_owner": false,
+      "text": "Small typo in the README table, and the second step is unclear.",
+      "url": "https://github.com/example-org/example-repo/issues/2#issuecomment-2",
+      "kind": "comment",
+      "created_at": "2026-10-02T09:00:00Z",
+      "in_reply_to": null,
+      "thread_root_url": null
+    },
+    {
+      "id": "inbox-mention-spam",
+      "platform": "mastodon",
+      "account_id": "my-mastodon",
+      "author_handle": "promo-bot",
+      "author_is_owner": false,
+      "text": "@owner Buy cheap followers today, sub4sub, check out my channel.",
+      "url": "https://mastodon.social/@promo/205",
+      "kind": "mention",
+      "created_at": "2026-10-02T09:00:00Z",
+      "in_reply_to": null,
+      "thread_root_url": null
+    },
+    {
+      "id": "inbox-comment-spam",
+      "platform": "devto",
+      "account_id": "my-devto",
+      "author_handle": "airdrop-bot",
+      "author_is_owner": false,
+      "text": "Free crypto airdrop for every reader, use promo code RW26.",
+      "url": "https://dev.to/example/post/comment-10",
+      "kind": "comment",
+      "created_at": "2026-10-02T09:00:00Z",
+      "in_reply_to": null,
+      "thread_root_url": null
     }
   ]
 }
