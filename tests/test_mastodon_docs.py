@@ -83,8 +83,8 @@ class MastodonDocTests(unittest.TestCase):
         self.assertEqual(classify_send_failure("mastodon", None, PublishError("http_429", status=429), write_started=True),
                          LIKELY_NOT_CREATED)
 
-    def test_approval_does_not_bind_visibility_language_or_spoiler_text(self):
-        """The doc says so, plainly, as an open question. If the approval ever binds them, change the doc and this test."""
+    def test_account_send_options_are_read_when_the_post_is_sent(self):
+        """The doc says where they come from. If the approval ever binds them, change the doc and this test."""
         base = {"id": "doc-masto", "platform": "mastodon", "env_prefix": "REACHWEAVER_DOC_MASTO",
                 "server": "https://social.example.org", "handle": "alice"}
         hashes = set()
@@ -98,8 +98,9 @@ class MastodonDocTests(unittest.TestCase):
                     pid = add_post(con, "doc-masto", "mastodon", "Hello https://example.com") if not hashes else \
                         con.execute("SELECT id FROM posts").fetchone()["id"]
                     hashes.add(approval_payload_sha256(get_post(con, pid)))
-        self.assertEqual(len(hashes), 1, "the approval hash must not change with visibility, language or spoiler_text")
-        self.assertIn("It does not bind `visibility`, `language` or `spoiler_text`", DOC)
+        self.assertEqual(len(hashes), 1, "the approval hash is computed from the post row, not the account options")
+        self.assertIn("are read from the account file when the post is sent", DOC)
+        self.assertIn("run `show` again after any change to the account file", DOC)
 
 
 if __name__ == "__main__":
