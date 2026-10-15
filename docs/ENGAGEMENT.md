@@ -89,6 +89,19 @@ Topics are matched in order on whole-word keywords in the sanitized comment. Key
 
 The docs map can also carry your own reply templates per language. See [reply templates per language](#reply-templates-per-language).
 
+### Claims check on reply drafts (`evidence`)
+
+Every reply draft, built-in or from one of your templates, is run through the same lexical claims check as campaign posts (`claims-check`, [CLAIM-GROUNDING.md](CLAIM-GROUNDING.md)). The facts a reply may state are the entries of an optional `evidence` list in the docs map. They have the campaign-evidence shape:
+
+```json
+{"schema_version": "reachweaver.docs-map.v1",
+ "topics": [{"topic": "Install", "keywords": ["install"], "url": "https://example.org/docs/install"}],
+ "evidence": [{"id": "rel", "kind": "release", "url": "https://github.com/OWNER/REPO/releases/tag/v1.0.0",
+               "claim": "v1.0.0 was released and supports 4 text adapters."}]}
+```
+
+Each draft gets `claims_check` with `status` `clean`, `review` or `error`, plus findings, and the report gets a `claims_check` summary. A figure, release wording, quote, customer count, superlative or feature claim that no listed evidence supports is flagged: unsupported figures and release language are `error`, the rest `review`. The built-in templates state no facts, so they are always `clean`. The check is lexical: it never opens a source and a clean result is not proof. It does not block, edit or send anything; every draft stays `draft_requires_approval` for you to review. Warnings that do not fit a reply (a missing call to action, similarity between fixed templates) are not shown. Limits: at most 50 evidence entries, an https `url` without credentials, `kind` one of `release`, `repository`, `documentation`, `announcement`, `paper`, `benchmark`, `other`.
+
 ## Labels, priority and actions
 
 | Priority | Label | Default action |
