@@ -394,5 +394,172 @@ class PostizTests(unittest.TestCase):
             event(db, "noop", pid)
 
 
+PZ_FIXTURES = Path(__file__).parent / "fixtures" / "providers" / "postiz"
+FX_ENV = {"REACHWEAVER_ALLOW_LIVE": "1", "REACHWEAVER_ENV": "prod", "REACHWEAVER_PZFX_POSTIZ_API_KEY": FAKE_KEY}
+FX_ACCOUNT = {"id": "pz-fx", "platform": "bluesky", "env_prefix": "REACHWEAVER_PZFX", "handle": "fixture-user.example",
+              "backend": "postiz", "postiz_base_url": "https://api.postiz.com", "postiz_integration_id": "int-fixture-1"}
+BODY_MARKER = "FIXTURE-BODY-MARKER"
+
+
+def pz_fixture(name):
+    return json.loads((PZ_FIXTURES / name).read_text(encoding="utf-8"))
+
+
+def pz_fixture_error(name):
+    """The fixture as the HTTPError urllib would raise; its body and reason carry markers that must never surface."""
+    fx = pz_fixture(name)
+    body = json.dumps(fx["body"]).encode("utf-8")
+    return HTTPError("https://api.postiz.com/public/v1/posts", fx["status"], BODY_MARKER + " " + FAKE_KEY,
+                     fx["headers"], io.BytesIO(body))
+
+
+class PostizFixtureTests(unittest.TestCase):
+    """Issue #30 acceptance 2d (duplicate job) and 2f (missing scope), replayed from synthetic fixtures in
+    ``tests/fixtures/providers/postiz/``. Postiz documents no idempotency key for ``POST /posts``, so the
+    only guarantee pinned here is ReachWeaver's: one durable claim per approved post, one create request,
+    and never a retry."""
+
+    def setUp(self):
+        self.work = tempfile.TemporaryDirectory()
+        self.addCleanup(self.work.cleanup)
+        root = Path(self.work.name)
+        self.config, self.db = root / "accounts.json", root / "state" / "db.sqlite"
+        self.config.write_text(json.dumps({"accounts": [FX_ACCOUNT]}))
+
+    def approved(self, text="Fixture release notes https://example.org/r"):
+        with connect(str(self.db)) as db:
+            pid = add_post(db, "pz-fx", "bluesky", text)
+            transition(db, pid, "approve")
+        return pid
+
+    def live(self, fake, pid):
+        out, err = io.StringIO(), io.StringIO()
+        with patch.dict(os.environ, FX_ENV, clear=True), patch("reachweaver.publishers._send_http", fake), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["--db", str(self.db), "--accounts", str(self.config), "publish", "--live", "--post-id", pid])
+        return code, out.getvalue(), err.getvalue()
+
+    def row(self, pid):
+        with connect(str(self.db)) as db:
+            return get_post(db, pid)
+
+    def actions(self, pid):
+        with connect(str(self.db)) as db:
+            return [r[0] for r in db.execute("SELECT action FROM event_log WHERE post_id=? ORDER BY id", (pid,))]
+
+    def log(self):
+        with connect(str(self.db)) as db:
+            return " ".join(str(r[0]) for r in db.execute("SELECT detail FROM event_log"))
+
+    def assert_nothing_leaks(self, *texts):
+        for text in (*texts, self.log()):
+            self.assertNotIn(FAKE_KEY, text)
+            self.assertNotIn(BODY_MARKER, text)
+
+    def assert_second_run_sends_nothing(self, pid):
+        again = FakePostiz(integrations=pz_fixture("integrations-list.json")["body"])
+        code, _, _ = self.live(again, pid)
+        self.assertEqual((code, again.requests), (2, []))  # not due: no preflight, no create
+
+    def test_fixtures_are_synthetic_and_carry_no_credential(self):
+        names = sorted(p.name for p in PZ_FIXTURES.glob("*.json"))
+        for name in ("integrations-list.json", "integrations-disabled.json", "posts-create-accepted.json",
+                     "posts-create-two-jobs.json", "posts-403-missing-scope.json", "posts-list-published.json"):
+            self.assertIn(name, names)
+        for name in names:
+            with self.subTest(fixture=name):
+                fx = pz_fixture(name)
+                self.assertIs(fx["_fixture"]["recorded"], False)
+                self.assertNotIn("Authorization", json.dumps(fx))
+                self.assertNotIn(FAKE_KEY, json.dumps(fx))
+
+    def test_create_returning_two_jobs_is_a_possible_duplicate_for_review_never_retried(self):
+        pid = self.approved()
+        fake = FakePostiz(integrations=pz_fixture("integrations-list.json")["body"],
+                          create=pz_fixture("posts-create-two-jobs.json")["body"])
+        code, out, err = self.live(fake, pid)
+        self.assertEqual(code, 3, out + err)
+        row = self.row(pid)
+        self.assertEqual((row["status"], row["last_error"], row["remote_id"]),
+                         ("needs_review", "postiz:postiz_unexpected_create_response_uncertain", None))
+        self.assertIn("[ambiguous]", out)  # the write started: the jobs may be live
+        self.assertEqual(len(fake.creates), 1)  # one POST /posts, no retry, no delete
+        self.assertNotIn("pz-fixture-job", out + err + self.log())  # neither job is treated as the receipt
+        self.assertEqual(self.actions(pid).count("send_claimed"), 1)
+        self.assert_second_run_sends_nothing(pid)
+        self.assert_nothing_leaks(out, err)
+
+    def test_two_runs_racing_on_one_approved_post_send_one_create(self):
+        """Both runs pass the read-only preflight; the other process wins the claim first."""
+        from reachweaver import storage
+        pid = self.approved()
+        listing = pz_fixture("integrations-list.json")["body"]
+        winner = FakePostiz(integrations=listing, create=pz_fixture("posts-create-accepted.json")["body"])
+        loser = FakePostiz(integrations=listing, create=pz_fixture("posts-create-accepted.json")["body"])
+        real_claim, winner_result = storage.claim_sending, []
+
+        def racing_claim(con, post_id, *args, **kwargs):
+            if not winner_result:
+                with patch("reachweaver.storage.claim_sending", real_claim):
+                    winner_result.append(self.live(winner, post_id))
+            return real_claim(con, post_id, *args, **kwargs)
+
+        with patch("reachweaver.storage.claim_sending", racing_claim):
+            code, out, err = self.live(loser, pid)
+        self.assertEqual(code, 2, out + err)
+        self.assertIn(f"SKIPPED {pid}: no longer eligible", out)
+        self.assertEqual([r.get_method() for r in loser.requests], ["GET"])  # preflight only
+        [(winner_code, winner_out, _)] = winner_result
+        self.assertEqual(winner_code, 3, winner_out)  # a Postiz acceptance is needs_review, as always
+        self.assertEqual(len(winner.creates) + len(loser.creates), 1)
+        row = self.row(pid)
+        self.assertEqual((row["status"], row["remote_id"]), ("needs_review", "postiz:pz-fixture-job-1"))
+        self.assertEqual(self.actions(pid).count("send_claimed"), 1)
+        self.assert_nothing_leaks(out, err, winner_out)
+
+    def test_scope_shaped_403_on_create_needs_review_redacts_and_never_retries(self):
+        """A platform grant without write scope cannot be detected beforehand (POSTIZ-SCOPE-DETECTION.md);
+        the 403 arrives on the create itself and is handled like any post-claim failure."""
+        pid = self.approved()
+        fake = FakePostiz(integrations=pz_fixture("integrations-list.json")["body"],
+                          create=pz_fixture_error("posts-403-missing-scope.json"))
+        code, out, err = self.live(fake, pid)
+        self.assertEqual(code, 3, out + err)
+        row = self.row(pid)
+        self.assertEqual((row["status"], row["last_error"], row["remote_id"]),
+                         ("needs_review", "postiz:postiz_http_403_forbidden", None))
+        self.assertIn("[ambiguous]", out)
+        self.assertEqual(len(fake.creates), 1)
+        self.assertNotIn("provider_cooldown", self.actions(pid))  # a 403 is not a rate limit
+        self.assert_second_run_sends_nothing(pid)
+        self.assert_nothing_leaks(out, err, row["last_error"])
+
+    def test_disabled_integration_is_blocked_before_the_claim_through_the_cli(self):
+        pid = self.approved()
+        fake = FakePostiz(integrations=pz_fixture("integrations-disabled.json")["body"])
+        code, out, err = self.live(fake, pid)
+        self.assertEqual(code, 2, out + err)
+        self.assertIn(f"BLOCKED {pid}: Postiz backend preflight failed (postiz_integration_disabled)", out)
+        self.assertEqual([r.get_method() for r in fake.requests], ["GET"])
+        self.assertEqual(fake.creates, [])
+        self.assertEqual(self.row(pid)["status"], "approved")
+        self.assertNotIn("send_claimed", self.actions(pid))
+        self.assert_nothing_leaks(out, err)
+
+
+class LicenseWordingTests(unittest.TestCase):
+    """Issue #30 licensing record: ReachWeaver is Apache-2.0, so no skill copy may call it MIT code."""
+
+    def test_skill_publishing_reference_names_the_project_license(self):
+        root = Path(__file__).resolve().parents[1]
+        self.assertIn("Apache License", (root / "LICENSE").read_text(encoding="utf-8")[:200])
+        for copy in (".claude/skills/reachweaver/references/publishing.md",
+                     "plugin/skills/reachweaver/references/publishing.md"):
+            with self.subTest(copy=copy):
+                text = (root / copy).read_text(encoding="utf-8")
+                self.assertIn("do not copy AGPL internals into ReachWeaver's Apache-2.0 code", text)
+                self.assertNotIn("MIT code", text)
+
+
 if __name__ == "__main__":
     unittest.main()

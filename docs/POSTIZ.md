@@ -122,4 +122,17 @@ It does **not** prove: that the stored platform OAuth grant still has the write 
 2. `postiz-check --online` shows `identity: verified` for the configured integration.
 3. One supervised post via [FIRST-LIVE-PILOT.md](FIRST-LIVE-PILOT.md), then reconcile against the native post. Record the date, instance (cloud or self-hosted version) and evidence privately. **No such smoke test has been run.**
 
-Tests: `tests/test_postiz.py` (mocked `publishers._send_http`; payload shape, identity mismatch before claim, 401/403/429/5xx, timeouts, unexpected responses, key redaction, pause, dry run, live opt-in, unapproved posts, no auto-retry, read-only lookup).
+## Backend contract
+
+`publishers.PublishingBackend` (a `typing.Protocol`) declares what every publishing path provides, and `publishers.backend_for(account)` names the path an account entry selects (no `backend` key: native; `"postiz"`: this backend; anything else: refused). It is declarative only: `publishers.publish` and `postiz.run_live_send` dispatch and gate exactly as before.
+
+| Contract step | Native path (`publishers.NATIVE_PATH`) | Postiz (`postiz.POSTIZ_BACKEND`) |
+| --- | --- | --- |
+| `preview(account, content)`: offline, no credential, refuses text `validate_post` rejects | target account, platform and exact text | the same plus the fixed create shape (`POST /posts`, `type: now`, `shortLink: false`, configured integration id) |
+| `create(...)`: one content-create request, only after a durable claim (`sendgate`) | returns the platform's own receipt | raises `BackendAccepted` (a `PublishError`): never a receipt |
+| `lookup_receipt(...)`: read-only, never reconciles | `None` (create already returned the receipt) | `GET /posts` state and backend-reported `releaseURL` |
+| Reconciliation hand-off (`acceptance_status`) | `published` | `needs_review` until a human `reconcile` with the native id/URL |
+
+`tests/test_postiz_contract.py` runs the same conformance checks against both paths (native Bluesky mocked at `publishers.request_json`, Postiz replaying the synthetic fixtures in `tests/fixtures/providers/postiz/`).
+
+Tests: `tests/test_postiz.py` (mocked `publishers._send_http`; payload shape, identity mismatch before claim, 401/403/429/5xx, timeouts, unexpected responses, key redaction, pause, dry run, live opt-in, unapproved posts, no auto-retry, read-only lookup). `PostizFixtureTests` in the same file replays synthetic fixtures for a create response carrying two jobs (a possible duplicate: `needs_review`, one `POST /posts`, nothing retried), two runs racing for one approved post (one claim, one create), a 403 on create shaped like a grant without write scope (`needs_review`, body and key never shown, not retried) and a disabled integration (`BLOCKED` before the claim). The fixture bodies are illustrative; none was recorded from Postiz.

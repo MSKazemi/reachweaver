@@ -1,0 +1,20 @@
+{
+  "_fixture": {
+    "provider": "postiz",
+    "recorded": false,
+    "source": "hand-written from the documented POST /posts response [{postId, integration}] (https://docs.postiz.com/public-api/posts/create); synthetic",
+    "written": "2026-10-15",
+    "scrubbed": "yes (synthetic ids and handles only)"
+  },
+  "endpoint": "POST /public/v1/posts",
+  "status": 201,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "body": [
+    {
+      "postId": "pz-fixture-job-1",
+      "integration": "int-fixture-1"
+    }
+  ]
+}

@@ -330,5 +330,19 @@ class WriteAndCli(unittest.TestCase):
         self.assertFalse(out.exists())
 
 
+class AcceptanceTableDocs(unittest.TestCase):
+    """Every ``tests/FILE.py::NAME`` that docs/MANUAL-EXPORT.md cites as evidence exists (issues #22, #23)."""
+
+    def test_every_cited_test_exists(self):
+        root = Path(__file__).resolve().parents[1]
+        doc = (root / "docs" / "MANUAL-EXPORT.md").read_text(encoding="utf-8")
+        cited = re.findall(r"tests/(test_[a-z0-9_]+)\.py::([A-Za-z0-9_]+)", doc)
+        self.assertGreaterEqual(len(cited), 10)
+        for module, name in cited:
+            with self.subTest(module=module, name=name):
+                source = (root / "tests" / f"{module}.py").read_text(encoding="utf-8")
+                self.assertTrue(f"def {name}(" in source or f"class {name}(" in source, f"{module}::{name}")
+
+
 if __name__ == "__main__":
     unittest.main()

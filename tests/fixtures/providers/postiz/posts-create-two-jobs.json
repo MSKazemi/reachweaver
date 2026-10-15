@@ -1,0 +1,24 @@
+{
+  "_fixture": {
+    "provider": "postiz",
+    "recorded": false,
+    "source": "hand-written variant of the documented POST /posts response (https://docs.postiz.com/public-api/posts/create) carrying two jobs for the one requested integration, i.e. a possible duplicate job; synthetic, never observed from Postiz",
+    "written": "2026-10-15",
+    "scrubbed": "yes (synthetic ids and handles only)"
+  },
+  "endpoint": "POST /public/v1/posts",
+  "status": 201,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "body": [
+    {
+      "postId": "pz-fixture-job-1",
+      "integration": "int-fixture-1"
+    },
+    {
+      "postId": "pz-fixture-job-2",
+      "integration": "int-fixture-1"
+    }
+  ]
+}
