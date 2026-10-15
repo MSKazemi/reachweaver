@@ -356,8 +356,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-posts", type=int, default=DEFAULT_MAX_POSTS,
                    help=f"Posts fetched per run (1..{MAX_POSTS_LIMIT}, default {DEFAULT_MAX_POSTS})")
     p.add_argument("--dry-run", action="store_true", help="Print the planned GET requests; no network, no DB write")
-    p = sub.add_parser("engagement-fetch", help="READ-ONLY fetch of public replies to your published Bluesky/Mastodon "
-                       "posts into an engagement-triage export; plan only unless --online; never replies")
+    p = sub.add_parser("engagement-fetch", help="READ-ONLY fetch of public replies (and, with --quotes, Bluesky quote "
+                       "posts) to your published Bluesky/Mastodon posts into an engagement-triage export; plan "
+                       "only unless --online; never replies")
     p.add_argument("--online", action="store_true", help="Allow unauthenticated read-only GET requests (needs --out)")
     p.add_argument("--out", type=Path, help="NEW owner-only (0600) engagement export JSON; never overwritten")
     p.add_argument("--account", help="Only this bluesky/mastodon account id")
@@ -366,6 +367,11 @@ def make_parser() -> argparse.ArgumentParser:
                    help=f"Posts fetched per run (1..{MAX_POSTS_LIMIT}, default {DEFAULT_MAX_POSTS})")
     p.add_argument("--depth", type=int, default=6, help="Reply levels below each post (1..20, default 6)")
     p.add_argument("--max-replies", type=int, default=100, help="Replies kept per post (1..500, default 100)")
+    p.add_argument("--quotes", action="store_true",
+                   help="Also read Bluesky quote posts of each post (app.bsky.feed.getQuotes, public AppView, "
+                        "unauthenticated, cursor pages); kind quote_post; network only with --online")
+    p.add_argument("--max-quotes", type=int, default=100,
+                   help="Quote posts kept per Bluesky post with --quotes (1..500, default 100, at most 5 pages)")
     p = sub.add_parser("report", help="Coverage-aware local analytics; no fabricated reach or results")
     p.add_argument("--format", choices=REPORT_FORMATS, default="json", dest="report_format",
                    help="json (default, unchanged envelope), markdown, or csv (one row per platform and metric; "
@@ -1620,7 +1626,8 @@ def _execute_read_only(args) -> int:
         with connect_readonly(database) as db:
             replies = fetch_engagement(db, accounts, account_id=args.account, post_id=args.post_id,
                                        max_posts=args.max_posts, depth=args.depth,
-                                       max_replies=args.max_replies, online=args.online)
+                                       max_replies=args.max_replies, online=args.online,
+                                       quotes=args.quotes, max_quotes=args.max_quotes)
         export = replies.pop("export", None)
         if export is not None:
             count = len(export["items"])
@@ -1630,8 +1637,8 @@ def _execute_read_only(args) -> int:
                 replies["export_file"] = str(args.out)
         print(json.dumps(replies, indent=2, ensure_ascii=False))
         if export is not None:
-            print(f"Wrote {count} replies to {args.out} (mode 0600). Next: engagement-triage {args.out}"
-                  if count else "No replies found; no export file written.", file=sys.stderr)
+            print(f"Wrote {count} items to {args.out} (mode 0600). Next: engagement-triage {args.out}"
+                  if count else "No replies or quotes found; no export file written.", file=sys.stderr)
         print("Nothing was sent, posted, liked or followed; the database was not modified.", file=sys.stderr)
         return 1 if replies["stopped"] or replies["failed"] else 0
     if args.command == "youtube-analytics":  # SELECT statements only, no network, nothing fetched

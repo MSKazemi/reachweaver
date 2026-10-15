@@ -1,4 +1,5 @@
-"""Read-only fetch of PUBLIC replies to your own published Bluesky/Mastodon posts (issue #17 slice).
+"""Read-only fetch of PUBLIC replies (and, on request, Bluesky quote posts) to your own published
+Bluesky/Mastodon posts (issue #17 slice).
 
 ``engagement-fetch`` turns the replies under posts that ReachWeaver itself recorded as
 ``published`` (with a platform ``remote_id``) into a ``reachweaver.engagement-export.v1``
@@ -10,25 +11,43 @@ or writes a database row. Without ``online=True`` it only lists the planned GET 
   ``depth`` (reply levels, lexicon default 6, 0..1000) and ``parentHeight`` (0..1000; sent
   as 0 because ancestors of your own post are not replies to it). ``thread`` is a
   ``threadViewPost`` (``post``, ``replies``) or ``notFoundPost`` / ``blockedPost``.
+* Bluesky quote posts (opt-in, ``quotes=True``): ``app.bsky.feed.getQuotes`` (XRPC query, HTTP
+  GET) on the same public AppView, no credential. Parameters ``uri`` (required AT-URI),
+  ``limit`` (1..100, default 50) and ``cursor``; the output is ``uri``, optional ``cursor`` and
+  ``posts`` (``postView`` list). Paginated by ``cursor``, so it is capped in quotes and pages.
+  The AppView handler declares optional auth (``authVerifier.standardOptional``), drops quotes
+  whose author or embed is blocked and leaves out deleted posts; the rate-limits guide says the
+  direct AppView hosts "do not support authentication" and have "generous rate-limits" (no
+  number is documented). Each quote's record must embed (``app.bsky.embed.record`` or
+  ``recordWithMedia``) your own post, otherwise it is skipped.
 * Mastodon: ``GET /api/v1/statuses/:id`` (owner check, public URL) then
   ``GET /api/v1/statuses/:id/context`` on the account's configured HTTPS server, both
   WITHOUT a token. Unauthenticated context is "limited to 40 ancestors and 60 descendants
   with a maximum depth of 20"; a 404 means the status is private or does not exist.
   ``content`` is HTML and is reduced to plain text here.
 
-Neither endpoint is paginated, so each post costs one Bluesky request or two Mastodon
-requests. Runs are capped in posts, depth and replies; requests are sequential and never
+The reply endpoints are not paginated, so each post costs one Bluesky request or two Mastodon
+requests, plus at most ``MAX_QUOTE_PAGES`` getQuotes pages per Bluesky post when quotes are
+requested. Runs are capped in posts, depth, replies and quotes; requests are sequential and never
 redirected (``publishers.request_get_json``); a 429 stops the run at once with no retry and
-records only the provider's retry hint. Reply text is untrusted: secrets and personal data
+records only the provider's retry hint. Reply and quote text is untrusted: secrets and personal data
 are redacted with ``engagement.redact_private_data`` before it reaches the file, which is a
 NEW owner-only (0600) file that is never overwritten.
 
-Sources (fetched and checked 2026-10-09):
-  https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/getPostThread.json
-  https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/defs.json
-  https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/post.json
-  https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/actor/defs.json
+Sources (fetched and checked 2026-10-09; the lexicons moved under ``packages/api/lexicons/`` in
+the atproto repository, and the paths below were re-checked 2026-10-15):
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/getPostThread.json
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/defs.json
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/post.json
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/actor/defs.json
   https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/advanced-guides/api-directory.mdx
+Quote sources (fetched and checked 2026-10-15):
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/getQuotes.json
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/embed/record.json
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/embed/recordWithMedia.json
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/bsky/src/api/app/bsky/feed/getQuotes.ts
+  https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/advanced-guides/rate-limits.md
+  https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/support/developer-guidelines.md
   https://docs.joinmastodon.org/methods/statuses/#context
   https://docs.joinmastodon.org/entities/Status/
 """
@@ -53,6 +72,7 @@ from .privacy import write_private_file
 from .storage import parse_utc, utc_now
 
 GET_POST_THREAD = "/xrpc/app.bsky.feed.getPostThread"
+GET_QUOTES = "/xrpc/app.bsky.feed.getQuotes"
 SUPPORTED = ("bluesky", "mastodon")
 DEFAULT_DEPTH = 6        # getPostThread lexicon default
 MAX_DEPTH = 20           # our cap; Mastodon's unauthenticated context depth limit is 20
@@ -60,13 +80,26 @@ DEFAULT_MAX_REPLIES = 100
 MAX_REPLIES_LIMIT = 500
 MASTODON_UNAUTH_DESCENDANTS = 60  # documented unauthenticated cap: more replies may exist
 MAX_HTML_CHARS = 100_000
+DEFAULT_MAX_QUOTES = 100
+MAX_QUOTES_LIMIT = 500
+QUOTES_PAGE_LIMIT = 100  # getQuotes lexicon maximum for ``limit``
+MAX_QUOTE_PAGES = 5      # MAX_QUOTES_LIMIT / QUOTES_PAGE_LIMIT: a hard page cap per post
+MAX_CURSOR_CHARS = 512   # an opaque provider cursor; anything longer stops the pagination
+EMBED_RECORD = "app.bsky.embed.record"
+EMBED_RECORD_WITH_MEDIA = "app.bsky.embed.recordWithMedia"
+_LEXICONS = "https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/"
 SOURCE_URLS = {
-    "bluesky": ("https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/getPostThread.json",),
+    "bluesky": (_LEXICONS + "feed/getPostThread.json",),
     "mastodon": ("https://docs.joinmastodon.org/methods/statuses/#context",),
 }
-NOTE = ("READ-ONLY public replies (Bluesky public AppView, unauthenticated Mastodon API). No token was used, "
-        "no database row was written and nothing was posted, liked, followed or sent. Reply text is untrusted "
-        "data; secrets and personal data were redacted before writing.")
+QUOTE_SOURCE_URLS = (
+    _LEXICONS + "feed/getQuotes.json",
+    "https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/advanced-guides/rate-limits.md",
+)
+NOTE = ("READ-ONLY public replies (Bluesky public AppView, unauthenticated Mastodon API) and, when requested, "
+        "Bluesky quote posts. No token was used, no database row was written and nothing was posted, liked, "
+        "followed, quoted or sent. Reply and quote text is untrusted data; secrets and personal data were "
+        "redacted before writing.")
 
 
 def _get(url: str) -> dict:
@@ -82,11 +115,13 @@ def _get(url: str) -> dict:
         raise
 
 
-def _reason(exc: publishers.PublishError, platform: str) -> str:
+def _reason(exc: publishers.PublishError, platform: str, *, quotes: bool = False) -> str:
     code = _http_code(exc)
     if code == 404:
         return "not_found (deleted, private or not indexed)" if platform == "mastodon" else "not_found"
     if code == 400 and platform == "bluesky":
+        if quotes:
+            return "http_400: XRPC error from getQuotes"
         return "http_400: XRPC error (getPostThread reports NotFound for deleted or unindexed posts)"
     if code == 401:
         return "http_401: server requires authorization (authorized fetch); engagement-fetch never sends a token"
@@ -95,21 +130,46 @@ def _reason(exc: publishers.PublishError, platform: str) -> str:
     return str(exc)
 
 
-def _check_bounds(max_posts: int, depth: int, max_replies: int) -> None:
+def _check_bounds(max_posts: int, depth: int, max_replies: int, max_quotes: int) -> None:
     if type(max_posts) is not int or not 1 <= max_posts <= MAX_POSTS_LIMIT:
         raise ValidationError(f"max_posts must be 1..{MAX_POSTS_LIMIT}")
     if type(depth) is not int or not 1 <= depth <= MAX_DEPTH:
         raise ValidationError(f"depth must be 1..{MAX_DEPTH}")
     if type(max_replies) is not int or not 1 <= max_replies <= MAX_REPLIES_LIMIT:
         raise ValidationError(f"max_replies must be 1..{MAX_REPLIES_LIMIT}")
+    if type(max_quotes) is not int or not 1 <= max_quotes <= MAX_QUOTES_LIMIT:
+        raise ValidationError(f"max_quotes must be 1..{MAX_QUOTES_LIMIT}")
 
 
-def _request_plan(account: dict, remote_id: str, depth: int) -> list[dict]:
-    """The GET requests a fetch would send; never any credential (none is ever used)."""
+def _quote_paging(max_quotes: int) -> tuple[int, int]:
+    """(page size, page cap) for one post: never more pages than needed for ``max_quotes``."""
+    page = min(QUOTES_PAGE_LIMIT, max_quotes)
+    return page, min(MAX_QUOTE_PAGES, -(-max_quotes // page))
+
+
+def _quotes_url(remote_id: str, page: int, cursor: str | None = None) -> str:
+    params: dict[str, object] = {"uri": remote_id, "limit": page}
+    if cursor is not None:
+        params["cursor"] = cursor
+    return BLUESKY_APPVIEW + GET_QUOTES + "?" + urlencode(params)
+
+
+def _request_plan(account: dict, remote_id: str, depth: int, max_quotes: int | None = None) -> list[dict]:
+    """The GET requests a fetch would send; never any credential (none is ever used).
+
+    ``max_quotes`` (Bluesky only) adds the first getQuotes page; later pages add ``cursor``.
+    """
     if account["platform"] == "bluesky":
         params = {"uri": remote_id, "depth": depth, "parentHeight": 0}
-        return [{"method": "GET", "endpoint": BLUESKY_APPVIEW + GET_POST_THREAD, "params": params,
-                 "url": BLUESKY_APPVIEW + GET_POST_THREAD + "?" + urlencode(params), "auth": "none"}]
+        plan: list[dict] = [{"method": "GET", "endpoint": BLUESKY_APPVIEW + GET_POST_THREAD, "params": params,
+                             "url": BLUESKY_APPVIEW + GET_POST_THREAD + "?" + urlencode(params), "auth": "none"}]
+        if max_quotes is not None:
+            page, pages = _quote_paging(max_quotes)
+            plan.append({"method": "GET", "endpoint": BLUESKY_APPVIEW + GET_QUOTES,
+                         "params": {"uri": remote_id, "limit": page}, "url": _quotes_url(remote_id, page),
+                         "auth": "none", "max_pages": pages,
+                         "pagination": "cursor from the previous page; stops at max_pages or max_quotes"})
+        return plan
     server = require_https_public_server(str(account.get("server", "")))
     status = f"{server}/api/v1/statuses/{quote(remote_id, safe='')}"
     return [{"method": "GET", "endpoint": status, "url": status, "auth": "none"},
@@ -260,7 +320,7 @@ def _bluesky_items(item: dict, data: dict, depth: int, max_replies: int, problem
             problems.append({"post_id": item["post_id"], "reason": "reply_without_author_identity_skipped"})
             continue
         item_id = _item_id("bluesky", uri)  # type: ignore[arg-type]
-        out.append({"id": item_id, "platform": "bluesky", "account_id": item["account_id"],
+        out.append({"id": item_id, "platform": "bluesky", "account_id": item["account_id"], "kind": "reply",
                     "author_handle": handle, "author_is_owner": author["did"] == owner_did,
                     "text": _clean_text(record["text"]), "url": url, "created_at": created,
                     "in_reply_to": parent, "thread_root_url": root_url})
@@ -271,6 +331,98 @@ def _bluesky_items(item: dict, data: dict, depth: int, max_replies: int, problem
 
 def _list(value: object) -> list:
     return value if isinstance(value, list) else []
+
+
+def _embedded(embed: object, record_type: str, with_media_type: str) -> dict | None:
+    """The quoted-record object inside an ``embed.record`` / ``embed.recordWithMedia`` (record or view)."""
+    if not isinstance(embed, dict):
+        return None
+    inner = embed.get("record")
+    if embed.get("$type") == with_media_type:
+        inner = inner.get("record") if isinstance(inner, dict) else None
+    elif embed.get("$type") != record_type:
+        return None
+    return inner if isinstance(inner, dict) else None
+
+
+def _quote_item(item: dict, post: object, owner_did: str, root_url: str | None, problems: list[dict]) -> dict | None:
+    """One getQuotes ``postView`` as an export item, or None (with one note) when it is skipped."""
+    def skip(reason: str) -> None:
+        problems.append({"post_id": item["post_id"], "reason": reason})
+
+    if not isinstance(post, dict):
+        skip("malformed_quote_skipped")
+        return None
+    if post.get("notFound") is True or post.get("blocked") is True:
+        skip("quote_not_found_or_blocked_skipped")
+        return None
+    uri, author, record = post.get("uri"), post.get("author"), post.get("record")
+    url = _bsky_url(uri) if isinstance(uri, str) else None
+    if (not url or uri == item["remote_id"] or not isinstance(author, dict) or not isinstance(author.get("did"), str)
+            or not isinstance(record, dict) or not isinstance(record.get("text"), str)):
+        skip("malformed_quote_skipped")
+        return None
+    quoted = _embedded(record.get("embed"), EMBED_RECORD, EMBED_RECORD_WITH_MEDIA)
+    if quoted is None or quoted.get("uri") != item["remote_id"]:
+        skip("quote_not_referencing_post_skipped")  # the record itself must embed your post
+        return None
+    view = _embedded(post.get("embed"), EMBED_RECORD + "#view", EMBED_RECORD_WITH_MEDIA + "#view")
+    if view is not None and view.get("detached") is True:
+        skip("quote_detached_skipped")  # the quoted post's author removed it from this quote
+        return None
+    if view is not None and (view.get("notFound") is True or view.get("blocked") is True):
+        skip("quote_not_found_or_blocked_skipped")
+        return None
+    created = _created_at(record.get("createdAt"), post.get("indexedAt"))
+    if created is None:
+        skip("quote_without_valid_timestamp_skipped")
+        return None
+    handle = next((value.strip() for value in (author.get("handle"), author["did"])
+                   if isinstance(value, str) and value.strip()), None)
+    if handle is None:
+        skip("quote_without_author_identity_skipped")
+        return None
+    # A quote starts its own thread: it replies to nothing, and `quoted_url` names your post.
+    return {"id": _item_id("bluesky", str(uri)), "platform": "bluesky", "account_id": item["account_id"],
+            "kind": "quote_post", "author_handle": handle, "author_is_owner": author["did"] == owner_did,
+            "text": _clean_text(record["text"]), "url": url, "created_at": created,
+            "in_reply_to": None, "thread_root_url": None, "quoted_url": root_url}
+
+
+def _bluesky_quotes(item: dict, max_quotes: int, problems: list[dict]) -> list[dict]:
+    """Quote posts of your own (already owner-checked) post: cursor pages within the caps."""
+    owner_did = _POST_URI.fullmatch(item["remote_id"]).group(1)  # type: ignore[union-attr]
+    root_url = _bsky_url(item["remote_id"])
+    page, max_pages = _quote_paging(max_quotes)
+    out: list[dict] = []
+    seen: set[str] = set()
+    cursor: str | None = None
+    for number in range(1, max_pages + 1):
+        data = _get(_quotes_url(item["remote_id"], page, cursor))
+        posts = data.get("posts")
+        if not isinstance(posts, list) or data.get("uri") != item["remote_id"]:
+            raise publishers.PublishError("malformed_response: getQuotes posts missing or for another post")
+        for post in posts:
+            quote = _quote_item(item, post, owner_did, root_url, problems)
+            if quote is None or quote["id"] in seen:
+                continue  # a cursor that repeats a quote never yields it twice
+            if len(out) >= max_quotes:
+                problems.append({"post_id": item["post_id"], "reason": f"truncated_max_quotes_{max_quotes}"})
+                return out
+            seen.add(quote["id"])
+            out.append(quote)
+        nxt = data.get("cursor")
+        if not isinstance(nxt, str) or not nxt or not posts:
+            return out
+        if nxt == cursor or len(nxt) > MAX_CURSOR_CHARS:
+            problems.append({"post_id": item["post_id"], "reason": "quotes_cursor_invalid_stopped"})
+            return out
+        if len(out) >= max_quotes or number == max_pages:
+            problems.append({"post_id": item["post_id"],
+                             "reason": f"possibly_truncated: quotes stopped at {len(out)} after {number} page(s)"})
+            return out
+        cursor = nxt
+    return out
 
 
 def _mastodon_handle(status: dict, instance: str) -> str | None:
@@ -340,7 +492,7 @@ def _mastodon_items(item: dict, root: dict, context: dict, depth: int, max_repli
         author: dict = account_value if isinstance(account_value, dict) else {}
         is_owner = (str(author.get("username", "")).casefold() == expected
                     and handle.casefold() == f"{expected}@{instance}")
-        out.append({"id": item_id, "platform": "mastodon", "account_id": item["account_id"],
+        out.append({"id": item_id, "platform": "mastodon", "account_id": item["account_id"], "kind": "reply",
                     "author_handle": handle, "author_is_owner": is_owner, "text": _clean_text(text),
                     "url": url, "created_at": created,
                     "in_reply_to": root_url if parent == item["remote_id"] else ids[parent],
@@ -354,30 +506,35 @@ def _ref(item: dict) -> dict:
 
 def fetch_engagement(con: sqlite3.Connection, accounts: dict[str, dict], *, account_id: str | None = None,
                      post_id: str | None = None, max_posts: int = DEFAULT_MAX_POSTS, depth: int = DEFAULT_DEPTH,
-                     max_replies: int = DEFAULT_MAX_REPLIES, online: bool = False) -> dict[str, Any]:
-    """Collect public replies to eligible published posts. Returns a summary with ``export``.
+                     max_replies: int = DEFAULT_MAX_REPLIES, online: bool = False, quotes: bool = False,
+                     max_quotes: int = DEFAULT_MAX_QUOTES) -> dict[str, Any]:
+    """Collect public replies (and, with ``quotes=True``, Bluesky quote posts) to eligible published
+    posts. Returns a summary with ``export``.
 
     ``online=False`` (the default) lists the planned GET requests and touches no network.
     The database is only read: no row, status or event is written.
     """
-    _check_bounds(max_posts, depth, max_replies)
+    _check_bounds(max_posts, depth, max_replies, max_quotes)
     if account_id is not None and account_id in accounts and accounts[account_id]["platform"] not in SUPPORTED:
         raise ValidationError("engagement-fetch supports only bluesky and mastodon accounts")
     eligible, skipped = select_posts(con, accounts, account_id=account_id, post_id=post_id, max_posts=max_posts)
     for entry in skipped:
         if entry["reason"] == "platform_not_supported_for_public_counters":
             entry["reason"] = "platform_not_supported_for_engagement_fetch"
-    plans = {i["post_id"]: _request_plan(i["account"], i["remote_id"], depth) for i in eligible}  # fail closed
+    plans = {i["post_id"]: _request_plan(i["account"], i["remote_id"], depth, max_quotes if quotes else None)
+             for i in eligible}  # fail closed
     for i in eligible:
         if i["platform"] == "mastodon":
             _mastodon_local_handle(i["account"])
     summary: dict[str, Any] = {"mode": "online" if online else "plan_only", "max_posts": max_posts,
-                               "depth": depth, "max_replies": max_replies, "fetched": [], "failed": [],
+                               "depth": depth, "max_replies": max_replies,
+                               "quotes": quotes, "max_quotes": max_quotes if quotes else None,
+                               "fetched": [], "failed": [],
                                "skipped": skipped, "notes": [], "stopped": None, "note": NOTE}
     if not online:
         summary["would_fetch"] = [{**_ref(i), "requests": [{k: v for k, v in r.items() if k != "url"}
                                                            for r in plans[i["post_id"]]],
-                                   "source_urls": list(SOURCE_URLS[i["platform"]])} for i in eligible]
+                                   "source_urls": _sources(i["platform"], quotes)} for i in eligible]
         summary["note"] = ("PLAN ONLY: no network request, no file and no database write. "
                            "Re-run with --online --out FILE to fetch. " + NOTE)
         return summary
@@ -402,19 +559,33 @@ def fetch_engagement(con: sqlite3.Connection, accounts: dict[str, dict], *, acco
             except publishers.PublishError as exc:
                 summary["failed"].append({**_ref(item), "reason": _reason(exc, item["platform"])})
                 continue
-            new = 0
-            for reply in found:
-                if reply["id"] in seen:
-                    duplicates += 1
+            quoted: list[dict] | None = None
+            if quotes and item["platform"] == "bluesky":
+                # Only after getPostThread proved the post exists and is yours. A getQuotes error
+                # fails the quotes of this post only; its replies are still kept.
+                try:
+                    quoted = _bluesky_quotes(item, max_quotes, problems)
+                except RateLimited:
+                    raise
+                except publishers.PublishError as exc:
+                    summary["failed"].append({**_ref(item), "source": "quotes",
+                                              "reason": _reason(exc, "bluesky", quotes=True)})
+            new = {"reply": 0, "quote_post": 0}
+            for entry in [*found, *(quoted or [])]:
+                if entry["id"] in seen:
+                    duplicates += 1  # e.g. a reply that also quotes your post: kept once, as the reply
                     continue
                 if len(items) >= MAX_ITEMS:
                     problems.append({"post_id": item["post_id"], "reason": f"truncated_export_max_items_{MAX_ITEMS}"})
                     break
-                seen.add(reply["id"])
-                items.append(reply)
-                new += 1
-            summary["fetched"].append({**_ref(item), "replies": new, "observed_at": utc_now(),
-                                       "source_urls": list(SOURCE_URLS[item["platform"]])})
+                seen.add(entry["id"])
+                items.append(entry)
+                new[entry["kind"]] += 1
+            fetched = {**_ref(item), "replies": new["reply"], "observed_at": utc_now(),
+                       "source_urls": _sources(item["platform"], quoted is not None)}
+            if quoted is not None:
+                fetched["quotes"] = new["quote_post"]
+            summary["fetched"].append(fetched)
             summary["notes"].extend(problems)
     except RateLimited as exc:
         done = {e["post_id"] for e in summary["fetched"]} | {f["post_id"] for f in summary["failed"]}
@@ -425,9 +596,14 @@ def fetch_engagement(con: sqlite3.Connection, accounts: dict[str, dict], *, acco
                               "and no cooldown state was written. Try again later with a smaller --max-posts.")
     summary["duplicates_dropped"] = duplicates
     summary["export"] = {"schema_version": EXPORT_SCHEMA,
-                         "source": "reachweaver engagement-fetch: public replies, read-only, redacted",
+                         "source": ("reachweaver engagement-fetch: public replies"
+                                    + (" and Bluesky quote posts" if quotes else "") + ", read-only, redacted"),
                          "generated_at": utc_now(), "items": items}
     return summary
+
+
+def _sources(platform: str, quotes: bool) -> list[str]:
+    return list(SOURCE_URLS[platform]) + (list(QUOTE_SOURCE_URLS) if quotes and platform == "bluesky" else [])
 
 
 def write_export(path: Path, export: dict) -> int:
