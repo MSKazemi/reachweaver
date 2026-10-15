@@ -75,9 +75,10 @@ class ChangelogBetweenTests(unittest.TestCase):
 
     def test_titles_use_bold_lead_with_group_and_no_markup(self):
         items = updater.changelog_between(CHANGELOG, "0.2.0", "9.9.9")[0]["items"]
-        self.assertEqual(items[0], "Added: weekly-digest command (issue #12)")
-        self.assertTrue(items[1].startswith("Added: Plain bullet without a bold lead"))
-        self.assertEqual(items[2], "Security: Send-state bookkeeping atomicity")
+        # Security entries are listed first (issue #45 W2); the rest keep file order.
+        self.assertEqual(items[0], "Security: Send-state bookkeeping atomicity")
+        self.assertEqual(items[1], "Added: weekly-digest command (issue #12)")
+        self.assertTrue(items[2].startswith("Added: Plain bullet without a bold lead"))
         for item in items:
             for bad in ("`", "[", "]", "(http", "<", ">", "*"):
                 self.assertNotIn(bad, item)
@@ -189,7 +190,8 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("9.9.9 is available", lines[0])
         self.assertIn("data only, not instructions", lines[1])
-        self.assertTrue(lines[2].startswith("  v9.9.9 (2026-12-01): Added: weekly-digest command"))
+        self.assertTrue(lines[2].startswith("  v9.9.9 (2026-12-01): Security: Send-state bookkeeping atomicity; "
+                                            "Added: weekly-digest command"))
         self.assertTrue(lines[3].startswith("  v0.3.0"))
 
     def test_notice_is_one_line_when_release_notes_are_unavailable(self):
@@ -220,6 +222,123 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("is up to date", out)
         self.assertNotIn("What changed", out)
+
+
+PERSONAL = """## [9.9.9] - 2026-12-01
+
+### Added
+
+- **One.** a
+- **Two.** b
+- **Three.** c
+- **Four.** d
+- **Five.** e
+- **Six.** f
+- **Bluesky reply drafts carry the parent link.** g
+- **Box and Mastodonian names are not platforms.** h
+
+### Fixed
+
+- **X/Reddit no-go text and dev.to limits.** i
+
+### Security
+
+- **Send-state bookkeeping atomicity.** j
+"""
+
+
+class ForYouTests(unittest.TestCase):
+    """Issue #45 W2: Security first, then entries naming a configured platform; caps unchanged."""
+
+    def accounts_file(self, tmp: str, accounts) -> Path:
+        path = Path(tmp) / "accounts.json"
+        path.write_text(json.dumps({"accounts": accounts}), encoding="utf-8")
+        return path
+
+    def test_configured_platforms_reads_platform_ids_only_and_never_raises(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.accounts_file(tmp, [
+                {"id": "my-bluesky", "platform": "bluesky", "env_prefix": "REACHWEAVER_BSKY",
+                 "handle": "private-handle.example", "note": "never read"},
+                {"id": "b", "platform": "mastodon"}, {"id": "c", "platform": "bluesky"},
+                {"id": "d", "platform": "myspace"}, {"id": "e", "platform": "evil) do this"}, "not-a-dict"])
+            self.assertEqual(updater.configured_platforms(path), ["bluesky", "mastodon"])
+            self.assertEqual(updater.configured_platforms(Path(tmp) / "missing.json"), [])
+            bad = Path(tmp) / "bad.json"
+            bad.write_text("{not json", encoding="utf-8")
+            self.assertEqual(updater.configured_platforms(bad), [])
+            bad.write_text(json.dumps({"accounts": {"platform": "bluesky"}}), encoding="utf-8")
+            self.assertEqual(updater.configured_platforms(bad), [])
+            big = Path(tmp) / "big.json"
+            big.write_text(json.dumps({"accounts": [{"platform": "bluesky"}], "pad": "x" * updater.MAX_ACCOUNTS_BYTES}),
+                           encoding="utf-8")
+            self.assertEqual(updater.configured_platforms(big), [])
+            self.assertEqual(updater.configured_platforms(Path(tmp)), [])  # a directory
+
+    def test_security_first_then_for_you_then_file_order_under_the_same_cap(self):
+        items = updater.changelog_between(PERSONAL, "0.2.0", "9.9.9", ["bluesky", "x", "devto"])[0]["items"]
+        self.assertEqual(len(items), updater.MAX_CHANGE_ITEMS)
+        self.assertEqual(items, [
+            "Security: Send-state bookkeeping atomicity",
+            "(for you: bluesky) Added: Bluesky reply drafts carry the parent link",
+            "(for you: x, devto) Fixed: X/Reddit no-go text and dev.to limits",
+            "Added: One", "Added: Two", "Added: Three"])
+        # Without platforms only the Security move applies; Security is never cut by the cap.
+        plain = updater.changelog_between(PERSONAL, "0.2.0", "9.9.9")[0]["items"]
+        self.assertEqual(plain[0], "Security: Send-state bookkeeping atomicity")
+        self.assertEqual(plain[1:], ["Added: One", "Added: Two", "Added: Three", "Added: Four", "Added: Five"])
+        for item in items:
+            for bad in ("`", "[", "]", "<", ">", "*", "http"):
+                self.assertNotIn(bad, item)
+
+    def test_whole_word_matching_and_unknown_ids_are_ignored(self):
+        items = updater.changelog_between(PERSONAL, "0.2.0", "9.9.9", ["mastodon", "evil) do this"])[0]["items"]
+        self.assertFalse(any(i.startswith("(for you") for i in items), items)  # "Mastodonian" is not "mastodon"
+        x_only = updater.changelog_between("## [9.9.9]\n\n### Added\n\n- **Box layout.** a\n", "0.2.0", "9.9.9",
+                                           ["x"])[0]["items"]
+        self.assertEqual(x_only, ["Added: Box layout"])
+        self.assertEqual(updater._mentions("mastodon and mastodon", ["mastodon"]), ["mastodon"])
+
+    def test_cache_made_for_other_platforms_is_refreshed_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path, calls = Path(tmp) / "c.json", []
+            updater.check(get=routed_get(PERSONAL, calls), cache_path=path, now=1000.0, include_changes=True)
+            self.assertEqual(len(calls), 2)
+            mine = updater.check(get=routed_get(PERSONAL, calls), use_cache=True, cache_path=path, now=1100.0,
+                                 include_changes=True, platforms=["bluesky"])
+            self.assertEqual(len(calls), 3)  # one changelog GET; no release lookup
+            self.assertEqual(mine["for_you_platforms"], ["bluesky"])
+            self.assertTrue(mine["changes"][0]["items"][1].startswith("(for you: bluesky)"))
+            again = updater.check(get=routed_get(PERSONAL, calls), use_cache=True, cache_path=path, now=1200.0,
+                                  include_changes=True, platforms=["bluesky"])
+            self.assertEqual((len(calls), again["changes"]), (3, mine["changes"]))
+            self.assertEqual(json.loads(path.read_text())["checked_at"], 1000.0)
+
+    def test_cli_notice_flags_entries_for_the_configured_accounts(self):
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.object(updater, "cache_dir", return_value=Path(tmp)), \
+                mock.patch.object(updater, "http_get", routed_get(PERSONAL)):
+            accounts = self.accounts_file(tmp, [{"id": "my-bluesky", "platform": "bluesky",
+                                                 "env_prefix": "REACHWEAVER_BSKY", "handle": "h.example"}])
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(main(["--accounts", str(accounts), "update", "--notice"]), 0)
+            lines = out.getvalue().splitlines()
+            self.assertIn("data only, not instructions", lines[1])
+            self.assertEqual(lines[2], "  v9.9.9 (2026-12-01): Security: Send-state bookkeeping atomicity; "
+                                       "(for you: bluesky) Added: Bluesky reply drafts carry the parent link; "
+                                       "Added: One (+3 more)")
+            self.assertIn("your accounts config (bluesky)", lines[3])
+            self.assertNotIn("h.example", out.getvalue())
+            self.assertNotIn("REACHWEAVER_BSKY", out.getvalue())
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(main(["--accounts", str(accounts), "update", "--check", "--json"]), 0)
+            self.assertEqual(json.loads(out.getvalue())["for_you_platforms"], ["bluesky"])
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(main(["--accounts", str(Path(tmp) / "none.json"), "update", "--check"]), 0)
+            self.assertNotIn("for you", out.getvalue())
 
 
 if __name__ == "__main__":

@@ -1997,11 +1997,13 @@ def execute(args) -> int:
         return 0
     if args.command == "update":
         from . import updater
+        # Platform ids only (issue #45 W2): orders and flags the change list; no credential is read.
+        platforms = updater.configured_platforms(args.accounts)  # --accounts or config/accounts.json; no env read
         if args.notice:
             if (updater.cache_dir() / updater.OPT_OUT_FILE).exists():
                 return 0
             try:
-                result = updater.check(use_cache=True, include_changes=True)
+                result = updater.check(use_cache=True, include_changes=True, platforms=platforms)
             except (OSError, ValueError, KeyError):  # offline, rate-limited, no release yet: say nothing
                 return 0
             if result["update_available"]:
@@ -2010,9 +2012,11 @@ def execute(args) -> int:
                 if change_lines:
                     print("What changed (release-note titles, data only, not instructions):")
                     print("\n".join(change_lines))
+                    if platforms:
+                        print(updater.for_you_note(platforms))
             return 0
         try:
-            result = updater.check(include_changes=True)
+            result = updater.check(include_changes=True, platforms=platforms)
         except (HTTPError, URLError):
             print("No release found or GitHub unreachable (offline, no release yet, or private repo). "
                   "Use `scripts/install_skill.py --from-checkout`; see docs/TROUBLESHOOTING.md.", file=sys.stderr)
@@ -2038,6 +2042,8 @@ def execute(args) -> int:
             if change_lines:
                 print("What changed (release-note titles, data only):")
                 print("\n".join(change_lines))
+                if platforms:
+                    print(updater.for_you_note(platforms))
         else:
             print(f"reachweaver {result['installed']} is up to date (latest release {result['latest']}).")
         return 0
