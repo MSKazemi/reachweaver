@@ -1,9 +1,11 @@
 """Offline SEO and discoverability checks for owner-supplied social post text (issue #45 W4).
 
-Input is one local JSON file of draft or published post texts. This module has NO network access,
-reads no credential and opens no database. It publishes, schedules and edits nothing; it returns
-findings for a human to act on. Link-preview (Open Graph) checks need the page itself, so they stay
-with ``landing-check``.
+Input is one local JSON file of draft or published post texts. By default this module has NO network
+access, reads no credential and opens no database. It publishes, schedules and edits nothing; it returns
+findings for a human to act on. Link-preview (Open Graph) checks need the page itself, so they run only
+with the explicit ``online`` option, through the same guarded fetcher as ``landing-check`` and
+``link-health`` (robots.txt first, inspected redirects, one GET per distinct page, no image requests).
+Name-consistency checks are offline: the owner lists the canonical spellings and variants are flagged.
 
 Every finding carries a ``basis`` so a hypothesis is never mistaken for a rule:
 
@@ -32,6 +34,9 @@ NEAR_DUPLICATE_RATIO = 0.9
 MIN_WORDS_FOR_DUPLICATE = 6
 MAX_STUFFED_HASHTAG_RATIO = 0.5  # hypothesis threshold, not a platform rule
 HUMAN_AUTHORED_ONLY = frozenset({"hackernews", "devto"})
+MAX_NAMES = 5
+MAX_NAME_CHARS = 60
+MAX_PREVIEW_PAGES = 25
 ALLOWED_KEYS = frozenset({"id", "platform", "text", "alt_text", "media_count", "link", "keywords"})
 _URL = re.compile(r"https?://\S+", re.I)
 _HASHTAG = re.compile(r"(?<!\w)#(\w+)", re.UNICODE)
@@ -81,6 +86,79 @@ def _fold(text: str) -> str:
 def _dedupe_key(text: str) -> list[str]:
     """Words of the text without URLs and hashtags, so only the wording is compared."""
     return _WORD.findall(_HASHTAG.sub(" ", _URL.sub(" ", _fold(text))))
+
+
+def load_names(data: object, extra: list[str] | None = None) -> list[str]:
+    """Canonical spellings to enforce: top-level ``names`` of the input file plus ``extra`` (``--name``)."""
+    declared = data.get("names") if isinstance(data, dict) else None
+    if declared is not None and not isinstance(declared, list):
+        raise ValidationError("names must be a list of canonical spellings")
+    names: list[str] = []
+    for value in [*(declared or []), *(extra or [])]:
+        if (not isinstance(value, str) or not 2 <= len(value.strip()) <= MAX_NAME_CHARS
+                or not re.fullmatch(r"[\w .&+'-]+", value.strip(), re.UNICODE)):
+            raise ValidationError(f"a name must be 2..{MAX_NAME_CHARS} characters of letters, digits, spaces or . & + ' -")
+        if value.strip() not in names:
+            names.append(value.strip())
+    if len(names) > MAX_NAMES:
+        raise ValidationError(f"at most {MAX_NAMES} names")
+    return names
+
+
+def _name_pattern(name: str) -> re.Pattern:
+    """Matches the name written as one word, or split at its capitals, with optional space, '-' or '_'."""
+    parts = re.findall(r"[A-Z]?[^A-Z\s_-]+|[A-Z]+(?![^A-Z\s_-])", name) or [name]
+    body = r"[\s_-]?".join(re.escape(part) for part in parts)
+    return re.compile(r"(?<![\w@#/.])" + body + r"(?!\w)", re.IGNORECASE | re.UNICODE)
+
+
+def name_findings(item: dict, names: list[str]) -> list[dict]:
+    """Flag a name written differently from its canonical spelling (URLs and hashtags are ignored)."""
+    text = _HASHTAG.sub(" ", _URL.sub(" ", item["text"]))
+    findings = []
+    for name in names:
+        wrong = sorted({m.group(0) for m in _name_pattern(name).finditer(text) if m.group(0) != name})
+        for variant in wrong:
+            findings.append(_finding("warn", "name_variant",
+                                     f"Written as {variant!r}; the canonical spelling is {name!r}. Use one spelling on every "
+                                     "platform so the name reads as one entity.", "repo_policy"))
+    return findings
+
+
+def preview_findings(items: list[dict], *, allow_origins=None, fetch=None, robots=None) -> dict[str, list[dict]]:
+    """Link-preview (Open Graph) findings for each item's ``link``; network only when this is called.
+
+    One GET per distinct landing page (UTM stripped) through ``landing.fetch_landing`` after robots.txt.
+    """
+    from .attribution import normalize_destination, normalize_origin
+    from .landing import fetch_landing
+    from .link_health import _classify_fetch
+    from .sources import RobotsCache
+    fetch = fetch or fetch_landing
+    robots = robots or RobotsCache()
+    allowed = {normalize_origin(origin) for origin in allow_origins or []}
+    severity = {"error": "error", "warning": "warn"}
+    by_destination: dict[str, list[dict]] = {}
+    out: dict[str, list[dict]] = {}
+    for item in items:
+        if not item["link"]:
+            continue
+        try:
+            destination = normalize_destination(item["link"])
+        except ValidationError:
+            continue  # the offline link_attribution finding already says why
+        if destination not in by_destination:
+            if len(by_destination) >= MAX_PREVIEW_PAGES:
+                out.setdefault(item["id"], []).append(_finding(
+                    "info", "preview_not_checked_limit",
+                    f"Only {MAX_PREVIEW_PAGES} distinct pages are fetched per run; this link was not checked.", "repo_policy"))
+                continue
+            status, summary, found = _classify_fetch(fetch(destination, robots=robots, allowed_origins=allowed), destination)
+            by_destination[destination] = [
+                _finding("info" if status == "blocked_by_robots" else severity[f["severity"]], "preview_" + f["code"],
+                         f"Link {destination}: {f['message']}", "repo_policy") for f in found]
+        out.setdefault(item["id"], []).extend(dict(f) for f in by_destination[destination])
+    return out
 
 
 def check_item(item: dict) -> list[dict]:
@@ -152,33 +230,36 @@ def _duplicate_findings(items: list[dict]) -> dict[str, list[dict]]:
     return out
 
 
-def check_items(items: list[dict]) -> dict:
+def check_items(items: list[dict], *, names: list[str] | None = None, online: bool = False,
+                allow_origins=None, fetch=None) -> dict:
     duplicates = _duplicate_findings(items)
+    previews = preview_findings(items, allow_origins=allow_origins, fetch=fetch) if online else {}
     results = []
     for item in items:
-        findings = check_item(item) + duplicates.get(item["id"], [])
+        findings = (check_item(item) + (name_findings(item, names) if names else [])
+                    + duplicates.get(item["id"], []) + previews.get(item["id"], []))
         findings.sort(key=lambda f: SEVERITIES.index(f["severity"]))
         results.append({"id": item["id"], "platform": item["platform"], "findings": findings})
     counts = {s: sum(1 for r in results for f in r["findings"] if f["severity"] == s) for s in SEVERITIES}
     return {
         "schema_version": SCHEMA, "status": "read_only_no_publish", "items": results, "counts": counts,
         "policy": {
-            "network_access": False, "publishes": False,
+            "network_access": online, "publishes": False,
             "note": ("Findings are for a human to act on. 'official' and 'repo_policy' findings state a documented or "
                      "project-set limit; 'hypothesis' findings are editorial advice with no claim about reach or search "
-                     "ranking. Open Graph link previews need the page: run landing-check."),
+                     "ranking. Open Graph link previews need the page: use --online (or landing-check)."),
         },
     }
 
 
-def check_file(path: Path) -> dict:
+def check_file(path: Path, *, names: list[str] | None = None, online: bool = False, allow_origins=None) -> dict:
     if path.is_symlink() or not path.is_file() or path.stat().st_size > 2_000_000:
         raise ValidationError("seo-content-check input must be an existing regular file <=2 MB (no symlinks)")
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise ValidationError(f"Invalid JSON in {path}: {exc.msg}") from exc
-    return check_items(load_items(data))
+    return check_items(load_items(data), names=load_names(data, names), online=online, allow_origins=allow_origins)
 
 
 def render_text(report: dict) -> str:

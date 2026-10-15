@@ -133,14 +133,16 @@ The claim check is a **lexical mismatch check, not truth verification**. A missi
 - Bodies are capped at 2 MB (`body_too_large`, checked against `Content-Length` and the bytes read). Each request times out after 25 seconds. HTML is parsed with `html.parser` only.
 - Every value read from a page is untrusted data. It is cleaned, truncated to 300 characters and reported. It is never followed as an instruction.
 
-## Post-text checks (`seo-content-check`, issue #45 W4, offline)
+## Post-text checks (`seo-content-check`, issue #45 W4; offline by default)
 
 ```bash
 reachweaver seo-content-check posts.json            # text list
 reachweaver seo-content-check posts.json --json     # full report
+reachweaver seo-content-check posts.json --name ReachWeaver      # also flag other spellings of your name
+reachweaver seo-content-check posts.json --online [--allow-origin https://www.example.net]   # also check each link's preview (public issue #4)
 ```
 
-Input is one local JSON file, `{"items": [{"id", "platform", "text", "alt_text"?, "media_count"?, "link"?, "keywords"?}]}` (up to 500 items; unknown keys are refused). It checks only what is in that file and opens no database or network connection:
+Input is one local JSON file, `{"items": [{"id", "platform", "text", "alt_text"?, "media_count"?, "link"?, "keywords"?}]}` (up to 500 items; unknown keys are refused), plus an optional top-level `"names": ["ReachWeaver"]` (also `--name`, repeatable, at most 5). By default it checks only what is in that file and opens no database or network connection; `--online` is the one opt-in that makes requests:
 
 | Finding | Basis | Meaning |
 | --- | --- | --- |
@@ -151,11 +153,13 @@ Input is one local JSON file, `{"items": [{"id", "platform", "text", "alt_text"?
 | `link_attribution` (warn) | `repo_policy` | The declared link fails the canonical UTM rules used by `utm-link`. |
 | `keywords_absent` (info) | `hypothesis` | None of your declared topic phrases appear; add one only if it fits naturally. |
 | `cross_platform_duplicate` (info) | `hypothesis` | Same wording (URLs and hashtags ignored, 90% word overlap) on different platforms. |
+| `name_variant` (warn) | `repo_policy` | A name you listed is written differently (`Reachweaver`, `Reach Weaver`, `REACHWEAVER`). URLs, hashtags, handles and longer words are ignored; a single-word name is matched by case only, so list names with care. |
+| `preview_*` (error, warn or info; only with `--online`) | `repo_policy` | The item's `link` page, fetched once per distinct destination (UTM stripped) after robots.txt through the same guarded fetcher as `landing-check` and `link-health`: `preview_http_error` (error), `preview_og_title_missing`, `preview_og_description_missing`, `preview_og_image_missing`, `preview_redirects`, `preview_not_html` (warn), `preview_robots_disallowed` (info, not fetched). At most 25 pages per run (`preview_not_checked_limit`). No images are requested. |
 
 `hypothesis` findings are editorial advice. None of them claims that a hashtag, keyword or format changes reach or search ranking, because no source supports such a claim. Exit code `2` means at least one `error` finding; warnings and info exit `0`. Link-preview (Open Graph) checks need the page, so they stay with `landing-check`.
 
 ## Not covered yet
 
-- `landing-check` checks the page a post links to. It cannot see how each platform renders the preview card (platforms cache and crop previews), and it does not check that a claim is true. Those stay manual review steps.
+- `landing-check` checks the page a post links to (and `seo-content-check --online` the preview of each post's link). Neither can see how each platform renders the preview card (platforms cache and crop previews), and it does not check that a claim is true. Those stay manual review steps.
 - Search and social referral outcomes can be compared only from the same analytics export. ReachWeaver makes no promise of ranking gains from social shares.
 - `examples/seo-briefs.example.json` is illustrative. The `example.org` paper page is a placeholder.

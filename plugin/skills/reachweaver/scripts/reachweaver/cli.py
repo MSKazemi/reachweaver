@@ -560,9 +560,12 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--project", help="Restrict to briefs for this project")
     p.add_argument("--platform", help="With --campaign: also emit a UTM link for the destination")
     p.add_argument("--campaign", help="With --platform: utm_campaign for the destination link")
-    p = sub.add_parser("seo-content-check", help="Offline discoverability checks on owner-supplied post texts (length, alt text, hashtags, "
-                       "UTM links, cross-platform duplicates); read-only, never publishes")
-    p.add_argument("file", type=Path, help="Local JSON: {\"items\": [{id, platform, text, alt_text?, media_count?, link?, keywords?}]}")
+    p = sub.add_parser("seo-content-check", help="Discoverability checks on owner-supplied post texts (length, alt text, hashtags, "
+                       "UTM links, name spelling, cross-platform duplicates); offline unless --online link previews; read-only, never publishes")
+    p.add_argument("file", type=Path, help="Local JSON: {\"items\": [{id, platform, text, alt_text?, media_count?, link?, keywords?}], \"names\"?: [...]}")
+    p.add_argument("--name", action="append", metavar="NAME", help="Canonical spelling of your project/brand name; variants are flagged; repeat")
+    p.add_argument("--online", action="store_true", help="Also check each item's link preview (Open Graph) and liveness: robots.txt first, one GET per distinct page")
+    p.add_argument("--allow-origin", action="append", metavar="ORIGIN", help="With --online: also follow redirects to this https origin; repeat")
     p.add_argument("--json", action="store_true", help="Full machine-readable report")
     p = sub.add_parser("media-check", help="Offline media manifest checks: headers, platform limits, alt text, captions, rights; never uploads")
     p.add_argument("manifest", type=Path, help="Media manifest JSON; asset paths are relative to it")
@@ -1783,7 +1786,7 @@ def execute(args) -> int:
         return 0 if result["status"] == "ok" else 2
     if args.command == "seo-content-check":
         from .seo_content import check_file, render_text as seo_content_text
-        seo_report = check_file(args.file)
+        seo_report = check_file(args.file, names=args.name, online=args.online, allow_origins=args.allow_origin)
         print(json.dumps(seo_report, indent=2, ensure_ascii=False) if args.json else seo_content_text(seo_report))
         return 2 if seo_report["counts"]["error"] else 0
     if args.command == "media-check":
