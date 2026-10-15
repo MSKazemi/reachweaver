@@ -26,8 +26,10 @@ jobs:
           a, b = Path('reachweaver'), Path('.claude/skills/reachweaver/scripts/reachweaver')
           assert all((b / f.name).read_bytes() == f.read_bytes() for f in [*a.glob('*.py'), *a.glob('*.json')])
           PY
-      - name: Offline tests
-        run: python -m unittest discover -s tests
+      - name: Release gate (changelog section and date, docs and links, bundle sync, blockers, readiness, tests)
+        # scripts/release_gate.py runs the offline unit tests itself and exits 0 only when every check passed.
+        # Never add --skip-tests here: that mode can never exit 0. No network, credential or publishing is used.
+        run: python scripts/release_gate.py --tag "$GITHUB_REF_NAME"
       - name: Build bundle and checksum
         run: |
           find .claude/skills/reachweaver -name __pycache__ -prune -exec rm -rf {} +
