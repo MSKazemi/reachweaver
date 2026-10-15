@@ -135,6 +135,18 @@ def evaluate_experiment(con, plan: dict) -> dict:
             "verdict":"inconclusive", "relative_lift":None,"guardrail_relative_change":None,
             "direction_agreement": None,"warnings":warnings,"windowed_snapshots_skipped":windowed_skipped[0],
             "note":"Directional association only; never causal or statistically significant by itself."}
+    return pooled_readout(result, plan, paired_direction=paired_direction, primary_num=primary_num,
+                          exposures=exposures, guard_num=guard_num)
+
+
+def pooled_readout(result: dict, plan: dict, *, paired_direction: list[bool], primary_num: list,
+                   exposures: list, guard_num: list) -> dict:
+    """Pooled lift, guardrail change and the strict gate over the usable pairs in ``result``.
+
+    Shared by ``evaluate_experiment`` and the attribution readout (issue #16 R4) so both
+    apply exactly the same minimum-pairs / zero-baseline / sign-test rules.
+    """
+    complete = result["pairs_usable"]
     if not complete:
         result["reason"]="no_comparable_data"
         return result

@@ -3,6 +3,9 @@
 Network use is explicit and narrow: ``update --check`` / ``--apply`` and the cached ``--notice``
 make HTTPS GETs to github.com hosts only. Nothing here reads credentials, touches ``state/`` or
 the approval/publishing path; a release is a skill bundle (code + references), never account data.
+The only local file read besides the cache is the accounts config, and from it only each account's
+``platform`` id (``configured_platforms``), to order and flag the "What changed" list; nothing
+from it is sent anywhere.
 """
 from __future__ import annotations
 
@@ -20,7 +23,7 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from . import __version__
-from .policy import ValidationError
+from .policy import PLATFORMS, ValidationError
 
 REPO = "MSKazemi/reachweaver"
 LATEST_API = f"https://api.github.com/repos/{REPO}/releases/latest"
@@ -43,6 +46,17 @@ MAX_CHANGE_TITLE = 100
 # Release notes are untrusted text that the session-start notice puts in front of an agent:
 # keep a narrow character set, hard caps and no markup, links or backticks.
 _TITLE_ALLOWED = re.compile(r"[^A-Za-z0-9 .,:;()/#'+_-]")
+# "What changed for you" (issue #45 W2): Security entries first, then entries that name a platform
+# the user has configured. Bullets read per version before ordering and capping.
+MAX_SCANNED_ITEMS = 200
+MAX_ACCOUNTS_BYTES = 1024 * 1024
+FOR_YOU_TAG = "(for you: {platforms})"  # fixed text; {platforms} only ever holds policy.PLATFORMS ids
+# How each platform id is written in release-note titles. "x" alone is too common a token, so
+# only "X" (capitalized) or "Twitter" counts for it. Matching is on whole words.
+_PLATFORM_PATTERNS = {
+    "x": re.compile(r"(?<![A-Za-z0-9])(?:X|Twitter)(?![A-Za-z0-9])"),
+    "devto": re.compile(r"(?<![A-Za-z0-9])(?:devto|dev\.to|DEV Community)(?![A-Za-z0-9])", re.I),
+}
 
 
 def parse_version(text: str) -> tuple[int, int, int]:
@@ -114,7 +128,8 @@ def _read_cache(path: Path) -> dict | None:
         return None
 
 
-def _write_cache(path: Path, info: dict, now: float, changes: list[dict] | None = None) -> None:
+def _write_cache(path: Path, info: dict, now: float, changes: list[dict] | None = None,
+                 platforms: list[str] | tuple[str, ...] = ()) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -123,6 +138,7 @@ def _write_cache(path: Path, info: dict, now: float, changes: list[dict] | None 
                        "release_url": info["release_url"]}
             if changes is not None:
                 payload["changes"] = changes
+                payload["changes_for_platforms"] = list(platforms)  # which "for you" flags they carry
             json.dump(payload, handle)
     except OSError:
         pass  # a cache that cannot be written only costs one more request tomorrow
@@ -134,12 +150,59 @@ def _clean_title(text: str) -> str:
     return cleaned[:MAX_CHANGE_TITLE].rstrip()
 
 
-def changelog_between(text: str, installed: str, latest: str) -> list[dict]:
+def configured_platforms(path: str | Path | None) -> list[str]:
+    """Platform ids of the local accounts config, for the "for you" flag (issue #45 W2).
+
+    Reads only each account's ``platform`` value and keeps only known ``policy.PLATFORMS`` ids;
+    every other field (ids, handles, env prefixes) is ignored, and no environment variable or
+    credential is read. A missing, oversized or malformed file gives ``[]``; this never raises.
+    """
+    try:
+        file = Path(path or "config/accounts.json")
+        if not file.is_file() or file.stat().st_size > MAX_ACCOUNTS_BYTES:
+            return []
+        data = json.loads(file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    accounts = data.get("accounts") if isinstance(data, dict) else None
+    if not isinstance(accounts, list):
+        return []
+    return sorted({item["platform"] for item in accounts
+                   if isinstance(item, dict) and isinstance(item.get("platform"), str)
+                   and item["platform"] in PLATFORMS})
+
+
+def _mentions(title: str, platforms: list[str] | tuple[str, ...]) -> list[str]:
+    found = []
+    for platform in platforms:
+        pattern = _PLATFORM_PATTERNS.get(platform) or re.compile(
+            rf"(?<![A-Za-z0-9]){re.escape(platform)}(?![A-Za-z0-9])", re.I)
+        if pattern.search(title):
+            found.append(platform)
+    return found
+
+
+def _prioritized(items: list[str], platforms: list[str] | tuple[str, ...]) -> list[str]:
+    """Security first, then entries naming a configured platform (tagged), then the rest; stable."""
+    ranked = []
+    for index, item in enumerate(items):
+        named = _mentions(item, platforms)
+        rank = 0 if item.lower().startswith("security:") else 1 if named else 2
+        text = f"{FOR_YOU_TAG.format(platforms=', '.join(named))} {item}" if named else item
+        ranked.append((rank, index, text))
+    return [text for _, _, text in sorted(ranked)][:MAX_CHANGE_ITEMS]
+
+
+def changelog_between(text: str, installed: str, latest: str, platforms: list[str] | tuple[str, ...] = ()) -> list[dict]:
     """Summarize CHANGELOG.md sections newer than ``installed`` and not newer than ``latest``.
 
     Returns newest first: ``{"version", "date", "items": ["Added: title", ...]}``. Only the bold
     lead of each bullet (or the first words) is kept, so the result is short, plain text.
+    Within a version, ``Security`` entries come first, then entries naming one of ``platforms``
+    (prefixed with the fixed ``FOR_YOU_TAG``), then the rest in file order; the cap applies
+    after that ordering, so a Security entry is never cut for a later group.
     """
+    platforms = tuple(p for p in platforms if p in PLATFORMS)
     low, high = parse_version(installed), parse_version(latest)
     sections: list[dict] = []
     current: dict | None = None
@@ -166,19 +229,22 @@ def changelog_between(text: str, installed: str, latest: str) -> list[dict]:
         if line.startswith("- "):
             bold = _CHANGELOG_BOLD_RE.match(line)
             title = _clean_title(bold.group(1) if bold else line[2:])
-            if title and len(current["items"]) < MAX_CHANGE_ITEMS:
+            if title and len(current["items"]) < MAX_SCANNED_ITEMS:
                 current["items"].append(f"{group}: {title}" if group else title)
+    for section in sections:
+        section["items"] = _prioritized(section["items"], platforms)
     sections.sort(key=lambda sec: parse_version(sec["version"]), reverse=True)
     return sections[:MAX_CHANGE_VERSIONS]
 
 
-def fetch_changes(tag: str, installed: str, latest: str, get=None) -> list[dict] | None:
+def fetch_changes(tag: str, installed: str, latest: str, get=None,
+                  platforms: list[str] | tuple[str, ...] = ()) -> list[dict] | None:
     """Release-note summary between two versions, or None when it cannot be read (never raises)."""
     get = get or http_get
     try:
         parse_version(tag)
         text = get(RAW_CHANGELOG.format(tag=tag)).decode("utf-8", "replace")
-        return changelog_between(text, installed, latest)
+        return changelog_between(text, installed, latest, platforms)
     except (OSError, ValueError, KeyError):
         return None
 
@@ -204,17 +270,27 @@ def _sanitize_changes(value: object) -> list[dict] | None:
 
 
 def check(*, get=None, use_cache: bool = False, now: float | None = None,
-          cache_path: Path | None = None, include_changes: bool = False) -> dict:
-    """Compare the installed version with the latest release. Network only when needed."""
+          cache_path: Path | None = None, include_changes: bool = False,
+          platforms: list[str] | tuple[str, ...] = ()) -> dict:
+    """Compare the installed version with the latest release. Network only when needed.
+
+    ``platforms`` (from ``configured_platforms``) orders and flags the change list. A cached
+    list made for other platforms is re-read once and the cache rewritten with its original
+    ``checked_at``, so a changed accounts file costs at most one more GET.
+    """
     get = get or http_get
     now = time.time() if now is None else now
     path = cache_path or cache_dir() / "update-check.json"
+    platforms = sorted({p for p in platforms if p in PLATFORMS})
     cached = _read_cache(path) if use_cache else None
+    refreshed = False
     if cached and 0 <= now - cached["checked_at"] < CHECK_TTL_SECONDS:
         info = {"tag": cached.get("tag", ""), "version": cached.get("version", ""),
                 "release_url": cached.get("release_url", "")}
         parse_version(info["tag"])
         changes = _sanitize_changes(cached.get("changes"))
+        if changes is not None and cached.get("changes_for_platforms", []) != platforms:
+            changes, refreshed = None, True  # flags were made for another accounts file
         source = "cache"
     else:
         info = fetch_latest(get)
@@ -222,12 +298,15 @@ def check(*, get=None, use_cache: bool = False, now: float | None = None,
         source = "github"
     newer = parse_version(info["version"]) > parse_version(__version__)
     if include_changes and newer and changes is None:
-        changes = fetch_changes(info["tag"], __version__, info["version"], get)
+        changes = fetch_changes(info["tag"], __version__, info["version"], get, platforms)
     if source == "github":
-        _write_cache(path, info, now, changes)
+        _write_cache(path, info, now, changes, platforms)
+    elif refreshed and changes is not None and cached:
+        _write_cache(path, info, cached["checked_at"], changes, platforms)
     return {"installed": __version__, "latest": info["version"], "tag": info["tag"],
             "update_available": newer, "release_url": info["release_url"], "source": source,
-            "install_kind": install_kind(), "changes": changes if newer else None, "_assets": info}
+            "install_kind": install_kind(), "changes": changes if newer else None,
+            "for_you_platforms": platforms, "_assets": info}
 
 
 def _bundle_version(text: str) -> str:
@@ -331,6 +410,13 @@ def changes_lines(changes: list[dict] | None) -> list[str]:
         lines.append(f"  v{entry['version']}" + (f" ({entry['date']})" if entry.get("date") else "")
                      + (f": {shown}" if shown else ""))
     return lines
+
+
+def for_you_note(platforms: list[str]) -> str:
+    """One fixed line naming the configured platform ids the flags were matched against."""
+    ids = ", ".join(p for p in platforms if p in PLATFORMS)
+    return (f"  Security entries are listed first; '(for you: ...)' marks entries that name a platform in "
+            f"your accounts config ({ids}).")
 
 
 def notice_line(result: dict) -> str:

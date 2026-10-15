@@ -61,7 +61,7 @@ Unknown top-level fields and secret-like keys (`token`, `password`, `secret`, `c
 | `repo_stars_utm` | `none` | stars attributed by UTM (`attribution-report`) |
 | `docs_visits` | `none` | UTM-attributed docs sessions (`attribution-report`) |
 
-`likes`, `views`, `impressions`, `reposts` and `followers` are **guardrail-only**. A plan that uses one of them as the primary metric is rejected. Signals that are not native snapshot fields produce a warning: collect them through first-party UTM attribution, not `experiment-evaluate`.
+`likes`, `views`, `impressions`, `reposts` and `followers` are **guardrail-only**. A plan that uses one of them as the primary metric is rejected. Signals that are not native snapshot fields produce a warning. `docs_visits` and `repo_stars_utm` are read from a saved `attribution-report --json` file with `experiment-readout --attribution` (below); `profile_visits` has no reader yet.
 
 ## Variant rules
 
@@ -137,7 +137,8 @@ The post map is a small file that the owner writes. It records which published p
 - the map's `experiment_id` differs from the plan's, a pair uses an arm id the plan does not have, or a post is reused;
 - the map lists more pairs than `stopping_rule.max_pairs`;
 - a control or treatment post is unknown, is not `published` with a send timestamp, or is on a different account or platform than the cohort;
-- the primary signal is not a native snapshot field (`profile_visits`, `repo_stars_utm`, `docs_visits`). Use `attribution-report` for those.
+- the primary signal is not a native snapshot field and no reader applies: `profile_visits` always, and `docs_visits` or `repo_stars_utm` without `--attribution`;
+- `--attribution` is given but the primary signal is not `docs_visits` or `repo_stars_utm`.
 
 The database is only read. The converter copies these values unchanged from the registered plan:
 
@@ -157,6 +158,24 @@ The readout runs `evaluate_experiment` and then `classify_result`, and prints:
 - a fixed non-causal disclaimer.
 
 It warns about three things: posts sent outside the preregistered window, one arm always sent first (send order fully confounded with the arm), and a declared `alternating` design whose send order is not balanced.
+
+### Website and repository outcomes (`--attribution`, issue #16)
+
+`docs_visits` and `repo_stars_utm` are not platform counters, so no snapshot holds them. Save the attribution join first, then pass it to the readout:
+
+```bash
+reachweaver attribution-report --analytics private/analytics.csv --json > private/attribution.json
+reachweaver experiment-readout --prereg private/docs-test.prereg.json --posts private/docs-test.posts.json \
+  --attribution private/attribution.json [--json]
+```
+
+- **What is read.** Only `attributed.posts` (rows whose `utm_content` matched a published post id, with the right `utm_source`, `utm_medium=social` and campaign) and `inputs.analytics_date_range`. `docs_visits` is the post's attributed `sessions`; `repo_stars_utm` is its attributed `conversions`, so use it only when the analytics export's conversion column counts repository stars (or the star-intent goal you preregistered). Campaign-level and referrer-only rows cannot be credited to a post and are ignored.
+- **Unknown stays unknown.** A post with no attributed row, or with blank sessions/conversions, is unknown, and its pair is skipped with a reason such as `no_attributed_rows:treatment` or `sessions_unknown:control`. It is never counted as 0: no tagged row can also mean an untagged link or a gap in the export.
+- **Observation time.** Attributed counts cover the analytics export window, not a matched post age. A post is used only if it was sent on or after the window's first date and the window runs at least `metric_age_hours` (rounded up to days) past its send date; otherwise it is skipped (`sent_before_analytics_window`, `analytics_window_shorter_than_post_age`). Posts sent earlier still had longer to collect visits, which the readout's warnings say. Dates are compared by calendar day, and the analytics tool's own day boundaries may differ from UTC.
+- **The rest is unchanged.** The denominator is `none` (each pair compares two counts). The guardrail is still the native snapshot nearest the preregistered age, so the plan needs a guardrail on denominator `none` (for example `saves`). The pooled lift, minimum pairs and the strict sign-test gate are the same code as `experiment-evaluate` (`experiments.pooled_readout`), and the readout is still associational unless the plan declared `assignment: randomized`. `--attribution` with any other primary metric is refused.
+- **Collaboration outcomes.** Issues, pull requests, new contributors and the star total are repository-level series (GitHub traffic and insights). They cannot be credited to one post, so no readout reads them; compare them over time as repository totals only.
+
+`baseline-eval --attribution FILE --outcome docs_visits|repo_stars_utm` reads the same file to compare your own slots or campaigns with the generic baseline on attributed counts ([TIMING-EVALUATION.md](TIMING-EVALUATION.md#evaluate-against-the-non-personalized-baseline-baseline-eval)).
 
 ## Design labels: randomized vs associational
 

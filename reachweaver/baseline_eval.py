@@ -35,6 +35,7 @@ from statistics import median
 from typing import Any, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from .attribution import ATTRIBUTION_OUTCOMES, attributed_outcome  # parsing only; no network
 from .calendar import generic_baseline_slots
 from .growth import MIN_RECOMMENDED_PAIRS, is_windowed_snapshot
 from .growth_readout import describe_design
@@ -68,6 +69,14 @@ WARNINGS = (
     "Choose --since/--until before looking at results; choosing the period after seeing the data inflates false "
     "positives.",
     "Read-only: this command cannot approve, schedule or publish anything and does not change calendar-plan.",
+)
+ATTRIBUTION_WARNINGS = (
+    "Outcome is the attributed count per post from a saved attribution-report (a UTM join over the analytics "
+    "export window), not a matched-age snapshot rate: posts sent earlier in the window had longer to collect "
+    "visits. Only posts with at least --age-hours inside the window are used.",
+    "A post without an exact UTM row is unknown and excluded, never 0: an untagged link and a real absence look "
+    "the same. Repository-level signals (stars, issues, pull requests, new contributors) cannot be credited to "
+    "a post and are not read.",
 )
 DISCLAIMER = ("Associational evaluation of one account/platform cohort. Not causal, not proof of a best time, "
               "not a promise of future reach.")
@@ -308,22 +317,35 @@ def evaluate_against_baseline(
     metric: str, denominator: str, since: str, until: str, slots: list[str] | None = None,
     campaign_arms: list[str] | None = None, readouts: list[Any] | None = None, age_hours: int = 168,
     tolerance_hours: int = 24, slot_tolerance_minutes: int = 60, min_posts: int = 5, resamples: int = 2000,
-    confidence: float = 0.95, seed: int = 16,
+    confidence: float = 0.95, seed: int = 16, attribution: dict | None = None, outcome: str | None = None,
 ) -> dict[str, Any]:
     """Compare personalized slots / variant campaigns / readouts against the generic baseline.
 
     Only published posts of ONE account and platform whose audience-local send date falls in
     ``since..until`` (inclusive) are used. Reads the database; never writes it.
+
+    With ``attribution`` (``attribution.load_attribution_outcomes``) and ``outcome``
+    (``docs_visits`` or ``repo_stars_utm``, issue #16 R4) each post's value is its attributed
+    count instead of a snapshot rate; ``source``, ``metric`` and ``denominator`` are then not
+    used and must be None. An unknown count excludes the post; it is never 0.
     """
     if not isinstance(account_id, str) or not account_id.strip():
         raise ValidationError("Explicit account ID required")
     if platform not in PLATFORMS:
         raise ValidationError("Unknown platform")
     zone = _zone(audience_timezone)
-    if not isinstance(source, str) or not 1 <= len(source.strip()) <= 100:
-        raise ValidationError("Specify the exact native metric snapshot --source; sources are never pooled")
-    if metric not in METRIC_FIELDS or denominator not in ("views", "impressions") or metric == denominator:
-        raise ValidationError("Choose a supported metric and a distinct views/impressions denominator")
+    if attribution is not None:
+        if outcome not in ATTRIBUTION_OUTCOMES:
+            raise ValidationError(f"--attribution needs --outcome {' or '.join(ATTRIBUTION_OUTCOMES)}")
+        if source is not None or metric is not None or denominator is not None:
+            raise ValidationError("--attribution replaces --source/--metric/--denominator; give one or the other")
+    elif outcome is not None:
+        raise ValidationError("--outcome needs --attribution FILE (saved attribution-report --json output)")
+    else:
+        if not isinstance(source, str) or not 1 <= len(source.strip()) <= 100:
+            raise ValidationError("Specify the exact native metric snapshot --source; sources are never pooled")
+        if metric not in METRIC_FIELDS or denominator not in ("views", "impressions") or metric == denominator:
+            raise ValidationError("Choose a supported metric and a distinct views/impressions denominator")
     first, last = _day(since, "--since"), _day(until, "--until")
     if last < first:
         raise ValidationError("--until must not be earlier than --since")
@@ -414,14 +436,23 @@ def evaluate_against_baseline(
             unassigned += 1
             continue
         assigned[group] += 1
-        rate = _matched_rate(con, row["id"], sent, source=source, metric=metric, denominator=denominator,
-                             age_hours=age_hours, tolerance_hours=tolerance_hours, skipped=excluded)
+        if attribution is not None:
+            count, why = attributed_outcome(attribution, row, cast(str, outcome), age_hours=age_hours)
+            if why:
+                excluded[f"{why}:{group}"] += 1
+                continue
+            groups[group].append(float(cast(int, count)))
+            continue
+        rate = _matched_rate(con, row["id"], sent, source=cast(str, source), metric=cast(str, metric),
+                             denominator=cast(str, denominator), age_hours=age_hours,
+                             tolerance_hours=tolerance_hours, skipped=excluded)
         if rate is None:
             excluded[f"no_matched_snapshot:{group}"] += 1
             continue
         groups[group].append(rate)
 
     baseline_values = groups["baseline"]
+    value_kind = "an attributed count" if attribution is not None else "a matched-age rate"
     baseline_block = None
     if baseline_spec is not None:
         baseline_block = {
@@ -446,7 +477,7 @@ def evaluate_against_baseline(
             "direction": None, "explanations": []}
         if len(values) < min_posts or len(baseline_values) < min_posts:
             item["explanations"].append(
-                f"{len(values)} arm and {len(baseline_values)} baseline posts with a matched-age rate; at least "
+                f"{len(values)} arm and {len(baseline_values)} baseline posts with {value_kind}; at least "
                 f"{min_posts} each are required. No estimate is reported (unknown, not zero)")
         else:
             boot = bootstrap_independent(values, baseline_values, resamples=resamples, confidence=confidence,
@@ -471,16 +502,29 @@ def evaluate_against_baseline(
     for item in everything:
         _decide(item, alpha=alpha, family_size=len(tested))
 
+    if attribution is not None:
+        window = attribution["analytics_date_range"]
+        measure: dict[str, Any] = {
+            "metric": outcome, "denominator": "none", "primary_source": "attribution_report",
+            "attribution_field": ATTRIBUTION_OUTCOMES[cast(str, outcome)],
+            "analytics_date_range": [d.isoformat() for d in window] if window else None,
+            "post_age_hours": age_hours, "age_tolerance_hours": None,
+            "statistic": "median attributed count per post (arm minus baseline)"}
+        source_label = "attribution-report"
+    else:
+        measure = {"metric": metric, "denominator": denominator, "post_age_hours": age_hours,
+                   "age_tolerance_hours": tolerance_hours, "statistic": "median rate (arm minus baseline)"}
+        source_label = cast(str, source)
     explore_posts = sum(assigned[a["id"]] for a in arms if a["role"] == "explore")
     exploit_posts = sum(assigned[a["id"]] for a in arms if a["role"] == "exploit")
     personalized = explore_posts + exploit_posts
     return {
         "kind": KIND, "schema_version": 1,
-        "cohort": {"account_id": account_id, "platform": platform, "audience_timezone": zone.key, "source": source},
+        "cohort": {"account_id": account_id, "platform": platform, "audience_timezone": zone.key,
+                   "source": source_label},
         "period": {"since": first.isoformat(), "until": last.isoformat(),
                    "basis": "audience-local date of send_started_at, inclusive"},
-        "measure": {"metric": metric, "denominator": denominator, "post_age_hours": age_hours,
-                    "age_tolerance_hours": tolerance_hours, "statistic": "median rate (arm minus baseline)"},
+        "measure": measure,
         "baseline": baseline_block,
         "posts": {"published_in_period": in_period, "published_outside_period": outside,
                   "unassigned_in_period": unassigned, "assigned": dict(sorted(assigned.items())),
@@ -503,7 +547,7 @@ def evaluate_against_baseline(
                             "note": "Roles are the operator's declaration (default explore). Preregistered "
                                     "experiments are exploration."},
         "status": "evaluated" if tested else "insufficient_data",
-        "warnings": list(WARNINGS),
+        "warnings": list(WARNINGS) + (list(ATTRIBUTION_WARNINGS) if attribution is not None else []),
         "disclaimer": DISCLAIMER,
     }
 

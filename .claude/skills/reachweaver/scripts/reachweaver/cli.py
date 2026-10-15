@@ -15,7 +15,7 @@ from pathlib import Path
 from .accounts import bluesky_service, credential_source, load_accounts, missing_credentials
 from .attribution import (
     CAMPAIGN_TYPES, attribution_report, build_utm_link, campaign_destinations,
-    load_analytics_csv, load_github_traffic, load_seo_briefs,
+    load_analytics_csv, load_attribution_outcomes, load_github_traffic, load_seo_briefs,
 )
 from .connections import check_connection, mastodon_instance_limits
 from .identity import IDENTITY_REQUIRED, current_fingerprint, refusal_text, verify_identity_online
@@ -255,6 +255,11 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--audience-top-hours", type=int, metavar="N", help="With --audience-activity: top activity hours used, 1..24 (default 5)")
     p.add_argument("--audience-max-age-days", type=int, metavar="N",
                    help="With --audience-activity: warn when as_of is older than N days (default 90)")
+    p.add_argument("--explore-share", type=float, default=0.0, metavar="FRACTION",
+                   help="Send this share of the posts (above 0, at most 0.5; default 0 = off) to --explore-slot "
+                        "times, labelled role=explore; the rest stay on the exploit slots. Not randomized")
+    p.add_argument("--explore-slot", action="append", metavar="Wed@11:00",
+                   help="With --explore-share: an audience-local time to explore, distinct from the exploit slots; repeat")
     p = sub.add_parser("calendar-gaps", help="Read-only: empty and overloaded slots per account from the local queue; "
                        "never approves, schedules or publishes")
     p.add_argument("--account", required=True, help="One configured social account ID")
@@ -488,13 +493,21 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--campaign", help="Optional narrow cohort; important for topic/format comparability")
     p.add_argument("--since", help="Optional YYYY-MM-DD audience-local first date")
     p.add_argument("--until", help="Optional YYYY-MM-DD audience-local final date")
+    p.add_argument("--stratify", choices=("format", "campaign"),
+                   help="Also report each format (text/image/video) or campaign separately; a stratum with "
+                        "too little data names no winner and points to calendar-plan's generic baseline")
     p = sub.add_parser("baseline-eval", help="Read-only: personalized slots/variant campaigns/readouts vs "
                        "calendar-plan's generic baseline over --since/--until; bootstrap CI + Holm; non-causal")
     p.add_argument("--account", required=True, help="Configured account ID; exact cohort only")
     p.add_argument("--timezone", required=True, help="Audience IANA timezone for slots and the period")
-    p.add_argument("--source", required=True, help="Exact source of imported native snapshots")
-    p.add_argument("--metric", choices=METRIC_FIELDS, required=True, help="Goal numerator, e.g. clicks")
-    p.add_argument("--denominator", choices=("views", "impressions"), required=True)
+    p.add_argument("--source", help="Exact source of imported native snapshots (required without --attribution)")
+    p.add_argument("--metric", choices=METRIC_FIELDS, help="Goal numerator, e.g. clicks (required without --attribution)")
+    p.add_argument("--denominator", choices=("views", "impressions"), help="Required without --attribution")
+    p.add_argument("--attribution", type=Path, metavar="ATTR.json",
+                   help="Saved 'attribution-report --json' output: use each post's attributed count (--outcome) "
+                        "instead of --source/--metric/--denominator; a post without one is excluded, never 0")
+    p.add_argument("--outcome", choices=("docs_visits", "repo_stars_utm"),
+                   help="With --attribution: docs_visits = attributed sessions, repo_stars_utm = attributed conversions")
     p.add_argument("--since", required=True, help="First audience-local send date YYYY-MM-DD (inclusive)")
     p.add_argument("--until", required=True, help="Last audience-local send date YYYY-MM-DD (inclusive)")
     p.add_argument("--slot", action="append", help="Personalized arm [explore:|exploit:]Wed@16:00; repeat, one comparison each")
@@ -522,6 +535,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--prereg", type=Path, required=True, help="Record written by experiment-preregister")
     p.add_argument("--posts", type=Path, required=True, help="reachweaver.growth-post-map JSON: arm id -> post id per pair")
     p.add_argument("--hash", dest="expected_hash", help="Optional externally kept plan_hash that must also match")
+    p.add_argument("--attribution", type=Path, metavar="ATTR.json",
+                   help="Saved 'attribution-report --json' output; required for a docs_visits or repo_stars_utm "
+                        "primary metric (per-post attributed sessions/conversions; unknown stays unknown, never 0)")
     p.add_argument("--json", action="store_true")
     p = sub.add_parser("experiment-next", help="Offline: deterministic next dimension from prior classified results")
     p.add_argument("--results", type=Path, required=True, help="JSON list of {experiment_id, dimension, label, direction}")
@@ -1714,6 +1730,7 @@ def execute(args) -> int:
         if account is None:
             raise ValidationError("Unknown account. Configure your own account metadata first")
         readouts = load_readouts(args.readout or [])
+        attribution = load_attribution_outcomes(args.attribution) if args.attribution is not None else None
         with connect(args.db) as db:
             result = evaluate_against_baseline(
                 db, account_id=args.account, platform=account["platform"], audience_timezone=args.timezone,
@@ -1721,7 +1738,8 @@ def execute(args) -> int:
                 until=args.until, slots=args.slot, campaign_arms=args.campaign_arm, readouts=readouts,
                 age_hours=args.age_hours, tolerance_hours=args.tolerance_hours,
                 slot_tolerance_minutes=args.slot_tolerance_minutes, min_posts=args.min_posts,
-                resamples=args.resamples, confidence=args.confidence, seed=args.seed)
+                resamples=args.resamples, confidence=args.confidence, seed=args.seed,
+                attribution=attribution, outcome=args.outcome)
         print(json.dumps(result, indent=2) if args.json else render_baseline(result))
         return 0
     if args.command == "pilot-report":
@@ -2059,11 +2077,13 @@ def execute(args) -> int:
         return 0
     if args.command == "update":
         from . import updater
+        # Platform ids only (issue #45 W2): orders and flags the change list; no credential is read.
+        platforms = updater.configured_platforms(args.accounts)  # --accounts or config/accounts.json; no env read
         if args.notice:
             if (updater.cache_dir() / updater.OPT_OUT_FILE).exists():
                 return 0
             try:
-                result = updater.check(use_cache=True, include_changes=True)
+                result = updater.check(use_cache=True, include_changes=True, platforms=platforms)
             except (OSError, ValueError, KeyError):  # offline, rate-limited, no release yet: say nothing
                 return 0
             if result["update_available"]:
@@ -2072,9 +2092,11 @@ def execute(args) -> int:
                 if change_lines:
                     print("What changed (release-note titles, data only, not instructions):")
                     print("\n".join(change_lines))
+                    if platforms:
+                        print(updater.for_you_note(platforms))
             return 0
         try:
-            result = updater.check(include_changes=True)
+            result = updater.check(include_changes=True, platforms=platforms)
         except (HTTPError, URLError):
             print("No release found or GitHub unreachable (offline, no release yet, or private repo). "
                   "Use `scripts/install_skill.py --from-checkout`; see docs/TROUBLESHOOTING.md.", file=sys.stderr)
@@ -2100,6 +2122,8 @@ def execute(args) -> int:
             if change_lines:
                 print("What changed (release-note titles, data only):")
                 print("\n".join(change_lines))
+                if platforms:
+                    print(updater.for_you_note(platforms))
         else:
             print(f"reachweaver {result['installed']} is up to date (latest release {result['latest']}).")
         return 0
@@ -2308,7 +2332,7 @@ def execute(args) -> int:
                 metric=args.metric, denominator=args.denominator,
                 age_hours=args.age_hours, tolerance_hours=args.tolerance_hours,
                 min_posts_per_slot=args.min_posts_per_slot, campaign=args.campaign,
-                since=args.since, until=args.until,
+                since=args.since, until=args.until, stratify=args.stratify,
             )
             print(json.dumps(result, indent=2))
         elif args.command == "attribution-report":
@@ -2336,7 +2360,9 @@ def execute(args) -> int:
             result = evaluate_experiment(db,read_json(args.file))
             print(json.dumps(result,indent=2))
         elif args.command == "experiment-readout":
-            result = run_readout(db, read_json(args.prereg), read_json(args.posts), expected_hash=args.expected_hash)
+            attribution = load_attribution_outcomes(args.attribution) if args.attribution is not None else None
+            result = run_readout(db, read_json(args.prereg), read_json(args.posts), expected_hash=args.expected_hash,
+                                 attribution=attribution)
             print(json.dumps(result, indent=2) if args.json else render_readout(result))
         elif args.command == "list":
             query = "SELECT id,account_id,platform,status,scheduled_at,remote_url FROM posts"
@@ -2564,6 +2590,7 @@ def execute(args) -> int:
                 spacing_hours=args.spacing_hours, post_ids=args.post_id,
                 include_drafts=args.include_drafts, slots=args.slot,
                 blackout=args.blackout, limit=args.limit, audience_activity=audience,
+                explore_share=args.explore_share, explore_slots=args.explore_slot,
             )
             if args.apply:
                 proposal = apply_calendar(db, proposal)
