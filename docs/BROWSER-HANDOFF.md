@@ -22,6 +22,8 @@ python3 -m reachweaver browser-handoff \
   --out state/xiaohongshu-review
 ```
 
+To generate several separate review packages at once, run `python3 -m reachweaver browser-batch --file examples/browser-batch.example.json --out state/regional-batch`. The batch validates all 1–25 items before writing, rejects human-only destinations, and creates one independent folder per item. Batch preparation is offline and not permission for bulk social posting.
+
 The new private directory (0700, files 0600 on POSIX) contains `handoff.json`, `content.txt`, `BROWSER-TASK.md`, `CHECKLIST.md`, and optional `link.txt`. The content is copied **exactly** and SHA-256 identified. The output refuses an existing directory. A proposed time has an explicit offset but **is not a remotely scheduled post**. Human-only channels, mismatched platform names, private/unsafe links, secret-looking fields, placeholders and unsafe Unicode controls are blocked. Specialized five-platform text format checks are reused where available.
 
 ## Human login and Claude in Chrome

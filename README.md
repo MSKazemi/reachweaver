@@ -29,6 +29,8 @@ python3 -m reachweaver delivery-options --platform xiaohongshu --json
 python3 -m reachweaver browser-handoff --platform xiaohongshu --variant examples/browser-variant.xiaohongshu.json --account @my-account --out state/xiaohongshu-review
 ```
 
+You can prepare multiple destinations in one offline batch with `browser-batch`: `python3 -m reachweaver browser-batch --file examples/browser-batch.example.json --out state/regional-batch`. Each destination gets its own owner-review package; no remote actions are performed.
+
 The second command creates private files holding the exact text, a SHA-256 checksum, a browser-assistant prompt and an owner checklist. You personally log into your Chrome browser account, complete MFA, verify the destination and make final privacy/publish/schedule decisions. Claude in Chrome may help with allowed navigation and draft form filling; it must stop before irreversible submission. The export is never a live publication, native queue or login, and never handles cookies or credentials. [Browser-assisted guide](docs/BROWSER-HANDOFF.md).
 
 ## 5-minute setup
