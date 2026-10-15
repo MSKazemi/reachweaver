@@ -140,6 +140,7 @@ _CONFIG_REASONS = (BINDING_UNAVAILABLE, APPROVAL_KEY_UNAVAILABLE, "approval_ledg
 # integration (2026-10-09) because nothing media-related had been released or approved.
 MEDIA_FIELDS = ("media_json",)
 APPROVAL_BINDING_TAG_MEDIA = "reachweaver.storage.approval/media-1"
+APPROVAL_BINDING_TAG_MEDIA_RIGHTS = "reachweaver.storage.approval/media-2"  # #48: a record that carries rights
 BINDING_MEDIA_CHANGED = "approval_media_changed_reapproval_required"
 VIDEO_FIELDS = ("video_json",)
 APPROVAL_BINDING_TAG_VIDEO = "reachweaver.storage.approval/video-1"
@@ -496,10 +497,13 @@ def _approval_payload_base(row, *, scheduled_at: str | None = None, use_row_sche
     if target is not None:
         payload["reply_media_invalid"] = True  # never approvable: a reply is text-only (#17)
     if raw not in (None, ""):
-        from .attachments import bound_view
+        from .attachments import bound_view, has_rights
         payload["binding"] = APPROVAL_BINDING_TAG_MEDIA
         try:
-            payload["media"] = bound_view(post_media(row))
+            decoded = post_media(row)
+            if has_rights(decoded):
+                payload["binding"] = APPROVAL_BINDING_TAG_MEDIA_RIGHTS  # #48: images without rights keep media-1
+            payload["media"] = bound_view(decoded)
         except ValidationError:
             payload["media_invalid_sha256"] = hashlib.sha256(str(raw).encode("utf-8")).hexdigest()
     if raw_video not in (None, ""):

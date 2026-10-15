@@ -26,11 +26,13 @@ class BindingTagTests(unittest.TestCase):
     def test_tag_values_are_pinned(self):
         self.assertEqual(storage.APPROVAL_BINDING_TAG, "reachweaver.storage.approval/1")
         self.assertEqual(storage.APPROVAL_BINDING_TAG_MEDIA, "reachweaver.storage.approval/media-1")
+        self.assertEqual(storage.APPROVAL_BINDING_TAG_MEDIA_RIGHTS, "reachweaver.storage.approval/media-2")
         self.assertEqual(storage.APPROVAL_BINDING_TAG_VIDEO, "reachweaver.storage.approval/video-1")
         self.assertEqual(storage.APPROVAL_MAC_TAG, "reachweaver.storage.approval-mac/1")
 
     def test_tags_are_pairwise_distinct(self):
-        tags = [storage.APPROVAL_BINDING_TAG, storage.APPROVAL_BINDING_TAG_MEDIA, storage.APPROVAL_BINDING_TAG_VIDEO,
+        tags = [storage.APPROVAL_BINDING_TAG, storage.APPROVAL_BINDING_TAG_MEDIA, storage.APPROVAL_BINDING_TAG_MEDIA_RIGHTS,
+                storage.APPROVAL_BINDING_TAG_VIDEO,
                 storage.APPROVAL_MAC_TAG]
         self.assertEqual(len(set(tags)), len(tags), tags)
 

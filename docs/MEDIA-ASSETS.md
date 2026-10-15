@@ -212,6 +212,22 @@ Each value must be a fraction from 0 up to, but not including, 0.5. Only video t
 
 Whichever tool you use, record it in the manifest: `provenance.created_by: "tool"` and `provenance.tool: "<name and version>"`. `media-check` then asks for disclosure and likeness review.
 
+## Rights on the attached image (issue #48, draft for owner review)
+
+`media-check` validates the rights of a manifest, but until now an image attached to a draft carried none of it. `media-attach` now accepts an **optional rights record** that is stored with the image, shown by `show` and the confirmation display, and bound by the approval hash:
+
+```bash
+reachweaver media-attach POST_ID --file photo.png --alt "A cat on a sofa" \
+  --rights-confirmed --license CC-BY-4.0 --created-by third_party \
+  --attribution "Photo: A. Photographer" --rights-source-url https://example.org/photo \
+  --alt-translation it="Un gatto su un divano" --alt-translation fa="یک گربه روی مبل"
+```
+
+- **Rules (the same as the manifest's):** `--rights-confirmed` is required with any rights option (you hold the rights, consent and likeness permission); `--license` is an SPDX id, `owner` or `licensed`; `--created-by` is `owner`, `tool` (then `--tool` names it, and a disclosure note is printed) or `third_party` (then a real license and `--attribution` are required, and a source URL is advised); `CC-BY*` needs attribution. Incomplete input refuses the attachment and changes nothing.
+- **Translations** are your own alt text per BCP-47 language, validated like alt text. They are stored and bound so you can review and edit them with the post, but **never sent**: a platform takes one description, the `--alt` one.
+- **Binding:** an image with a rights record is bound under `approval/media-2` (the rights are inside the digest, so changing the license, attribution, provenance or a translation after approval invalidates it). An image without one keeps `approval/media-1` byte for byte, so every existing approval still verifies.
+- **Not published:** rights text is never part of what a send publishes. Nothing is fetched or checked against a remote source; the record is the owner's statement, not proof.
+
 ## Mock upload adapter: `reachweaver/media_upload.py` (issue #18)
 
 `MockMediaUploadAdapter(platform).preflight(manifest, base_dir)` (or `.preflight_file(path)`) simulates what an upload adapter would reject, for **one** platform, with no network, no credential, no database access and no upload. It reuses the `media-check` validator, keeps only assets whose `targets` include the platform (subtitle sidecars always travel with them), drops other platforms' findings, and turns each message into `{code, asset_id, message, action}`. The result carries `simulated: true`, `uploaded: false` and `accepted` (true only when there are no errors). `accepted` is not consent to publish; approval, dry-run and the send gate are untouched. It is a library API with no CLI subcommand.

@@ -209,6 +209,11 @@ def _show_attachments(post) -> None:
     for index, item in enumerate(media, 1):
         print(f"image {index}: {item['mime']} sha256 {item['sha256'][:12]} alt {len(item['alt'])} chars"
               + (f" url {item['url']}" if item["source"] == "url" else ""))
+        rights = item.get("rights")
+        if rights:  # #48: what the digest also binds
+            print(f"  rights: license {rights['license']}, made by {rights['provenance']['created_by']}"
+                  + (f", attribution {rights['attribution']!r}" if rights.get("attribution") else "")
+                  + (f", {len(rights['alt_translations'])} alt translation(s)" if rights.get("alt_translations") else ""))
     if video is not None:
         print(f"video: {video['platform']} {video_mode(video)} {video['mime']} sha256 {video['sha256'][:12]} "
               f"{video['bytes']} bytes")

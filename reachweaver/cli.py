@@ -42,7 +42,7 @@ from .growth import next_hypotheses, preregister, verify_preregistration, write_
 from .growth_readout import load_results, render_next, render_readout, render_simulation, run_readout, simulate_readout
 from .optout import describe_mentions, load_optout, optout_mentions, publish_block_reason
 from .privacy import apply_purge, export_data, load_policy, plan_purge, privacy_status, write_private_file
-from .media import media_check
+from .media import CREATORS, media_check
 from .metrics_fetch import DEFAULT_MAX_POSTS, MAX_POSTS_LIMIT, fetch_metrics
 from .preview import build_preview, render_markdown as render_preview_markdown, render_text as render_preview_text
 from .profile_audit import load_snapshot as load_profile_snapshot, audit_profiles, audit_posts, render_summary as render_profile_audit
@@ -199,6 +199,17 @@ def make_parser() -> argparse.ArgumentParser:
     alt.add_argument("--alt-file", type=Path, help="Read the alt text from this UTF-8 file")
     p.add_argument("--focus", help="Mastodon only: optional focal point x,y, each -1.0..1.0 (0,0 = centre)")
     p.add_argument("--online", action="store_true", help="Required with --url: allow one read-only GET of the image URL")
+    p.add_argument("--rights-confirmed", action="store_true",
+                   help="#48: you confirm you hold the rights, consent and likeness permission for this image; "
+                        "required with any other rights option")
+    p.add_argument("--license", dest="license_id", metavar="ID",
+                   help="#48: SPDX id (for example CC-BY-4.0), 'owner' or 'licensed'; stored with the image and bound at approval")
+    p.add_argument("--created-by", choices=sorted(CREATORS), help="#48: who made the image (provenance)")
+    p.add_argument("--tool", help="#48: with --created-by tool: the generation or editing tool")
+    p.add_argument("--attribution", help="#48: attribution text (required for third_party and CC-BY images)")
+    p.add_argument("--rights-source-url", metavar="URL", help="#48: public HTTPS page the image came from (provenance)")
+    p.add_argument("--alt-translation", action="append", default=[], metavar="LANG=TEXT",
+                   help="#48: your own alt text in another language (BCP-47 tag), stored and bound but not sent; repeatable")
     p.add_argument("--optout", type=Path, help=optout_help + "; a mention in the alt text refuses the attachment")
     p.add_argument("--sources", type=Path, metavar="CONFIG",
                    help="sources-scan config (#9): refuse when the alt text or the image URL links into any visibility:private repository of that config (private repository URLs are never public links)")
@@ -763,6 +774,9 @@ def _media_view(post) -> dict | None:
     else:
         view["bound_by_approval"] = "each attachment's sha256, mime, alt, focus and url, in this order"
         view["sent_as"] = "image_url (Meta downloads it from your host), caption, alt_text"
+    if any(item.get("rights") for item in attachments):  # #48
+        view["bound_by_approval"] += ", plus each rights record (license, attribution, provenance, alt translations; approval/media-2)"
+        view["rights_not_sent"] = "rights and alt translations are stored and bound but never published"
     return view
 
 
@@ -2163,10 +2177,29 @@ def execute(args) -> int:
                                           "read-only to validate it and record its SHA-256. Nothing is uploaded or posted")
                 from .remote_media import build_remote_attachment
                 attachment = build_remote_attachment(args.url, alt_text)
-            hits = optout_mentions(attachment["alt"], load_optout(args.optout), post["platform"])
-            if hits:
-                raise ValidationError(f"Attachment refused, nothing changed: {describe_mentions(hits)}")
-            private = _private_link_refusal(args, [attachment["alt"]], [attachment.get("url")])  # #9
+            rights_note: list[str] = []
+            if any((args.license_id, args.created_by, args.rights_confirmed, args.tool, args.attribution,
+                    args.rights_source_url, args.alt_translation)):  # #48: an optional rights record
+                from .attachments import build_rights
+                translations: dict[str, str] = {}
+                for item in args.alt_translation:
+                    lang, sep, text = item.partition("=")
+                    if not sep or lang in translations:
+                        raise ValidationError("--alt-translation needs LANG=TEXT, once per language")
+                    translations[lang] = text
+                rights, rights_note = build_rights(
+                    license_id=args.license_id, created_by=args.created_by, rights_confirmed=True if args.rights_confirmed else None,
+                    attribution=args.attribution, tool=args.tool, source_url=args.rights_source_url,
+                    alt_translations=translations)
+                attachment["rights"] = rights
+            texts = [attachment["alt"], *(attachment.get("rights", {}).get("alt_translations", {}).values()),
+                     *([attachment["rights"]["attribution"]] if attachment.get("rights", {}).get("attribution") else [])]
+            for text in texts:
+                hits = optout_mentions(text, load_optout(args.optout), post["platform"])
+                if hits:
+                    raise ValidationError(f"Attachment refused, nothing changed: {describe_mentions(hits)}")
+            private = _private_link_refusal(args, texts, [attachment.get("url"),
+                                                          attachment.get("rights", {}).get("provenance", {}).get("source_url")])  # #9
             if private:
                 raise ValidationError(f"Attachment refused, nothing changed: {private}")
             media = set_post_media(db, args.post_id, [*post_media(post), attachment], account=account)
@@ -2177,6 +2210,11 @@ def execute(args) -> int:
                   + (f"; url {attachment['url']}. Not uploaded; review with 'show', then approve binds the bytes and URL. "
                      "Keep the image at that URL unchanged until it is published" if source == "url"
                      else ". Not uploaded; review with 'show', then approve binds it"))
+            if attachment.get("rights"):
+                print(f"Rights recorded (#48): license {attachment['rights']['license']}, made by "
+                      f"{attachment['rights']['provenance']['created_by']}; bound at approval (approval/media-2)")
+                for note in rights_note:
+                    print(f"NOTE: {note}")
             if source == "local" and gps_note:
                 print(f"WARNING: {gps_note}")
             if account is None and source == "local":

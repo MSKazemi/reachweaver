@@ -12,7 +12,8 @@ record names its ``source``:
   (``remote_media`` validates the URL and downloads it read-only to record the hash).
 
 The approval hash covers, per attachment and in order, ``sha256, mime, alt, focus`` plus
-``url`` for a hosted image (the URL is what is sent). The local path is not bound (it is never
+``url`` for a hosted image (the URL is what is sent), and, when the owner recorded it (#48), the
+``rights`` record (license, attribution, provenance, alt translations) under ``approval/media-2``. The local path is not bound (it is never
 sent; the bytes are). Which source a platform accepts is fixed in ``MEDIA_PLATFORMS``; the
 platform-specific limits (count, size, format, alt length) stay with each platform. Nothing in
 this module touches the network.
@@ -34,7 +35,8 @@ import stat
 from pathlib import Path
 from typing import Any
 
-from .media import ALT_PLACEHOLDERS, GPS_EXIF_WARNING, UNKNOWN, _info, exif_has_gps, _parse_jpeg, _parse_png, _parse_webp
+from .media import (ALT_PLACEHOLDERS, BCP47, CREATORS, GPS_EXIF_WARNING, UNKNOWN, _check_rights, _info, exif_has_gps,
+                    _parse_jpeg, _parse_png, _parse_webp)
 from .policy import (BIDI_CONTROLS, INVISIBLE_FORMAT_CHARS, MASTODON_IMAGE_MIME, PLACEHOLDER, ValidationError,
                      mastodon_media_limits)
 
@@ -53,6 +55,12 @@ _COORD = re.compile(r"^-?[0-9](?:\.[0-9]{1,6})?$")
 # Hard ceiling for any read, independent of owner configuration (the default size cap).
 MAX_READ_BYTES = 16_000_000
 MEDIA_CHANGED = "approval_media_changed_reapproval_required"
+# Optional per-image rights record (#48): license, attribution, provenance and editable alt-text translations.
+# Absent for every image attached before it existed; when present it is stored with the record, shown in review
+# and bound by the approval hash under ``approval/media-2`` (records without it keep ``approval/media-1``).
+RIGHTS_KEYS = frozenset({"rights_confirmed", "license", "attribution", "provenance", "alt_translations"})
+MAX_TRANSLATIONS = 12
+TRANSLATION_LIMIT = 1500
 
 
 def parse_focus(value: str | None) -> str | None:
@@ -191,11 +199,79 @@ def check_media_list(media: list[dict], platform: str, account: dict | None = No
                                   f"{limits['image_size_limit']}")
 
 
+def build_rights(*, license_id: object, created_by: object, rights_confirmed: object, attribution: object = None,
+                 tool: object = None, source_url: object = None,
+                 alt_translations: dict | None = None) -> tuple[dict, list[str]]:
+    """Validate the owner's statement about one image's rights; returns ``(record, warnings)``.
+
+    Reuses the media-manifest rules (``media._check_rights``): the owner confirms rights, consent and likeness;
+    the license is an SPDX id, ``owner`` or ``licensed``; provenance names who made it (``owner``, ``tool`` with
+    the tool's name, or ``third_party`` with its real license, attribution text and, ideally, a source URL);
+    ``CC-BY*`` needs attribution. ``alt_translations`` maps a BCP-47 tag to the owner's own alt text in that
+    language: stored, reviewed and bound, but not sent (a platform takes one description). Nothing is fetched.
+    """
+    record: dict[str, Any] = {"rights_confirmed": rights_confirmed, "license": license_id,
+                              "provenance": {"created_by": created_by}}
+    if tool is not None:
+        record["provenance"]["tool"] = tool
+    if source_url is not None:
+        record["provenance"]["source_url"] = source_url
+    if attribution is not None:
+        record["attribution"] = attribution
+    errors: list[str] = []
+    warnings: list[str] = []
+    _check_rights("attachment", record, errors, warnings)
+    translations = {} if alt_translations is None else alt_translations
+    if not isinstance(translations, dict) or len(translations) > MAX_TRANSLATIONS:
+        errors.append(f"alt_translations must map at most {MAX_TRANSLATIONS} language tags to text")
+        translations = {}
+    clean: dict[str, str] = {}
+    for locale, text in translations.items():
+        if not isinstance(locale, str) or not BCP47.fullmatch(locale):
+            errors.append(f"alt translation language {locale!r} must be a BCP-47 tag such as it, fa or en-GB")
+            continue
+        try:
+            clean[locale] = validate_alt(text, TRANSLATION_LIMIT)
+        except ValidationError as exc:
+            errors.append(f"alt translation ({locale}): {exc}")
+    if errors:
+        raise ValidationError("; ".join(errors))
+    if clean:
+        record["alt_translations"] = dict(sorted(clean.items()))
+    return record, warnings
+
+
+def _rights_ok(rights: object) -> bool:
+    """A stored rights record must pass the same checks as a fresh one (strict keys; warnings are fine)."""
+    if not isinstance(rights, dict) or set(rights) - RIGHTS_KEYS:
+        return False
+    provenance = rights.get("provenance")
+    if not isinstance(provenance, dict) or set(provenance) - {"created_by", "tool", "source_url"}:
+        return False
+    errors: list[str] = []
+    _check_rights("attachment", rights, errors, [])
+    translations = rights.get("alt_translations", {})
+    if not isinstance(translations, dict) or len(translations) > MAX_TRANSLATIONS:
+        return False
+    for locale, text in translations.items():
+        try:
+            if not isinstance(locale, str) or not BCP47.fullmatch(locale) or validate_alt(text, TRANSLATION_LIMIT) != text:
+                return False
+        except ValidationError:
+            return False
+    return not errors and provenance.get("created_by") in CREATORS
+
+
+def has_rights(media: list[dict]) -> bool:
+    return any(item.get("rights") for item in media)
+
+
 def encode_media(media: list[dict]) -> str | None:
     """Canonical JSON for ``posts.media_json``; None for no attachments."""
     if not media:
         return None
-    return json.dumps([{key: item[key] for key in SOURCE_FIELDS[item["source"]]} for item in media],
+    return json.dumps([{**{key: item[key] for key in SOURCE_FIELDS[item["source"]]},
+                        **({"rights": item["rights"]} if item.get("rights") else {})} for item in media],
                       sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
@@ -212,7 +288,7 @@ def decode_media(text: object) -> list[dict]:
     out = []
     for item in data:
         source = item.get("source") if isinstance(item, dict) else None
-        if source not in SOURCES or set(item) != set(SOURCE_FIELDS[source]):
+        if source not in SOURCES or set(item) - {"rights"} != set(SOURCE_FIELDS[source]):
             raise ValidationError("media_json entries must hold exactly the attachment fields")
         ok = (isinstance(item["sha256"], str) and _SHA256.fullmatch(item["sha256"])
               and item["mime"] in EXTENSIONS
@@ -225,6 +301,8 @@ def decode_media(text: object) -> list[dict]:
         else:  # #20: a canonical owner-hosted JPEG URL; Instagram has no focal point
             from .remote_media import url_record_ok
             ok = ok and url_record_ok(item)
+        if "rights" in item and not _rights_ok(item["rights"]):
+            ok = False
         if not ok:
             raise ValidationError("media_json entry has an invalid field")
         out.append(dict(item))
@@ -234,7 +312,8 @@ def decode_media(text: object) -> list[dict]:
 def bound_view(media: list[dict]) -> list[dict]:
     """The per-attachment fields the approval hash covers, in order: ``sha256, mime, alt, focus``,
     plus ``url`` for a hosted image (#20, the URL is what is sent). The local path is not bound."""
-    return [{**{key: item[key] for key in BOUND_FIELDS}, **({"url": item["url"]} if item["source"] == "url" else {})}
+    return [{**{key: item[key] for key in BOUND_FIELDS}, **({"url": item["url"]} if item["source"] == "url" else {}),
+             **({"rights": item["rights"]} if item.get("rights") else {})}
             for item in media]
 
 
@@ -283,6 +362,7 @@ def describe(media: list[dict]) -> list[dict]:
     for index, item in enumerate(media, 1):
         if item.get("source") == "url":
             view.append({"position": index, **{key: item[key] for key in SOURCE_FIELDS["url"]},
+                         **({"rights": item["rights"]} if item.get("rights") else {}),
                          "verify_yourself": "download the URL and compare its SHA-256 with sha256 (e.g. sha256sum)"})
             continue
         try:
@@ -290,5 +370,6 @@ def describe(media: list[dict]) -> list[dict]:
             matches = True
         except ValidationError:
             matches = False
-        view.append({"position": index, **{key: item[key] for key in FIELDS}, "file_matches_record": matches})
+        view.append({"position": index, **{key: item[key] for key in FIELDS},
+                     **({"rights": item["rights"]} if item.get("rights") else {}), "file_matches_record": matches})
     return view
