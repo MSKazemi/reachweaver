@@ -457,3 +457,39 @@ def lookup_backend_post(account: dict, backend_ref: str, around: str) -> dict:
     state = item.get("state") if item.get("state") in ("QUEUE", "PUBLISHED", "ERROR", "DRAFT") else "unknown"
     return {"backend_ref": backend_ref, "found": True, "state": state,
             "release_url": _public_https_url(item.get("releaseURL"))}
+
+
+class PostizBackend:
+    """This module described by ``publishers.PublishingBackend`` (issue #30). Each method delegates
+    to the existing function; ``run_live_send`` and ``publishers.publish`` are unchanged."""
+
+    name = BACKEND
+    acceptance_status = "needs_review"  # a Postiz acceptance is never a platform receipt
+    receipt_is_first_party = False
+
+    def preview(self, account: dict, content: str) -> dict:
+        """Offline: the configured target and the fixed create shape. The provider ``__type`` is
+        whatever the read-only ``GET /integrations`` preflight observes at send time."""
+        if account.get("backend") != BACKEND:
+            raise ValidationError("Account is not configured with backend 'postiz'")
+        problems = validate_post(account["platform"], content)
+        if problems:
+            raise ValidationError("; ".join(problems))
+        require_backend_capability(account["platform"])  # the bundled registry file; no network
+        return {"path": BACKEND, "account_id": account["id"], "platform": account["platform"], "content": content,
+                "request": {"method": "POST", "url": api_base(account) + "/posts", "type": "now",
+                            "shortLink": False, "integration_id": account["postiz_integration_id"]},
+                "network": "none"}
+
+    def create(self, account: dict, content: str, post_id: str, *,
+               verified_connection=None) -> tuple[str, str | None]:
+        """Through ``publishers.publish``, so the send gate runs first; success raises BackendAccepted."""
+        if account.get("backend") != BACKEND:
+            raise ValidationError("Account is not configured with backend 'postiz'")
+        return publishers.publish(account, content, post_id, verified_connection=verified_connection)
+
+    def lookup_receipt(self, account: dict, remote_ref: str, around: str) -> dict | None:
+        return lookup_backend_post(account, remote_ref, around)
+
+
+POSTIZ_BACKEND = PostizBackend()

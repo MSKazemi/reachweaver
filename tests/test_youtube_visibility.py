@@ -4,7 +4,9 @@ Mocked network only; reuses the harness of ``tests/test_youtube.py``.
 """
 from __future__ import annotations
 
+import re
 import unittest
+from pathlib import Path
 
 from reachweaver import youtube
 from reachweaver.storage import connect
@@ -86,6 +88,34 @@ class ReceiptToAnalyticsTests(FlippedRegistry):
             (video,) = sampling_report(con, post_id=pid)["videos"]
         self.assertIn("privacy_status=unlisted", out)
         self.assertEqual(video["privacy_status"], "unlisted")
+
+
+class StudioFallbackDocTests(unittest.TestCase):
+    """Issue #22: docs/YOUTUBE.md keeps its documented manual YouTube Studio fallback."""
+
+    @classmethod
+    def setUpClass(cls):
+        text = (Path(__file__).resolve().parents[1] / "docs" / "YOUTUBE.md").read_text(encoding="utf-8")
+        parts = text.split("\n## Manual fallback: upload in YouTube Studio\n", 1)
+        cls.section = parts[1].split("\n## ", 1)[0] if len(parts) == 2 else ""
+
+    def test_the_section_exists_and_reachweaver_never_uploads_in_it(self):
+        self.assertTrue(self.section, "docs/YOUTUBE.md lost its 'Manual fallback: upload in YouTube Studio' section")
+        self.assertIn("ReachWeaver never uploads in this path; **you** upload in your own browser session.",
+                      self.section)
+        self.assertIn("reachweaver manual-export --platform youtube", self.section)
+
+    def test_the_steps_stay_private_first_with_a_human_audience_answer(self):
+        steps = re.findall(r"^(\d)\. ", self.section, flags=re.MULTILINE)
+        self.assertEqual(steps, ["1", "2", "3", "4", "5", "6"])
+        self.assertIn("**Answer the audience (\"made for kids\") question yourself.**", self.section)
+        self.assertIn("The safe first choice is `Private`", self.section)
+
+    def test_the_result_is_reconciled_and_a_half_processed_copy_is_checked_first(self):
+        self.assertIn("`reachweaver reconcile` with `--published --remote-id VIDEO_ID`", self.section)
+        self.assertIn("`--not-published`", self.section)
+        self.assertIn("Never claim a view or reach number that Studio did not show you.", self.section)
+        self.assertIn("first check Studio for a half-processed copy to avoid a duplicate", self.section)
 
 
 if __name__ == "__main__":

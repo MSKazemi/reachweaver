@@ -1,0 +1,38 @@
+{
+  "_fixture": {
+    "provider": "postiz",
+    "recorded": false,
+    "source": "hand-written from the documented GET /integrations response fields (https://docs.postiz.com/public-api/integrations/list); synthetic, not a recorded capture",
+    "written": "2026-10-15",
+    "scrubbed": "yes (synthetic ids and handles only)"
+  },
+  "endpoint": "GET /public/v1/integrations",
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "body": [
+    {
+      "id": "int-fixture-1",
+      "name": "Fixture User",
+      "identifier": "bluesky",
+      "disabled": false,
+      "profile": "fixture-user.example",
+      "customer": {
+        "id": "cust-fixture-1",
+        "name": "Fixture Customer"
+      }
+    },
+    {
+      "id": "int-fixture-2",
+      "name": "Fixture Page",
+      "identifier": "linkedin-page",
+      "disabled": false,
+      "profile": "fixture-page",
+      "customer": {
+        "id": "cust-fixture-1",
+        "name": "Fixture Customer"
+      }
+    }
+  ]
+}

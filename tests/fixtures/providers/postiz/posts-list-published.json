@@ -1,0 +1,29 @@
+{
+  "_fixture": {
+    "provider": "postiz",
+    "recorded": false,
+    "source": "hand-written from the documented GET /posts response fields (https://docs.postiz.com/public-api/posts/list); synthetic. releaseURL is backend-reported, never a first-party receipt",
+    "written": "2026-10-15",
+    "scrubbed": "yes (synthetic ids and handles only)"
+  },
+  "endpoint": "GET /public/v1/posts?startDate&endDate",
+  "status": 200,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "body": {
+    "posts": [
+      {
+        "id": "pz-fixture-job-1",
+        "content": "FIXTURE-BODY-MARKER body text is never printed",
+        "publishDate": "2026-10-15T09:00:00.000Z",
+        "releaseURL": "https://bsky.app/profile/fixture-user.example/post/3kfixture22",
+        "state": "PUBLISHED",
+        "error": null,
+        "integration": {
+          "id": "int-fixture-1"
+        }
+      }
+    ]
+  }
+}

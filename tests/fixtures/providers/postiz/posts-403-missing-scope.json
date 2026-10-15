@@ -1,0 +1,19 @@
+{
+  "_fixture": {
+    "provider": "postiz",
+    "recorded": false,
+    "source": "hand-written: a 403 on POST /posts (403 is a documented status, https://docs.postiz.com/public-api/introduction) whose body is shaped like a platform grant without write scope. The body wording is illustrative and NOT verified against Postiz; ReachWeaver never reads it. FIXTURE-BODY-MARKER must never reach output, errors or the audit log",
+    "written": "2026-10-15",
+    "scrubbed": "yes (synthetic ids and handles only)"
+  },
+  "endpoint": "POST /public/v1/posts",
+  "status": 403,
+  "headers": {
+    "Content-Type": "application/json; charset=utf-8"
+  },
+  "body": {
+    "statusCode": 403,
+    "error": "Forbidden",
+    "message": "FIXTURE-BODY-MARKER: the connected channel was authorized without the permission to publish posts; reconnect it with write access"
+  }
+}

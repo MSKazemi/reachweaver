@@ -10,7 +10,7 @@ import time
 from collections.abc import Callable
 from contextvars import ContextVar
 from datetime import datetime, timezone
-from typing import cast
+from typing import Protocol, cast, runtime_checkable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -700,3 +700,79 @@ def publish_video(account: dict, content: str, post_id: str, video: dict, *, ver
         check_connection(account)
     from .youtube import upload_video
     return upload_video(account, content, post_id, video, paused=paused)
+
+
+@runtime_checkable
+class PublishingBackend(Protocol):
+    """The publishing-path contract (issue #30): what the native adapters and an opt-in backend
+    (today only Postiz, ``postiz.POSTIZ_BACKEND``) each provide. ``backend_for`` names the path an
+    account takes. Declarative only: ``publish`` above dispatches exactly as before, and every gate
+    (approval binding, durable claim, send gate, pause, budget, live opt-in) stays with the callers.
+    ``tests/test_postiz_contract.py`` runs the same conformance checks against both paths.
+
+    * ``preview(account, content)``: an offline description of the create request. No network, no
+      credential, no database. Refuses text that fails ``validate_post``.
+    * ``create(account, content, post_id, *, verified_connection=None)``: the one content-create
+      request, only after a durable ``storage.claim_sending`` claim (``sendgate.consume`` refuses
+      otherwise). It returns a first-party receipt or raises ``PublishError``/``ValidationError``
+      and never retries.
+    * ``lookup_receipt(account, remote_ref, around)``: read-only and never reconciles. ``None``
+      when the path has nothing to look up because ``create`` returned a first-party receipt.
+    * Reconciliation hand-off: ``acceptance_status`` is the state a successful ``create`` leaves
+      the claimed post in: ``published`` when ``receipt_is_first_party``, otherwise
+      ``needs_review``. Every other post-claim outcome is ``needs_review``, and only a human
+      ``reconcile`` moves a post from there to ``published``.
+    """
+
+    name: str
+    acceptance_status: str
+    receipt_is_first_party: bool
+
+    def preview(self, account: dict, content: str) -> dict: ...
+
+    def create(self, account: dict, content: str, post_id: str, *,
+               verified_connection=None) -> tuple[str, str | None]: ...
+
+    def lookup_receipt(self, account: dict, remote_ref: str, around: str) -> dict | None: ...
+
+
+class NativePath:
+    """The direct adapters above, described by the ``PublishingBackend`` contract."""
+
+    name = "native"
+    acceptance_status = "published"
+    receipt_is_first_party = True
+
+    def preview(self, account: dict, content: str) -> dict:
+        if account.get("backend") is not None:
+            raise ValidationError("native_path_refuses_backend_account")
+        platform = account["platform"]
+        problems = validate_post(platform, content, account)
+        if problems:
+            raise ValidationError("; ".join(problems))
+        return {"path": self.name, "account_id": account["id"], "platform": platform, "content": content,
+                "live_text_adapter": platform in SUPPORTED_LIVE, "network": "none"}
+
+    def create(self, account: dict, content: str, post_id: str, *,
+               verified_connection=None) -> tuple[str, str | None]:
+        if account.get("backend") is not None:
+            raise ValidationError("native_path_refuses_backend_account")
+        return publish(account, content, post_id, verified_connection=verified_connection)
+
+    def lookup_receipt(self, account: dict, remote_ref: str, around: str) -> dict | None:
+        return None  # create() already returned the platform's own receipt
+
+
+NATIVE_PATH = NativePath()
+
+
+def backend_for(account: dict) -> PublishingBackend:
+    """The publishing path an account entry selects: no ``backend`` key means native, there is no
+    default backend, and an unknown value is refused (``accounts.load_accounts`` refuses it too)."""
+    backend = account.get("backend")
+    if backend is None:
+        return NATIVE_PATH
+    from .postiz import BACKEND, POSTIZ_BACKEND
+    if backend == BACKEND:
+        return POSTIZ_BACKEND
+    raise ValidationError("Unknown publishing backend; only 'postiz' is supported")

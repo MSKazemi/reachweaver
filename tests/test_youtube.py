@@ -509,6 +509,78 @@ class FlippedHappyPathTests(FlippedRegistry):
         self.assertEqual(fake.routes[0], "channels")
 
 
+class DuplicateAvoidanceTests(FlippedRegistry):
+    """Issue #22 duplicate avoidance: a published post is never uploaded again, and two runs racing
+    on one approved post upload it at most once. Both rest on the durable ``claim_sending`` claim
+    (approved -> sending), exercised here through the public CLI and storage functions."""
+
+    def test_rerun_after_a_successful_publish_sends_nothing(self):
+        pid, path = self.draft()
+        first = FakeYouTube(size=path.stat().st_size)
+        code, out, err = self.run_live(pid, first)
+        self.assertEqual(code, 0, out + err)
+        self.assertEqual(first.routes, ["channels", "init", "put1", "put2", "put3"])
+        before = (self.post(pid), self.events(pid))
+        for argv in (("--post-id", pid), ()):  # by id, and as part of a whole-queue run
+            with self.subTest(argv=argv):
+                again = FakeYouTube(size=path.stat().st_size)
+                with patch("reachweaver.publishers._send_http", again):
+                    code, out, err = self.cli("publish", "--live", *argv, env=LIVE_ENV)
+                self.assertEqual(again.routes, [])  # no channel check, no session, no byte
+                self.assertEqual(code, 2 if argv else 0, out + err)  # not due: nothing to send
+                self.assertNotIn("PUBLISHED", out)
+        row = self.post(pid)
+        self.assertEqual((row["status"], row["remote_id"]), ("published", VIDEO_ID))
+        self.assertEqual((dict(row), self.events(pid)), (dict(before[0]), before[1]))  # nothing recorded either
+
+    def test_a_second_run_started_mid_upload_sends_nothing(self):
+        pid, path = self.draft()
+        racer = FakeYouTube(size=path.stat().st_size)
+        racer_result = []
+
+        def second_run(name):
+            if name == "put1":  # the first run holds the claim and is uploading
+                racer_result.append(self.run_live(pid, racer))
+        first = FakeYouTube(size=path.stat().st_size, on_put=second_run)
+        code, out, err = self.run_live(pid, first)
+        self.assertEqual(code, 0, out + err)
+        self.assertEqual(first.routes, ["channels", "init", "put1", "put2", "put3"])
+        [(racer_code, racer_out, _)] = racer_result
+        self.assertEqual((racer_code, racer.routes), (2, []))  # the post was not due: it was 'sending'
+        self.assertNotIn("PUBLISHED", racer_out)
+        self.assertEqual(self.post(pid)["status"], "published")
+        self.assertEqual([a for a, _ in self.events(pid)].count("send_claimed"), 1)
+
+    def test_two_runs_racing_for_the_claim_upload_once(self):
+        """Both runs pass the pre-claim checks; the second wins the claim first. The loser's claim
+        returns False, so it never opens an upload session."""
+        pid, path = self.draft()
+        winner = FakeYouTube(size=path.stat().st_size)
+        loser = FakeYouTube(size=path.stat().st_size)
+        real_claim, winner_result = claim_sending, []
+
+        def racing_claim(con, post_id, *args, **kwargs):
+            if not winner_result:  # the other process claims between our preflight and our claim
+                with patch("reachweaver.cli.claim_sending", real_claim):
+                    winner_result.append(self.run_live(pid, winner))
+            return real_claim(con, post_id, *args, **kwargs)
+
+        with patch("reachweaver.cli.claim_sending", racing_claim):
+            code, out, err = self.run_live(pid, loser)
+        self.assertEqual(code, 2, out + err)
+        self.assertIn(f"SKIPPED {pid}: no longer eligible", out)
+        self.assertEqual(loser.routes, ["channels"])  # read-only preflight only, no session, no byte
+        [(winner_code, winner_out, winner_err)] = winner_result
+        self.assertEqual(winner_code, 0, winner_out + winner_err)
+        self.assertEqual(winner.routes, ["channels", "init", "put1", "put2", "put3"])
+        uploads = [r for r in winner.routes + loser.routes if r == "init"]
+        self.assertEqual(len(uploads), 1)  # at most one upload across both runs
+        self.assertEqual(winner.received, path.read_bytes())
+        self.assertEqual((self.post(pid)["status"], self.post(pid)["remote_id"]), ("published", VIDEO_ID))
+        self.assertEqual([a for a, _ in self.events(pid)].count("send_claimed"), 1)
+        self.assert_no_secret(out, err, winner_out, winner_err)
+
+
 class FlippedFailureTests(FlippedRegistry):
     def assert_review(self, pid, code, out, *, needle, send_class):
         self.assertEqual(code, 3, out)
