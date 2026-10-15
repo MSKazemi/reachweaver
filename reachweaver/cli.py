@@ -237,6 +237,17 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--audience-top-hours", type=int, metavar="N", help="With --audience-activity: top activity hours used, 1..24 (default 5)")
     p.add_argument("--audience-max-age-days", type=int, metavar="N",
                    help="With --audience-activity: warn when as_of is older than N days (default 90)")
+    p = sub.add_parser("link-health", help="Read-only: broken, redirected or preview-less links in stored posts; "
+                       "offline unless --online (robots.txt first, one GET per page, never posts)")
+    p.add_argument("--status", action="append", metavar="STATUS",
+                   help="Post status to scan; repeat (default: approved, scheduled, published)")
+    p.add_argument("--account", help="Only posts of this account id")
+    p.add_argument("--campaign", help="Only posts of this campaign")
+    p.add_argument("--online", action="store_true", help="Allow one GET per distinct landing page (robots.txt first)")
+    p.add_argument("--allow-origin", action="append", metavar="ORIGIN",
+                   help="With --online: also follow redirects to this https origin; repeat")
+    p.add_argument("--max-links", type=int, default=25, help="Distinct pages fetched per run, 1..50 (default 25)")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
     p = sub.add_parser("publish", help="Preview due work; --live + opt-in env flag required to send")
     p.add_argument("--live", action="store_true", help="Opt in to actual network publishing")
     p.add_argument("--limit", type=int, default=10, help="Maximum eligible posts (default 10, max 100)")
@@ -1434,13 +1445,27 @@ def _run_publish(db, args) -> int:
 
 # Commands that only read the state database: opened with connect_readonly, so a missing
 # database fails (exit 2) instead of being created, and an older schema is never migrated.
-READ_ONLY_DB_COMMANDS = ("engagement-fetch", "ops-metrics", "youtube-analytics", "ops-summary")
+READ_ONLY_DB_COMMANDS = ("engagement-fetch", "ops-metrics", "youtube-analytics", "ops-summary", "link-health")
 OPS_METRICS_TABLES = ("posts", "event_log", "settings")
 
 
 def _execute_read_only(args) -> int:
     from .storage import connect_readonly, database_path, schema_gaps
     database = database_path(args.db)
+    if args.command == "link-health":  # SELECT statements only; network only with --online
+        from .link_health import DEFAULT_STATUSES, exit_code as link_exit_code, link_health, render_text as render_links
+        with connect_readonly(database) as db:
+            gaps = schema_gaps(db, ("posts",))
+            if gaps:
+                raise ValidationError(f"{database} predates this version's schema (missing {', '.join(gaps)}); "
+                                      "link-health is read-only and never migrates. Run 'reachweaver init' "
+                                      "once to upgrade it, then retry")
+            report = link_health(db, statuses=tuple(args.status or DEFAULT_STATUSES), account_id=args.account,
+                                 campaign=args.campaign, online=args.online, allow_origins=args.allow_origin,
+                                 max_links=args.max_links)
+        print(json.dumps({"generated_at": utc_now(), **report}, indent=2, ensure_ascii=False) if args.json
+              else render_links(report))
+        return link_exit_code(report)
     if args.command == "engagement-fetch":  # network only with --online
         from .engagement_fetch import fetch_engagement, write_export as write_engagement_export
         if args.online and args.out is None:

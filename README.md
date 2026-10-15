@@ -264,6 +264,7 @@ reachweaver seo-destinations --briefs FILE --type release|paper|product|docs [--
 reachweaver weekly-digest --out FILE.md [suggest input flags] [--include-db] [--limit N]  suggest + local report as one private (0600) Markdown file; new file only, local only, never sent (docs/NEXT-ACTIONS.md)
 reachweaver seo-content-check FILE.json [--json]  offline discoverability checks on post texts you supply (length, alt text, hashtags, UTM link, cross-platform duplicates); every finding labelled official/repo_policy/hypothesis; read-only, exit 2 on errors
 reachweaver landing-check --briefs FILE [--campaign CAMPAIGN.json] [--online] [--allow-origin O...] [--json]  canonical URL/CTA/UTM checks; --online: status, redirects, rel=canonical, Open Graph, noindex, lang, lexical claim phrases (docs/SEO-INTEGRATION.md)
+reachweaver link-health [--status approved --status scheduled --status published] [--account ID] [--campaign C] [--online [--allow-origin O...]] [--max-links 25] [--json]  # read-only: broken, redirected or preview-less links in your stored posts; offline unless --online; robots.txt first (issue #10)
 reachweaver media-check MANIFEST [--json]      offline media headers/limits/alt text/captions/rights; never uploads
 reachweaver media-attach POST_ID --url HTTPS_URL (--alt T | --alt-file F) --online  Instagram draft: one owner-hosted JPEG URL; one read-only GET; SHA-256 + URL bound at approval (#20, owner-approved 2026-10-09; disabled until a live receipt)
 reachweaver media-detach POST_ID               offline: remove a draft's image attachments
