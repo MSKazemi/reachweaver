@@ -52,6 +52,12 @@ Sources: [overview](https://developers.facebook.com/docs/instagram-platform/over
 
 **Still not known:** how long App Review or Business Verification takes, and whether a personal (non-business) developer can complete Business Verification. Neither is needed for the owner-only pilot. Record anything you find in the issue so this page can be corrected.
 
+## Personal or unsupported accounts
+
+A personal (consumer) Instagram account, a format the adapter does not send (carousel, video, reel, story), or an account without a Meta app uses the manual path: `manual-export --platform instagram` writes a local package with the exact caption, the media checks and a checklist, and you post it yourself in the Instagram app ([MANUAL-EXPORT.md](MANUAL-EXPORT.md)). That package works for any account you control; only the API adapter needs a professional account. An Instagram account in `config/accounts.json` without `ig_user_id` stays manual-only metadata, and the adapter refuses it before any request.
+
+ReachWeaver never logs in for you: it runs no OAuth flow, stores no password or cookie and drives no browser. The only credential it reads is the dashboard token you export yourself. If Meta refuses an account (`instagram_not_professional_account`, a missing permission or an app-review error), the fix is in Meta's dashboard or the manual path, never a workaround.
+
 ## Then
 
 After the checklist, the first live post follows the supervised-pilot pattern in [FIRST-LIVE-PILOT.md](FIRST-LIVE-PILOT.md): a throwaway or low-stakes post, you approve the exact caption and image, and the result is recorded as a receipt. Passing this checklist is not consent to publish.

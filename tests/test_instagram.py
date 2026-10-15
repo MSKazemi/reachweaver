@@ -674,6 +674,7 @@ class FlippedLibraryTests(FlippedRegistry):
             self.run_publish(fake)
         self.assertEqual(fake.routes.count("status"), 5)
         self.assertNotIn("publish", fake.routes)
+        self.assertEqual(self.sleeps, [60, 60, 60, 60])  # once per minute, no sleep after the last check
 
     def test_container_error_or_already_published_is_uncertain(self):
         for status, code in (("ERROR", "instagram_container_error_not_public_uncertain"),
@@ -696,6 +697,17 @@ class FlippedLibraryTests(FlippedRegistry):
             self.run_publish(fake, paused=lambda: True)
         self.assertNotIn("create", fake.routes)
         self.assertFalse(write_started())
+
+    def test_emergency_pause_after_container_finished_stops_before_media_publish(self):
+        # Issue #50: the container is ready on the first check, the pause lands between that check
+        # and media_publish. The container exists (write started) but is never published.
+        fake = FakeMeta(statuses=("FINISHED",))
+        flags = iter([False, True])  # not paused before the write; paused once the container is ready
+        with self.assertRaisesRegex(PublishError, "^instagram_paused_before_publish_not_public_uncertain$"):
+            self.run_publish(fake, paused=lambda: next(flags))
+        self.assertEqual(fake.routes, ["me", "quota", "image", "create", "status"])
+        self.assertEqual(self.sleeps, [])
+        self.assertTrue(write_started())
 
     def test_wrong_account_or_personal_account_refused_before_any_write(self):
         for me, needle in (({"user_id": "1234", "username": HANDLE, "account_type": "BUSINESS"}, "identity_mismatch"),
@@ -737,6 +749,26 @@ class FlippedLibraryTests(FlippedRegistry):
             self.assertNotIn(FAKE_TOKEN, str(ctx.exception))
             self.assertFalse(write_started())
             self.assertNotIn("create", fake.routes)
+
+    def test_missing_permission_hints_at_identity_and_quota_are_pre_write(self):
+        # Issue #50 missing-permission fixtures: the identity read names instagram_business_basic,
+        # a refused quota read names both publishing permissions. Statuses only, never remote text.
+        for route, code, needle, routes in (
+                ("me", 403, "^instagram_http_403: token lacks instagram_business_basic", ["me"]),
+                ("quota", 400, "^instagram_http_400: quota read refused; confirm the token carries "
+                               "instagram_business_basic and instagram_business_content_publish$", ["me", "quota"])):
+            fake = FakeMeta(errors={route: code})
+            with self.subTest(route=route, code=code), self.assertRaisesRegex(PublishError, needle) as ctx:
+                self.run_publish(fake)
+            self.assertEqual(ctx.exception.status, code)
+            self.assertNotIn(FAKE_TOKEN, str(ctx.exception))
+            self.assertEqual(fake.routes, routes)
+            self.assertFalse(write_started())
+        fake = FakeMeta(errors={"me": 403})
+        with patch.dict(os.environ, ENV), patch("reachweaver.publishers._send_http", side_effect=fake), \
+                self.assertRaisesRegex(PublishError, "lacks instagram_business_basic"):
+            check_connection(account())
+        self.assertEqual(fake.routes, ["me"])
 
     def test_post_write_http_errors_are_uncertain_and_never_retried(self):
         for route, code, needle in (("create", 400, "^instagram_create_http_400_uncertain: container refused"),
@@ -853,6 +885,73 @@ class FlippedCliTests(CliMixin, FlippedRegistry):
         self.assertTrue(any(f"container_id={CONTAINER_ID}" in (e or "") and f"image_digest={IMAGE_SHA[:16]}" in e
                             for e in events))
 
+    def test_published_post_is_never_resent(self):
+        # Issue #50 duplicate safety: once the receipt is stored, neither a targeted nor a
+        # queue-wide live run sends the post again (no image GET, no Graph request).
+        pid = self.approved_with_image(FakeMeta())
+        self.assertEqual(self.live(FakeMeta(), pid)[0], 0)
+        before = dict(self.row(pid))
+        fake = FakeMeta()
+        status, out, err = self.live(fake, pid)
+        self.assertEqual(status, 2, out + err)
+        self.assertIn("not approved and due", err)
+        with patch.dict(os.environ, LIVE_ENV), patch("reachweaver.publishers._send_http", side_effect=fake):
+            self.cli("publish", "--live")
+        self.assertEqual(fake.routes, [])
+        after = self.row(pid)
+        self.assertEqual((after["status"], after["remote_id"], after["remote_url"]),
+                         ("published", MEDIA_ID, before["remote_url"]))
+        with connect(str(self.db)) as con:
+            claims = con.execute("SELECT COUNT(*) FROM event_log WHERE post_id=? AND action='published'",
+                                 (pid,)).fetchone()[0]
+        self.assertEqual(claims, 1)
+
+    def test_post_is_sent_only_through_its_own_account(self):
+        # Issue #50 account selection: with two Instagram accounts configured, a post bound to
+        # ig-me uses only ig-me's token and ig_user_id; the other account's token never leaves.
+        other_token = "fake-other-instagram-token-1111"  # not a real credential
+        other = account(id="ig-other", env_prefix="REACHWEAVER_OTHER_IG", handle="other.handle",
+                        ig_user_id="17841400000000999")
+        self.setup_cli([account(), other])
+        pid = self.approved_with_image(FakeMeta())
+        fake = FakeMeta()
+        with patch.dict(os.environ, {**LIVE_ENV, "REACHWEAVER_OTHER_IG_ACCESS_TOKEN": other_token}), \
+                patch("reachweaver.publishers._send_http", side_effect=fake):
+            status, out, err = self.cli("publish", "--live", "--post-id", pid)
+        self.assertEqual(status, 0, out + err)
+        for req in fake.requests:
+            sent = req.full_url + str(req.header_items()) + (req.data or b"").decode()
+            self.assertNotIn(other_token, sent)
+            self.assertNotIn("17841400000000999", sent)
+        self.assertEqual(fake.query("me")["access_token"], FAKE_TOKEN)
+        self.assertEqual(fake.request("create").get_header("Authorization"), "Bearer " + FAKE_TOKEN)
+        self.assertEqual(self.row(pid)["account_id"], "ig-me")
+
+    def test_wrong_or_consumer_account_blocked_before_claim(self):
+        for me, needle in (({"user_id": "1234", "username": HANDLE, "account_type": "BUSINESS"}, "identity_mismatch"),
+                           ({"user_id": IG_ID, "username": HANDLE, "account_type": "PERSONAL"},
+                            "instagram_not_professional_account")):
+            with self.subTest(needle=needle):
+                self.db = self.tmp / needle / "outbox.sqlite"
+                pid = self.approved_with_image(FakeMeta())
+                fake = FakeMeta(me=me)
+                status, out, _ = self.live(fake, pid)
+                self.assertEqual(status, 2, out)
+                self.assertIn(needle, out)
+                self.assertNotIn("create", fake.routes)
+                self.assertEqual(self.row(pid)["status"], "approved")
+
+    def test_preflight_429_records_cooldown_and_keeps_post_approved(self):
+        pid = self.approved_with_image(FakeMeta())
+        fake = FakeMeta(errors={"me": 429})
+        with patch("reachweaver.ratelimit._sleep"):
+            status, out, _ = self.live(fake, pid)
+        self.assertEqual(status, 2, out)
+        self.assertNotIn("create", fake.routes)
+        self.assertEqual(self.row(pid)["status"], "approved")
+        with connect(str(self.db)) as con:
+            self.assertIsNotNone(active_provider_cooldown(con, "ig-me"))
+
     def test_image_changed_after_approval_blocks_before_claim(self):
         pid = self.approved_with_image(FakeMeta())
         fake = FakeMeta(images=(jpeg(1080, 1080, b"\xff\xfe\x00\x03x"),))
@@ -967,6 +1066,54 @@ class FlippedCliTests(CliMixin, FlippedRegistry):
         self.assertIn("ig-me: instagram;", out)
         self.assertIn("blocked by the capability registry", out)
         send.assert_not_called()
+
+
+# --------------------------------------------------------------------------- issue #50 documentation evidence
+
+class IssueFiftyEvidenceTests(unittest.TestCase):
+    """The issue #50 acceptance docs stay tied to the registry and to tests that exist. Offline, local files only."""
+
+    ROOT = Path(__file__).resolve().parents[1]
+
+    def read(self, rel: str) -> str:
+        return (self.ROOT / rel).read_text(encoding="utf-8")
+
+    def test_setup_guide_maps_prerequisites_scopes_and_eligibility(self):
+        guide = self.read("docs/INSTAGRAM-SETUP.md")
+        for heading in ("## Checklist", "## Scopes (permissions) to grant",
+                        "## Instagram Login versus Facebook Login", "## Eligibility",
+                        "## Personal or unsupported accounts"):
+            with self.subTest(heading=heading):
+                self.assertIn("\n" + heading, guide)
+        for fact in ("Business or Creator", "instagram_business_basic", "instagram_business_content_publish",
+                     "| Token lifetime |", "valid for 60 days", "Standard Access", "Advanced Access",
+                     "manual-export --platform instagram"):
+            with self.subTest(fact=fact):
+                self.assertIn(fact, guide)
+
+    def test_matrix_row_carries_the_registry_verification_date(self):
+        entry = next(e for e in load_registry()["platforms"] if e["id"] == "instagram")
+        checked = entry["rate_limits"]["accessed"]
+        self.assertIn(f"re-checked {checked}", entry["verification_basis"])
+        row = next(line for line in self.read("docs/PLATFORM-MATRIX.md").splitlines()
+                   if line.startswith("| Instagram | `instagram` |"))
+        self.assertIn(f"verified {checked}", row)
+        for fact in ("instagram_business_content_publish", "one JPEG feed image", "no carousel, video, reel or story"):
+            with self.subTest(fact=fact):
+                self.assertIn(fact, row)
+
+    def test_every_cited_test_exists(self):
+        import ast
+        import re
+        cited = re.findall(r"tests/(test_[a-z0-9_]+)\.py::([A-Za-z0-9_]+)::([A-Za-z0-9_]+)", self.read("docs/INSTAGRAM.md"))
+        self.assertGreaterEqual(len(cited), 20)
+        trees: dict[str, ast.Module] = {}
+        for module, cls, name in cited:
+            with self.subTest(test=f"{module}::{cls}::{name}"):
+                tree = trees.setdefault(module, ast.parse(self.read(f"tests/{module}.py")))
+                node = next((n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == cls), None)
+                assert node is not None, f"{module}::{cls} not found"
+                self.assertIn(name, {f.name for f in node.body if isinstance(f, ast.FunctionDef)})
 
 
 if __name__ == "__main__":
