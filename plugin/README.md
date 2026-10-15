@@ -4,7 +4,7 @@ ReachWeaver turns your real software, research and knowledge into planned, platf
 
 Status: v0.2 experimental. No personal social account is connected by default, and nothing here promises viral reach.
 
-> **Disclaimer.** Experimental software, provided "as is" with no warranty and no liability (Apache-2.0). Independent project, not affiliated with or endorsed by Anthropic or any social platform. You alone are responsible for your accounts, content, credentials and legal compliance. Read [DISCLAIMER.md](DISCLAIMER.md) before use.
+> **Independent-use and liability notice.** Experimental user-operated software provided **"AS IS"** with **no warranty**, except as required by law or agreed in writing, under Apache-2.0 Sections 7–9. The original authors do not manage other people's accounts or authorize their independent content, misuse, modifications or deployments. Operators must check their own permissions, data, posts and compliance; no disclaimer eliminates non-waivable liability. ReachWeaver is independent of Anthropic and the social platforms. Read the [responsible-use notice](DISCLAIMER.md), [privacy policy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md) and [security policy](https://github.com/MSKazemi/reachweaver/blob/main/SECURITY.md).
 
 ## Install
 
@@ -17,14 +17,14 @@ Then ask Claude about social media planning, or run `/reachweaver:reachweaver`. 
 
 ## What this plugin runs, reads and sends
 
-- **On session start** one hook runs `update --notice`: a single HTTPS GET to github.com at most every 24 h to look for a newer release. It sends no data from your machine, is silent offline, never updates by itself, and is disabled by `touch ~/.cache/reachweaver/no-update-check`.
+- **On session start** one hook runs `update --notice`: a cached HTTPS check to api.github.com at most every 24 h to look for a newer release. It does not intentionally send private draft content or credentials, but GitHub receives connection metadata such as the device's IP address and version User-Agent. It is silent offline, never installs updates by itself, and is disabled by `touch ~/.cache/reachweaver/no-update-check`.
 - **Everything else is local and offline by default.** Planning, drafting, validation, `publish` without `--live` and `manual-export` never open a network connection. Local state stays in a `state/` folder in your project and in your own ignored account config.
-- **Credentials** are read only from `REACHWEAVER_*` environment variables you set yourself, only at send time, and are used only against that platform's own API host (for example Bluesky, Mastodon, Telegram, LinkedIn). Regression tests assert they never appear in exports, reports, health output, dead letters or logs. Live sending additionally needs `REACHWEAVER_ALLOW_LIVE=1`, `REACHWEAVER_ENV=prod`, an approved due post and an explicit `--live`.
+- **Credentials** come from operator-provided environment variables or a configured systemd credential directory, as applicable, for authorized online actions. They may be sent to the selected platform API or configured backend. Regression tests reduce the risk of disclosure in logs and exports but do not guarantee there are no defects. Live sending additionally needs `REACHWEAVER_ALLOW_LIVE=1`, `REACHWEAVER_ENV=prod`, an approved due post and an explicit `--live`.
 - **Optional online checks** (identity preflight, `landing-check --online`) run only when you invoke them explicitly.
 
 ## Privacy
 
-By design the author collects no data from this plugin and runs no server for it. Full policy: [Privacy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md).
+The maintainer does not currently operate a hosted posting service or intentionally collect local draft databases or account credentials through this plugin. The plugin can contact GitHub for updates and contact third-party APIs when the operator invokes online features; locally stored posts and approval metadata are retained until managed by the operator. Full policy: [Privacy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md).
 
 ## More
 

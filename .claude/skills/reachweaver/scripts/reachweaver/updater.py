@@ -33,6 +33,16 @@ MAX_UNPACKED = 80 * 1024 * 1024
 OPT_OUT_FILE = "no-update-check"  # touch it in the cache dir; no environment read (credential-isolation guard)
 _VERSION_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)$")
 _BUNDLE_VERSION_RE = re.compile(r'__version__\s*=\s*"([^"]+)"')
+RAW_CHANGELOG = f"https://raw.githubusercontent.com/{REPO}/{{tag}}/CHANGELOG.md"
+_CHANGELOG_VERSION_RE = re.compile(r"^## \[(\d+\.\d+\.\d+)\](?:\s*-\s*(\d{4}-\d{2}-\d{2}))?\s*$")
+_CHANGELOG_GROUP_RE = re.compile(r"^### (.+?)\s*$")
+_CHANGELOG_BOLD_RE = re.compile(r"^- \*\*(.+?)\*\*")
+MAX_CHANGE_VERSIONS = 5
+MAX_CHANGE_ITEMS = 6
+MAX_CHANGE_TITLE = 100
+# Release notes are untrusted text that the session-start notice puts in front of an agent:
+# keep a narrow character set, hard caps and no markup, links or backticks.
+_TITLE_ALLOWED = re.compile(r"[^A-Za-z0-9 .,:;()/#'+_-]")
 
 
 def parse_version(text: str) -> tuple[int, int, int]:
@@ -104,19 +114,97 @@ def _read_cache(path: Path) -> dict | None:
         return None
 
 
-def _write_cache(path: Path, info: dict, now: float) -> None:
+def _write_cache(path: Path, info: dict, now: float, changes: list[dict] | None = None) -> None:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump({"checked_at": now, "tag": info["tag"], "version": info["version"],
-                       "release_url": info["release_url"]}, handle)
+            payload = {"checked_at": now, "tag": info["tag"], "version": info["version"],
+                       "release_url": info["release_url"]}
+            if changes is not None:
+                payload["changes"] = changes
+            json.dump(payload, handle)
     except OSError:
         pass  # a cache that cannot be written only costs one more request tomorrow
 
 
+def _clean_title(text: str) -> str:
+    cleaned = _TITLE_ALLOWED.sub("", text.replace("`", ""))
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .:;-")
+    return cleaned[:MAX_CHANGE_TITLE].rstrip()
+
+
+def changelog_between(text: str, installed: str, latest: str) -> list[dict]:
+    """Summarize CHANGELOG.md sections newer than ``installed`` and not newer than ``latest``.
+
+    Returns newest first: ``{"version", "date", "items": ["Added: title", ...]}``. Only the bold
+    lead of each bullet (or the first words) is kept, so the result is short, plain text.
+    """
+    low, high = parse_version(installed), parse_version(latest)
+    sections: list[dict] = []
+    current: dict | None = None
+    group = ""
+    for line in text.splitlines():
+        match = _CHANGELOG_VERSION_RE.match(line)
+        if match:
+            version = match.group(1)
+            keep = low < parse_version(version) <= high
+            current = {"version": version, "date": match.group(2) or "", "items": []} if keep else None
+            if current is not None:
+                sections.append(current)
+            group = ""
+            continue
+        if line.startswith("## "):
+            current = None  # [Unreleased] or an unparseable heading: never reported
+            continue
+        if current is None:
+            continue
+        heading = _CHANGELOG_GROUP_RE.match(line)
+        if heading:
+            group = _clean_title(heading.group(1))
+            continue
+        if line.startswith("- "):
+            bold = _CHANGELOG_BOLD_RE.match(line)
+            title = _clean_title(bold.group(1) if bold else line[2:])
+            if title and len(current["items"]) < MAX_CHANGE_ITEMS:
+                current["items"].append(f"{group}: {title}" if group else title)
+    sections.sort(key=lambda sec: parse_version(sec["version"]), reverse=True)
+    return sections[:MAX_CHANGE_VERSIONS]
+
+
+def fetch_changes(tag: str, installed: str, latest: str, get=None) -> list[dict] | None:
+    """Release-note summary between two versions, or None when it cannot be read (never raises)."""
+    get = get or http_get
+    try:
+        parse_version(tag)
+        text = get(RAW_CHANGELOG.format(tag=tag)).decode("utf-8", "replace")
+        return changelog_between(text, installed, latest)
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def _sanitize_changes(value: object) -> list[dict] | None:
+    """Re-validate a cached change list; a cache file is never trusted."""
+    if not isinstance(value, list):
+        return None
+    clean: list[dict] = []
+    for entry in value[:MAX_CHANGE_VERSIONS]:
+        if not isinstance(entry, dict) or not isinstance(entry.get("version"), str):
+            return None
+        try:
+            parse_version(entry["version"])
+        except ValidationError:
+            return None
+        raw_date = entry.get("date")
+        date = raw_date if isinstance(raw_date, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw_date) else ""
+        items = [_clean_title(i) for i in entry.get("items", []) if isinstance(i, str)][:MAX_CHANGE_ITEMS]
+        clean.append({"version": entry["version"], "date": date,
+                      "items": [i for i in items if i]})
+    return clean
+
+
 def check(*, get=None, use_cache: bool = False, now: float | None = None,
-          cache_path: Path | None = None) -> dict:
+          cache_path: Path | None = None, include_changes: bool = False) -> dict:
     """Compare the installed version with the latest release. Network only when needed."""
     get = get or http_get
     now = time.time() if now is None else now
@@ -126,15 +214,20 @@ def check(*, get=None, use_cache: bool = False, now: float | None = None,
         info = {"tag": cached.get("tag", ""), "version": cached.get("version", ""),
                 "release_url": cached.get("release_url", "")}
         parse_version(info["tag"])
+        changes = _sanitize_changes(cached.get("changes"))
         source = "cache"
     else:
         info = fetch_latest(get)
-        _write_cache(path, info, now)
+        changes = None
         source = "github"
     newer = parse_version(info["version"]) > parse_version(__version__)
+    if include_changes and newer and changes is None:
+        changes = fetch_changes(info["tag"], __version__, info["version"], get)
+    if source == "github":
+        _write_cache(path, info, now, changes)
     return {"installed": __version__, "latest": info["version"], "tag": info["tag"],
             "update_available": newer, "release_url": info["release_url"], "source": source,
-            "install_kind": install_kind(), "_assets": info}
+            "install_kind": install_kind(), "changes": changes if newer else None, "_assets": info}
 
 
 def _bundle_version(text: str) -> str:
@@ -227,6 +320,17 @@ def apply_update(result: dict, *, get=None, dest: Path | None = None) -> dict:
     data = get(assets["zip_url"])
     sha_text = get(assets["sha_url"]).decode("utf-8", "replace")
     return install_zip(data, sha_text, target, replace_version=result["installed"])
+
+
+def changes_lines(changes: list[dict] | None) -> list[str]:
+    """Plain-text, data-only summary lines for a notice; empty when nothing is known."""
+    lines = []
+    for entry in changes or []:
+        items = entry.get("items") or []
+        shown = "; ".join(items[:3]) + (f" (+{len(items) - 3} more)" if len(items) > 3 else "")
+        lines.append(f"  v{entry['version']}" + (f" ({entry['date']})" if entry.get("date") else "")
+                     + (f": {shown}" if shown else ""))
+    return lines
 
 
 def notice_line(result: dict) -> str:

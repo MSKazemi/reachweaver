@@ -878,6 +878,48 @@ def validate_config(config: object) -> list[str]:
         fixture = source.get("fixture")
         if fixture is not None and (not isinstance(fixture, str) or not fixture.strip() or "\x00" in fixture):
             issues.append(f"{where}.fixture must be a relative/absolute local path string")
+        if kind != "changelog":  # a changelog source validates its own project label above
+            project = source.get("project")
+            if project is not None and (not isinstance(project, str) or not 0 < len(project.strip()) <= 100):
+                issues.append(f"{where}.project must be a nonempty label of at most 100 characters")
+    issues.extend(_project_sensitivity_issues(sources))
+    return issues
+
+
+def _project_keys(source: dict) -> list[str]:
+    """Identities a source belongs to: its explicit project label, its GitHub repo, the repo behind a raw changelog URL."""
+    keys = []
+    project = source.get("project")
+    if isinstance(project, str) and project.strip():
+        keys.append("project " + project.strip().casefold())
+    repo = source.get("repo")
+    if isinstance(repo, str) and REPO.fullmatch(repo):
+        keys.append("repository " + repo.casefold())
+    url = source.get("url")
+    if source.get("kind") == "changelog" and isinstance(url, str):
+        parts = urlsplit(url)
+        segments = [p for p in parts.path.split("/") if p]
+        if parts.hostname == RAW_GITHUB_HOST and len(segments) >= 2:
+            keys.append(f"repository {segments[0]}/{segments[1]}".casefold())
+    return keys
+
+
+def _project_sensitivity_issues(sources: list) -> list[str]:
+    """Sensitivity is a property of the project: two sources of one project may not disagree.
+
+    Without this, a private-repo source marked ``public`` next to a ``private`` one would let a
+    project's signals cross the public/private line depending on which entry happened to match.
+    """
+    issues: list[str] = []
+    seen: dict[str, tuple[int, str]] = {}
+    for index, source in enumerate(sources):
+        if not isinstance(source, dict) or source.get("sensitivity") not in SENSITIVITY:
+            continue
+        for key in _project_keys(source):
+            first = seen.setdefault(key, (index, source["sensitivity"]))
+            if first[1] != source["sensitivity"]:
+                issues.append(f"sources[{index}].sensitivity is {source['sensitivity']} but sources[{first[0]}] "
+                              f"declares {first[1]} for the same {key}; one project has one sensitivity")
     return issues
 
 

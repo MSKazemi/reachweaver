@@ -52,6 +52,39 @@ RATES = {
     "conversions_per_click": ("downstream_conversions", "clicks"),
 }
 COMPARISON_LABEL = "descriptive_not_causal"
+PROTOCOL_SECTION = "docs/FIELD-PILOT-PROTOCOL.md#4-measures-and-how-each-is-recorded"
+# What each logged column means, from section 4 of the protocol. Included in every report so a number is never
+# read without its definition. A blank cell is unknown for every measure; write 0 only when the value is known to be 0.
+MEASURE_DEFINITIONS = {
+    "minutes_spent": {"unit": "minutes", "source": "operator timer",
+                      "definition": "Wall-clock operator minutes on the task, from a timer started and stopped for it, "
+                                    "including research, drafting, review, approval, scheduling, publishing, checking the "
+                                    "native post, reconciliation and metric export."},
+    "posts_published": {"unit": "posts", "source": "native post URL",
+                        "definition": "Posts confirmed in the native app under the pilot's success rule. A 'published' "
+                                      "status or an API response alone is not a post."},
+    "duplicates": {"unit": "posts", "source": "native account history",
+                   "definition": "Published posts that repeat an earlier pilot post on the same account (the same item "
+                                 "twice through a retry, or near-identical text and link). Never more than posts_published."},
+    "unrecoverable_errors": {"unit": "outcomes", "source": "queue-health or the scheduler's failure list",
+                             "definition": "Outcomes the workflow could not resolve by itself: a needs_review, a scheduler "
+                                           "post marked failed or unknown, a manual post that had to be deleted or reposted."},
+    "interventions": {"unit": "actions", "source": "operator log",
+                      "definition": "Unplanned human actions such as re-authenticating, fixing a config, editing a failed "
+                                    "post, a manual reconcile or a support lookup. Planned approval gates are not interventions."},
+    "factual_errors_found": {"unit": "errors", "source": "post-publication audit sheet",
+                             "definition": "Factual errors found in published posts by the audit that is applied to every arm."},
+    "clicks": {"unit": "sessions", "source": "attribution-report (attributed.posts[].sessions)",
+               "definition": "UTM-attributed landing sessions for the row's posts, one definition for every arm. Not "
+                             "platform 'link clicks'."},
+    "impressions": {"unit": "impressions", "source": "native export, only where documented",
+                    "definition": "Native impressions only where the platform exports them with a documented definition. "
+                                  "Left blank where it does not (Bluesky and Mastodon expose none): unknown, not zero."},
+    "downstream_conversions": {"unit": "conversions", "source": "analytics tool, one event fixed before the pilot",
+                               "definition": "Conversions on UTM-attributed sessions for the single conversion event "
+                                             "defined before the pilot."},
+}
+RATE_NOTE = "numerator / denominator, summed over the rows where both are known; an empty denominator gives unknown"
 _DECIMAL = re.compile(r"^\d+(?:\.\d+)?$")
 _INTEGER = re.compile(r"^\d+$")
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
@@ -251,6 +284,13 @@ def pilot_report(log: dict, *, min_weeks: int = DEFAULT_MIN_WEEKS) -> dict:
         "arms": arms, "arms_not_logged": not_logged,
         "comparison": _comparison(arms, min_weeks),
         "limitations": list(LIMITATIONS),
+        "metric_definitions": {
+            "protocol": PROTOCOL_SECTION,
+            "measures": {name: dict(MEASURE_DEFINITIONS[name]) for name in MEASURES},
+            "rates": {name: {"numerator": num, "denominator": den, "meaning": RATE_NOTE}
+                      for name, (num, den) in RATES.items()},
+            "blank_cell": "unknown; written as 0 only when the value is known to be zero",
+        },
         "note": "Offline readout of an owner-maintained log. Blank = unknown, never zero. "
                 "Nothing was published, fetched or written.",
     }
@@ -285,5 +325,7 @@ def render_report(report: dict) -> str:
         for name, deltas in comparison["difference_vs_baseline"].items():
             lines.append(f"  {name} minus baseline: "
                          + ", ".join(f"{arm}={_fmt(v)}" for arm, v in deltas.items()))
+    lines.append("Definitions of every measure and rate: see metric_definitions in --json, or "
+                 + report["metric_definitions"]["protocol"] + ".")
     lines.append("Descriptive only; not causal. Blank = unknown, never zero. Nothing was published.")
     return "\n".join(lines)

@@ -60,6 +60,14 @@ EXCERPT_CHARS = 280
 MAX_HANDLE_CHARS = 64
 MAX_ID_CHARS = 200
 MAX_DOC_TOPICS = 200
+MAX_REPLY_EVIDENCE = 50
+SENTIMENTS = ("negative", "neutral", "positive")
+MAX_REACH = 10_000_000_000
+REPLY_EVIDENCE_KINDS = frozenset({"release", "repository", "documentation", "announcement", "paper", "benchmark", "other"})
+CLAIMS_CHECK_LIMITATION = ("Lexical grounding only: figures, release language, quotes, superlatives and feature claims "
+                           "in the draft are matched against the evidence entries you list in the docs map. It does "
+                           "not open a source or verify truth; a clean result is not proof.")
+_EVIDENCE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 MAX_TEMPLATE_CHARS = 1000
 # Owner templates may contain newlines and ZWNJ (needed in Persian), never bidi controls.
 TEMPLATE_ALLOWED_FORMAT = frozenset("\n\u200c")
@@ -857,12 +865,17 @@ def load_export(data: object) -> list[dict]:
                     raise ValidationError(f"{where}: in_reply_to too long")
                 continue  # A parent item id rather than a URL.
             _https_url(value, field, where)
+        reach, sentiment = item.get("reach"), item.get("sentiment")
+        if reach is not None and (type(reach) is not int or not 0 <= reach <= MAX_REACH):
+            raise ValidationError(f"{where}: reach must be an integer 0..{MAX_REACH} (omit it when unknown)")
+        if sentiment is not None and sentiment not in SENTIMENTS:
+            raise ValidationError(f"{where}: sentiment must be one of {', '.join(SENTIMENTS)} (omit it when unknown)")
         out.append({
             "id": item["id"], "platform": platform, "account_id": item["account_id"],
             "author_handle": item["author_handle"], "author_is_owner": item["author_is_owner"],
             "text": item["text"], "url": item["url"], "created_at": parse_utc(item["created_at"]),
             "in_reply_to": item.get("in_reply_to") or None, "thread_root_url": item.get("thread_root_url") or None,
-            "kind": kind or KIND_UNSPECIFIED,
+            "kind": kind or KIND_UNSPECIFIED, "reach": reach, "sentiment": sentiment,
         })
     return out
 
@@ -889,6 +902,75 @@ def load_docs_map(data: object) -> list[dict]:
         pattern = re.compile(r"\b(" + "|".join(re.escape(fold(k.strip())) for k in keywords) + r")\b")
         out.append({"topic": str(topic.get("topic") or keywords[0])[:80], "url": url, "pattern": pattern})
     return out
+
+
+def load_reply_evidence(data: object) -> list[dict]:
+    """Optional owner-vetted facts a reply draft may state, from the docs map ``evidence`` list.
+
+    Each entry has the campaign-evidence shape: ``id``, ``claim`` and optional ``excerpt``, ``kind``
+    and an https ``url``. They are the only facts the claims check will accept in a reply.
+    """
+    if data is None or not isinstance(data, dict):
+        return []
+    raw = data.get("evidence")
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_REPLY_EVIDENCE:
+        raise ValidationError(f"Docs map evidence must be a list of at most {MAX_REPLY_EVIDENCE} entries")
+    out: list[dict] = []
+    seen: set[str] = set()
+    for index, entry in enumerate(raw):
+        where = f"evidence[{index}]"
+        if not isinstance(entry, dict):
+            raise ValidationError(f"{where} must be an object")
+        ident = entry.get("id")
+        if not isinstance(ident, str) or not _EVIDENCE_ID.match(ident) or ident in seen:
+            raise ValidationError(f"{where}: id must be a unique short slug (letters, digits, . _ -)")
+        seen.add(ident)
+        claim = entry.get("claim")
+        if not isinstance(claim, str) or not claim.strip() or len(claim) > 1000:
+            raise ValidationError(f"{where}: claim must be 1-1000 characters of text")
+        excerpt = entry.get("excerpt")
+        if excerpt is not None and (not isinstance(excerpt, str) or len(excerpt) > 5000):
+            raise ValidationError(f"{where}: excerpt must be text of at most 5000 characters")
+        kind = entry.get("kind")
+        if kind is not None and kind not in REPLY_EVIDENCE_KINDS:
+            raise ValidationError(f"{where}: kind must be one of {', '.join(sorted(REPLY_EVIDENCE_KINDS))}")
+        item = {"id": ident, "claim": claim.strip()}
+        if excerpt:
+            item["excerpt"] = excerpt
+        if kind:
+            item["kind"] = kind
+        if entry.get("url") is not None:
+            item["url"] = _https_url(entry.get("url"), "url", where)
+        out.append(item)
+    return out
+
+
+def check_reply_drafts(drafts: list[dict], evidence: list[dict]) -> dict:
+    """Run the lexical claims check on every reply draft against the owner's evidence list.
+
+    Annotates each draft with ``claims_check`` (``clean``, ``review`` or ``error``) and returns a
+    summary. It never blocks, edits or sends anything: a draft stays ``draft_requires_approval``
+    and the owner decides. Warnings that do not apply to a reply (missing CTA, near-duplicates of
+    the fixed templates) are left out.
+    """
+    from .claims import check_claims
+    cited = [item["id"] for item in evidence]
+    report = check_claims({
+        "evidence": evidence,
+        "variants": [{"id": d["draft_id"], "platform": d["platform"], "account_id": d["account_id"],
+                      "text": d["text"], "evidence_ids": cited} for d in drafts]})
+    by_id = {entry["variant_id"]: entry for entry in report["variants"]}
+    counts = {"clean": 0, "review": 0, "error": 0}
+    for draft in drafts:
+        found = [{"code": f["code"], "severity": f["severity"], "message": f["message"]}
+                 for f in by_id[draft["draft_id"]]["findings"] if f["severity"] in ("error", "review")]
+        status = "error" if any(f["severity"] == "error" for f in found) else ("review" if found else "clean")
+        counts[status] += 1
+        draft["claims_check"] = {"method": "lexical", "status": status, "evidence_ids": cited, "findings": found}
+    return {"method": "lexical", "checked": len(drafts), **counts, "evidence_entries": len(evidence),
+            "limitation": CLAIMS_CHECK_LIMITATION}
 
 
 def load_templates(data: object) -> dict[str, dict[str, str]]:
@@ -1069,6 +1151,7 @@ def triage_engagement(export: object, docs_map: object = None, optout: object = 
     raw = load_export(export)
     docs = load_docs_map(docs_map)
     templates = load_templates(docs_map)
+    reply_evidence = load_reply_evidence(docs_map)
     optout_entries = validate_optout(optout) if isinstance(optout, dict) else list(cast(list, optout or []))
     by_id = {item["id"]: item for item in raw}
     owner_replied_to = {item["in_reply_to"] for item in raw if item["author_is_owner"] and item["in_reply_to"]}
@@ -1084,6 +1167,7 @@ def triage_engagement(export: object, docs_map: object = None, optout: object = 
             "id": item["id"], "platform": item["platform"], "account_id": item["account_id"],
             "author_handle": handle, "author_is_owner": item["author_is_owner"],
             "created_at": item["created_at"], "source_url": item["url"], "kind": item["kind"],
+            "reach": item["reach"], "sentiment": item["sentiment"],
             "thread_root_url": item["thread_root_url"], "in_reply_to": item["in_reply_to"],
             "thread_key": _thread_key(item, by_id), "label": label, "priority": PRIORITY[label],
             "matched_rules": matched, "language_guess": analysis["language_guess"],
@@ -1151,11 +1235,13 @@ def triage_engagement(export: object, docs_map: object = None, optout: object = 
             issues.append(_issue_draft(item, doc))
     for item in triaged:
         del item["_clean"]
+    claims_summary = check_reply_drafts(drafts, reply_evidence)
     counts = {label: sum(1 for t in triaged if t["label"] == label) for label in LABELS}
     guessed = [t["language_guess"]["language"] for t in triaged]
     return {
         "schema_version": REPORT_SCHEMA, "status": "triage_only_no_send",
         "counts": counts, "inbox": inbox_summary(triaged), "items": triaged, "drafts": drafts, "issue_drafts": issues,
+        "claims_check": claims_summary,
         "languages": {
             "supported_packs": list(LANGUAGES), "method": LANGUAGE_METHOD,
             "guesses": {lang: guessed.count(lang) for lang in (*LANGUAGES, "und") if lang in guessed},
@@ -1240,8 +1326,10 @@ def render_markdown(report: dict) -> str:
                   f"- Reply to: {draft['reply_to_url']}",
                   f"- Limit: {draft['constraints']['conservative_text_limit']} characters",
                   f"- Template language: {draft['template_language']}",
-                  f"- {draft['language_review_note']}", "",
-                  "```text", draft["text"], "```", ""]
+                  f"- {draft['language_review_note']}",
+                  f"- Claims check (lexical, not truth): {draft['claims_check']['status']}"]
+        lines += [f"  - {f['severity']} {f['code']}: {f['message']}" for f in draft["claims_check"]["findings"]]
+        lines += ["", "```text", draft["text"], "```", ""]
     return "\n".join(lines)
 
 

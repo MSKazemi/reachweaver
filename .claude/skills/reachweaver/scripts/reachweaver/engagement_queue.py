@@ -7,7 +7,8 @@ credential and has no send, reply, follow, like or DM path. Reply drafts stay dr
 human reviews and posts manually.
 
 The SLA hours are owner-adjustable defaults, not platform data and not a claim about what
-audiences expect. Reach and sentiment are not in the export contract, so they are not used.
+audiences expect. Reach and sentiment are optional owner-supplied export fields: they only order items
+inside the same label, and an absent value is unknown, never zero or neutral.
 """
 from __future__ import annotations
 
@@ -82,11 +83,13 @@ def build_queue(report: dict, now: str | None = None, sla_hours: dict[str, int] 
             "id": item["id"], "platform": item["platform"], "account_id": item["account_id"],
             "author_handle": item["author_handle"], "label": item["label"], "state": state,
             "action": item["action"], "source_url": item["source_url"], "excerpt": item["excerpt"],
+            "reach": item.get("reach"), "sentiment": item.get("sentiment"),
             "created_at": item["created_at"], "age_hours": round(age, 1), "age_bucket": _bucket(age),
             "sla_hours": target, "overdue": target is not None and age > target,
             "hours_over_sla": round(age - target, 1) if target is not None and age > target else 0.0,
         })
-    queue.sort(key=lambda q: (not q["overdue"], PRIORITY[q["label"]], -q["age_hours"], q["id"]))
+    queue.sort(key=lambda q: (not q["overdue"], PRIORITY[q["label"]], q["sentiment"] != "negative",
+                              -q["reach"] if q["reach"] is not None else 1, -q["age_hours"], q["id"]))
     for rank, entry in enumerate(queue, start=1):
         entry["rank"] = rank
     return {
@@ -101,9 +104,11 @@ def build_queue(report: dict, now: str | None = None, sla_hours: dict[str, int] 
         "queue": queue,
         "policy": {
             "network_access": False, "send_path": None, "auto_reply": False,
-            "note": ("Ordered overdue first, then label priority, then oldest. SLA hours are owner-adjustable "
-                     "defaults, not platform data. Replies are drafts that a human reviews and posts manually; "
-                     "reach and sentiment are not in the export, so they are not used."),
+            "note": ("Ordered overdue first, then label priority, then (within that label) owner-supplied negative "
+                     "sentiment, then higher owner-supplied reach, then oldest. Reach and sentiment come only from the "
+                     "export; an absent value is unknown, never zero or neutral, and sorts after known values. SLA hours "
+                     "are owner-adjustable defaults, not platform data. Replies are drafts that a human reviews and "
+                     "posts manually."),
         },
     }
 
@@ -126,6 +131,7 @@ def render_text(queue: dict) -> str:
              f"closed {summary['closed']}"]
     for q in queue["queue"]:
         flag = "OVERDUE" if q["overdue"] else "ok"
+        extra = "".join(f", {name} {q[name]}" for name in ("sentiment", "reach") if q.get(name) is not None)
         lines.append(f"{q['rank']:>3}. [{flag}] {q['label']} on {q['platform']} by {q['author_handle']}, "
-                     f"{q['age_hours']}h old (target {q['sla_hours']}h): {q['state']}  {q['source_url']}")
+                     f"{q['age_hours']}h old (target {q['sla_hours']}h){extra}: {q['state']}  {q['source_url']}")
     return "\n".join(lines)

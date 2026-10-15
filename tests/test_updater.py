@@ -168,6 +168,16 @@ class PluginTests(unittest.TestCase):
         spec.loader.exec_module(sync)
         self.assertEqual(sync.check(), [], "run python3 scripts/sync_skill.py")
 
+    def test_redistributed_skill_has_current_license_notice_and_disclaimer(self):
+        # Release skill.zip packages .claude/skills/reachweaver directly, not repository root.
+        # Prevent future standalone releases or plugin skill copies from losing legal notices.
+        for skill_dir in (self.ROOT / ".claude/skills/reachweaver",
+                          self.ROOT / "plugin/skills/reachweaver"):
+            for name in ("LICENSE", "NOTICE", "DISCLAIMER.md"):
+                with self.subTest(skill=str(skill_dir), file=name):
+                    self.assertEqual((skill_dir / name).read_bytes(),
+                                     (self.ROOT / name).read_bytes())
+
     def test_session_hook_only_checks_and_script_exists(self):
         hooks = json.loads((self.ROOT / "plugin/hooks/hooks.json").read_text())["hooks"]["SessionStart"]
         command = hooks[0]["hooks"][0]["command"]

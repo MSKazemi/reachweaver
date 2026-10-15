@@ -19,6 +19,7 @@ SKILL = ROOT / ".claude/skills/reachweaver"
 TARGET = SKILL / "scripts/reachweaver"
 PLUGIN_SKILL = ROOT / "plugin/skills/reachweaver"
 PLUGIN_ROOT_FILES = ("LICENSE", "NOTICE", "DISCLAIMER.md")  # copied verbatim into plugin/
+SKILL_ROOT_FILES = ("LICENSE", "NOTICE", "DISCLAIMER.md")  # accompany standalone skill ZIP and local install
 REGISTRIES = ("distribution_registry.json", "platform_registry.json", "profile_audit_registry.json")
 # Canonical files mirrored into the skill's assets/ (flat, by basename).
 ASSET_SOURCES = (
@@ -48,6 +49,8 @@ def expected() -> dict[Path, bytes]:
         files[TARGET / name] = (SOURCE / name).read_bytes()
     for rel in ASSET_SOURCES:
         files[SKILL / "assets" / Path(rel).name] = (ROOT / rel).read_bytes()
+    for name in SKILL_ROOT_FILES:
+        files[SKILL / name] = (ROOT / name).read_bytes()
     files[TARGET.parent / "run.py"] = RUN_PY.encode("utf-8")
     return files
 
@@ -97,6 +100,9 @@ def sync():
     for rel in ASSET_SOURCES:
         shutil.copy2(ROOT / rel, assets / Path(rel).name)
     (TARGET.parent / "run.py").write_text(RUN_PY, encoding="utf-8")
+    # Every redistributed standalone skill includes the actual license and NOTICE.
+    for name in SKILL_ROOT_FILES:
+        shutil.copy2(ROOT / name, SKILL / name)
     # Mirror the finished bundle into the lean plugin folder; drop stale files and caches.
     mirror = plugin_expected()
     for path, data in mirror.items():

@@ -93,15 +93,23 @@ _LI_IMAGES = "https://learn.microsoft.com/en-us/linkedin/marketing/community-man
 _LI_VIDEOS = "https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/videos-api"
 _YT_ENCODING = "https://support.google.com/youtube/answer/1722171"
 _MASTODON_INSTANCE = "https://docs.joinmastodon.org/entities/Instance/"
+_GITHUB_SOCIAL = ("https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/"
+                  "customizing-your-repository/customizing-your-repositorys-social-media-preview")
+_DEV_EDITOR = "https://dev.to/p/editor_guide"
+# Rows added after the 2026-10-08 baseline carry their own date; never restamp older rows.
+_GITHUB_VERIFIED = "2026-10-14"
+_DEV_VERIFIED = "2026-10-15"
 
 
-def _row(value: Any, source: str, note: str = "", severity: str = "error") -> dict[str, Any]:
-    return {"value": value, "source": source, "verified_date": VERIFIED_DATE,
+def _row(value: Any, source: str, note: str = "", severity: str = "error",
+         verified_date: str = VERIFIED_DATE) -> dict[str, Any]:
+    return {"value": value, "source": source, "verified_date": verified_date,
             "severity": severity, "note": note}
 
 
-def _unknown(source: str, note: str = "Not established by the cited official source; check skipped.") -> dict[str, Any]:
-    return _row(None, source, note, severity="warning")
+def _unknown(source: str, note: str = "Not established by the cited official source; check skipped.",
+             verified_date: str = VERIFIED_DATE) -> dict[str, Any]:
+    return _row(None, source, note, severity="warning", verified_date=verified_date)
 
 
 CONSTRAINTS: dict[str, dict[str, dict[str, dict]]] = {
@@ -229,6 +237,32 @@ CONSTRAINTS: dict[str, dict[str, dict[str, dict]]] = {
             "frame_rate_fps": _row([23, 60], _TIKTOK, "Minimum 23 FPS, maximum 60 FPS (checked against the "
                                    "average)."),
             "audio_codecs": _unknown(_TIKTOK, "No audio codec stated in the media transfer guide. Check skipped."),
+        },
+    },
+    "github": {
+        "image": {
+            "allowed_containers": _row(["gif", "jpeg", "png"], _GITHUB_SOCIAL, "Social preview: PNG, JPG or GIF.",
+                                       verified_date=_GITHUB_VERIFIED),
+            "max_bytes": _row(1_000_000, _GITHUB_SOCIAL, "Docs say 'under 1 MB'; decimal MB used as the "
+                              "conservative reading.", verified_date=_GITHUB_VERIFIED),
+            "min_width": _row(640, _GITHUB_SOCIAL, "Docs: at least 640 by 320 pixels.",
+                              verified_date=_GITHUB_VERIFIED),
+            "min_height": _row(320, _GITHUB_SOCIAL, "Docs: at least 640 by 320 pixels.",
+                               verified_date=_GITHUB_VERIFIED),
+            "aspect_ratio": _row([1.99, 2.01], _GITHUB_SOCIAL, "Docs recommend 1280 by 640 pixels for best "
+                                 "display (2:1); the ratio is derived from that size, not stated separately.",
+                                 "warning", verified_date=_GITHUB_VERIFIED),
+        },
+    },
+    "devto": {
+        "image": {
+            "allowed_containers": _unknown(_DEV_EDITOR, "Image file types are not stated. Check skipped.",
+                                           verified_date=_DEV_VERIFIED),
+            "max_bytes": _unknown(_DEV_EDITOR, "Maximum image file size is not stated. Check skipped.",
+                                  verified_date=_DEV_VERIFIED),
+            "aspect_ratio": _row([2.37, 2.4], _DEV_EDITOR, "The cover guide says 'The best size is 1000 x 420' "
+                                 "(about 2.38:1). It is a recommendation, not a limit.", "warning",
+                                 verified_date=_DEV_VERIFIED),
         },
     },
     "linkedin": {
@@ -1171,13 +1205,15 @@ def _check_target(label: str, target: str, kind: str, info: dict, asset: dict, a
             low, high = value
             if not low <= ratio <= high + 1e-9:
                 fail(f"aspect ratio {ratio:.4f} outside {low}..{high} (width/height)")
-        elif name in ("min_width", "max_width", "min_dimension", "max_dimension", "max_pixels"):
+        elif name in ("min_width", "min_height", "max_width", "min_dimension", "max_dimension", "max_pixels"):
             if not isinstance(width, int) or not isinstance(height, int):
                 summary["skipped"].append(name)
                 _skip(warnings, label, target, kind, name, "dimensions unknown: header not parseable")
                 continue
             if name == "min_width" and width < value:
                 fail(f"width {width}px below {value}px")
+            elif name == "min_height" and height < value:
+                fail(f"height {height}px below {value}px")
             elif name == "max_width" and width > value:
                 fail(f"width {width}px above {value}px")
             elif name == "min_dimension" and min(width, height) < value:
@@ -1529,6 +1565,8 @@ def validate_media_manifest(manifest: dict, base_dir: str | Path) -> dict:
         "warnings": warnings,
         "assets": reports,
         "constraints_verified_date": VERIFIED_DATE,
+        "constraints_verified_dates": sorted({row["verified_date"] for rows in CONSTRAINTS.values()
+                                              for kind_rows in rows.values() for row in kind_rows.values()}),
         "note": ("Offline validation only. ReachWeaver does not upload, render or publish media, and does not "
                  "call any generation tool or paid model. Re-check platform documentation before publishing."),
     }

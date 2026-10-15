@@ -41,6 +41,7 @@ The command refuses to overwrite an existing output or issue file, so a draft yo
 - `platform` is one of the ReachWeaver platforms plus `github` and `hackernews`.
 - `url` and `thread_root_url` must be public HTTPS URLs without credentials. A plain anchor such as `#issuecomment-1` is allowed.
 - `in_reply_to` is a parent item `id` or a parent HTTPS URL, or `null`.
+- `reach` (integer 0 to 10,000,000,000) and `sentiment` (`negative`, `neutral` or `positive`) are **optional and owner-supplied**, for example copied from a native analytics export or your own review. Use one definition of reach per export (the commenter's audience size or the comment's native views) and omit a field you do not know: an absent value is unknown, never zero or neutral. ReachWeaver never infers either from the text.
 - Ids must be unique. A run holds at most 5000 items. Secret-like field names (`token`, `password`, `session`, `cookie`, `api_key`) are rejected.
 
 ## Fetching replies (`engagement-fetch`)
@@ -88,6 +89,19 @@ Neither endpoint is paginated: each post costs one Bluesky request or two Mastod
 Topics are matched in order on whole-word keywords in the sanitized comment. Keywords and comment go through the same [fold](#normalization), so matching ignores case and accents, and Persian keywords match either letter variant. The first match supplies the docs link for a draft. You supply and check these URLs; ReachWeaver never fetches them. If a technical question matches no topic, its draft contains an `[OWNER: add a verified answer or docs link before posting.]` marker, so you can't post it without editing it first.
 
 The docs map can also carry your own reply templates per language. See [reply templates per language](#reply-templates-per-language).
+
+### Claims check on reply drafts (`evidence`)
+
+Every reply draft, built-in or from one of your templates, is run through the same lexical claims check as campaign posts (`claims-check`, [CLAIM-GROUNDING.md](CLAIM-GROUNDING.md)). The facts a reply may state are the entries of an optional `evidence` list in the docs map. They have the campaign-evidence shape:
+
+```json
+{"schema_version": "reachweaver.docs-map.v1",
+ "topics": [{"topic": "Install", "keywords": ["install"], "url": "https://example.org/docs/install"}],
+ "evidence": [{"id": "rel", "kind": "release", "url": "https://github.com/OWNER/REPO/releases/tag/v1.0.0",
+               "claim": "v1.0.0 was released and supports 4 text adapters."}]}
+```
+
+Each draft gets `claims_check` with `status` `clean`, `review` or `error`, plus findings, and the report gets a `claims_check` summary. A figure, release wording, quote, customer count, superlative or feature claim that no listed evidence supports is flagged: unsupported figures and release language are `error`, the rest `review`. The built-in templates state no facts, so they are always `clean`. The check is lexical: it never opens a source and a clean result is not proof. It does not block, edit or send anything; every draft stays `draft_requires_approval` for you to review. Warnings that do not fit a reply (a missing call to action, similarity between fixed templates) are not shown. Limits: at most 50 evidence entries, an https `url` without credentials, `kind` one of `release`, `repository`, `documentation`, `announcement`, `paper`, `benchmark`, `other`.
 
 ## Labels, priority and actions
 
@@ -238,7 +252,7 @@ reachweaver engagement-queue export.json --json --sla bug_report=12 --sla praise
 
 It runs the same triage as `engagement-triage`, then lists only the items that still need a human, with their age and whether they are past a target. Items that need no reply (spam, your own comments, threads you already answered, no-reply labels), items covered by a draft already made for the same thread and opted-out authors are counted under `closed` and not queued. Order: overdue first, then label priority, then oldest. `--now` defaults to the current UTC time; a timestamp in the future counts as age 0.
 
-The overdue targets are **owner-adjustable defaults, not platform data** (harassment 12 h, suspicious, bug_report and technical_question 24 h, actionable_feedback, feature_request and collaboration_opportunity 72 h, praise 168 h). Override one with `--sla LABEL=HOURS` (1 to 8760). Reach and sentiment are not part of the export contract, so the queue does not use them. It makes no network request, opens no database, and has no send, reply, follow, like or DM path: replies remain drafts that you review and post manually.
+The overdue targets are **owner-adjustable defaults, not platform data** (harassment 12 h, suspicious, bug_report and technical_question 24 h, actionable_feedback, feature_request and collaboration_opportunity 72 h, praise 168 h). Override one with `--sla LABEL=HOURS` (1 to 8760). The queue orders items overdue first, then by label priority, then, inside the same label, by owner-supplied negative `sentiment`, then higher owner-supplied `reach` (an absent value sorts after known ones), then oldest. `reach` and `sentiment` never change a label, a safety route (harassment, suspicious, opt-out) or whether a draft exists. It makes no network request, opens no database, and has no send, reply, follow, like or DM path: replies remain drafts that you review and post manually.
 
 ## Approved replies (issue #17, owner-approved 2026-10-09; sending blocked by the registry until a live receipt)
 
@@ -274,6 +288,8 @@ The approval hash covers the stored target byte for byte. A reply is text-only: 
 ## Unified inbox demo (issue #17 slice, offline)
 
 An export item may carry an optional `kind`, one of `reply`, `mention`, `quote_post`, `comment`, `direct_message`. Anything else is refused; a missing `kind` is reported as `unspecified`. The triage report then adds an `inbox` block (counts per category and per source platform, and the action taken per category), each item carries its `kind`, and the Markdown sheet shows a category table. `kind` changes no label, rule, draft, opt-out or moderation decision: it is a grouping label only, and a claimed category never loosens a safety rule.
+
+The "five categories" are the five item kinds above. Every item then gets exactly one action (`draft_reply_requires_approval`, `human_review_required_no_draft`, `no_reply_spam`, `skip_owner_comment`, `human_authored_reply_only` and the others in the actions table) that `actions_by_kind` counts per kind. A reply proposal carries the sanitized original excerpt, its evidence (the matched rules and the docs link) and the constraints of its own platform: the conservative text limit differs by platform (for example Bluesky 300, Mastodon 450, X 260, LinkedIn 2800), `human_authored_only` platforms (DEV, Hacker News) get no draft, and a platform without a comment send path says how to post it yourself. `tests/test_engagement_constraints.py` pins this.
 
 The demo is `tests/fixtures/engagement/unified-inbox.json`: synthetic items from five mocked sources (Bluesky, Mastodon, GitHub, DEV, Hacker News) covering all five categories, with injection, harassment, spam, an opt-out request, an owner item and an author on the opt-out list (`unified-inbox-optout.json`):
 

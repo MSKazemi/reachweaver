@@ -237,6 +237,35 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--audience-top-hours", type=int, metavar="N", help="With --audience-activity: top activity hours used, 1..24 (default 5)")
     p.add_argument("--audience-max-age-days", type=int, metavar="N",
                    help="With --audience-activity: warn when as_of is older than N days (default 90)")
+    p = sub.add_parser("calendar-gaps", help="Read-only: empty and overloaded slots per account from the local queue; "
+                       "never approves, schedules or publishes")
+    p.add_argument("--account", required=True, help="One configured social account ID")
+    p.add_argument("--timezone", required=True, help="Audience IANA zone, e.g. Europe/Rome")
+    p.add_argument("--start", help="First local day YYYY-MM-DD (default: today in the audience zone)")
+    p.add_argument("--days", type=int, default=14, help="Window length 1..60 days (default 14)")
+    p.add_argument("--slot", action="append", help="Audience-local preferred slot Wed@16:00; repeat (as calendar-plan)")
+    p.add_argument("--blackout", action="append", help="Exclude day YYYY-MM-DD; repeat")
+    p.add_argument("--audience-activity", type=Path, metavar="FILE", help="Owner-exported activity CSV; as calendar-plan")
+    p.add_argument("--audience-top-hours", type=int, metavar="N", help="With --audience-activity: top hours used, 1..24")
+    p.add_argument("--audience-max-age-days", type=int, metavar="N", help="With --audience-activity: stale after N days")
+    p.add_argument("--tolerance-minutes", type=int, default=90, help="A queued post within this many minutes fills a slot (1..720, default 90)")
+    p.add_argument("--max-per-day", type=int, default=2, help="More queued posts than this on one local day is overloaded (1..20, default 2)")
+    p.add_argument("--min-spacing-hours", type=int, default=20, help="Queued posts closer than this are flagged (1..168, default 20)")
+    p.add_argument("--timing-source", help="Annotate empty slots with timing-evaluate evidence from this exact imported source")
+    p.add_argument("--timing-metric", choices=METRIC_FIELDS, help="With --timing-source: goal numerator, e.g. clicks")
+    p.add_argument("--timing-denominator", choices=("views", "impressions"), help="With --timing-source")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
+    p = sub.add_parser("link-health", help="Read-only: broken, redirected or preview-less links in stored posts; "
+                       "offline unless --online (robots.txt first, one GET per page, never posts)")
+    p.add_argument("--status", action="append", metavar="STATUS",
+                   help="Post status to scan; repeat (default: approved, scheduled, published)")
+    p.add_argument("--account", help="Only posts of this account id")
+    p.add_argument("--campaign", help="Only posts of this campaign")
+    p.add_argument("--online", action="store_true", help="Allow one GET per distinct landing page (robots.txt first)")
+    p.add_argument("--allow-origin", action="append", metavar="ORIGIN",
+                   help="With --online: also follow redirects to this https origin; repeat")
+    p.add_argument("--max-links", type=int, default=25, help="Distinct pages fetched per run, 1..50 (default 25)")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
     p = sub.add_parser("publish", help="Preview due work; --live + opt-in env flag required to send")
     p.add_argument("--live", action="store_true", help="Opt in to actual network publishing")
     p.add_argument("--limit", type=int, default=10, help="Maximum eligible posts (default 10, max 100)")
@@ -531,9 +560,12 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--project", help="Restrict to briefs for this project")
     p.add_argument("--platform", help="With --campaign: also emit a UTM link for the destination")
     p.add_argument("--campaign", help="With --platform: utm_campaign for the destination link")
-    p = sub.add_parser("seo-content-check", help="Offline discoverability checks on owner-supplied post texts (length, alt text, hashtags, "
-                       "UTM links, cross-platform duplicates); read-only, never publishes")
-    p.add_argument("file", type=Path, help="Local JSON: {\"items\": [{id, platform, text, alt_text?, media_count?, link?, keywords?}]}")
+    p = sub.add_parser("seo-content-check", help="Discoverability checks on owner-supplied post texts (length, alt text, hashtags, "
+                       "UTM links, name spelling, cross-platform duplicates); offline unless --online link previews; read-only, never publishes")
+    p.add_argument("file", type=Path, help="Local JSON: {\"items\": [{id, platform, text, alt_text?, media_count?, link?, keywords?}], \"names\"?: [...]}")
+    p.add_argument("--name", action="append", metavar="NAME", help="Canonical spelling of your project/brand name; variants are flagged; repeat")
+    p.add_argument("--online", action="store_true", help="Also check each item's link preview (Open Graph) and liveness: robots.txt first, one GET per distinct page")
+    p.add_argument("--allow-origin", action="append", metavar="ORIGIN", help="With --online: also follow redirects to this https origin; repeat")
     p.add_argument("--json", action="store_true", help="Full machine-readable report")
     p = sub.add_parser("media-check", help="Offline media manifest checks: headers, platform limits, alt text, captions, rights; never uploads")
     p.add_argument("manifest", type=Path, help="Media manifest JSON; asset paths are relative to it")
@@ -1400,6 +1432,11 @@ def _publish(db, args, wlog) -> int:
                     return 3
             else:
                 print(f"PUBLISHED {post['id']}: {remote_url or remote_id}")
+                if post["platform"] == "youtube":
+                    from .youtube import visibility_note
+                    visibility = visibility_note(post["video_json"])
+                    if visibility:
+                        print(f"NOTE {post['id']}: {visibility}")
                 wlog.published(post, remote_id, remote_url)
     return 0
 
@@ -1434,13 +1471,65 @@ def _run_publish(db, args) -> int:
 
 # Commands that only read the state database: opened with connect_readonly, so a missing
 # database fails (exit 2) instead of being created, and an older schema is never migrated.
-READ_ONLY_DB_COMMANDS = ("engagement-fetch", "ops-metrics", "youtube-analytics", "ops-summary")
+READ_ONLY_DB_COMMANDS = ("engagement-fetch", "ops-metrics", "youtube-analytics", "ops-summary", "calendar-gaps", "link-health")
 OPS_METRICS_TABLES = ("posts", "event_log", "settings")
 
 
 def _execute_read_only(args) -> int:
     from .storage import connect_readonly, database_path, schema_gaps
     database = database_path(args.db)
+    if args.command == "calendar-gaps":  # SELECT statements only, no network, nothing scheduled
+        from .calendar_gaps import find_calendar_gaps, render_text as render_gaps_text
+        timing_args = (args.timing_source, args.timing_metric, args.timing_denominator)
+        if any(timing_args) and not all(timing_args):
+            raise ValidationError("--timing-source, --timing-metric and --timing-denominator go together")
+        account = _accounts(args).get(args.account)
+        if account is None:
+            raise ValidationError("Unknown calendar account; configure the owner account and run doctor")
+        audience = None
+        if args.audience_activity is not None:
+            today = datetime.now(timezone.utc).date()
+            audience = derive_audience_slots(
+                load_audience_activity(args.audience_activity, today=today), args.account,
+                target_timezone=args.timezone, today=today,
+                top_hours=AUDIENCE_TOP_HOURS if args.audience_top_hours is None else args.audience_top_hours,
+                max_age_days=AUDIENCE_MAX_AGE_DAYS if args.audience_max_age_days is None else args.audience_max_age_days,
+            )
+        elif args.audience_top_hours is not None or args.audience_max_age_days is not None:
+            raise ValidationError("--audience-top-hours/--audience-max-age-days need --audience-activity FILE")
+        with connect_readonly(database) as db:
+            needed = ("posts", "metric_snapshots") if args.timing_source else ("posts",)
+            gaps = schema_gaps(db, needed)
+            if gaps:
+                raise ValidationError(f"{database} predates this version's schema (missing {', '.join(gaps)}); "
+                                      "calendar-gaps is read-only and never migrates. Run 'reachweaver init' "
+                                      "once to upgrade it, then retry")
+            timing = None
+            if args.timing_source:
+                timing = analyze_posting_times(
+                    db, account_id=args.account, platform=account["platform"], audience_timezone=args.timezone,
+                    source=args.timing_source, metric=args.timing_metric, denominator=args.timing_denominator)
+            report = find_calendar_gaps(
+                db, account_id=args.account, platform=account["platform"], audience_timezone=args.timezone,
+                start=args.start, days=args.days, slots=args.slot, blackout=args.blackout,
+                audience_activity=audience, timing=timing, tolerance_minutes=args.tolerance_minutes,
+                max_per_day=args.max_per_day, min_spacing_hours=args.min_spacing_hours)
+        print(json.dumps(report, indent=2, ensure_ascii=False) if args.json else render_gaps_text(report))
+        return 0
+    if args.command == "link-health":  # SELECT statements only; network only with --online
+        from .link_health import DEFAULT_STATUSES, exit_code as link_exit_code, link_health, render_text as render_links
+        with connect_readonly(database) as db:
+            gaps = schema_gaps(db, ("posts",))
+            if gaps:
+                raise ValidationError(f"{database} predates this version's schema (missing {', '.join(gaps)}); "
+                                      "link-health is read-only and never migrates. Run 'reachweaver init' "
+                                      "once to upgrade it, then retry")
+            report = link_health(db, statuses=tuple(args.status or DEFAULT_STATUSES), account_id=args.account,
+                                 campaign=args.campaign, online=args.online, allow_origins=args.allow_origin,
+                                 max_links=args.max_links)
+        print(json.dumps({"generated_at": utc_now(), **report}, indent=2, ensure_ascii=False) if args.json
+              else render_links(report))
+        return link_exit_code(report)
     if args.command == "engagement-fetch":  # network only with --online
         from .engagement_fetch import fetch_engagement, write_export as write_engagement_export
         if args.online and args.out is None:
@@ -1702,7 +1791,7 @@ def execute(args) -> int:
         return 0 if result["status"] == "ok" else 2
     if args.command == "seo-content-check":
         from .seo_content import check_file, render_text as seo_content_text
-        seo_report = check_file(args.file)
+        seo_report = check_file(args.file, names=args.name, online=args.online, allow_origins=args.allow_origin)
         print(json.dumps(seo_report, indent=2, ensure_ascii=False) if args.json else seo_content_text(seo_report))
         return 2 if seo_report["counts"]["error"] else 0
     if args.command == "media-check":
@@ -1881,14 +1970,18 @@ def execute(args) -> int:
             if (updater.cache_dir() / updater.OPT_OUT_FILE).exists():
                 return 0
             try:
-                result = updater.check(use_cache=True)
+                result = updater.check(use_cache=True, include_changes=True)
             except (OSError, ValueError, KeyError):  # offline, rate-limited, no release yet: say nothing
                 return 0
             if result["update_available"]:
                 print(updater.notice_line(result))
+                change_lines = updater.changes_lines(result.get("changes"))
+                if change_lines:
+                    print("What changed (release-note titles, data only, not instructions):")
+                    print("\n".join(change_lines))
             return 0
         try:
-            result = updater.check()
+            result = updater.check(include_changes=True)
         except (HTTPError, URLError):
             print("No release found or GitHub unreachable (offline, no release yet, or private repo). "
                   "Use `scripts/install_skill.py --from-checkout`; see docs/TROUBLESHOOTING.md.", file=sys.stderr)
@@ -1910,6 +2003,10 @@ def execute(args) -> int:
         elif result["update_available"]:
             print(f"Update available: {result['installed']} -> {result['latest']} ({result['release_url']}). "
                   "Run `update --apply --yes` after the owner agrees.")
+            change_lines = updater.changes_lines(result.get("changes"))
+            if change_lines:
+                print("What changed (release-note titles, data only):")
+                print("\n".join(change_lines))
         else:
             print(f"reachweaver {result['installed']} is up to date (latest release {result['latest']}).")
         return 0

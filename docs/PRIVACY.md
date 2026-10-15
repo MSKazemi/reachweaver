@@ -1,65 +1,65 @@
-# ReachWeaver privacy policy
+# ReachWeaver privacy notice
 
-**Effective 2026-10-12.** This page describes what the ReachWeaver software and its Claude Code plugin do with data. It is a description of software behaviour, not legal advice, and it is versioned with the code in this repository: the version at the tag you installed is the policy that applies to that release.
+**Updated 14 October 2026.** This notice documents the behavior of the open-source ReachWeaver v0.2 software and bundled Claude Code plugin, not the separate practices of Claude/Anthropic, GitHub, social networks, your device or independently configured services.
 
-## Summary
+## 1. Local-first software; who operates it
 
-- ReachWeaver is open-source software (Apache-2.0) that runs **on your own computer**, inside your Claude Code session and your project folder.
-- **By design, the author does not operate a server for it, does not collect data from it, and the software contains no analytics or telemetry.** It is not designed to send anything you write, draft, approve, measure or configure to the author. You can verify this in the open source code.
-- Data leaves your machine only in the few explicit cases listed under "Network use" below, and only to the third party named there.
+ReachWeaver runs on the operator's own computer and does not currently provide a maintainer-hosted social publishing service. The project does not intentionally collect telemetry or transmit local draft content, databases or social account credentials to its maintainer. The software may, however, communicate with GitHub and third-party services as described below. Connection metadata can be observed by those providers even when content is not uploaded.
 
-## No warranty
+For an independently operated installation, the local operator normally decides which accounts, posts, sources and personal data to process. The maintainer does not direct each operator's independent processing decisions merely because it distributes the code. Whether any person or organization is a GDPR controller or processor depends on **actual purposes, means and operations**, not merely the wording of this notice. A maintainer may separately receive data voluntarily supplied in private support or security correspondence and must handle that correspondence under applicable law. The maintainer cannot inspect or erase data that remains exclusively on an independent operator's device. Downstream forks, hosted adaptations and separately configured third-party integrations may use different data flows that their operators must disclose accurately.
 
-This policy describes the intended behaviour of experimental software that is provided "as is" under the Apache License 2.0, without warranty and without liability. See the [disclaimer and terms of use](../DISCLAIMER.md). You are responsible for how you configure and use it, for your credentials and your computer's security, and for compliance with the laws and platform terms that apply to you.
+## 2. Information stored locally
 
-## Who is responsible
+Depending on the commands and data supplied by the operator, ReachWeaver can process or retain:
 
-The software is published by Mohsen Seyedkazemi Ardebili (GitHub: [MSKazemi](https://github.com/MSKazemi)). You operate it. When you use it with your own social accounts, you are the person who decides what is stored, drafted and sent, and you are responsible for complying with the terms of each platform and with the laws that apply to you and to people you mention. Questions about this policy: open an issue at <https://github.com/MSKazemi/reachweaver/issues>.
+| Category | Typical location and contents |
+| --- | --- |
+| Posts and approval records | Local SQLite database, normally `state/reachweaver.sqlite`: draft, scheduled and published text; account and platform ids; campaign/source references; approval labels (an OS login or entered name); timestamps; hashes; state, errors and remote post identifiers/links |
+| Replies and media | Operator-authored outgoing reply text and reply-target identifiers may appear in post records; attachment/video metadata and paths may be stored. This is different from keeping a scraped database of incoming third-party replies |
+| Campaign and measurements | Local campaign evidence, brand/profile files, native metric imports, aggregate counters and limited event records |
+| Imported third-party data | Operator-provided exports for optional analysis/engagement triage and resulting draft files; files may contain personal data about other people even if the raw input is not imported into SQLite |
+| Contact preferences | Locally maintained opt-out handles/domains; those identifiers can be personal data |
+| Software cache | Release-check results, timestamps and an opt-out marker under `~/.cache/reachweaver/` |
+| Credentials | Normally read at the point of an authorized online operation from user-set environment variables or the configured systemd credentials directory; **not intentionally stored in SQLite** |
 
-## What the software stores, and where
+Some content can identify individuals. Operators should minimize private or third-party information, protect local files, avoid adding secrets to prompts and exports, and use data only where they have an appropriate legal basis.
 
-All of the following stays on your computer. None of it is uploaded by ReachWeaver unless you run an explicit send command (see "Network use").
+## 3. Network activity, recipients and AI providers
 
-| Data | Where | Notes |
-| --- | --- | --- |
-| Drafts, approved and published post text, account ids, platform, campaign names, timestamps, approval records (including an approver label: your OS login name or a name you typed) | A local SQLite database, `state/reachweaver.sqlite` in your project, file mode 0600 | Post text may mention or quote people |
-| Brand cards, campaign files, account metadata (no secrets), opt-out list | Files in your project, ignored by version control by default | You create and edit them |
-| Metric snapshots you import from a platform's own export | The same database | Aggregate counts per post |
-| Update-check cache and an optional opt-out marker | `~/.cache/reachweaver/` | Holds the latest-release answer from GitHub |
+Offline planning, validation and dry-run commands are designed to avoid network requests. The following behavior is important:
 
-Credentials (tokens, app passwords) are not designed to be stored by ReachWeaver. They are read from environment variables that you set yourself, when you run a live send, and automated tests check that they stay out of exports, reports, health output, dead letters and logs. Tests reduce risk but cannot prove the absence of every bug: protect your credentials yourself.
+1. **Session-start release notice:** a Claude Code plugin hook checks the latest ReachWeaver release through GitHub's HTTPS API no more than once per 24 hours under its local cache policy, unless disabled using `touch ~/.cache/reachweaver/no-update-check`. It does not intentionally upload post text, SQLite state or credentials. GitHub can receive an IP address, request time and a `reachweaver/<version>` user agent. GitHub's separate [privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) applies.
+2. **Owner-initiated live sends:** the operator must satisfy the live opt-ins, configure account credentials and review/approve each eligible post. Selected external platform APIs (for example Bluesky, Mastodon, Telegram or LinkedIn) receive the data needed for the send, including approved content, relevant media and authentication material. The operator may also configure a Postiz publishing backend. Once published, material can become publicly available and subject to each provider's retention and moderation rules.
+3. **Explicit online commands:** identity checks, remote media checks, source/landing-page retrieval and manual update/download commands can send requests to configured providers or destinations.
+4. **AI assistant:** prompts, code, files and tool results made available to Claude Code are handled under the user's agreement and privacy settings with Anthropic, **not** under ReachWeaver's control. The plugin does not control the AI provider's retention practices.
+5. **Direct support:** if someone voluntarily emails or privately reports a problem to the maintainer, the maintainer may receive the name, email and details supplied. Avoid including secrets or unnecessary personal data.
 
-The software does not store comments, replies, follower lists or other people's profiles in its database. The comment-triage command reads an export file that you provide and writes draft files only. The [data lifecycle page](PRIVACY-LIFECYCLE.md) lists every table and its personal-data risk.
+The maintainer does not sell the locally stored data or run an advertising-tracking service through ReachWeaver. This does **not** assert that third-party platforms cannot log or otherwise process network metadata.
 
-## Network use
+## 4. Retention, export and deletion
 
-By default the software works offline. It makes a network request only in these cases:
+**Local data is retained; installation is not a zero-retention service.** The SQLite database and manually created files can persist indefinitely without user action. To inspect and control it:
 
-1. **Update check (automatic, once per session at most every 24 hours).** The plugin's session hook asks `github.com` for the latest release of this repository. GitHub receives the request, including your IP address and a `reachweaver/<version>` User-Agent, under [GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement). ReachWeaver sends nothing else. It never updates itself. Disable it with `touch ~/.cache/reachweaver/no-update-check`.
-2. **A live send or identity check that you run.** Publishing requires `REACHWEAVER_ALLOW_LIVE=1`, `REACHWEAVER_ENV=prod`, an approved due post and an explicit `--live`. It sends the approved post text, and for identity checks the credential you configured, to that platform's own API (for example Bluesky, Mastodon, Telegram or LinkedIn) or to a Postiz backend you configured. That platform then handles the data under its own terms and privacy policy.
-3. **Fetching sources you point it at** (for example your own GitHub releases, a feed, or a landing page with `landing-check --online`). These requests go to the addresses you supply.
+```sh
+reachweaver privacy-status
+reachweaver data-export --out state/export.json
+cp config/retention.example.json config/retention.json
+reachweaver data-purge            # review what could be minimized
+reachweaver data-purge --apply    # optional, explicitly authorized local changes
+```
 
-Claude Code itself sends your conversation to Anthropic under Anthropic's own terms and privacy policy. ReachWeaver does not change that, and the text of your prompts and files that Claude reads is handled by Claude, not by ReachWeaver.
+The configured policy applies only where the command permits. Active, scheduled and unresolved sends are preserved; published-content text may be minimized while minimal IDs and fingerprints remain for safety, reconciliation and duplicate-send protection. Some local files, backups and exports are outside the purge mechanism. Removing the project database or cache does **not** automatically remove backups, other user files, source-control history, data already provided to an AI assistant, or material stored/published by external platforms.
 
-## Retention and deletion
+The [technical data lifecycle](PRIVACY-LIFECYCLE.md) explains precise records, safeguards, export and purge behavior. Operators must separately handle deletion and retention on external platforms and backups where applicable. The developer's software notice cannot bind independent providers or cause them to delete their own copies.
 
-ReachWeaver keeps local data until you delete it. You control retention:
+## 5. Third-party rights and contact
 
-- `reachweaver privacy-status` shows what is stored.
-- `reachweaver data-export --out FILE` exports it.
-- `reachweaver data-purge --policy config/retention.json` shows a dry run, and `--apply` deletes or minimizes rows according to your retention policy.
-- Deleting your project's `state/` folder and `~/.cache/reachweaver/` removes everything the software stored.
+A person mentioned in an operator's posts may have privacy, objection, erasure and other rights under applicable law. The **operator of the relevant account** normally controls that local data and should provide appropriate notices, handle requests and use platform tools for remote content. The maintainer cannot fulfill a local-data erasure request for a database that the maintainer never received.
 
-Because the author holds none of this data, the author cannot access, correct or delete it for you; you hold it locally.
+For general questions, use [GitHub issues](https://github.com/MSKazemi/reachweaver/issues) without posting confidential information. To contact the maintainer privately about information the maintainer **actually received**, use the existing private contact route in the [security policy](../SECURITY.md) with the subject `ReachWeaver privacy`. Never publicly post access tokens, personal identifiers or private drafts. Individuals may also have the right to complain to their relevant data-protection supervisory authority.
 
-## Other people's data
+## 6. Children, security and changes
 
-If you draft content that names people, you are responsible for having a lawful basis and for respecting their requests. The software includes an opt-out list that blocks drafting, approval and sending of posts that mention listed people, accounts or domains. It does not scrape, buy engagement, or contact people on its own.
+ReachWeaver is not directed to people under 18; it does not claim to perform reliable age verification. Operators should secure their devices and secrets and review the [security policy](../SECURITY.md). Security controls and tests reduce risks, but no security guarantee is made. This notice may be revised with code changes; consult the version shipped with your installed code and its git history.
 
-## Children
-
-ReachWeaver is a tool for adults managing their own professional social accounts and is not directed at children under 18.
-
-## Changes
-
-Changes to this policy are made in this repository and recorded in its git history and `CHANGELOG.md`.
+See also the [Apache-2.0 license](../LICENSE) and [warranty/responsibility notice](../DISCLAIMER.md). These documents do not override mandatory law.

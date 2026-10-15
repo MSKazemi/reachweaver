@@ -120,6 +120,26 @@ Track the platform-native metric definition, account, format, timezone, cohort a
 
 Existing publishing safety remains unchanged: dry-run default, no automated unknown-success retries, emergency pause, exact per-post consent, and real remote receipts. This is a safe scheduler foundation, not the full multi-network hands-free system.
 
+## 4b. Find gaps in what is already queued: `calendar-gaps`
+
+```bash
+python -m reachweaver.cli calendar-gaps --account my-bluesky --timezone Europe/Rome --days 14
+python -m reachweaver.cli calendar-gaps --account my-bluesky --timezone Europe/Rome --start 2026-10-15 --days 14 --json \
+  --timing-source native-export --timing-metric clicks --timing-denominator impressions
+```
+
+Read-only (issue #9). It takes the same candidate slots as `calendar-plan` (`--slot`, `--audience-activity`, or the generic baseline) and compares them with the posts in `scheduled` status:
+
+| Output | Meaning |
+|---|---|
+| `filled` / `empty` / `past` | A queued post within `--tolerance-minutes` (default 90) fills a slot; a slot already gone is `past`, never `empty`. |
+| `overloaded_days` | More than `--max-per-day` (default 2) queued posts on one audience-local day. |
+| `close_pairs` | Two queued posts closer than `--min-spacing-hours` (default 20, the planner's spacing). |
+| `off_slot_post_ids` | Queued posts in the window that are not near any candidate slot. |
+| `timing_evidence` | With the three `--timing-*` flags, an empty slot shows your own matched-age result for that part of the day. It is an observational association, not a best-time proof. |
+
+It uses a read-only database connection (a missing database is an error, nothing is created or migrated), makes no network request and cannot approve, schedule or publish. Posts queued in a platform's native scheduler, or created outside ReachWeaver, is invisible to it, so an "empty" slot is a prompt to check, not a statement that nothing will go out.
+
 ## Verification
 
 Regression suite: `python -m unittest discover -s tests -v`. Critical cases cover audience-local/UTC conversion, DST gap/fold, audience-activity CSV validation, injection, staleness, provenance and the no-flag golden output (`tests/test_audience.py`), blackout dates, account mismatch, manual-only apply rejection, draft approval enforcement, insufficient slots, queue collision, stale plan and atomic rollback, and emergency stop. The portable skill mirror is synchronized with `python scripts/sync_skill.py` and checked in CI.

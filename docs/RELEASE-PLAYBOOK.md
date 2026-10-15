@@ -21,6 +21,7 @@ The scorecard ([release-readiness.json](release-readiness.json)) lists each plat
 |---|---|---|---|---|---|
 | 1 | Find what is worth announcing | `sources-scan` | nothing (optional `--state` file) | only with `--online` (GET) | pick the release |
 | 2 | Scaffold, then write the campaign file | `signal-brief`, then editor / Claude Code | new 0600 campaign JSON + `.brief.md` | no | evidence is true |
+| 2b | Turn the same source into a video and image cut list (optional) | `media-storyboard --campaign` | new folder: storyboard, SRT skeleton, manifest | no | write every placeholder; real footage only |
 | 3 | Check claims and structure | `claims-check`, `campaign-check` | nothing | no | resolve every finding |
 | 4 | Check media (if any) | `media-check` | nothing | no | rights and alt text |
 | 5 | Choose destinations and links | `seo-destinations`, `utm-link` | nothing | no | landing page |
@@ -63,6 +64,17 @@ reachweaver signal-brief --scan private/scan.json --signal-id SIGNAL_ID --brand 
 Either way, each claim needs an `evidence` entry with the release URL, the exact claim, an optional `excerpt` copied verbatim from the source (replace the scaffold's untrusted scan summary) and `kind: "release"`. Write a distinct variant per network; do not paste the same text everywhere. Claude Code can draft variants with `/reachweaver`, but it only proposes text.
 
 **HUMAN GATE:** every evidence entry is something you checked in the primary source, today.
+
+### 2b. One source, every format: variants plus a media cut list (public issue #8)
+
+The scaffold from step 2 already holds **one placeholder variant per approved account** (each platform's own text budget is recorded), so one source becomes per-platform variants you write. The same campaign file also feeds the media tool:
+
+```bash
+reachweaver media-storyboard --campaign private/release.campaign.json --out private/storyboard \
+  --duration 30 --video-targets tiktok youtube_shorts --image-targets instagram linkedin
+```
+
+It writes a **new** folder with `storyboard.json` and `storyboard.md` (a timed scene list: hook, beats tied to your evidence entries, call to action, with the text box and the platform UI-overlay safe areas), a `subtitles.en.srt` skeleton, per-target image specs and a `media-manifest.json`. No copy, alt text, subtitle text, image or video is generated: every creative field stays a `{{write: ...}}` placeholder, the status is `SCAFFOLD_BLOCKED_UNTIL_HUMAN_EDIT`, and `media-check` on the manifest stays blocked until real files exist, rights are confirmed and every placeholder is written. Record or capture real footage yourself, edit `storyboard.json`, then re-check with `media-storyboard --check private/storyboard/storyboard.json` ([MEDIA-ASSETS.md](MEDIA-ASSETS.md)). The whole chain (`sources-scan` on the offline fixtures, `signal-brief`, `media-storyboard`, `media-check`) runs offline and is pinned by `tests/test_repurposing_chain.py`.
 
 ## 3. Check claims and structure
 
