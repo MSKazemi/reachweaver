@@ -70,11 +70,12 @@ from .ratelimit import (
 )
 from .report_format import REPORT_FORMATS, render_report
 from .richtext import bluesky_preview, deterministic_tid, mastodon_length
+from . import disconnect as account_disconnect
 from .storage import (
-    APPROVAL_KEY_CREDENTIAL, APPROVAL_KEY_UNAVAILABLE, BINDING_MEDIA_CHANGED, BINDING_VIDEO_CHANGED, METRIC_FIELDS, active_provider_cooldown,
+    APPROVAL_KEY_CREDENTIAL, APPROVAL_KEY_UNAVAILABLE, BINDING_MEDIA_CHANGED, BINDING_VIDEO_CHANGED, METRIC_FIELDS, account_send_hold, active_provider_cooldown, hold_refusal,
     add_post, approval_binding_problem, identity_mode_required, latch_identity_mode, approval_key_mode, approval_payload_sha256, latch_keyed_mode, offline_key_mode,
     binding_refusal, check_approval_binding, claim_sending, connect, cooldown_refusal, finish_send, get_post,
-    approval_rebind_required, is_paused, parse_utc, pending, post_media, post_video,
+    approval_max_age_hours, approval_rebind_required, is_paused, parse_utc, pending, post_media, post_video, set_approval_max_age_hours,
     provider_cooldowns, published_text, queue_health, reconcile, record_binding_failure, reply_report, reply_target_text, report, set_paused,
     set_post_media, set_post_video, store_metrics, sync_cooldown_scopes, transition, uncertain_send, utc_now,
 )
@@ -117,6 +118,12 @@ def make_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("connect-check", help="Explicit online, non-publishing account identity check")
     p.add_argument("--account", required=True, help="One account id from local ignored config")
     p.add_argument("--online", action="store_true", help="Required: allow authentication/read-only remote API requests")
+    p = sub.add_parser("disconnect", help="Stop publishing to one account on this installation (#38): tighten-only, local; "
+                       "lists the credential variable names and the steps to revoke at the provider; revokes nothing itself")
+    p.add_argument("--account", required=True, help="One account id from local ignored config")
+    p = sub.add_parser("reconnect", help="Lift a local disconnect (#38). Human-only: needs an interactive terminal and a "
+                       "fresh challenge typed on /dev/tty")
+    p.add_argument("--account", required=True, help="The disconnected account id")
     p = sub.add_parser("postiz-check", help="Explicit online, READ-ONLY Postiz integration listing/receipt lookup; never posts")
     p.add_argument("--account", required=True, help="One account with \"backend\": \"postiz\" in local ignored config")
     p.add_argument("--online", action="store_true", help="Required: allow read-only GET requests to the Postiz API")
@@ -319,6 +326,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--require-identity", action="store_true",
                    help="Latch identity-bound approval (wave 9 item 2): approve needs --verify-identity --online and "
                         "every send needs a stored identity; tighten-only, no command removes the latch")
+    p.add_argument("--max-age-hours", type=int, metavar="N",
+                   help="Approval time-to-live (#39): an approval older than N hours (1..8760) is expired and the post "
+                        "must be re-approved before any send; tighten-only, only a lower value is accepted later")
     sub.add_parser("resume", help="Explicitly lift the emergency stop")
     p = sub.add_parser("metrics", help="Record one snapshot from a native platform export")
     p.add_argument("post_id")
@@ -722,6 +732,10 @@ def _approval_view(post, mode=None) -> dict:
         view["binding"] = problem or "bound"
         if problem:
             view["reapprove"] = binding_refusal(problem, post["id"])
+        ttl = getattr(mode, "max_age_hours", None)
+        if ttl and post["approved_at"]:
+            view["approval_expires_at"] = (datetime.fromisoformat(parse_utc(post["approved_at"]))
+                                           + timedelta(hours=ttl)).isoformat(timespec="seconds")
     elif post["status"] == "draft":
         # What 'approve' would bind right now (approve always clears scheduled_at).
         view["approve_would_bind_sha256"] = approval_payload_sha256(post, scheduled_at=None, use_row_schedule=False)
@@ -1071,13 +1085,20 @@ def _publish(db, args, wlog) -> int:
             if problem:
                 unbound += 1
                 print(f"    BLOCKED {binding_refusal(problem, post['id'])}; --live would refuse it")
+            since = account_disconnect.disconnected_since(db, post["account_id"])
+            if since is not None:
+                print(f"    SKIPPED {post['id']}: {account_disconnect.refusal(post['account_id'], since)}; "
+                      "--live would skip it before any claim or request")
             cooldown = active_provider_cooldown(db, post["account_id"])  # + recorded scope membership
             if cooldown:
                 cooling += 1
                 print(f"    SKIPPED {post['id']}: {cooldown_refusal(cooldown)}; "
                       "--live would skip it before any claim or request")
+            hold = account_send_hold(db, post["account_id"], post["id"])
+            if hold:
+                print(f"    SKIPPED {post['id']}: {hold_refusal(hold)}; --live would skip it before any claim or request")
             budget: str | None = None
-            if post["platform"] == "bluesky" and not (reason or problem or cooldown):
+            if post["platform"] == "bluesky" and not (reason or problem or cooldown or hold):
                 key = post["account_id"]
                 usage = recorded_session_usage(db, key)  # None: never metered, nothing to refuse
                 if usage is not None:
@@ -1262,6 +1283,15 @@ def _publish(db, args, wlog) -> int:
             if args.post_id:
                 return 2
             continue
+        # Unresolved send (#41): another post of this account is needs_review or sending, so its real
+        # state is unknown. Pre-claim and pre-network; claim_sending re-checks under its lock.
+        hold = account_send_hold(db, post["account_id"], post["id"])
+        if hold:
+            print(f"SKIPPED {post['id']}: {hold_refusal(hold)}; not claimed, post stays {post['status']}, no request sent")
+            wlog.skipped(post, "unresolved_send_hold")
+            if args.post_id:
+                return 2
+            continue
         try:  # Capability registry must agree before any claim/network (fail closed).
             if video is not None:  # #22: video needs its registry switch, never the text adapter
                 from .capabilities import require_video_mode
@@ -1311,6 +1341,14 @@ def _publish(db, args, wlog) -> int:
                 if args.post_id:
                     return 2
                 continue
+        since = account_disconnect.disconnected_since(db, post["account_id"])
+        if since is not None:
+            print(f"SKIPPED {post['id']}: {account_disconnect.refusal(post['account_id'], since)}; not claimed, "
+                  f"post stays {post['status']}, no request sent")
+            wlog.skipped(post, "account_disconnected")
+            if args.post_id:
+                return 2
+            continue
         missing = missing_credentials(account)
         if missing:
             print(f"SKIPPED {post['id']}: configure environment variables: {', '.join(missing)}")
@@ -1950,9 +1988,31 @@ def execute(args) -> int:
         if account["platform"] == "mastodon":  # public GET /api/v2/instance, no token sent
             instance = mastodon_instance_limits(account)
             output["instance"] = instance
+        with connect(args.db) as db:
+            since = account_disconnect.disconnected_since(db, args.account)
+        output["local_state"] = "disconnected" if since is not None else "connected"
+        if since is not None:
+            output["disconnected_since"] = since
         output["note"] = "No content posted. Human-approved live pilot still required."
         print(json.dumps(output,indent=2))
         return 2 if instance is not None and not instance["ok"] else 0
+    if args.command == "disconnect":
+        account = _accounts(args).get(args.account)
+        if account is None:
+            raise ValidationError("Unknown account. Run 'doctor' for account IDs")
+        with connect(args.db) as db:
+            first = account_disconnect.disconnect(db, args.account)
+        print(("Disconnected " if first else "Already disconnected ") + f"{args.account}: nothing will be claimed or sent for it "
+              "on this installation. This revoked nothing at the provider.")
+        for step in account_disconnect.revocation_steps(account):
+            print(step)
+        return 0
+    if args.command == "reconnect":
+        with connect(args.db) as db:
+            lifted = account_disconnect.reconnect(db, args.account)
+        print(f"Reconnected {args.account}. Run connect-check --online before the next live send." if lifted
+              else f"{args.account} is not disconnected; nothing changed.")
+        return 0
     if args.command == "postiz-check":
         if not args.online:
             raise ValidationError("postiz-check requires explicit --online. Offline 'doctor' does not use network.")
@@ -2451,9 +2511,14 @@ def execute(args) -> int:
                 latch_keyed_mode(db)
             if args.require_identity:
                 latch_identity_mode(db)
+            if args.max_age_hours is not None:
+                set_approval_max_age_hours(db, args.max_age_hours)
             mode = approval_key_mode(db)
             print(f"Identity-bound approval (wave 9 item 2): {'required' if identity_mode_required(db) else 'off'}")
             print(f"Human confirmation (#7 D6): {confirmation.confirmation_mode(db) or 'off'}")
+            ttl = approval_max_age_hours(db)
+            print("Approval time-to-live (#39): " + ("off" if ttl is None else
+                  "invalid stored value, every approval counts as expired" if ttl == 0 else f"{ttl} hours"))
             print(f"Keyed approval binding (#7 D7): {'required' if mode.required else 'off'}; "
                   f"latched={'yes' if mode.latched else 'no'}; {APPROVAL_KEY_CREDENTIAL} "
                   f"{'available' if mode.key is not None else (mode.key_error or 'not provided')}")

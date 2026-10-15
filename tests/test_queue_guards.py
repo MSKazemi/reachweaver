@@ -11,10 +11,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+from hold_support import claim as claim_sending
 from reachweaver.cli import main
 from reachweaver.policy import ValidationError
 from reachweaver.storage import (
-    add_post, claim_sending, connect, finish_send, get_post, queue_health,
+    add_post, connect, finish_send, get_post, queue_health,
     reconcile, set_paused, transition, uncertain_send,
 )
 

@@ -219,7 +219,8 @@ reachweaver connect-check --account ID --online   # only when you want a fresh r
 
 1. `reachweaver pause` (emergency stop: no new claims).
 2. `reachweaver queue-health`. Reconcile every `sending` or `needs_review` post against the native account before going further (`reconcile POST_ID --published|--not-published`).
-3. **Revoke the credential at the provider** (next section). Unsetting a variable locally does not revoke anything.
+3. `reachweaver disconnect --account ID` (draft, #38) records that this installation must not publish to the account any more: every later claim is refused (`account_disconnected`, the post stays approved), `publish` skips it before any credential check or request, and `connect-check` shows `local_state: disconnected`. It prints the credential variable **names** the account reads (never values) and the steps below. It revokes nothing by itself and deletes nothing; later `reconnect --account ID` lifts it, and only from an interactive terminal after you type a fresh challenge.
+3b. **Revoke the credential at the provider** (next section). Unsetting a variable locally does not revoke anything.
 4. Remove the value from its store: `unset` it in the terminal, `pass rm`, delete the 1Password item or the `secret-tool` entry, or delete the file under `/etc/reachweaver/credentials/` and its `LoadCredential=` line (or the line in `/etc/reachweaver/credentials.env`).
 5. Remove the account from `config/accounts.json`. Run `reachweaver credentials-audit` and confirm there are no orphans.
 6. Export or purge local data as your retention policy requires ([privacy lifecycle](PRIVACY-LIFECYCLE.md)). `reachweaver resume` only when other accounts should continue.

@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+from hold_support import claim as claim_sending
 from reachweaver.caps import effective_caps, load_caps, validate_caps
 from reachweaver.cli import main
 from reachweaver.connections import VerifiedConnection
@@ -20,7 +21,7 @@ from reachweaver.health import (
 )
 from reachweaver.policy import ValidationError
 from reachweaver.storage import (
-    add_post, claim_sending, connect, finish_send, get_post, set_paused, transition, uncertain_send,
+    add_post, connect, finish_send, get_post, set_paused, transition, uncertain_send,
 )
 
 NOW = "2026-10-08T12:00:00+00:00"

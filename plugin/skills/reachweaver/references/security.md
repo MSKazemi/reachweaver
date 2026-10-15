@@ -45,3 +45,7 @@ On an owner-operated host, prefer systemd `LoadCredential=NAME:/etc/reachweaver/
 ## Local data lifecycle (offline)
 
 `reachweaver init` only creates the local SQLite state (0600 file in a 0700 directory); it connects no account. `privacy-status [--policy FILE]` shows permissions, row counts, oldest records and the retention policy. `data-export [--out NEW_FILE]` writes a redacted JSON export to a new 0600 file (or stdout); it still contains private drafts, so store it like the database. `data-purge [--policy FILE]` is a dry run of the retention plan; only the owner adds `--apply`. It never touches `draft`, `approved`, `scheduled`, `sending` or `needs_review` posts, and published posts keep their ids and remote receipts. The policy comes from `--policy`, `$REACHWEAVER_RETENTION_POLICY` or `config/retention.json`. Not legal advice; full repository: `docs/PRIVACY-LIFECYCLE.md`.
+
+## Disconnecting an account (draft, #38)
+
+`reachweaver disconnect --account ID` is tighten-only and local: later claims for that account are refused (`account_disconnected`), `publish` skips its posts before any credential check or request, and the command lists the credential variable names and the provider revocation steps; it revokes nothing itself. `reconnect --account ID` is human-only (interactive terminal plus a fresh challenge typed on `/dev/tty`); never try to run or script it, and never claim an account is revoked until the provider shows it. See `docs/ACCOUNT-ONBOARDING.md`.
