@@ -127,8 +127,8 @@ Safety rules:
 
 Sources checked on 2026-10-08:
 
-- [getPosts lexicon](https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/getPosts.json): a `query` with `uris` (at-uri array, maxLength 25) that returns `posts` of `#postView`.
-- [feed defs lexicon](https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/defs.json): `postView` includes `author` (`profileViewBasic`), `replyCount`, `repostCount`, `likeCount`, `quoteCount` and `bookmarkCount`, all integers and all optional.
+- [getPosts lexicon](https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/getPosts.json): a `query` with `uris` (at-uri array, maxLength 25) that returns `posts` of `#postView`.
+- [feed defs lexicon](https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/defs.json): `postView` includes `author` (`profileViewBasic`), `replyCount`, `repostCount`, `likeCount`, `quoteCount` and `bookmarkCount`, all integers and all optional.
 - Bluesky docs source, [API directory](https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/advanced-guides/api-directory.mdx) and [rate limits](https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/advanced-guides/rate-limits.md). They say public endpoints need no authentication and to use `public.api.bsky.app`, which "includes additional caching". That GitHub repository is archived. Its rendered pages now redirect to `bsky.network`, which could not be read without JavaScript.
 - [Mastodon statuses methods](https://docs.joinmastodon.org/methods/statuses/#get): "Public for public statuses, user token + `read:statuses` for private statuses". Since 2.7.0, "public statuses no longer require token". 401 means "Instance is in authorized-fetch mode" and 404 means "Status does not exist or is private".
 - [Mastodon Status entity](https://docs.joinmastodon.org/entities/Status/) (`favourites_count`, `reblogs_count`, `replies_count`; no view field) and the [Account entity](https://docs.joinmastodon.org/entities/Account/) (`username`, `acct`).

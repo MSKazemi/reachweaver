@@ -204,8 +204,8 @@ def _m(field, availability, definition, denominator=None, delay=_UNKNOWN_DELAY, 
 # Denominators are ReachWeaver's suggested rate bases, not provider statements.
 _YT = "https://developers.google.com/youtube/analytics/metrics"
 _YT_DELAY = "Analytics API report over the queried startDate..endDate; the metrics page states no latency."
-_BSKY_POST = "https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/defs.json"
-_BSKY_ACTOR = "https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/actor/defs.json"
+_BSKY_POST = "https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/defs.json"
+_BSKY_ACTOR = "https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/actor/defs.json"
 _MASTODON = "https://docs.joinmastodon.org/entities/Status/"
 _TG_MSG = "https://core.telegram.org/constructor/message"
 _TG_BOT = "https://core.telegram.org/bots/api#message"

@@ -22,8 +22,8 @@ Requests are sequential, capped per run, never redirected, and a provider 429
 stops the run at once with no retry. Nothing here writes to any platform.
 
 Sources (fetched and checked 2026-10-08):
-  https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/getPosts.json
-  https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/defs.json
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/getPosts.json
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/defs.json
   https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/advanced-guides/api-directory.mdx
   https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/advanced-guides/rate-limits.md
   https://docs.joinmastodon.org/methods/statuses/#get
@@ -56,8 +56,8 @@ FIELD_MAP: dict[str, tuple[tuple[str, str], ...]] = {
                  ("replies", "replies_count")),
 }
 SOURCE_URLS = {
-    "bluesky": ("https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/getPosts.json",
-                "https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/defs.json"),
+    "bluesky": ("https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/getPosts.json",
+                "https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/defs.json"),
     "mastodon": ("https://docs.joinmastodon.org/methods/statuses/#get",
                  "https://docs.joinmastodon.org/entities/Status/"),
 }

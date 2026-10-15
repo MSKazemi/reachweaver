@@ -22,14 +22,14 @@ Bluesky (accessed 2026-10-09):
   A reply record carries ``reply: {root: strongRef, parent: strongRef}``; both are required and a
   strongRef is ``{uri: at-uri, cid: cid}``. When the parent is itself a reply, ``root`` is copied
   from the parent's own ``reply.root``.
-  https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/post.json
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/post.json
   https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/com/atproto/repo/strongRef.json
   https://raw.githubusercontent.com/bluesky-social/bsky-docs/main/docs/advanced-guides/posts.md
   ``app.bsky.feed.getPostThread`` (``uri``, ``depth``, ``parentHeight``) returns a
   ``threadViewPost`` with ``post`` (postView: uri, cid, author, record, optional threadgate and
   labels) and ``parent`` (threadViewPost | notFoundPost | blockedPost).
-  https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/getPostThread.json
-  https://raw.githubusercontent.com/bluesky-social/atproto/main/lexicons/app/bsky/feed/defs.json
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/getPostThread.json
+  https://raw.githubusercontent.com/bluesky-social/atproto/main/packages/api/lexicons/app/bsky/feed/defs.json
 Mastodon (accessed 2026-10-09):
   ``POST /api/v1/statuses`` takes ``in_reply_to_id`` ("ID of the status being replied to") and
   ``visibility`` (public, unlisted, private, direct). ``GET /api/v1/statuses/:id`` is "Public for

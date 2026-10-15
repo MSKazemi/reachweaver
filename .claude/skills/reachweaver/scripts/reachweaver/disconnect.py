@@ -1,4 +1,4 @@
-"""Local account disconnect and reconnect (public issue #38, draft for owner security review).
+"""Local account disconnect and reconnect (public issue #38; owner-reviewed and merged 2026-10-15, PR #72).
 
 ``disconnect --account ID`` is a tighten-only local action: it records that this installation must not publish
 to the account any more. The send claim and the live pre-check refuse the account (``account_disconnected``) and the

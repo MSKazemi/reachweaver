@@ -81,8 +81,8 @@ AV_REPORT_FIELDS = ("video_codec", "video_fourcc", "frame_rate_fps", "variable_f
 # Sourced constraint table. Each row: value (None = not established), source URL,
 # verified_date, severity of a violation, and an explanatory note.
 # ---------------------------------------------------------------------------
-_BSKY_IMAGES = "https://github.com/bluesky-social/atproto/blob/main/lexicons/app/bsky/embed/images.json"
-_BSKY_VIDEO = "https://github.com/bluesky-social/atproto/blob/main/lexicons/app/bsky/embed/video.json"
+_BSKY_IMAGES = "https://github.com/bluesky-social/atproto/blob/main/packages/api/lexicons/app/bsky/embed/images.json"
+_BSKY_VIDEO = "https://github.com/bluesky-social/atproto/blob/main/packages/api/lexicons/app/bsky/embed/video.json"
 _BSKY_APP = "https://github.com/bluesky-social/social-app/blob/main/src/lib/constants.ts"
 _MASTODON = "https://docs.joinmastodon.org/user/posting/"
 _MASTODON_API = "https://docs.joinmastodon.org/methods/media/"
