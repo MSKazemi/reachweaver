@@ -14,7 +14,7 @@ Nothing here changes the human approval, the dry-run default, the emergency paus
 | Field | Rule |
 |---|---|
 | `server` | Required. A public `https` host. Every limit and every request is for this server only. |
-| `handle` | The local username (`example`), or `example@your-server` when the part after `@` is exactly the configured server. A handle on another server is refused with `mastodon_expected_handle_must_be_local_to_configured_server`. |
+| `handle` | The local username (`example`), or `example@your-server` when the part after `@` is exactly the configured server. A handle on another server is refused with `mastodon_expected_handle_must_be_local_to_configured_server` by `connect-check --online` and by the live identity preflight, before any request (the account file itself still loads). |
 | `visibility` | Optional: `public` (default), `unlisted` or `private`. `direct` (a direct message) is forbidden. |
 | `language` | Optional lowercase ISO 639-1 code such as `en`. |
 | `spoiler_text` | Optional, 1 to 200 printable characters. |
@@ -51,7 +51,7 @@ A send is `POST <server>/api/v1/statuses` (form-encoded) with `Idempotency-Key` 
 
 | Situation | Result |
 |---|---|
-| Checks before the post is claimed: a missing `<env_prefix>_TOKEN` (`SKIPPED ... configure environment variables`), text over the limit (`SKIPPED ... failed preflight check`), a failed identity preflight (`BLOCKED`; a `429` there is retried at most twice with jitter, then a cooldown is recorded) | Exit 2; nothing is claimed and the post stays approved. An invalid account file (a `direct` visibility, a handle on another server) is refused when the file is loaded. |
+| Checks before the post is claimed: a missing `<env_prefix>_TOKEN` (`SKIPPED ... configure environment variables`), text over the limit (`SKIPPED ... failed preflight check`), a failed identity preflight (`BLOCKED`; a `429` there is retried at most twice with jitter, then a cooldown is recorded) | Exit 2; nothing is claimed and the post stays approved. A `direct` visibility is refused when the account file is loaded; a handle on another server is refused at the identity preflight (`BLOCKED`) before any request. |
 | An attached image file that changed since approval | Caught before the claim (`BLOCKED`, post stays approved). The adapter checks the bytes again just before the write marker; a change there is `needs_review` with class `certain_not_sent`, which is guidance only. |
 | `401`, `403`, `4xx` other than 429, `5xx`, a timeout or a network error after the request was handed over | `needs_review`, class `ambiguous`, no automatic retry. |
 | `429` | `needs_review`, class `likely_not_created`, and a per-account cooldown computed from `X-RateLimit-Reset` (default 15 minutes) so the next send waits. |
@@ -69,4 +69,4 @@ python3 -m unittest discover -s tests -p 'test_rate_limits.py' -v
 python3 -m unittest discover -s tests -p 'test_fault_injection.py' -v
 ```
 
-The provider fixtures are synthetic and live in `tests/fixtures/providers/mastodon/` (a `429` with `X-RateLimit-Reset`, an unprocessed `202` upload, a partial `206` poll, a ready `200` poll, and two upload `429`s). `tests/test_rate_limits.py::test_ambiguous_codes_never_retried` sends `401`, `403`, `426`, `500`, `502`, `503`, a timeout, a malformed reply and an unexpected exception through the real CLI and requires one create request, `needs_review` and no resend. For a real first send use the owner-only runbook pattern in the [Bluesky pilot](BLUESKY-PILOT.md): a throwaway account you own, one harmless post, your own terminal.
+The provider fixtures are synthetic and live in `tests/fixtures/providers/mastodon/` (a `429` with `X-RateLimit-Reset`, an unprocessed `202` upload, a partial `206` poll, a ready `200` poll, two upload `429`s, and `401`/`403` replies to `verify_credentials` and to the status create). `tests/test_mastodon_auth_fixtures.py` replays the `401`/`403` fixtures: at the identity preflight they block the post before the claim with one request and no retry; on the status create they end in `needs_review` and are never resent. It also checks that a handle on another server is refused before any request. `tests/test_rate_limits.py::test_ambiguous_codes_never_retried` sends `401`, `403`, `426`, `500`, `502`, `503`, a timeout, a malformed reply and an unexpected exception through the real CLI and requires one create request, `needs_review` and no resend. For a real first send use the owner-only runbook pattern in the [Bluesky pilot](BLUESKY-PILOT.md): a throwaway account you own, one harmless post, your own terminal.

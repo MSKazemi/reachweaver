@@ -36,6 +36,7 @@ from reachweaver.credential_hygiene import audit_environment, expected_variables
 from reachweaver.policy import SUPPORTED_LIVE, ValidationError, validate_post
 from reachweaver.publishers import PUBLISHERS, PublishError, reset_write_marker, write_started
 from gate_support import publish  # noqa: E402
+from reconcile_support import assert_reconcile_closes_needs_review  # noqa: E402
 from reachweaver.storage import (APPROVAL_BINDING_TAG, active_provider_cooldown, BINDING_MEDIA_CHANGED, add_post, approval_payload,
                                  approval_payload_sha256, claim_sending, connect, get_post, post_media,
                                  published_text, set_post_media, transition)
@@ -939,6 +940,25 @@ class FlippedCliTests(CliMixin, FlippedRegistry):
                 self.assertEqual(self.row(pid)["status"], "needs_review")
                 with connect(str(self.db)) as con:
                     self.assertEqual(active_provider_cooldown(con, "ig-me") is not None, code == 429)
+
+    def test_needs_review_is_closed_by_reconcile_and_never_resent(self):
+        def needs_review_post(label):
+            self.db = self.tmp / f"reconcile-{label}" / "outbox.sqlite"
+            pid = self.approved_with_image(FakeMeta())
+            fake = FakeMeta(errors={"publish": 500})  # the container may or may not have been published
+            status, out, _ = self.live(fake, pid)
+            self.assertEqual(status, 3, out)
+            self.assertEqual(fake.routes.count("publish"), 1)
+            return pid
+
+        def live(*argv):
+            fake = FakeMeta()
+            with patch.dict(os.environ, LIVE_ENV), patch("reachweaver.publishers._send_http", side_effect=fake):
+                status, _, _ = self.cli("publish", "--live", *argv)
+            return status, fake.routes
+
+        assert_reconcile_closes_needs_review(self, needs_review_post, live, remote_id=MEDIA_ID,
+                                             remote_url="https://www.instagram.com/p/AbC123xyz/")
 
     def test_doctor_reports_draft_status_offline(self):
         with patch.dict(os.environ, {}, clear=True), patch("reachweaver.publishers._send_http") as send:
