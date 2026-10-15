@@ -213,6 +213,7 @@ reachweaver schedule POST_ID --at ISO8601 set UTC due time
 reachweaver video-attach POST_ID --file V.mp4 [--mode creator_inbox|direct_post] [--privacy-level L --commercial C] [--allow-comment] [--allow-duet] [--allow-stitch] [--aigc]  offline: bind one MP4 to a TikTok draft; approve binds its SHA-256; never uploads (issue #23, owner-approved 2026-10-09; disabled until a live receipt; docs/TIKTOK.md)
 reachweaver video-detach POST_ID         offline: remove the video from a TikTok draft
 reachweaver calendar-plan --account ID --timezone TZ --start D [--days 14] [--slot Wed@16:00]... [--audience-activity FILE [--audience-top-hours 5] [--audience-max-age-days 90]] [--apply]  propose audience-local slots (advisory); --audience-activity uses your own exported hour-of-week activity with per-slot provenance (docs/CALENDAR-PLANNER.md)
+reachweaver calendar-gaps --account ID --timezone TZ [--start D] [--days 14] [--slot Wed@16:00]... [--tolerance-minutes 90] [--max-per-day 2] [--min-spacing-hours 20] [--timing-source S --timing-metric M --timing-denominator views|impressions] [--json]  # read-only: empty and overloaded slots in the local queue; never schedules (issue #9)
 reachweaver cancel POST_ID               cancel only before delivery
 reachweaver publish [--limit N] [--optout F]  show eligible work and which posts the opt-out list would block; no network
 reachweaver publish --live               send only with env opt-in; opt-out mentions are BLOCKED before any claim
