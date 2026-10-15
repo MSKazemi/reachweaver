@@ -15,6 +15,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from hold_support import claim
 from reachweaver import storage
 from reachweaver.cli import main
 from reachweaver.schemas import validate
@@ -98,7 +99,7 @@ class SnapshotLinkageTests(LinkageFixture):
             pid = storage.add_post(con, "my-bluesky", "bluesky", "Unstaged post with an odd campaign label.",
                                    "Not A Slug!")
             storage.transition(con, pid, "approve")
-            storage.claim_sending(con, pid)
+            claim(con, pid)
             storage.finish_send(con, pid, "at://did:plc:abc/app.bsky.feed.post/3kodd",
                                 "https://bsky.app/profile/did:plc:abc/post/3kodd")
             storage.store_metrics(con, pid, "2026-10-16T09:00:00+00:00", "native-export", views=7)

@@ -374,6 +374,15 @@ After the claim, every failure still goes to `needs_review`. ReachWeaver adds on
 
 Sources are in the proposal, section 2.2. C2 is evidence-backed, not an API guarantee: proxies, forks and self-hosted servers can differ. Reconcile every class by checking the native account.
 
+## Account hold after an unresolved send (issue #41, draft for owner review)
+
+When a send ends in an unknown state (`needs_review`), the account's real state is not known: the post may or may not be live. Until a person has looked at the native account and run `reconcile` on that post, **no further post is claimed for the same account**. A `sending` post left behind for more than 15 minutes (a crash, a lost worker) holds the account the same way; a `sending` post newer than that is a live send and does not.
+
+- `publish --live` prints `SKIPPED POST_ID: account_unresolved_send_hold: post OTHER on account A is needs_review ...; not claimed, post stays approved, no request sent`, before the identity preflight and again inside the claim lock. With `--post-id` the exit code is 2. The dry run says a live run would skip it.
+- The hold is derived from the posts table, so there is nothing to forget and nothing to edit, and **no flag or command lifts it except resolving the post that causes it**: `reconcile POST --published ...` after checking the account, or `reconcile POST --not-published` (for a stale `sending` post, with `--force` only after checking that no send is in flight).
+- It applies per account. Other accounts, drafts, cancelled and published posts do not hold anything. Pre-existing databases need no migration.
+- Why: the rolling cap and minimum gap only slow the next send down; an ambiguous send could otherwise be followed within the hour by a second post, or by a resend of the same text from a copy.
+
 ## Per-account caps file (tighten-only)
 
 `config/caps.json` (ignored by version control; start from `config/caps.example.json`, or point `$REACHWEAVER_CAPS` at a file) sets per-account send-attempt limits for `publish --live`:
@@ -471,6 +480,7 @@ A timer on the owner's own persistent host (not ephemeral GitHub Actions) can ru
 | Provider 429 on the create, after the claim | needs_review (classified C1/C2/C3 for guidance); never resent; account cooldown recorded |
 | Provider 429 on the read-only preflight | BLOCKED before the claim; stays approved/scheduled; account cooldown recorded |
 | Account in a provider cooldown | Other unclaimed posts SKIPPED before the preflight and refused in the claim; stay approved/scheduled |
+| Another post of the account is `needs_review`, or `sending` for over 15 minutes (#41) | `account_unresolved_send_hold`: later posts SKIPPED before the preflight and refused in the claim; stay approved/scheduled until a person runs `reconcile` on that post |
 | Transient read-only preflight failure (5xx, network) | At most 2 jittered retries before the claim (never Bluesky); then BLOCKED |
 | caps.json version 2 read by older code | Rejected; live run refuses to start |
 | Reconciled as not published | Attempt remains counted in rolling quota |

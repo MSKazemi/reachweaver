@@ -21,11 +21,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from gate_support import LIVE_ENV, issued_connection
+from hold_support import claim as claim_sending
 from reachweaver import publishers, sendgate
 from reachweaver.cli import main
 from reachweaver.connections import VerifiedConnection
 from reachweaver.policy import ValidationError
-from reachweaver.storage import add_post, claim_sending, connect, get_post, set_paused, transition
+from reachweaver.storage import add_post, connect, get_post, set_paused, transition
 
 TEXT = "A useful verified research note"
 ACCOUNT = {"id": "my-bluesky", "platform": "bluesky", "env_prefix": "REACHWEAVER_TEST_GATE",

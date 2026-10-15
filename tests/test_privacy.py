@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from hold_support import claim as claim_sending
 from reachweaver.cli import main
 from reachweaver.policy import ValidationError
 from reachweaver.privacy import (
@@ -18,7 +19,7 @@ from reachweaver.privacy import (
     redact, structured_log, validate_policy,
 )
 from reachweaver.storage import (
-    add_post, claim_sending, connect, event, finish_send, get_post, store_metrics,
+    add_post, connect, event, finish_send, get_post, store_metrics,
     transition, uncertain_send,
 )
 

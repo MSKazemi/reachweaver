@@ -72,10 +72,10 @@ from .report_format import REPORT_FORMATS, render_report
 from .richtext import bluesky_preview, deterministic_tid, mastodon_length
 from . import disconnect as account_disconnect
 from .storage import (
-    APPROVAL_KEY_CREDENTIAL, APPROVAL_KEY_UNAVAILABLE, BINDING_MEDIA_CHANGED, BINDING_VIDEO_CHANGED, METRIC_FIELDS, active_provider_cooldown,
+    APPROVAL_KEY_CREDENTIAL, APPROVAL_KEY_UNAVAILABLE, BINDING_MEDIA_CHANGED, BINDING_VIDEO_CHANGED, METRIC_FIELDS, account_send_hold, active_provider_cooldown, hold_refusal,
     add_post, approval_binding_problem, identity_mode_required, latch_identity_mode, approval_key_mode, approval_payload_sha256, latch_keyed_mode, offline_key_mode,
     binding_refusal, check_approval_binding, claim_sending, connect, cooldown_refusal, finish_send, get_post,
-    approval_rebind_required, is_paused, parse_utc, pending, post_media, post_video,
+    approval_max_age_hours, approval_rebind_required, is_paused, parse_utc, pending, post_media, post_video, set_approval_max_age_hours,
     provider_cooldowns, published_text, queue_health, reconcile, record_binding_failure, reply_report, reply_target_text, report, set_paused,
     set_post_media, set_post_video, store_metrics, sync_cooldown_scopes, transition, uncertain_send, utc_now,
 )
@@ -315,6 +315,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--require-identity", action="store_true",
                    help="Latch identity-bound approval (wave 9 item 2): approve needs --verify-identity --online and "
                         "every send needs a stored identity; tighten-only, no command removes the latch")
+    p.add_argument("--max-age-hours", type=int, metavar="N",
+                   help="Approval time-to-live (#39): an approval older than N hours (1..8760) is expired and the post "
+                        "must be re-approved before any send; tighten-only, only a lower value is accepted later")
     sub.add_parser("resume", help="Explicitly lift the emergency stop")
     p = sub.add_parser("metrics", help="Record one snapshot from a native platform export")
     p.add_argument("post_id")
@@ -718,6 +721,10 @@ def _approval_view(post, mode=None) -> dict:
         view["binding"] = problem or "bound"
         if problem:
             view["reapprove"] = binding_refusal(problem, post["id"])
+        ttl = getattr(mode, "max_age_hours", None)
+        if ttl and post["approved_at"]:
+            view["approval_expires_at"] = (datetime.fromisoformat(parse_utc(post["approved_at"]))
+                                           + timedelta(hours=ttl)).isoformat(timespec="seconds")
     elif post["status"] == "draft":
         # What 'approve' would bind right now (approve always clears scheduled_at).
         view["approve_would_bind_sha256"] = approval_payload_sha256(post, scheduled_at=None, use_row_schedule=False)
@@ -1073,8 +1080,11 @@ def _publish(db, args, wlog) -> int:
                 cooling += 1
                 print(f"    SKIPPED {post['id']}: {cooldown_refusal(cooldown)}; "
                       "--live would skip it before any claim or request")
+            hold = account_send_hold(db, post["account_id"], post["id"])
+            if hold:
+                print(f"    SKIPPED {post['id']}: {hold_refusal(hold)}; --live would skip it before any claim or request")
             budget: str | None = None
-            if post["platform"] == "bluesky" and not (reason or problem or cooldown):
+            if post["platform"] == "bluesky" and not (reason or problem or cooldown or hold):
                 key = post["account_id"]
                 usage = recorded_session_usage(db, key)  # None: never metered, nothing to refuse
                 if usage is not None:
@@ -1256,6 +1266,15 @@ def _publish(db, args, wlog) -> int:
             print(f"SKIPPED {post['id']}: {cooldown_refusal(cooldown)}; not claimed, post stays "
                   f"{post['status']}, no request sent")
             wlog.skipped(post, "cooldown")
+            if args.post_id:
+                return 2
+            continue
+        # Unresolved send (#41): another post of this account is needs_review or sending, so its real
+        # state is unknown. Pre-claim and pre-network; claim_sending re-checks under its lock.
+        hold = account_send_hold(db, post["account_id"], post["id"])
+        if hold:
+            print(f"SKIPPED {post['id']}: {hold_refusal(hold)}; not claimed, post stays {post['status']}, no request sent")
+            wlog.skipped(post, "unresolved_send_hold")
             if args.post_id:
                 return 2
             continue
@@ -2454,9 +2473,14 @@ def execute(args) -> int:
                 latch_keyed_mode(db)
             if args.require_identity:
                 latch_identity_mode(db)
+            if args.max_age_hours is not None:
+                set_approval_max_age_hours(db, args.max_age_hours)
             mode = approval_key_mode(db)
             print(f"Identity-bound approval (wave 9 item 2): {'required' if identity_mode_required(db) else 'off'}")
             print(f"Human confirmation (#7 D6): {confirmation.confirmation_mode(db) or 'off'}")
+            ttl = approval_max_age_hours(db)
+            print("Approval time-to-live (#39): " + ("off" if ttl is None else
+                  "invalid stored value, every approval counts as expired" if ttl == 0 else f"{ttl} hours"))
             print(f"Keyed approval binding (#7 D7): {'required' if mode.required else 'off'}; "
                   f"latched={'yes' if mode.latched else 'no'}; {APPROVAL_KEY_CREDENTIAL} "
                   f"{'available' if mode.key is not None else (mode.key_error or 'not provided')}")

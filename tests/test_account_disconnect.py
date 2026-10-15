@@ -115,6 +115,23 @@ class DisconnectStorageTests(unittest.TestCase):
             db.execute("INSERT INTO settings(name,value) VALUES('account_disconnectedX','1')")
             self.assertEqual(disconnect.disconnected_accounts(db), ["a_b", "axb", "plain"])
 
+    def test_disconnect_and_the_unresolved_send_hold_work_together(self):
+        from reachweaver.storage import HOLD_REFUSAL, uncertain_send
+        with connect(self.db) as db:
+            first = approved(db, "first note")
+            self.assertTrue(claim_sending(db, first))
+            uncertain_send(db, first, "network_or_timeout_uncertain", send_class="ambiguous")
+            second = approved(db, "second note")
+            with self.assertRaisesRegex(ValidationError, HOLD_REFUSAL):
+                claim_sending(db, second)  # held by the unresolved send
+            disconnect.disconnect(db, "my-bluesky")
+            with self.assertRaisesRegex(ValidationError, disconnect.DISCONNECTED):
+                claim_sending(db, second)  # the disconnect is reported first
+            with contextlib.redirect_stdout(io.StringIO()):
+                disconnect.reconnect(db, "my-bluesky", confirm=lambda challenge, **kw: None)
+            with self.assertRaisesRegex(ValidationError, HOLD_REFUSAL):
+                claim_sending(db, second)  # reconnecting does not clear an unresolved send
+
     def test_worker_log_has_a_reason_for_it(self):
         self.assertIn("account_disconnected", SKIP_REASONS)
 

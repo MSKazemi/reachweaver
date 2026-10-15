@@ -153,6 +153,7 @@ REPLY_MEDIA_REFUSED = "reply_media_unsupported: a reply carries text only, never
 # is claimed. A claimed post is never released or resent because of it (D16).
 COOLDOWN_EVENT = "provider_cooldown"
 COOLDOWN_REFUSAL = "account_provider_cooldown_active"
+HOLD_REFUSAL = "account_unresolved_send_hold"
 COOLDOWN_STAGES = ("preflight", "send")
 SEND_CLASSES = ("certain_not_sent", "likely_not_created", "ambiguous")
 _COOLDOWN_TOKEN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -533,6 +534,7 @@ class ApprovalKeyMode:
     key_error: str | None = None
     latched: bool = False
     identity_required: bool = False  # wave 9 item 2: the DB latch says approvals must carry a verified identity
+    max_age_hours: int | None = None  # #39: the DB says an approval older than this many hours is expired (None: off)
 
     @property
     def required(self) -> bool:
@@ -563,6 +565,67 @@ def load_approval_key(env=None) -> tuple[bytes | None, str | None]:
         return None, (f"{APPROVAL_KEY_CREDENTIAL} must be at least {APPROVAL_KEY_MIN_CHARS} characters "
                       "(generate one with: python3 -c 'import secrets; print(secrets.token_hex(32))')")
     return value.encode("utf-8"), None
+
+
+APPROVAL_MAX_AGE_SETTING = "approval_max_age_hours"
+APPROVAL_EXPIRED = "approval_expired_reapproval_required"
+APPROVAL_EXPIRES_BEFORE_DUE = "approval_would_expire_before_due_time"
+MAX_AGE_LIMITS = (1, 8760)
+_EXPIRED_ALWAYS = 0  # a stored value nobody can parse fails closed: every approval counts as expired
+
+
+def approval_max_age_hours(con) -> int | None:
+    """#39: the approval time-to-live in hours the owner set with ``approval-mode --max-age-hours``, else None (off).
+
+    An unreadable stored value fails closed (returns 0, so every approval is expired) rather than switching
+    the safeguard off.
+    """
+    row = con.execute("SELECT value FROM settings WHERE name=?", (APPROVAL_MAX_AGE_SETTING,)).fetchone()
+    if row is None:
+        return None
+    try:
+        hours = int(str(row["value"]))
+    except ValueError:
+        return _EXPIRED_ALWAYS
+    return hours if MAX_AGE_LIMITS[0] <= hours <= MAX_AGE_LIMITS[1] else _EXPIRED_ALWAYS
+
+
+def set_approval_max_age_hours(con, hours: int) -> int:
+    """Set or lower the approval time-to-live. Tighten-only: a value at or above the current one is refused.
+
+    Raising or clearing it is an owner procedure (edit the settings row by hand), like the keyed and identity
+    latches, so a prompt-injected agent cannot widen the window with a CLI call. Returns the stored value.
+    """
+    if type(hours) is not int or not MAX_AGE_LIMITS[0] <= hours <= MAX_AGE_LIMITS[1]:
+        raise ValidationError(f"--max-age-hours must be a whole number from {MAX_AGE_LIMITS[0]} to {MAX_AGE_LIMITS[1]}")
+    current = approval_max_age_hours(con)
+    if current is not None and hours >= current:
+        raise ValidationError(f"approval max age is already {current} hours; only a lower value is accepted "
+                              "(tighten-only; loosening is an owner procedure)")
+    con.execute("INSERT INTO settings(name,value) VALUES(?,?) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+                (APPROVAL_MAX_AGE_SETTING, str(hours)))
+    return hours
+
+
+def approval_expiry_problem(row, max_age_hours: int | None, now: str | None = None) -> str | None:
+    """None, or ``approval_expired_reapproval_required`` when the approval is older than the owner's limit.
+
+    Pure. The age runs from ``approved_at`` (a schedule keeps it) to ``now``. A row with no readable
+    ``approved_at`` is expired when a limit is set.
+    """
+    if max_age_hours is None:
+        return None
+    if max_age_hours <= 0:
+        return APPROVAL_EXPIRED  # the unreadable-setting sentinel: fail closed
+    stamp = row["approved_at"] if "approved_at" in row.keys() else None
+    try:
+        approved = datetime.fromisoformat(parse_utc(stamp)) if stamp else None
+        current = datetime.fromisoformat(parse_utc(now or utc_now()))
+    except (ValueError, TypeError, ValidationError):
+        return APPROVAL_EXPIRED
+    if approved is None or current - approved > timedelta(hours=max_age_hours):
+        return APPROVAL_EXPIRED
+    return None
 
 
 def keyed_mode_latched(con) -> bool:
@@ -613,7 +676,7 @@ def approval_identity_problem(row, fingerprint: str | None) -> str | None:
 def approval_key_mode(con, env=None) -> ApprovalKeyMode:
     key, error = load_approval_key(env)
     return ApprovalKeyMode(key=key, key_error=error, latched=keyed_mode_latched(con),
-                           identity_required=identity_mode_required(con))
+                           identity_required=identity_mode_required(con), max_age_hours=approval_max_age_hours(con))
 
 
 def approval_mac(key: bytes, post_id: str, payload_sha256: str) -> str:
@@ -626,8 +689,11 @@ def approval_mac(key: bytes, post_id: str, payload_sha256: str) -> str:
     return APPROVAL_MAC_PREFIX + hmac.new(key, message, hashlib.sha256).hexdigest()
 
 
-def approval_binding_problem(row, mode: ApprovalKeyMode | None = None) -> str | None:
-    """None when the stored approval hash matches the row as it is now; otherwise a reason code.
+def approval_binding_problem(row, mode: ApprovalKeyMode | None = None, *, now: str | None = None) -> str | None:
+    """None when the stored approval hash matches the row as it is now and has not expired; otherwise a reason code.
+
+    The expiry (#39) is checked last, so tampering keeps its own code: ``mode.max_age_hours`` set and the
+    approval older than that is ``approval_expired_reapproval_required``. ``now`` (UTC) makes it testable.
 
     Pure (no I/O). ``approval_binding_unavailable``: the row comes from a table without the
     binding columns; ``..._missing_...``: approved before the binding existed (or never
@@ -647,6 +713,11 @@ def approval_binding_problem(row, mode: ApprovalKeyMode | None = None) -> str | 
     if not hmac.compare_digest(str(stored), approval_payload_sha256(row)):
         return BINDING_MISMATCH
     mode = UNKEYED if mode is None else mode
+    problem = _binding_problem_core(row, mode, stored)
+    return problem or approval_expiry_problem(row, mode.max_age_hours, now)
+
+
+def _binding_problem_core(row, mode: ApprovalKeyMode, stored) -> str | None:
     has_mac_column = all(name in row.keys() for name in APPROVAL_MAC_FIELDS)
     mac = row["approved_payload_mac"] if has_mac_column else None
     if mode.identity_required and not (row["approved_identity"] if "approved_identity" in row.keys() else None):
@@ -687,6 +758,9 @@ def binding_refusal(reason: str, post_id: str) -> str:
     from .ledger import refusal_text as ledger_refusal_text
     if reason in LEDGER_CODES:
         return ledger_refusal_text(reason, post_id)
+    if reason == APPROVAL_EXPIRED:
+        return (f"{reason}: post {post_id} was approved longer ago than the owner's approval time-to-live "
+                f"(reachweaver approval-mode shows it); {steps}")
     if reason == BINDING_UNAVAILABLE:
         return (f"{reason}: database lacks approval hash columns; open it with storage.connect() "
                 "so it is migrated")
@@ -844,12 +918,13 @@ def check_approval_binding(con, post_id: str, now: str | None = None, *,
     con.execute("BEGIN IMMEDIATE")
     try:
         mode = ApprovalKeyMode(key=key, key_error=key_error, latched=keyed_mode_latched(con),
-                               identity_required=identity_mode_required(con))
+                               identity_required=identity_mode_required(con),
+                               max_age_hours=approval_max_age_hours(con))
         if key is not None:
             latch_keyed_mode(con)  # D7: once a verifier holds the key, later keyless runs fail closed
         row = con.execute("SELECT * FROM posts WHERE id=? AND status IN ('approved','scheduled')",
                           (post_id,)).fetchone()
-        problem = approval_binding_problem(row, mode) if row is not None else None
+        problem = approval_binding_problem(row, mode, now=now) if row is not None else None
         if problem is None and row is not None:
             problem = approval_identity_problem(row, identity_fingerprint)
         if problem is None and row is not None:
@@ -1004,6 +1079,12 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
         problem = approval_binding_problem(row, mode)
         if problem:
             raise ValidationError(binding_refusal(problem, post_id) + ". Nothing scheduled")
+        if mode.max_age_hours is not None and scheduled_at:
+            lapse = datetime.fromisoformat(parse_utc(row["approved_at"])) + timedelta(hours=mode.max_age_hours)
+            if datetime.fromisoformat(parse_utc(scheduled_at)) > lapse:
+                raise ValidationError(f"{APPROVAL_EXPIRES_BEFORE_DUE}: post {post_id} was approved {row['approved_at']} "
+                                      f"and approvals last {mode.max_age_hours} hours (until {lapse.isoformat(timespec='seconds')}); "
+                                      "choose an earlier time or re-approve closer to the due time. Nothing scheduled")
         new_hash = approval_payload_sha256(row, scheduled_at=scheduled_at, use_row_schedule=False)
     new_mac = approval_mac(mode.key, post_id, new_hash) if new_hash and mode.key is not None else None
     # unapprove/cancel: new_hash/by/channel/mac stay None, clearing the binding.
@@ -1239,6 +1320,43 @@ def active_provider_cooldown(con, account_id: str, now: str | None = None, *,
     return {**best, "account_id": account_id, "recorded_by": best["account_id"], "ceiling_clamped": clamped}
 
 
+def account_send_hold(con, account_id: str, exclude_post_id: str | None = None, now: str | None = None) -> dict | None:
+    """#41: another post of this account whose outcome is unknown, or None.
+
+    A post in ``needs_review`` (an ambiguous send waiting for a human) means the account's real state is
+    not known, and so does a post left in ``sending`` for longer than the reconcile threshold (a crash, a
+    lost worker). While one exists no further post may be claimed for the account until a person checks the
+    native account and runs ``reconcile``. A ``sending`` post newer than the threshold does not hold: it is a
+    live send of a cooperating run, which the rolling caps and minimum gap already pace.
+
+    Derived from the posts table, so there is no separate hold to forget, and no command or flag lifts it
+    except resolving that post. Read-only.
+    """
+    current = datetime.fromisoformat(parse_utc(now or utc_now()))
+    rows = con.execute("""SELECT id, status, send_started_at FROM posts
+                          WHERE account_id=? AND status IN ('needs_review','sending') AND id<>?
+                          ORDER BY CASE status WHEN 'needs_review' THEN 0 ELSE 1 END, id""",
+                       (account_id, exclude_post_id or "")).fetchall()
+    for row in rows:
+        if row["status"] == "sending":
+            try:
+                started = datetime.fromisoformat(parse_utc(row["send_started_at"])) if row["send_started_at"] else None
+            except (ValueError, TypeError, ValidationError):
+                started = None
+            if started is not None and current - started < timedelta(minutes=RECONCILE_MIN_SENDING_MINUTES):
+                continue  # a live send, not an unknown outcome
+        return {"post_id": row["id"], "status": row["status"], "account_id": account_id}
+    return None
+
+
+def hold_refusal(hold: dict) -> str:
+    resolve = ("reachweaver reconcile {id} --published|--not-published (after checking the native account)"
+               if hold["status"] == "needs_review" else
+               "reachweaver reconcile {id} --not-published --force only after checking that no send is in flight")
+    return (f"{HOLD_REFUSAL}: post {hold['post_id']} on account {hold['account_id']} is {hold['status']}, so the "
+            f"account's real state is unknown; resolve it first: " + resolve.format(id=hold["post_id"]))
+
+
 def cooldown_refusal(cooldown: dict) -> str:
     text = (f"{COOLDOWN_REFUSAL} until={cooldown['until']} account={cooldown['account_id']} "
             f"source={cooldown['source']}")
@@ -1406,8 +1524,9 @@ def claim_sending(con, post_id: str, now: str | None = None, *,
         # #7: the row must still be exactly what a human approved. Checked under the same
         # lock as the status transition, before budgets, before any network use.
         mode = ApprovalKeyMode(key=key, key_error=key_error, latched=keyed_mode_latched(con),
-                               identity_required=identity_mode_required(con))
-        binding_failure = approval_binding_problem(row, mode)
+                               identity_required=identity_mode_required(con),
+                               max_age_hours=approval_max_age_hours(con))
+        binding_failure = approval_binding_problem(row, mode, now=now)
         if binding_failure in _CONFIG_REASONS:
             raise ValidationError(binding_refusal(binding_failure, post_id) + ". No social post sent")
         if binding_failure is None and expected_sha256 is not None and not hmac.compare_digest(
@@ -1434,6 +1553,10 @@ def claim_sending(con, post_id: str, now: str | None = None, *,
             since = _disconnect.disconnected_since(con, row["account_id"])
             if since is not None:
                 raise ValidationError(_disconnect.refusal(row["account_id"], since) + "; post stays approved/scheduled")
+            # #41: an unresolved earlier send on this account holds every later claim (nothing is written).
+            hold = account_send_hold(con, row["account_id"], post_id, now)
+            if hold:
+                raise ValidationError(hold_refusal(hold) + "; post stays approved/scheduled")
             if max_per_24h is not None or min_gap_minutes:
                 attempts = _recent_send_claims(con, row["account_id"], now)
                 if max_per_24h is not None and len(attempts) >= max_per_24h:
@@ -1468,7 +1591,8 @@ def claim_sending(con, post_id: str, now: str | None = None, *,
 
 def offline_key_mode(con) -> ApprovalKeyMode:
     """Keyed-mode state WITHOUT reading the key (dry runs, show, ops-metrics read no credential)."""
-    return ApprovalKeyMode(latched=keyed_mode_latched(con), identity_required=identity_mode_required(con))
+    return ApprovalKeyMode(latched=keyed_mode_latched(con), identity_required=identity_mode_required(con),
+                           max_age_hours=approval_max_age_hours(con))
 
 
 def approval_rebind_required(con, mode: ApprovalKeyMode | None = None) -> list[dict]:
