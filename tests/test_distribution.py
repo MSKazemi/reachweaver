@@ -238,5 +238,40 @@ class GlobalDistributionTests(unittest.TestCase):
             self.assertEqual(content["posts_scheduled"], 0)
 
 
+class PlatformMatrixResearchTableTests(unittest.TestCase):
+    """docs/PLATFORM-MATRIX.md lists every researched surface of issues #13-#37 and agrees with the registry."""
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(ROOT / "tests"))
+        import matrix_rows
+        cls.rows = matrix_rows
+        cls.registry = json.loads((ROOT / "reachweaver/distribution_registry.json").read_text(encoding="utf-8"))
+        cls.platforms = {p["id"]: p for p in cls.registry["platforms"]}
+        cls.doc = (ROOT / "docs/PLATFORM-MATRIX.md").read_text(encoding="utf-8")
+
+    def test_every_researched_surface_has_a_row_equal_to_its_registry_entry(self):
+        self.assertEqual(len(self.rows.RESEARCH_IDS), 26)  # 25 issues; Naver is one issue with two surfaces
+        self.assertIn(self.rows.HEADER, self.doc)
+        for pid in self.rows.RESEARCH_IDS:
+            with self.subTest(platform=pid):
+                self.assertIn(pid, self.platforms)
+                self.assertIn(self.rows.row(self.platforms[pid]), self.doc.splitlines())
+
+    def test_rows_never_overstate_what_is_enabled(self):
+        for pid in self.rows.RESEARCH_IDS:
+            platform = self.platforms[pid]
+            with self.subTest(platform=pid):
+                self.assertEqual(platform["reachweaver_delivery"], "manual_only")
+                self.assertTrue(platform.get("research_source") or platform["scheduling"].get("official_source")
+                                or platform["scheduling"]["mode"] == "unverified")
+                if not (platform.get("research_source") or platform["scheduling"].get("official_source")):
+                    self.assertEqual(platform["scheduling"]["mode"], "unverified")
+                    self.assertTrue(platform["human_only"])
+
+    def test_the_surface_count_in_the_matrix_is_the_registry_count(self):
+        self.assertIn(f"The distribution registry tracks {len(self.registry['platforms'])} planning surfaces", self.doc)
+
+
 if __name__ == "__main__":
     unittest.main()
