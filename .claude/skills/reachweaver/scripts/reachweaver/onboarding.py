@@ -69,7 +69,8 @@ def _is_live(entry: dict) -> bool:
     return is_live_entry(entry)
 
 
-def _row(registry: str, platform_id: str, label: str, status: str, kind: str, note: str) -> dict:
+def _row(registry: str, platform_id: str, label: str, status: str, kind: str, note: str,
+         command_platform: str | None = None) -> dict:
     template = COMMANDS.get(kind)
     return {
         "registry": registry,
@@ -77,7 +78,8 @@ def _row(registry: str, platform_id: str, label: str, status: str, kind: str, no
         "label": label,
         "status": status,
         "kind": kind,
-        "command": template.format(platform=platform_id) if template else None,
+        # The CLI takes the capability id (facebook, not the distribution id facebook_pages).
+        "command": template.format(platform=command_platform or platform_id) if template else None,
         "note": note,
     }
 
@@ -157,7 +159,8 @@ def blocker_audit(capability_registry: dict | None = None, distribution_registry
         if mapped in cap_kind and cap_kind[mapped] != kind:
             errors.append(f"{platform_id}: distribution registry implies {kind} but capability entry "
                           f"{mapped} says {cap_kind[mapped]}")
-        rows.append(_row("distribution", platform_id, entry.get("label", platform_id), delivery, kind, note))
+        rows.append(_row("distribution", platform_id, entry.get("label", platform_id), delivery, kind, note,
+                         command_platform=mapped))
 
     for venue in ("hacker_news", "reddit"):
         if not any(r["registry"] == "distribution" and r["id"] == venue and r["kind"] == "human_only"

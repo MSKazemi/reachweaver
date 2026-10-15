@@ -371,6 +371,18 @@ class BlockedPlatformAlternatives(unittest.TestCase):
                          "regenerate with: python3 scripts/release_gate.py --print-blocker-table")
 
 
+class ManualExportCommandIds(unittest.TestCase):
+    def test_every_manual_export_command_names_an_id_the_cli_accepts(self):
+        # The distribution id facebook_pages used to be printed as --platform facebook_pages, which the CLI rejects.
+        from reachweaver.manual_export import MANUAL_PLATFORMS
+        rows = [r for r in onboarding.blocker_audit()["rows"] if r["kind"] == "manual_export"]
+        self.assertTrue(any(r["id"] == "facebook_pages" for r in rows))
+        for row in rows:
+            with self.subTest(row=row["id"]):
+                platform = row["command"].split("--platform ", 1)[1].split()[0]
+                self.assertIn(platform, MANUAL_PLATFORMS)
+
+
 class ReleaseGate(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
