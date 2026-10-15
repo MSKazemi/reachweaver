@@ -47,7 +47,8 @@ class GlobalDistributionTests(unittest.TestCase):
     def test_added_regional_channels_remain_research_only(self):
         added = ["xiaohongshu","wechat_channels","toutiao","baidu_tieba","douban","maimai","qzone","note_jp","naver_blog","naver_cafe","kakao_openchat","dcard","ptt","pantip","line_openchat","zalo_official_account","kaskus","sharechat","moj","vk","odnoklassniki","dzen","habr","medium","substack","snapchat","kwai"]
         self.assertEqual(len(added), 27)
-        self.assertEqual(len(self.data["platforms"]), 72)
+        # 72 global and regional entries plus the 18 community and creator surfaces of tests/test_platform_research_batch.py
+        self.assertEqual(len(self.data["platforms"]), 72 + 18)
         self.assertEqual(len(self.data["markets"]), 18)
         by_id = {p["id"]: p for p in self.data["platforms"]}
         for platform_id in added:

@@ -87,7 +87,7 @@ The CSV is read into memory, never published or saved elsewhere; owner acknowled
 
 ## International social discovery (research only, issue #64)
 
-The offline distribution planner catalogs **72 channels across 18 market pilots**, including India-focused ShareChat, Moj, Josh, Chingari, Hipi, Public App, Kutumb, Arattai Channels, LocalCircles, Pratilipi and Rooter; plus Xiaohongshu/REDnote, Weixin Channels, Naver, VK and other regional platforms. See [regional channel research and India use cases](docs/REGIONAL-CHANNELS-2026-10-14.md) and try `reachweaver distribution-plan --region india --goal awareness --limit 12 --json`. New entries are **manual-only** with `unverified` native scheduling; community discussion and opt-in channel messages stay human-only. No new API adapter, account connection or remote publication is implied.
+The offline distribution planner catalogs **90 channels across 18 market pilots**, including India-focused ShareChat, Moj, Josh, Chingari, Hipi, Public App, Kutumb, Arattai Channels, LocalCircles, Pratilipi and Rooter; plus Xiaohongshu/REDnote, Weixin Channels, Naver, VK and other regional platforms. See [regional channel research and India use cases](docs/REGIONAL-CHANNELS-2026-10-14.md) and [community, creator and publishing platform research](docs/COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md) and try `reachweaver distribution-plan --region india --goal awareness --limit 12 --json`. New entries are **manual-only** with `unverified` native scheduling; community discussion and opt-in channel messages stay human-only. No new API adapter, account connection or remote publication is implied.
 
 ## Per-platform profile and post audits (offline, Issue #3)
 
