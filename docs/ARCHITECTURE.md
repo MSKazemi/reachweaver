@@ -475,7 +475,7 @@ GET /{media}?fields=id,permalink,username,owner,text -> remote_url if it names t
 any failure after mark_write_started() -> *_uncertain -> needs_review, never retried
 ```
 
-The C1/C3 boundary sits before the container POST (conservative; proposal). See [THREADS.md](THREADS.md).
+The C1/C3 boundary sits before the container POST (conservative; proposal). See [THREADS.md](THREADS.md). The mocked contract cases for issue #49 (successful post, rejected permission, rate limit, expired token, and a dry-run preview whose receipt is stored once and cannot be reconciled twice) are mapped to tests in [THREADS.md](THREADS.md#issue-49-acceptance-evidence-offline-mocked).
 
 ## Facebook Page adapter (issue #21, owner-approved 2026-10-09; disabled until a live receipt)
 

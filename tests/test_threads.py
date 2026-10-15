@@ -5,7 +5,10 @@ Two halves:
   every entry point refuses Threads before a credential read or request.
 * ``Flipped*`` tests: a TEMPORARY copy of the registry with Threads flipped to ``live_text`` (and
   ``policy.SUPPORTED_LIVE`` patched to match) shows the whole mocked contract: happy path,
-  400/401/429/500, wrong account, exhausted quota and needs_review after the write started.
+  400/401/403/429/500, wrong account, exhausted quota and needs_review after the write started.
+  The issue #49 acceptance cases (successful post, rejected permission, rate limit, expired token,
+  approved preview and matching receipt reconciled without duplicates) are mapped to test names in
+  docs/THREADS.md, "Issue #49 acceptance evidence".
 """
 from __future__ import annotations
 
@@ -363,7 +366,10 @@ class FlippedLibraryTests(FlippedRegistry):
     def test_preflight_http_errors_are_pre_write_and_actionable(self):
         for route, code, needle in (("me", 400, "threads_http_400: request refused"),
                                     ("me", 401, "threads_http_401: token invalid, revoked or expired"),
+                                    ("me", 403, "threads_http_403: token lacks threads_basic"),
                                     ("me", 429, "^threads_http_429$"), ("me", 500, "^threads_http_500$"),
+                                    ("quota", 400, "confirm the token carries threads_basic and "
+                                                   "threads_content_publish"),
                                     ("quota", 403, "lacks threads_content_publish")):
             fake = FakeThreads(errors={route: code})
             with self.subTest(route=route, code=code), self.assertRaisesRegex(PublishError, needle) as ctx:
@@ -376,6 +382,7 @@ class FlippedLibraryTests(FlippedRegistry):
     def test_post_write_http_errors_are_uncertain(self):
         for route, code, needle in (("create", 400, "^threads_create_http_400_uncertain: container refused"),
                                     ("create", 401, "^threads_create_http_401_uncertain$"),
+                                    ("create", 403, "^threads_create_http_403_uncertain$"),
                                     ("create", 429, "^threads_create_http_429_uncertain: rate limited"),
                                     ("create", 500, "^threads_create_http_500_uncertain$"),
                                     ("status", 500, "^threads_status_http_500_uncertain$"),
@@ -538,6 +545,114 @@ class FlippedCliTests(FlippedRegistry):
         self.assertEqual(self.status_of(pid), "approved")
         with connect(str(self.db)) as con:
             self.assertIsNotNone(active_provider_cooldown(con, "th-me"))
+
+    def events(self, pid):
+        with connect(str(self.db)) as con:
+            return [r[0] for r in con.execute("SELECT action FROM event_log WHERE post_id=? ORDER BY id", (pid,))]
+
+    def test_contract_rejected_permission_blocks_before_claim_and_keeps_post_approved(self):
+        # Issue #49 contract case "rejected permission": a 403 on the identity read (no threads_basic)
+        # or on the quota read (no threads_content_publish) stops before the claim and the write.
+        for route, hint in (("me", "lacks threads_basic"), ("quota", "lacks threads_content_publish")):
+            with self.subTest(route=route):
+                pid = self.approved(f"Release notes {route}: https://example.com")
+                fake = FakeThreads(errors={route: 403})
+                with patch.dict(os.environ, LIVE_ENV), \
+                        patch("reachweaver.publishers._send_http", side_effect=fake), \
+                        patch("reachweaver.ratelimit._sleep"):
+                    status, out, err = self.cli("publish", "--live", "--post-id", pid)
+                self.assertEqual(status, 2, out + err)
+                self.assertIn(f"BLOCKED {pid}", out)
+                self.assertIn(hint, out)
+                self.assertNotIn(FAKE_TOKEN, out + err)
+                self.assertNotIn("create", fake.routes)
+                self.assertEqual(self.status_of(pid), "approved")
+                self.assertNotIn("send_claimed", self.events(pid))
+                with connect(str(self.db)) as con:  # a permission refusal is not a rate limit
+                    self.assertIsNone(active_provider_cooldown(con, "th-me"))
+
+    def test_contract_expired_token_blocks_before_claim_and_keeps_post_approved(self):
+        # Issue #49 contract case "expired token". Recorded expiry in the past: refused offline,
+        # before the token is read or any request is made.
+        self.config.write_text(json.dumps({"accounts": [account(
+            authorization_expires_at="2026-10-09T11:00:00+00:00")]}), encoding="utf-8")
+        pid = self.approved("Release notes expired: https://example.com")
+        fake = FakeThreads()
+        with patch.dict(os.environ, LIVE_ENV), patch("reachweaver.publishers._send_http", side_effect=fake), \
+                patch("reachweaver.threads._token") as token:
+            status, out, err = self.cli("publish", "--live", "--post-id", pid)
+        self.assertEqual(status, 2, out + err)
+        self.assertIn("threads_token_expired", out)
+        self.assertEqual(fake.routes, [])
+        token.assert_not_called()
+        self.assertEqual(self.status_of(pid), "approved")
+        self.assertNotIn("send_claimed", self.events(pid))
+        # Expired or revoked at Meta although the recorded expiry is still ahead: the identity read
+        # is refused (401) and the post stays approved; nothing is written.
+        self.config.write_text(json.dumps({"accounts": [account()]}), encoding="utf-8")
+        fake = FakeThreads(errors={"me": 401})
+        with patch.dict(os.environ, LIVE_ENV), patch("reachweaver.publishers._send_http", side_effect=fake), \
+                patch("reachweaver.ratelimit._sleep"):
+            status, out, err = self.cli("publish", "--live", "--post-id", pid)
+        self.assertEqual(status, 2, out + err)
+        self.assertIn("threads_http_401: token invalid, revoked or expired", out)
+        self.assertNotIn(FAKE_TOKEN, out + err)
+        self.assertNotIn("create", fake.routes)
+        self.assertEqual(self.status_of(pid), "approved")
+        self.assertNotIn("send_claimed", self.events(pid))
+
+    def test_approved_preview_matches_the_receipt_and_is_published_exactly_once(self):
+        # Issue #49: the dry-run preview shows the approved text without a request; the live send
+        # posts exactly that text and stores the matching receipt; re-runs never duplicate it.
+        text = "Release notes are out: https://example.com"
+        pid = self.approved(text)
+        fake = FakeThreads(media={"id": MEDIA_ID, "permalink": f"https://www.threads.net/@{HANDLE}/post/abcdefg",
+                                  "username": HANDLE, "owner": {"id": USER_ID}, "text": text})
+        with patch.dict(os.environ, LIVE_ENV), patch("reachweaver.publishers._send_http", side_effect=fake):
+            status, preview, _ = self.cli("publish", "--post-id", pid)
+            self.assertEqual(status, 0)
+            self.assertIn("DRY RUN: 1 due approved posts; no requests sent", preview)
+            self.assertIn(f"{pid} threads th-me: {text!r}", preview)
+            self.assertEqual(fake.routes, [])
+            self.assertEqual(self.cli("publish", "--live", "--post-id", pid)[0], 0)
+            self.assertEqual(fake.form("create")["text"], text)  # the previewed, approved text
+            routes_after_send = list(fake.routes)
+            again, _, _ = self.cli("publish", "--live", "--post-id", pid)
+            sweep, _, _ = self.cli("publish", "--live")
+        self.assertEqual((again, sweep), (2, 0))
+        self.assertEqual(fake.routes, routes_after_send)  # no request at all after the receipt
+        self.assertEqual((fake.routes.count("create"), fake.routes.count("publish")), (1, 1))
+        with connect(str(self.db)) as con:
+            row = get_post(con, pid)
+            details = [r[0] or "" for r in con.execute(
+                "SELECT detail FROM event_log WHERE post_id=? AND action='published'", (pid,))]
+        self.assertEqual((row["status"], row["remote_id"]), ("published", MEDIA_ID))
+        self.assertEqual(len(details), 1)
+        self.assertIn("text_match=true", details[0])
+        self.assertEqual(self.events(pid).count("send_claimed"), 1)
+
+    def test_reconciled_receipt_cannot_be_applied_twice(self):
+        # Issue #49: after a human records the matching remote receipt, a second reconcile (with the
+        # same or another receipt) is refused, so one approved post never maps to two remote posts.
+        pid = self.approved("Release notes twice: https://example.com")
+        fake = FakeThreads(errors={"publish": 500})
+        with patch.dict(os.environ, LIVE_ENV), patch("reachweaver.publishers._send_http", side_effect=fake):
+            self.assertEqual(self.cli("publish", "--live", "--post-id", pid)[0], 3)
+        url = f"https://www.threads.net/@{HANDLE}/post/abcdefg"
+        status, out, err = self.cli("reconcile", pid, "--published", "--remote-id", MEDIA_ID, "--remote-url", url)
+        self.assertEqual(status, 0, out + err)
+        for remote_id in (MEDIA_ID, "17890000000000003"):
+            with self.subTest(remote_id=remote_id):
+                status, out, err = self.cli("reconcile", pid, "--published", "--remote-id", remote_id)
+                self.assertNotEqual(status, 0)
+                self.assertIn("only accepts sending/needs_review", out + err)
+        status, out, err = self.cli("reconcile", pid, "--not-published")
+        self.assertNotEqual(status, 0)
+        with connect(str(self.db)) as con:
+            row = get_post(con, pid)
+        self.assertEqual((row["status"], row["remote_id"], row["remote_url"]), ("published", MEDIA_ID, url))
+        self.assertEqual(self.events(pid).count("reconciled_published"), 1)
+        self.assertEqual(fake.routes.count("create"), 1)
 
     def test_post_write_failure_goes_to_needs_review_and_is_never_resent(self):
         for route, code in (("create", 400), ("create", 401), ("create", 429), ("publish", 500)):

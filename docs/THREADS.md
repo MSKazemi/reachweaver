@@ -52,6 +52,32 @@ Errors are fixed codes. They never contain the token, the URL, request headers o
 - Before the claim: `threads_http_400` (token may be invalid or expired), `threads_http_401`, `threads_http_403` (missing `threads_basic` or `threads_content_publish`), `threads_http_429` (records an account cooldown), `identity_mismatch`, `threads_quota_unreadable` and `threads_publishing_quota_exhausted`. The post stays approved.
 - After `mark_write_started()`: every failure ends in `_uncertain` (for example `threads_create_http_429_uncertain`, `threads_container_error_not_public_uncertain`, `threads_publish_http_500_uncertain`). The post goes to `needs_review` with send class `ambiguous` and is **never** retried. No idempotency key is documented. Before reconciling, open your profile in the Threads app or website and check whether the post exists. An unpublished container is not public and expires after 24 hours.
 
+## Media, alt text and other container options (not sent; checked 2026-10-15)
+
+The adapter sends `media_type=TEXT` only. Media posts on Threads go through [`manual-export`](MANUAL-EXPORT.md) (`--format image|video|carousel` with a media manifest that requires alt text). These facts were fetched with `curl` on 2026-10-15 and matched with `grep`; they describe the official API, not anything ReachWeaver does:
+
+- `media_type` accepts `TEXT`, `IMAGE`, `VIDEO` and `CAROUSEL`. `alt_text` is "The accessibility text label or description for an image or video in a Threads post", with "The maximum length of `alt_text` is 1,000 characters." ([publishing reference](https://developers.facebook.com/documentation/threads/reference/publishing.md))
+- `image_url` and `video_url` must be fetchable by Meta: "We will cURL your image using the URL provided so it must be on a public server." A carousel needs "at least 2 and no more than 20 total images, videos, or a mix of the two", and "Carousel posts count as a single post against a profile's rate limit." ([posts](https://developers.facebook.com/documentation/threads/posts.md))
+- Audience and reply options that the adapter never sends: `reply_control`, `allowlisted_country_codes` (the post "will not be shown to Threads profiles in countries outside of this list"), `link_attachment`, `topic_tag`, `quote_post_id`, `poll_attachment`, `crossreshare_to_ig`, `location_id` and `auto_publish_text` (which would skip the separate publish step, so the container check and the D19-2 pause point would be lost). ([publishing reference](https://developers.facebook.com/documentation/threads/reference/publishing.md))
+
+A media adapter would need its own owner decision, its own registry switch and an owner-hosted public URL, like the Instagram image adapter (issue #20). None exists for Threads.
+
+## Issue #49 acceptance evidence (offline, mocked)
+
+Each test below runs with mocked HTTP on a temporary copy of the registry; nothing here is a live receipt. Run: `python3 -m unittest discover -s tests -p "test_threads.py" -v`.
+
+| Criterion | Evidence |
+|---|---|
+| App setup, required permissions, supported account types and review requirements, with a verification date | "Meta app setup and review requirements" below (checked 2026-10-09, re-checked 2026-10-15) |
+| Mock contract: successful post | `tests/test_threads.py::test_happy_path_requests_and_receipt`, `tests/test_threads.py::test_end_to_end_receipt_stored` |
+| Mock contract: rejected permission | `tests/test_threads.py::test_preflight_http_errors_are_pre_write_and_actionable` (403 on `/me` names `threads_basic`, 403 on the quota read names `threads_content_publish`), `tests/test_threads.py::test_contract_rejected_permission_blocks_before_claim_and_keeps_post_approved`, and a 403 after the write in `tests/test_threads.py::test_post_write_http_errors_are_uncertain` |
+| Mock contract: rate limit | `tests/test_threads.py::test_preflight_429_records_cooldown_and_keeps_post_approved`, `tests/test_threads.py::test_exhausted_or_unreadable_quota_refused_before_any_write`, 429 after the write in `tests/test_threads.py::test_post_write_failure_goes_to_needs_review_and_is_never_resent` |
+| Mock contract: expired token | `tests/test_threads.py::test_contract_expired_token_blocks_before_claim_and_keeps_post_approved` (recorded expiry refused before any request; a 401 from Meta blocks before the claim), `tests/test_threads.py::test_offline_refusals_before_network` |
+| Approved preview and matching remote receipt reconciled without duplicates | `tests/test_threads.py::test_approved_preview_matches_the_receipt_and_is_published_exactly_once` (dry-run preview, the same text sent, `text_match=true`, no request on re-runs), `tests/test_threads.py::test_needs_review_is_closed_by_reconcile_and_never_resent`, `tests/test_threads.py::test_reconciled_receipt_cannot_be_applied_twice` |
+| Live publishing disabled without an authorized connection and explicit approval | `tests/test_threads.py::UnreachableTests` (bundled registry), `tests/test_threads.py::test_unapproved_draft_never_sent`, `tests/test_threads.py::test_without_live_gate_no_request`, `tests/test_threads.py::test_wrong_account_refused_before_any_write`, missing token in `tests/test_threads.py::test_offline_refusals_before_network` |
+
+Still owner-only: a Meta app with the Threads use case, the owner's profile accepted as a Threads Tester, a long-lived token, a supervised first live post with its receipt, and the reviewed registry and `policy.SUPPORTED_LIVE` change.
+
 ## Meta app setup and review requirements (owner checklist)
 
 **Verification status.** Every claim below comes from the Meta pages listed under "Sources (read 2026-10-09)". This documentation pass on **2026-10-10** had no network access, so the pages were **not re-fetched on 2026-10-10**. Treat each item as "last verified 2026-10-09 against the cited page", not as confirmed today. Steps 2, 4 and 5 were re-checked on **2026-10-15** against the live pages (see "Re-checked 2026-10-15" below). Items marked **[unverified]** are not established by any page this repository has read. Meta changes these flows without notice; check the live page before you rely on a step. Nothing here is evidence that a Meta app, tester or review exists for this project.
