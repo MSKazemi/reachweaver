@@ -25,7 +25,7 @@ from typing import Any, cast
 from .campaigns import _sensitive_keys, public_url
 from .capabilities import load_registry, require_capability
 from .media import read_manifest, validate_media_manifest
-from .policy import CONSERVATIVE_TEXT_LIMITS, PLACEHOLDER, ValidationError
+from .policy import BIDI_CONTROLS, CONSERVATIVE_TEXT_LIMITS, INVISIBLE_FORMAT_CHARS, PLACEHOLDER, ValidationError
 from .privacy import write_private_file
 from .storage import utc_now
 
@@ -263,8 +263,15 @@ def _target_type(variant: dict, account_meta: dict | None) -> str | None:
 def _check_text_common(text: str, errors: list[str], label: str = "text") -> None:
     if PLACEHOLDER.search(text):
         errors.append(f"{label} contains an unresolved placeholder/TODO")
-    if any(ord(ch) < 32 and ch not in "\n\t\r" for ch in text):
+    if any((ord(ch) < 32 and ch not in "\n\t\r") or ord(ch) == 127 for ch in text):
         errors.append(f"{label} contains control characters")
+    # Same Trojan Source rule as policy.validate_post (salvaged from draft PR #65): the text the owner
+    # reviews must be the text they paste.
+    if any(ch in BIDI_CONTROLS for ch in text):
+        errors.append(f"{label} contains bidirectional override/embedding/isolate characters (U+202A-U+202E, "
+                      "U+2066-U+2069), which can make the reviewed text differ from what is pasted")
+    if any(ch in INVISIBLE_FORMAT_CHARS for ch in text):
+        errors.append(f"{label} contains invisible format characters (for example U+2060 word joiner or U+FEFF)")
 
 
 def platform_preflight(platform: str, variant: object,

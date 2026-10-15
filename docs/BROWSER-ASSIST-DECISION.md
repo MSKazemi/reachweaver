@@ -24,7 +24,7 @@ For LinkedIn and TikTok, "the human presses Post" does not cure the problem, bec
 
 - **Official API, with a human login.** You sign in once through the platform's own consent screen; ReachWeaver then sends only posts you approved (`approve`, then `publish --live`). Adapters exist for Bluesky, Mastodon, Telegram and LinkedIn member posts (each with one live receipt only for Bluesky and Mastodon so far, see [`receipts/`](receipts/)), and mock-tested, registry-disabled ones for Threads, Facebook Pages, Instagram, YouTube and TikTok.
 - **Manual export.** `manual-export` writes a reviewed package (text, files, alt text, checklist) for every platform without an adapter; you post by hand, in the native app or site, and keep the URL as your own record.
-- **Planning only.** `distribution-plan`, `delivery-options`-style routing and the calendar tools never post.
+- **Planning only.** `distribution-plan`, `delivery-options` routing and the calendar tools never post. `delivery-options` and `manual-export-batch` were salvaged from draft PR #65 without its browser-handoff command, its `BROWSER-TASK.md` and its browser-assisted route.
 
 ## What would change this
 

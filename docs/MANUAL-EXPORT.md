@@ -45,6 +45,34 @@ reachweaver manual-export --platform hacker_news --variant notes.json --out expo
 # notes.json: {"talking_points": ["Offline-first design", "No auto-posting"], "link_url": "https://example.org/docs"}
 ```
 
+## Batch of manual packages
+
+**Salvaged from draft PR #65, offline only.** `manual-export-batch` prepares 1 to 25 packages in one run:
+
+```bash
+reachweaver manual-export-batch --file examples/manual-batch.example.json --out exports/regional-batch [--json]
+```
+
+```json
+{
+  "schema_version": 1,
+  "items": [
+    {"platform": "xiaohongshu", "variant": {"platform": "xiaohongshu", "text": "Exact text"},
+     "account_meta": {"handle": "@my-account"}, "at": "2026-11-02T19:00:00+08:00"},
+    {"platform": "threads", "variant": {"platform": "threads", "text": "Exact text"}}
+  ]
+}
+```
+
+- **Same checks as one package.** Each item goes through `build_export` (the five sourced platforms) or `build_package` (every other `manual_only` destination), so its preflight, limits, checklist and files are exactly what `manual-export --platform` produces. `platform` takes the same values as `manual-export --platform`. Media manifests are not taken in a batch; a media format only gets the "nothing validated" warning, so run `manual-export --media` for an item whose media you want checked.
+- **Whole-batch preflight.** Every item is checked before anything is written. One blocking error in any item prints `BLOCKED: nothing written`, exits 2 and creates no directory. Malformed batches (other top-level keys, 0 or more than 25 items, unknown item fields) and secret-like keys anywhere are refused.
+- **Human-only destinations are refused.** Reddit, Hacker News and every other `human_only` destination cannot be in a batch: prepare their notes form one at a time with `manual-export`, and write the post yourself. A repeated platform and text gets a warning.
+- **SHA-256 of the exact text.** `--out` must be a new path; it holds one folder per item (`01-xiaohongshu`, `02-threads`, ...) written by the single-package writer, plus `batch-manifest.json`. The manifest lists, for each item, its folder, platform, public account fields and the SHA-256 of every exact-text file (`post.txt`, `title.txt`, `caption.txt`, `description.txt`). After writing, each file is read back and compared with that hash; a mismatch stops the run. Folders are 0700 and files 0600, as above.
+- **Advisory time.** An item's optional `at` must be ISO 8601 with an explicit offset. It is recorded as `planned_local_time` for your own planning; nothing is scheduled in ReachWeaver or on any platform.
+- Code: `reachweaver/manual_batch.py` (`build_batch`, `write_batch`, `manifest`), tests in `tests/test_manual_batch.py`. It has no send path (`SEND_PATH = None`), no network import and opens no browser. A batch is not permission for bulk posting.
+
+To see which route a destination has before you add it to a batch, run `reachweaver delivery-options --platform ID` (`reachweaver/delivery_options.py`). It reuses the onboarding blocker audit, so its routes (`official_api_adapter`, `manual_export`, `draft_export`, `native_manual`, `human_only`, `unsupported`) match the [troubleshooting table](TROUBLESHOOTING.md#blocked-platforms-and-their-alternatives).
+
 ## Variant file
 
 ```json
@@ -76,7 +104,7 @@ Errors block the export. Warnings need human judgment.
 | Facebook | Target not declared, or declared as a profile, personal account, user, timeline or group; text over the conservative 4,500 cap (no official limit was verified) | — |
 | YouTube | Missing title; title over 100 characters; description over 5,000 **UTF-8 bytes**; `<` or `>` in title or description; tags over 500 characters (commas count, and spaced tags count with quotes); non-video format | Empty description; description links (clickable only for eligible channels) |
 | TikTok | Caption over 2,200 UTF-16 units; non-video format | A URL in the caption |
-| All | Placeholder/TODO text, control characters, a non-public `link_url`, secret-like keys, platform mismatch | Text over ReachWeaver's conservative `policy.py` cap (the official limit is what applies to a manual post) |
+| All | Placeholder/TODO text, control characters (including DEL), bidirectional override/embedding/isolate characters and other invisible format characters (the same Trojan Source rule `policy.validate_post` applies to live posts; ZWJ, ZWNJ and LRM/RLM stay allowed), a non-public `link_url`, secret-like keys, platform mismatch | Text over ReachWeaver's conservative `policy.py` cap (the official limit is what applies to a manual post) |
 
 ## Media
 

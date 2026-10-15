@@ -48,8 +48,8 @@ class GlobalDistributionTests(unittest.TestCase):
         added = ["xiaohongshu","wechat_channels","toutiao","baidu_tieba","douban","maimai","qzone","note_jp","naver_blog","naver_cafe","kakao_openchat","dcard","ptt","pantip","line_openchat","zalo_official_account","kaskus","sharechat","moj","vk","odnoklassniki","dzen","habr","medium","substack","snapchat","kwai"]
         self.assertEqual(len(added), 27)
         # 72 global and regional entries, the 18 community and creator surfaces of tests/test_platform_research_batch.py
-        # and the LINE Official Account and Kakao Talk Channel entries (#25, #26)
-        self.assertEqual(len(self.data["platforms"]), 72 + 18 + 2)
+        # the LINE Official Account and Kakao Talk Channel entries (#25, #26) and PIXNET (salvaged from PR #65)
+        self.assertEqual(len(self.data["platforms"]), 72 + 18 + 2 + 1)
         self.assertEqual(len(self.data["markets"]), 18)
         by_id = {p["id"]: p for p in self.data["platforms"]}
         for platform_id in added:
@@ -76,6 +76,21 @@ class GlobalDistributionTests(unittest.TestCase):
                 self.assertEqual(plan["posts_scheduled"], 0)
         self.assertEqual(build_distribution_plan("china", "awareness", limit=8)["channels"][2]["platform_id"], "xiaohongshu")
         self.assertNotIn("tiktok", next(m for m in self.data["markets"] if m["id"] == "india")["rankings"]["awareness"])
+
+    def test_pixnet_from_pr_65_is_research_only_and_planned_for_taiwan(self):
+        pixnet = next(p for p in self.data["platforms"] if p["id"] == "pixnet")
+        self.assertEqual((pixnet["reachweaver_delivery"], pixnet["scheduling"]["mode"],
+                          pixnet["scheduling"]["official_source"]), ("manual_only", "unverified", ""))
+        self.assertFalse(pixnet["human_only"])
+        self.assertEqual(pixnet["checked_on"], "2026-10-14")
+        self.assertEqual(pixnet["research_source"], "https://www.pixnet.net/")
+        plan = build_distribution_plan("taiwan", "adoption", limit=20)
+        self.assertEqual(plan["channels"][-1]["platform_id"], "pixnet")
+        self.assertEqual(plan["posts_scheduled"], 0)
+        # PR #65's other ids are duplicates of entries main already has under other names
+        ids = {p["id"] for p in self.data["platforms"]}
+        self.assertTrue({"kakao_talk_channel", "line_official_account", "zalo_official_account"} <= ids)
+        self.assertFalse({"kakao_channel", "line_official", "zalo_oa"} & ids)
 
     def test_india_regional_networks_do_not_gain_live_send_capabilities(self):
         india_ids = ["josh","chingari","hipi","public_app","kutumb","arattai_channels","localcircles","pratilipi","rooter"]

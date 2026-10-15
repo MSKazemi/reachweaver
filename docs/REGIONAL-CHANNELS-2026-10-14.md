@@ -83,3 +83,7 @@ To move any surface beyond this safe catalog, first document official API/scopes
 
 **Not reviewed:** later blocking orders, any order not published in these two notices, whether each app is available in Indian app stores today (Hipi in particular was not checked), and state or sectoral rules. This is a check against two published lists, not legal advice and not a statement that an app is permitted. Every India entry stays `manual_only` with `unverified` scheduling, and the owner must confirm availability and rules before using any of them.
 
+
+## PIXNET (salvaged from draft PR #65)
+
+Draft PR #65 researched the same 2026-10-14 regional set. Its Kakao, LINE and Zalo entries duplicate `kakao_talk_channel`, `line_official_account` and `zalo_official_account` above, so only one entry was new: `pixnet`, [PIXNET](https://www.pixnet.net/), a Taiwan blog platform. It is registered the same way as the rest of this catalog: `manual_only`, scheduling `unverified`, `human_only: false` (the owner's own blog, like `naver_blog`), `checked_on` 2026-10-14 as in the PR, and it is appended last to the Taiwan `adoption` ranking as an editorial hypothesis. The PR recorded only the provider's home page; its posting rules, native scheduling and any API were **not verified**, and this salvage made no network request.
