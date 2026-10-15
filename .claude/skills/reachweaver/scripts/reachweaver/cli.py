@@ -55,8 +55,9 @@ from .worker_log import claim_refusal_reason, error_code as worker_error_code, o
 from .schema_export import EXPORT_TYPES, export_documents, render_jsonl
 from .schemas import TYPES as SCHEMA_TYPES, validate as validate_schema
 from .sources import load_config as load_sources_config, render_scan, scan_config_file
-from .policy import (PLATFORMS, SUPPORTED_LIVE, SUPPORTED_LIVE_VIDEO, ValidationError, live_opt_in,
-                     mastodon_text_limit, require_live_gate, runtime_environment, validate_post)
+from .policy import (CONSERVATIVE_TEXT_LIMITS, LINKEDIN_ESCAPED_MAX, PLATFORMS, SUPPORTED_LIVE,
+                     SUPPORTED_LIVE_VIDEO, ValidationError, live_opt_in, mastodon_text_limit,
+                     require_live_gate, runtime_environment, validate_post)
 from .attachments import MEDIA_PLATFORMS, UNSUPPORTED_PLATFORM
 from .tiktok import COMMERCIAL_CHOICES as TIKTOK_COMMERCIAL
 from .tiktok import MODES as TIKTOK_MODES
@@ -830,6 +831,26 @@ def _platform_preview(post, account: dict | None) -> dict | None:
                 "language": account.get("language"), "spoiler_text": account.get("spoiler_text"),
                 "counted_length": mastodon_length(content), "text_limit": mastodon_text_limit(account),
                 "idempotency_key": post["id"], "idempotency_window": "1 hour (server-side)"}
+    if post["platform"] == "linkedin":  # private #14: account config only, never the token
+        from .linkedin import VISIBILITY, author_urn, escape_commentary
+        member_urn = None
+        if account is not None and account.get("person_id"):
+            try:
+                member_urn = author_urn(account["person_id"])
+            except ValidationError:
+                member_urn = None
+        counted, escaped = len(content), len(escape_commentary(content))
+        preview = {"account_id": post["account_id"], "handle": account.get("handle") if account else None,
+                   "member_urn": member_urn, "visibility": VISIBILITY,
+                   "counted_length": counted, "text_limit": CONSERVATIVE_TEXT_LIMITS["linkedin"],
+                   "length_method": "Unicode code points",
+                   "escaped_commentary_length": escaped, "escaped_commentary_limit": LINKEDIN_ESCAPED_MAX,
+                   "within_limits": counted <= CONSERVATIVE_TEXT_LIMITS["linkedin"] and escaped <= LINKEDIN_ESCAPED_MAX,
+                   "dry_run": "show sends nothing; publish without --live is a dry run with no request; a live "
+                              "send needs approval, REACHWEAVER_ENV=prod, REACHWEAVER_ALLOW_LIVE=1 and --live"}
+        if account is None:
+            preview["account_config"] = "not loaded; member URN unknown"
+        return preview
     return None
 
 

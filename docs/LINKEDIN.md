@@ -110,11 +110,13 @@ When the check passes, `connect-check` reports `write_permission: verified`. If 
 
 ```bash
 reachweaver draft --account my-linkedin --file post.txt
-reachweaver show POST_ID          # review the exact text
+reachweaver show POST_ID          # review the exact text and the offline platform_preview
 reachweaver approve POST_ID
 reachweaver publish --post-id POST_ID                                   # dry run
 REACHWEAVER_ENV=prod REACHWEAVER_ALLOW_LIVE=1 reachweaver publish --live --post-id POST_ID   # one supervised send, production host only
 ```
+
+`show POST_ID` makes no request and reads no credential. For LinkedIn its `platform_preview` lists the `account_id`, `handle` (if the account sets one), the `member_urn` built from `person_id` (null when the account config does not load), the `visibility` the payload sends (`PUBLIC`), `counted_length` against the 2,800 code-point `text_limit` ReachWeaver enforces, `escaped_commentary_length` against the 3,000-character `escaped_commentary_limit` (counted after little-format escaping), `within_limits`, and a dry-run note.
 
 Before the send is claimed, ReachWeaver refuses (status `BLOCKED`, post stays `approved`):
 

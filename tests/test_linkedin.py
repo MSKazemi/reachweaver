@@ -18,7 +18,7 @@ from reachweaver.accounts import load_accounts, missing_credentials
 from reachweaver.capabilities import require_capability
 from reachweaver.cli import main
 from reachweaver.connections import check_connection
-from reachweaver.policy import SUPPORTED_LIVE, ValidationError
+from reachweaver.policy import CONSERVATIVE_TEXT_LIMITS, LINKEDIN_ESCAPED_MAX, SUPPORTED_LIVE, ValidationError
 from reachweaver.publishers import PUBLISHERS, PublishError, request_json_with_headers
 from gate_support import publish  # noqa: E402
 from reachweaver.storage import add_post, connect, get_post, transition
@@ -415,6 +415,49 @@ class CliLiveTests(unittest.TestCase):
                                 (pid,)).fetchone()[0]
         self.assertEqual((row["status"], row["remote_id"], row["remote_url"]), ("approved", None, None))
         self.assertEqual(claims, 0)
+
+    def test_show_prints_an_offline_linkedin_preview_without_reading_the_token(self):
+        # private #14: the same review aid Bluesky and Mastodon get; account config only.
+        text = "Release *notes* (v2) https://example.com"
+        pid = self.draft(text)
+        with patch.dict(os.environ, ENV), patch("reachweaver.publishers._send_http") as send, \
+                patch("reachweaver.accounts.credential") as read_credential:
+            status, out, err = self.cli("show", pid)
+        self.assertEqual(status, 0, out + err)
+        send.assert_not_called()
+        read_credential.assert_not_called()
+        preview = json.loads(out)["platform_preview"]
+        self.assertEqual(preview["account_id"], "li-me")
+        self.assertIsNone(preview["handle"])
+        self.assertEqual(preview["member_urn"], "urn:li:person:782bbtaQ")
+        self.assertEqual(preview["visibility"], linkedin.build_post_payload("782bbtaQ", text)["visibility"])
+        self.assertEqual((preview["counted_length"], preview["text_limit"]),
+                         (len(text), CONSERVATIVE_TEXT_LIMITS["linkedin"]))
+        self.assertEqual((preview["escaped_commentary_length"], preview["escaped_commentary_limit"]),
+                         (len(text) + 4, LINKEDIN_ESCAPED_MAX))  # '*', '*', '(' and ')' each gain a backslash
+        self.assertTrue(preview["within_limits"])
+        self.assertIn("dry run", preview["dry_run"])
+        self.assertNotIn(FAKE_TOKEN, out + err)
+
+    def test_preview_flags_escaped_commentary_over_the_limit(self):
+        # draft refuses such text, so the preview helper is called directly on a stand-in row
+        from reachweaver.cli import _platform_preview
+        row = {"id": "p1", "account_id": "li-me", "platform": "linkedin", "content": "*" * 1600}
+        with patch("reachweaver.publishers._send_http") as send:
+            preview = _platform_preview(row, load_accounts(self.config)["li-me"])
+        send.assert_not_called()
+        self.assertEqual((preview["counted_length"], preview["escaped_commentary_length"]), (1600, 3200))
+        self.assertFalse(preview["within_limits"])
+
+    def test_show_preview_without_account_config_has_no_member_urn(self):
+        pid = self.draft()
+        self.config.write_text(json.dumps({"accounts": []}), encoding="utf-8")
+        status, out, _ = self.cli("show", pid)
+        self.assertEqual(status, 0)
+        preview = json.loads(out)["platform_preview"]
+        self.assertIsNone(preview["member_urn"])
+        self.assertEqual(preview["account_config"], "not loaded; member URN unknown")
+        self.assertEqual(preview["visibility"], linkedin.VISIBILITY)
 
     def test_missing_receipt_header_goes_to_needs_review_not_retried(self):
         pid = self.draft()
