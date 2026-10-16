@@ -6,6 +6,21 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-16
+
+ReachWeaver is now also a standard Python package, built and checked by CI and attached to every release: a wheel, a source archive and `python-dist.sha256`, next to `skill.zip`. A patch version: no command, option or default changed, and the clearer `doctor`/`health` output and dashboard wording from the previous merge ship with it.
+
+**Upgrade notes.** None. The Claude Code plugin and `reachweaver update` are unchanged. To use the package instead: `pipx install` the wheel from the release page ([docs/PACKAGING.md](docs/PACKAGING.md)).
+
+### Packaging and CI
+
+- **Release assets:** the `publish` job of the release workflow rebuilds the wheel and sdist, checks them, writes `python-dist.sha256` (the wheel and the sdist) and attaches all three with the skill bundle. It keeps its one write permission (`contents: write`) and the owner-only guard; no job, permission or trigger was added.
+- **CI `package` job (every push and pull request, read-only):** builds the sdist and wheel with `build` 1.6.1, runs `twine check --strict` (`twine` 7.0.0), runs `scripts/check_package.py` and uploads the result as the `reachweaver-python-dist` artifact. The release workflow's read-only `verify` job runs the same steps before anything is published.
+- **`scripts/check_package.py [--smoke]` (new, stdlib only):** compares the wheel and sdist with the checkout (one wheel, one sdist, version in the archive names, `pyproject.toml` and the code, every runtime module and bundled registry present and nothing extra, entry point, license files, Apache-2.0 expression, no runtime dependency, Python >= 3.11) and refuses anything private in either archive (docs, `.claude`, state, databases, `.env*` files, local accounts, security-review notes, an approval ledger, a workspace marker). `--smoke` installs the wheel into a fresh virtual environment and runs `reachweaver version`, `capabilities` and `distribution-plan` from an empty folder. `make package` runs the same checks locally.
+- **`pyproject.toml`:** complete metadata (SPDX `license = "Apache-2.0"` with `license-files`, classifiers, project URLs; `setuptools>=77`). A test now fails if a registry JSON is added to `reachweaver/` without a `package-data` entry. There is deliberately no `MANIFEST.in`, so a source archive built from a working folder holds only the package, the tests, the README and the licenses.
+- **Not done, on purpose:** PyPI publication, GitHub build-provenance attestations and a container image. GitHub Packages has no Python registry; PyPI needs an account, a publisher and terms accepted by the owner; attestations and trusted publishing need extra workflow permissions that change the audited release model. [docs/PACKAGING.md](docs/PACKAGING.md) lists the exact steps and what must be reviewed first.
+- `tests/test_check_package.py` (16) and `tests/test_packaging_metadata.py` (14) pin all of this, including that the README's wheel link always matches the current version.
+
 ### Changed
 
 - **Clearer `doctor` and `health` at a terminal; dashboard wording.** At a terminal `doctor` leads with a one-line verdict and an aligned account table, and `health` with the readiness verdict, a per-account table, only what needs attention and one "Next:" line (a credentials-only block says that drafting, review and dry runs still work). Piped output and `--json` are byte-identical. The dashboard shows "not scheduled" instead of "unknown" for an unset schedule, an ok/missing credentials chip per account, and the same credentials-only explanation on the Overview banner. Fixed: a terminal that reports 0 columns (some ptys, `script`) squeezed every table to its minimum width.

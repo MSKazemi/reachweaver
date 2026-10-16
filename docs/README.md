@@ -51,6 +51,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 | Goal | Read |
 |---|---|
 | Unattended, scheduled delivery and monitoring | [Worker operations](WORKER-OPERATIONS.md) |
+| Install the command line as a Python package, how it is built and checked | [The Python package](PACKAGING.md) |
 | Export or delete your local data | [Privacy lifecycle](PRIVACY-LIFECYCLE.md) |
 | Keep everything that is yours in one folder and move it to another computer | [Your workspace folder](MOVING.md) |
 | See every capability in one place | [All features in detail](FEATURES.md), [platforms and the capability registry](PLATFORMS.md) |

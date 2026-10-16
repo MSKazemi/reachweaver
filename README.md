@@ -343,6 +343,17 @@ python3 install_skill.py            # add --project to install into ./.claude/sk
 
 Restart Claude Code and use `/reachweaver`. The skill checks for a newer release at the start of a session (at most one GET per 24 h, silent offline; opt out with `touch ~/.cache/reachweaver/no-update-check`; `update --apply` only applies to this installer route, never to a plugin), tells you, and updates only after you agree. By hand: `python3 ~/.claude/skills/reachweaver/scripts/run.py update --check` then `update --apply --yes`. The installer and updater verify the release's SHA-256, refuse unsafe archive paths and keep the previous copy under `~/.cache/reachweaver/previous/`. Releases come from the `release.yml` workflow on a `vX.Y.Z` tag; until the first release is tagged (and while the repository is private) use `--from-checkout`.
 
+### As a Python package (command line only)
+
+Every release also carries a standard wheel and source archive, for servers and scripts. You need Python 3.11 or newer; there is nothing else to download.
+
+```bash
+pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.1/reachweaver-0.5.1-py3-none-any.whl"
+reachweaver version
+```
+
+Checksums, what CI checks in the package, and why it is not on PyPI or GitHub Packages (yet) are in [the Python package guide](docs/PACKAGING.md).
+
 ### Using the skill in another project
 
 The project skill lives at `.claude/skills/reachweaver/SKILL.md`. For any other repository, install that folder as a skill (user-level `~/.claude/skills/reachweaver`, or the target's `.claude/skills/reachweaver`); the installable ZIP below also works. The standalone package includes a CLI at `scripts/run.py`, all referenced guidelines, and self-contained sample manifests in `assets/`:

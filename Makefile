@@ -2,8 +2,10 @@
 PYTHON ?= python3
 RUFF_VERSION ?= 0.16.10
 MYPY_VERSION ?= 2.4.0
+BUILD_VERSION ?= 1.6.1
+TWINE_VERSION ?= 7.0.0
 
-.PHONY: help test sync scan lint deps ruff typecheck format-check example check release-gate
+.PHONY: help test sync scan lint deps ruff typecheck format-check example check release-gate package
 
 help:
 	@echo "make test     - offline unit tests (no network, no credentials)"
@@ -14,6 +16,7 @@ help:
 	@echo "make ruff     - optional: ruff $(RUFF_VERSION) hard-error rules via pipx (downloads ruff)"
 	@echo "make typecheck - optional: mypy $(MYPY_VERSION) on reachweaver/ via pipx (downloads mypy)"
 	@echo "make format-check - advisory, never fails: ruff format --check (adoption deferred, ADR-0002)"
+	@echo "make package  - build the wheel and sdist, twine check, check contents, install and run (downloads build and twine via pipx)"
 	@echo "make example  - offline example run against a throwaway database"
 	@echo "make check    - sync + scan + lint + deps + test (what CI runs, minus ruff and mypy)"
 	@echo "make release-gate [TAG=vX.Y.Z] - scan + lint + deps, then the offline release gate (versions, CHANGELOG, docs, bundle, blockers, tests)"
@@ -59,3 +62,13 @@ check: sync scan lint deps test
 TAG ?=
 release-gate: scan lint deps
 	$(PYTHON) scripts/release_gate.py $(if $(TAG),--tag $(TAG),)
+
+# Build the wheel and sdist into a throwaway folder and run the same checks CI and the release workflow run
+# (downloads build and twine via pipx; the package itself needs no network). Build from a CLEAN checkout when
+# you intend to publish: a working folder can hold files that must never reach a package.
+package:
+	@tmp=$$(mktemp -d) && \
+	pipx run --spec build==$(BUILD_VERSION) pyproject-build --outdir $$tmp/dist . && \
+	pipx run --spec twine==$(TWINE_VERSION) twine check --strict $$tmp/dist/* && \
+	$(PYTHON) scripts/check_package.py $$tmp/dist --smoke && \
+	rm -rf $$tmp build reachweaver.egg-info

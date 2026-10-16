@@ -1,6 +1,7 @@
 name: Release skill bundle
 # Runs only when a vX.Y.Z tag is pushed. Publishes skill.zip + skill.zip.sha256, which
-# `scripts/install_skill.py` and `reachweaver update` download and verify. No social platform
+# `scripts/install_skill.py` and `reachweaver update` download and verify, and the Python package (wheel + sdist +
+# python-dist.sha256), so `pip install` can use a release asset. No social platform
 # is contacted and no provider credential is read.
 # `verify` is read-only and runs every check; only `publish` may write, and only after `verify`
 # passed and only for the repository owner. scripts/release_ref_guard.py (run by both jobs)
@@ -56,6 +57,12 @@ jobs:
         # scripts/release_gate.py runs the offline unit tests itself and exits 0 only when every check passed.
         # Never add --skip-tests here: that mode can never exit 0. No network, credential or publishing is used.
         run: python scripts/release_gate.py --tag "$GITHUB_REF_NAME"
+      - name: Build the Python package (sdist and wheel), build tool pinned as in ci.yml
+        run: pipx run --spec build==1.6.1 pyproject-build --outdir dist .
+      - name: Package metadata renders (twine check), pinned as in ci.yml
+        run: pipx run --spec twine==7.0.0 twine check --strict dist/*
+      - name: Package contents match the checkout, nothing private, installs and runs in a clean environment
+        run: python scripts/check_package.py dist --smoke
   publish:
     needs: verify
     if: github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -77,6 +84,14 @@ jobs:
           python -m zipfile -t skill.zip
           sha256sum skill.zip > skill.zip.sha256
           sha256sum --check --strict skill.zip.sha256
+      - name: Build the Python package and its checksums, then test them
+        run: |
+          pipx run --spec build==1.6.1 pyproject-build --outdir dist .
+          python -m zipfile -t dist/*.whl
+          tar -tzf dist/*.tar.gz > /dev/null
+          python scripts/check_package.py dist
+          (cd dist && sha256sum * > ../python-dist.sha256)
+          (cd dist && sha256sum --check --strict ../python-dist.sha256)
       - name: Recheck owner tag at the current main commit, immediately before publishing
         # Same guard as in verify, on this job's own checkout: GITHUB_SHA ties both jobs to one commit.
         run: python scripts/release_ref_guard.py
@@ -84,4 +99,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh release create "$GITHUB_REF_NAME" skill.zip skill.zip.sha256 --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+        run: gh release create "$GITHUB_REF_NAME" skill.zip skill.zip.sha256 dist/* python-dist.sha256 --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
