@@ -351,6 +351,22 @@ class AssetTests(unittest.TestCase):
         self.assertIn("p.repeat_check", js)
         self.assertIn("--allow-repeat", js)
 
+    def test_an_unset_schedule_is_not_called_unknown(self):
+        js = ui_assets.APP_JS
+        self.assertIn('when(p.scheduled_at, "not scheduled")', js)
+        self.assertIn('p.approved_at || "not approved"', js)
+
+    def test_accounts_page_says_ready_or_missing_and_that_credentials_are_for_live_sends(self):
+        js = ui_assets.APP_JS
+        self.assertIn("all set", js)
+        self.assertIn(" missing", js)
+        self.assertIn("Credentials are needed only for live sending", js)
+
+    def test_blocked_banner_explains_a_credentials_only_block(self):
+        js = ui_assets.APP_JS
+        self.assertIn('r.code === "credentials_missing"', js)
+        self.assertIn("drafting, review and dry runs still work", js)
+
     def test_tab_title_badge_is_not_overwritten_by_render(self):
         self.assertEqual(ui_assets.APP_JS.count("document.title ="), 1)
 

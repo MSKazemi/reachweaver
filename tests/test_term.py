@@ -70,6 +70,18 @@ class TermUnitTests(unittest.TestCase):
     def test_terminal_width_comes_from_the_os_with_a_default(self):
         self.assertEqual(term.terminal_columns(io.StringIO()), 100)
 
+    def test_a_terminal_reporting_zero_columns_means_unknown_not_tiny(self):
+        from unittest import mock
+        import os
+
+        class Fd(io.StringIO):
+            def fileno(self):
+                return 1
+        with mock.patch("os.get_terminal_size", return_value=os.terminal_size((0, 0))):
+            self.assertEqual(term.terminal_columns(Fd()), 100)
+        with mock.patch("os.get_terminal_size", return_value=os.terminal_size((132, 40))):
+            self.assertEqual(term.terminal_columns(Fd()), 132)
+
     def test_term_reads_no_environment(self):
         source = Path(term.__file__).read_text(encoding="utf-8")
         self.assertNotRegex(source, r"os\.environ|getenv|\benv\.get")

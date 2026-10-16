@@ -264,8 +264,8 @@ function ago(iso) {
   }
   return "just now";
 }
-function when(iso) {
-  if (!iso) return h("span", { class: "muted" }, "unknown");
+function when(iso, missing) {
+  if (!iso) return h("span", { class: "muted" }, missing || "unknown");
   return h("time", { datetime: iso, title: iso }, ago(iso) || iso);
 }
 
@@ -311,7 +311,9 @@ async function viewOverview() {
   const paused = g.emergency_paused;
   out.push(h("div", { class: "banner " + (paused ? "blocked" : s.overall) },
     paused ? "Emergency stop is ON: no new sends." : "Readiness: " + s.overall,
-    h("small", null, "Runtime environment: " + g.runtime_environment + ". Live-send opt-in variable: " + (g.live_opt_in_env ? "set" : "not set") + ".")));
+    h("small", null, "Runtime environment: " + g.runtime_environment + ". Live-send opt-in variable: " + (g.live_opt_in_env ? "set" : "not set") + "."),
+    !paused && s.overall !== "ok" && s.reasons.length && s.reasons.every(r => r.code === "credentials_missing")
+      ? h("small", null, "Only credentials are missing: drafting, review and dry runs still work. They are needed for live sends only.") : null));
   out.push(nextCard(guide));
   out.push(h("div", { class: "tiles" }, STATUS_ORDER.map(k =>
     h("a", { class: "tile", href: "#/queue?status=" + k }, h("b", null, counts[k] || 0), h("span", null, STATUS_LABEL[k])))));
@@ -372,7 +374,7 @@ async function viewQueue(params) {
       p.looks_like_secret ? h("span", { class: "warnbadge" }, "looks like a secret") : null,
       p.last_error ? h("div", { class: "muted" }, "Last error: " + p.last_error) : null),
     h("td", null, p.account_id, h("div", { class: "muted" }, p.platform)),
-    h("td", null, when(p.scheduled_at)), h("td", null, when(p.created_at))));
+    h("td", null, when(p.scheduled_at, "not scheduled")), h("td", null, when(p.created_at))));
   queueRows = rows; queueSel = -1;
   const shown = h("span", { class: "muted", role: "status", "aria-live": "polite" });
   const count = () => { const n = rows.filter(r => !r.hidden).length; shown.textContent = n + " of " + data.total + (data.truncated ? " (list capped at " + data.shown + ")" : "") + " shown"; };
@@ -429,7 +431,7 @@ async function viewPost(id) {
   out.push(h("details", null, h("summary", null, "Approval details"), h("div", { class: "card" }, kv(p.approval))));
   if (p.platform_preview) out.push(h("details", null, h("summary", null, "Platform preview (offline)"), h("div", { class: "card" }, kv(p.platform_preview))));
   out.push(h("details", null, h("summary", null, "Source, schedule and API cost"), h("div", { class: "card" },
-    kv({ source_url: p.source_url, scheduled_at: p.scheduled_at, approved_at: p.approved_at, api_cost: p.api_cost }),
+    kv({ source_url: p.source_url, scheduled_at: p.scheduled_at || "not scheduled", approved_at: p.approved_at || "not approved", api_cost: p.api_cost }),
     link ? h("p", null, h("a", { href: link, rel: "noopener noreferrer", target: "_blank" }, "Open remote post")) : null)));
   for (const [t, v] of [["Media", p.media], ["Video", p.video], ["Reply", p.reply]]) { const s = reviewSection(t, v); if (s) out.push(s); }
   if (rest.length) out.push(h("h2", null, "More commands for your terminal"), rest.map(s => h("div", null, h("div", null, s.label), command(s.command))));
@@ -442,12 +444,15 @@ async function viewPost(id) {
 // ---- Accounts and channels
 async function viewAccounts() {
   const d = await api("accounts");
-  return [h("h1", null, "Accounts"), h("p", { class: "lede" }, "Configured accounts. Credential values are never shown, only the names of missing variables."),
+  return [h("h1", null, "Accounts"), h("p", { class: "lede" }, "Configured accounts. Credential values are never shown."),
     d.error ? h("div", { class: "error" }, d.error) : null,
-    d.accounts.length ? table(["Account", "Platform", "Handle", "Adapter", "Missing credential variables"],
-      d.accounts.map(a => h("tr", null, h("td", null, a.id), h("td", null, a.platform), h("td", null, unknown(a.handle)),
+    h("p", { class: "muted" }, "Credentials are needed only for live sending. Drafting, review and dry runs work without them."),
+    d.accounts.length ? table(["Account", "Platform", "Handle", "Adapter", "Credentials"],
+      d.accounts.map(a => h("tr", null, h("td", null, a.id), h("td", null, a.platform), h("td", null, a.handle || h("span", { class: "muted" }, "not set")),
         h("td", null, a.adapter + (a.backend ? " (" + a.backend + ")" : "")),
-        h("td", null, a.credentials_missing.length ? a.credentials_missing.join(", ") : "none")))) :
+        h("td", null, a.credentials_missing.length
+          ? [h("span", { class: "chip attention" }, a.credentials_missing.length + " missing"), h("div", { class: "note" }, "Not set: " + a.credentials_missing.join(", "))]
+          : h("span", { class: "chip ok" }, "all set"))))) :
       empty("No accounts configured", "Copy config/accounts.example.json to config/accounts.json.")];
 }
 async function viewDistribution(params) {

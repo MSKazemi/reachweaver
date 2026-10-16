@@ -38,7 +38,7 @@ Keep the address private. It is the only thing that lets a browser read your que
 - **Post**: a status card that says in plain language what the state means and offers the next command to run; the exact text with a **length meter** against the platform's own limit (Bluesky, Mastodon, LinkedIn) and a Copy text button; the approval binding, offline platform preview and attachments in collapsible sections; previous/next post links; and the event timeline with relative times ("2 hours ago", exact time on hover).
 
 The exact text is shown **as stored**, not redacted, because you are reviewing what would be sent. A warning appears when it looks like it contains a password, token or key. Errors, events and previews are redacted.
-- **Accounts**: configured accounts, adapter kind and which credential variables are missing (names only).
+- **Accounts**: configured accounts, adapter kind and, per account, whether every credential variable is set ("all set") or which are missing (names only). Credentials are needed for live sending only.
 - **Channels**: the offline distribution research by market and goal. These are research hypotheses, not predictions, not an account connection and not permission to publish.
 
 A value that is not recorded is shown as "unknown", never as zero.

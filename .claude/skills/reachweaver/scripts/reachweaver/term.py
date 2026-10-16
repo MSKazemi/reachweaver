@@ -22,12 +22,16 @@ def clean(text: str) -> str:
     return _CONTROL.sub("\ufffd", text)
 
 
+MIN_COLUMNS = 20
+
+
 def terminal_columns(stream=None, default: int = 100) -> int:
     """Width of the terminal on ``stream`` (or stdout), from the OS: no environment variable is read."""
     try:
-        return os.get_terminal_size((stream or sys.stdout).fileno()).columns
+        columns = os.get_terminal_size((stream or sys.stdout).fileno()).columns
     except (OSError, ValueError, AttributeError):
         return default
+    return columns if columns >= MIN_COLUMNS else default  # a pty that reports 0 columns means "unknown"
 
 
 def set_plain(value: bool) -> None:

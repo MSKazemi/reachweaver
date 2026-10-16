@@ -2509,43 +2509,19 @@ def execute(args) -> int:
             print(f"reachweaver {result['installed']} is up to date (latest release {result['latest']}).")
         return 0
     if args.command == "doctor":
-        accounts = _accounts(args)
-        for name, account in accounts.items():
-            status = "supported (text)" if account["platform"] in SUPPORTED_LIVE else "planned/manual only"
-            if account.get("backend") is not None:
-                status = f"backend={account['backend']} (opt-in; acceptance needs human reconcile)"
-            missing = missing_credentials(account)
-            print(f"{name}: {account['platform']}; {status}; env variables missing: {', '.join(missing) or 'none'}")
-            if account["platform"] == "linkedin":  # offline API-version and token-expiry lifecycle
-                from .linkedin import doctor_notes
-                for note in doctor_notes(account):
-                    print(f"  {name}: {note}")
-            if account["platform"] == "instagram" and account.get("backend") is None:  # adapter, issue #20 (disabled until a live receipt)
-                from .instagram import doctor_notes as instagram_doctor_notes
-                for note in instagram_doctor_notes(account):
-                    print(f"  {name}: {note}")
-            if account["platform"] == "tiktok" and "open_id" in account:  # video adapter, issue #23
-                from .tiktok import doctor_notes as tiktok_doctor_notes
-                for note in tiktok_doctor_notes(account):
-                    print(f"  {name}: {note}")
-            if account["platform"] == "youtube" and account.get("backend") is None:  # video upload adapter, issue #22
-                from .youtube import doctor_notes as youtube_doctor_notes
-                for note in youtube_doctor_notes(account):
-                    print(f"  {name}: {note}")
-            if account["platform"] == "threads" and account.get("backend") is None:  # adapter, issue #19 (disabled until a live receipt)
-                from .threads import doctor_notes as threads_doctor_notes
-                for note in threads_doctor_notes(account):
-                    print(f"  {name}: {note}")
-            if account["platform"] == "facebook" and account.get("backend") is None:  # adapter, issue #21 (disabled until a live receipt)
-                from .facebook import doctor_notes as facebook_doctor_notes
-                for note in facebook_doctor_notes(account):
-                    print(f"  {name}: {note}")
-        print("Live opt-in:", "enabled" if live_opt_in() else "disabled")
-        print(f"Environment: REACHWEAVER_ENV={runtime_environment()} (publish --live requires prod)")
-        print(f"Credential source: {credential_source()} (names only; values are never shown)")
-        print("Credential hygiene: run 'reachweaver credentials-audit [--history FILE]' (offline; names only, never values)")
-        print("Metrics polling: 'metrics-fetch --online' reads PUBLIC Bluesky/Mastodon post counters only "
-              "(read-only GET; not private analytics; views/impressions/clicks stay unknown)")
+        from . import health_view
+        findings = health_view.doctor_findings(_accounts(args))
+        settings = ["Live opt-in: " + ("enabled" if live_opt_in() else "disabled"),
+                    f"Environment: REACHWEAVER_ENV={runtime_environment()} (publish --live requires prod)",
+                    f"Credential source: {credential_source()} (names only; values are never shown)",
+                    "Credential hygiene: run 'reachweaver credentials-audit [--history FILE]' (offline; names only, never values)",
+                    "Metrics polling: 'metrics-fetch --online' reads PUBLIC Bluesky/Mastodon post counters only "
+                    "(read-only GET; not private analytics; views/impressions/clicks stay unknown)"]
+        from . import term
+        if term.enabled(sys.stdout):
+            print(health_view.render_doctor(findings, settings, sys.stdout))
+        else:
+            print("\n".join(health_view.doctor_plain_lines(findings) + settings))
         return 0
     if args.command == "credentials-audit":
         audit = audit_environment(_accounts(args), os.environ, history=args.history)
@@ -3064,7 +3040,13 @@ def execute(args) -> int:
                                          stale_minutes=args.stale_minutes, caps=caps,
                                          caps_path=str(caps_path) if caps_path else None,
                                          caps_error=caps_error)
-            print(json.dumps(health_report, indent=2) if args.json else render_health(health_report))
+            from . import health_view, term
+            if args.json:
+                print(json.dumps(health_report, indent=2))
+            elif term.enabled(sys.stdout):
+                print(health_view.render_health_sheet(health_report, sys.stdout))
+            else:
+                print(render_health(health_report))
             return health_exit_code(health_report)
         elif args.command == "dead-letter":
             letters = dead_letter(db)
