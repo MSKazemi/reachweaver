@@ -660,3 +660,36 @@ Invariants:
 - **No outbox effect.** The module imports no storage code and cannot draft, approve, schedule, publish or reconcile. The approval, dry-run, emergency-pause, credential-isolation and ambiguous-send rules are unchanged.
 
 Not implemented: HEAD requests (one bounded GET is enough), JavaScript rendering, per-platform preview rendering, and a full Public Suffix List.
+
+## Local dashboard and terminal presentation (GUI/UX slice)
+
+`reachweaver ui` serves a read-only dashboard; `start`, the grouped `--help`, `--plain`, and terminal tables/colour make the CLI easier to read. User guide: [DASHBOARD.md](DASHBOARD.md).
+
+```text
+browser --GET /<token>/api/*--> ui_server.Handler  (loopback, token, Host/Origin/Fetch-Metadata checks, GET only, CSP)
+                                   |  one short-lived connection per request
+                                   v
+                         ui_data.open_database -> storage.connect_readonly (mode=ro, query_only, never creates/migrates)
+                                   |
+   overview -> ops_summary.build_summary      posts -> storage.list_posts      post -> post_view.build_post_view (+ event_log)
+   accounts -> accounts.missing_credentials (NAMES only)      channels -> distribution.build_distribution_plan (offline)
+   next -> start.build_guide (read-only; the dashboard drops its own `ui` step)
+                                   |  every document through privacy.redact_value
+                                   v
+                       JSON; ui_assets.APP_JS inserts it as text (never HTML)
+```
+
+Modules: `post_view.py` holds the offline views moved out of `cli.py` (`show` and the dashboard share `build_post_view`); `ui_data.py` (read-only data layer), `ui_server.py` (HTTP), `ui_assets.py` (page, CSS, JS as Python strings so `sync_skill.py` ships them in the bundle), `start.py` (state-aware next steps), `show_view.py` (the terminal review sheet and the length/approval-sentence facts the dashboard shares), `term.py` (colour, tables, control-character cleaning), `completion.py` (bash/zsh completion generated from the parser) and `cli_help.py` (grouped command index, error hints; the top-level parser also turns a mistyped command into a short suggestion).
+
+Invariants:
+
+- **Read only, twice.** Only GET/HEAD are routed, and the connection is `mode=ro` with `PRAGMA query_only`. A missing or pre-schema database is refused, never created or migrated.
+- **No send, approval or credential path.** `ui_data`, `ui_server`, `ui_assets` and `start` do not name `publish`, `claim_sending`, `transition`, `set_paused`, `require_credential` or a network opener; `tests/test_ui_data.py`, `test_ui_server.py` and `test_start.py` check this by parsing the code (identifiers and imports, not strings). `post_view` is the existing offline `show` assembly: for a backend account it lazily imports `publishers.backend_for` to render that backend's offline preview (no credential, no network), exactly as `show` always did. Credential information shown is limited to the names of missing variables; whether a variable is set is checked (as `doctor` and `health` do) but its value is never displayed.
+- **Loopback and token.** The listener binds `127.0.0.1` only (no host option). Every request needs the per-run random token in the path (compared in constant time) and a loopback `Host`; a cross-origin `Origin` or a cross-site non-navigation fetch is refused. Request lines are not logged because they contain the token.
+- **Exact text is exact.** `post_detail` and `posts_list` return the stored post text unredacted (a reviewer must see what would be sent, and the approval hash covers that text) and set `content_looks_like_secret`/`looks_like_secret` when the redactor would have changed it; every other field (errors, events, previews) is redacted.
+- **Untrusted text.** Post text, errors and URLs reach the page only through `textContent`; the CSP forbids inline script/style, remote resources and framing; `tests/test_ui_server.py` rejects `innerHTML`, `eval`, write methods and remote URLs in the assets.
+- **Presentation is not behaviour.** Plain output (not a TTY, or `--plain`) is byte-identical to before; `--json` never passes through `term.py`; hints appear only on a TTY. `term.py` reads no environment variable (so `NO_COLOR` is not honoured): `tests/test_hardening.py` pins every environment read, and widening it is a credential-isolation rule change that needs the owner's security review.
+- **No outbox effect.** Nothing here changes approval, dry-run, emergency stop, credential isolation or reconciliation. Approving or pausing from the dashboard would be a separate security-reviewed proposal and is not implemented.
+
+Not implemented: any write action in the browser, authentication beyond the URL token, TLS (loopback only), push updates (the page polls only when the opt-in Auto-refresh is on), and a phone-tested layout (the narrow layout was checked in a 400 px frame in desktop Chrome only). The page keeps two preferences (theme, auto-refresh) in `localStorage`, always inside try/catch.
+

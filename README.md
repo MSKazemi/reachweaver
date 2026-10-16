@@ -224,6 +224,9 @@ reachweaver health [--json] [--stale-minutes 30]  offline per-account readiness:
 reachweaver dead-letter [--json]          read-only needs_review grouped by sanitized error code, age + reconcile steps; never retries
 reachweaver ops-metrics [--format json|prometheus] [--since 24h] [--optout F] [--out FILE]  read-only counts (claims, publishes, failures by send class, cooldowns, pause, dead letters, stale sending, oldest due age); Prometheus textfile output, written atomically; labels are account ids, platform and fixed codes only (docs/WORKER-OPERATIONS.md#operational-metrics-and-alerting-issue-26)
 reachweaver ops-summary [--json] [--since 24h] [--stale-minutes 30] [--optout F] [--now T]  one redacted read-only report: overall readiness, per-account adapter/budget/queue, dead letters, ops-metrics totals; exit 1 when blocked (docs/WORKER-OPERATIONS.md#one-page-operations-summary-issue-26)
+reachweaver start [--json]               experimental, read-only: look at your accounts file, database and queue and print the exact next command to run; runs nothing and never creates the database
+reachweaver ui [--port N] [--open] [--optout F]  experimental, read-only local dashboard on 127.0.0.1 (overview, queue, post review sheets, accounts, channel research); cannot approve, schedule, pause or publish; the URL carries a per-run token (docs/DASHBOARD.md)
+reachweaver completion {bash,zsh}        experimental: print a Tab-completion script for commands, options and fixed choices; reads no database and runs nothing
 reachweaver privacy-status [--policy F]   offline DB perms/size/row counts/oldest records/retention config
 reachweaver data-export [--out FILE]      redacted JSON export of local DB (new 0600 file)
 reachweaver data-purge [--policy F] [--apply]  retention plan (dry run); --apply purges local rows only

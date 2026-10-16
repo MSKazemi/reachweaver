@@ -73,6 +73,10 @@ from .ratelimit import (
 )
 from .report_format import REPORT_FORMATS, render_report
 from .richtext import bluesky_preview, deterministic_tid, mastodon_length
+from .post_view import (build_post_view, repeat_findings as _repeat_findings, approval_view as _approval_view,
+                        offline_binding_problem as _offline_binding_problem, media_view as _media_view,
+                        platform_preview as _platform_preview, video_issues as _video_issues,
+                        video_view as _video_view)
 from . import disconnect as account_disconnect
 from . import repeat_guard
 from .storage import (
@@ -101,11 +105,31 @@ def _add_history_args(p: argparse.ArgumentParser) -> None:
                         "a ReachWeaver heuristic, not a platform limit)")
 
 
+class _TopParser(argparse.ArgumentParser):
+    """Top-level parser: a mistyped command gets a short 'Did you mean' instead of a list of ~85 names."""
+
+    def error(self, message):
+        import re
+        found = re.search(r"argument COMMAND: invalid choice: '([^']*)'", message)
+        if found:
+            import difflib
+            action = next(a for a in self._actions if isinstance(a, argparse._SubParsersAction))
+            close = difflib.get_close_matches(found.group(1), list(action.choices), n=3, cutoff=0.6)
+            hint = f" Did you mean: {', '.join(close)}?" if close else ""
+            message = f"unknown command '{found.group(1)}'.{hint} 'reachweaver --help' lists every command by task"
+        self.print_usage(sys.stderr)
+        self.exit(2, f"{self.prog}: error: {message}\n")
+
+
 def make_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="reachweaver", description="Approval-first social publishing; dry-run by default")
+    parser = _TopParser(prog="reachweaver", description="Approval-first social publishing; dry-run by default.\n\nUsage: reachweaver [--db DB] [--accounts FILE] COMMAND [options]",
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--db", help="Local persistent SQLite database path (defaults to state/reachweaver.sqlite)")
     parser.add_argument("--accounts", help="Accounts config path (defaults to config/accounts.json)")
-    sub = parser.add_subparsers(dest="command", required=True)
+    parser.add_argument("--plain", action="store_true", help="No colour or tables, even in a terminal (the plain "
+                                                              "text format that scripts rely on)")
+    # help=SUPPRESS hides argparse's flat 80-line list; the grouped index (cli_help) is the epilog.
+    sub = parser.add_subparsers(dest="command", required=True, metavar="COMMAND", help=argparse.SUPPRESS)
     optout_help = "Opt-out list JSON (default $REACHWEAVER_OPTOUT or config/optout.json if present)"
     sub.add_parser("init", help="Initialize local database (not an online account)")
     p = sub.add_parser("version", help="Print the installed ReachWeaver version and install kind; offline")
@@ -230,9 +254,12 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--sources", type=Path, metavar="CONFIG",
                    help="sources-scan config (#9): refuse when the title or a tag links into any visibility:private repository of that config (private repository URLs are never public links)")
     sub.add_parser("youtube-detach", help="#22: remove the video from a YouTube draft; offline").add_argument("post_id")
-    for command in ("unapprove", "cancel"):
-        sub.add_parser(command).add_argument("post_id")
-    p = sub.add_parser("schedule")
+    sub.add_parser("unapprove", help="Withdraw approval: an approved or scheduled post goes back to draft and its "
+                                     "payload binding is cleared; local only").add_argument("post_id")
+    sub.add_parser("cancel", help="Cancel a draft, approved or scheduled post so it is never sent; local only"
+                   ).add_argument("post_id")
+    p = sub.add_parser("schedule", help="Give an approved post a due time (explicit timezone offset); a worker "
+                                        "you run still has to publish it")
     p.add_argument("post_id")
     p.add_argument("--at", required=True, help="Explicit ISO 8601 timezone offset, e.g. 2026-10-15T09:00:00+02:00")
     p = sub.add_parser("media-attach", help="Add one image with required alt text to a DRAFT: a local PNG/JPEG/WebP "
@@ -456,6 +483,18 @@ def make_parser() -> argparse.ArgumentParser:
                    help="Mark sending claims older than this threshold as stale (5..10080)")
     p.add_argument("--optout", type=Path, help=optout_help + "; queued posts mentioning it are counted, never named")
     p.add_argument("--now", help="Evaluate at this ISO 8601 time instead of the clock (reproducible output)")
+    p = sub.add_parser("completion", help="Print a shell completion script for commands, options and fixed choices "
+                                          "(bash, or zsh via bashcompinit); reads no database and runs nothing")
+    p.add_argument("shell", choices=("bash", "zsh"))
+    p = sub.add_parser("start", help="Read-only guide: look at your accounts file, database and queue and print the "
+                                     "exact next command to run; runs nothing and never creates the database")
+    p.add_argument("--json", action="store_true", help="Machine-readable guide")
+    p = sub.add_parser("ui", help="Serve a read-only dashboard of your local state on 127.0.0.1 (queue, post review "
+                                  "sheets, readiness, accounts, channel research); cannot approve, schedule, pause "
+                                  "or publish, and never creates the database")
+    p.add_argument("--port", type=int, default=0, help="Loopback port (default: a free one)")
+    p.add_argument("--open", action="store_true", help="Open the tokenised URL in your default browser")
+    p.add_argument("--optout", type=Path, help=optout_help + "; queued posts mentioning it are counted, never named")
     p = sub.add_parser("campaign-check", help="Offline evidence/brand/variant checks; does not assert source truth")
     p.add_argument("--file", type=Path, required=True)
     p.add_argument("--brand", type=Path, help="Brand file; omitting skips account/voice checking")
@@ -742,6 +781,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-origin", nargs="+",
                    help="https origins a redirect may move to outside the brief's registrable domain")
     p.add_argument("--json", action="store_true", help="Machine-readable report")
+    from .cli_help import grouped_index  # after every subcommand exists, so the index cannot miss one
+    parser.epilog = grouped_index(parser)
+    parser.usage = "reachweaver [-h] [--db DB] [--accounts ACCOUNTS] [--plain] COMMAND [options]"  # after the subparsers exist
     return parser
 
 
@@ -757,16 +799,6 @@ def _accounts(args):
             raise ValidationError(f"{exc} Skill install: copy {example} to config/accounts.json "
                                   "in your project (no secrets).") from None
         raise
-
-
-def _repeat_findings(db, post, days: int = repeat_guard.DEFAULT_DAYS) -> list[dict]:
-    """Repeat findings for a stored post against the platform's history (read-only; never carries earlier text)."""
-    try:
-        material = repeat_guard.material_of_post(post)
-    except ValidationError:  # a malformed attachment is refused elsewhere; still compare the text
-        material = {"text": post["content"], "images": [], "video": None, "links": []}
-    return repeat_guard.find_repeats(db, platform=post["platform"], account_id=post["account_id"], material=material,
-                                     exclude_post_id=post["id"], days=days)
 
 
 def _campaign_history(args, campaign: dict) -> dict | None:
@@ -798,34 +830,6 @@ def _optional_account(args, account_id: str, platform: str) -> dict | None:
     return account if account and account["platform"] == platform else None
 
 
-def _offline_binding_problem(post, mode) -> str | None:
-    """Binding check without the key (#7 D7): a keyed tag is verified only where the key is read."""
-    problem = approval_binding_problem(post, mode)
-    return None if problem == APPROVAL_KEY_UNAVAILABLE else problem
-
-
-def _approval_view(post, mode=None) -> dict:
-    """Approval binding state for ``show`` (#7): hashes and attribution, never a decision."""
-    view: dict = {"binding": "not_approved"}
-    if all(name in post.keys() for name in ("approved_payload_sha256", "approved_by", "approval_channel")):
-        view.update(payload_sha256=post["approved_payload_sha256"], approved_by=post["approved_by"],
-                    approval_channel=post["approval_channel"])
-    if "approved_payload_mac" in post.keys():  # #7 D7: whether a keyed tag exists, never the tag
-        view["keyed_tag"] = "present" if post["approved_payload_mac"] else None
-    if post["status"] in ("approved", "scheduled"):
-        problem = _offline_binding_problem(post, mode)
-        view["binding"] = problem or "bound"
-        if problem:
-            view["reapprove"] = binding_refusal(problem, post["id"])
-        ttl = getattr(mode, "max_age_hours", None)
-        if ttl and post["approved_at"]:
-            view["approval_expires_at"] = (datetime.fromisoformat(parse_utc(post["approved_at"]))
-                                           + timedelta(hours=ttl)).isoformat(timespec="seconds")
-    elif post["status"] == "draft":
-        # What 'approve' would bind right now (approve always clears scheduled_at).
-        view["approve_would_bind_sha256"] = approval_payload_sha256(post, scheduled_at=None, use_row_schedule=False)
-        view["approve_adds"] = "a fresh per-approval nonce (approval/2) that this digest does not include"
-    return view
 
 
 def _media_issues(post, account: dict | None = None, *, require_image: bool = False,
@@ -847,147 +851,6 @@ def _media_issues(post, account: dict | None = None, *, require_image: bool = Fa
     return [binding_refusal(problem, post["id"])] if problem else []
 
 
-def _media_view(post) -> dict | None:
-    """Offline review of a post's attachments (#13, #20): records, local file check, live capability.
-
-    A hosted image (#20) is not downloaded; its view says how to verify it yourself."""
-    from .attachments import describe
-    try:
-        media = post_media(post)
-    except ValidationError as exc:
-        return {"error": str(exc), "send": "refused until the attachments are re-created"}
-    if not media:
-        return None
-    try:
-        require_capability(post["platform"], "image", "publish")
-        capability = "enabled in the capability registry"
-    except ValidationError as exc:
-        capability = f"refused: {exc}"
-    attachments = describe(media)
-    view: dict = {"count": len(media), "attachments": attachments, "live_image_publish": capability}
-    local = [item for item in attachments if item["source"] == "local"]
-    if local:
-        view["all_files_match_record"] = all(item["file_matches_record"] for item in local)
-    if len(local) == len(attachments):
-        view["bound_by_approval"] = "each attachment's sha256, mime, alt and focus, in this order"
-    else:
-        view["bound_by_approval"] = "each attachment's sha256, mime, alt, focus and url, in this order"
-        view["sent_as"] = "image_url (Meta downloads it from your host), caption, alt_text"
-    if any(item.get("rights") for item in attachments):  # #48
-        view["bound_by_approval"] += ", plus each rights record (license, attribution, provenance, alt translations; approval/media-2)"
-        view["rights_not_sent"] = "rights and alt translations are stored and bound but never published"
-    return view
-
-
-def _platform_preview(post, account: dict | None) -> dict | None:
-    """Compact, offline description of what an adapter would send (no network)."""
-    content = post["content"]
-    if account is not None and account.get("backend") is not None:
-        # Issue #30/#56: a backend account never reaches the native adapter, so show the backend's
-        # own offline preview (no credential, no network) instead of a native record it would not send.
-        from .publishers import backend_for
-        try:
-            preview = dict(backend_for(account).preview(account, content))
-        except ValidationError as exc:
-            return {"path": account["backend"], "refused": str(exc), "network": "none"}
-        preview.pop("content", None)  # 'show' already prints the exact text once
-        preview["handle"] = account.get("handle")
-        preview["receipt"] = ("a backend acceptance is needs_review, never published, until a human checks the "
-                              "native post and runs 'reconcile' with its id and URL")
-        preview["manual_fallback"] = ("if the backend is unavailable the post stays approved; post this exact "
-                                      "text natively yourself, then 'cancel' it here so it is never sent")
-        return preview
-    if post["platform"] == "bluesky":
-        preview = bluesky_preview(content)
-        try:
-            preview["record_key"] = deterministic_tid(post["id"], post["created_at"])
-        except ValueError:
-            preview["record_key"] = None
-        preview["handle"] = account.get("handle") if account else None
-        preview["service"] = bluesky_service(account) if account else None
-        return preview
-    if post["platform"] == "mastodon":
-        if account is None:
-            return {"account_config": "not loaded; visibility and instance limit unknown"}
-        return {"server": account["server"], "handle": account.get("handle"),
-                "visibility": account.get("visibility", "public"),
-                "language": account.get("language"), "spoiler_text": account.get("spoiler_text"),
-                "counted_length": mastodon_length(content), "text_limit": mastodon_text_limit(account),
-                "idempotency_key": post["id"], "idempotency_window": "1 hour (server-side)"}
-    if post["platform"] == "linkedin":  # private #14: account config only, never the token
-        from .linkedin import VISIBILITY, author_urn, escape_commentary
-        member_urn = None
-        if account is not None and account.get("person_id"):
-            try:
-                member_urn = author_urn(account["person_id"])
-            except ValidationError:
-                member_urn = None
-        counted, escaped = len(content), len(escape_commentary(content))
-        preview = {"account_id": post["account_id"], "handle": account.get("handle") if account else None,
-                   "member_urn": member_urn, "visibility": VISIBILITY,
-                   "counted_length": counted, "text_limit": CONSERVATIVE_TEXT_LIMITS["linkedin"],
-                   "length_method": "Unicode code points",
-                   "escaped_commentary_length": escaped, "escaped_commentary_limit": LINKEDIN_ESCAPED_MAX,
-                   "within_limits": counted <= CONSERVATIVE_TEXT_LIMITS["linkedin"] and escaped <= LINKEDIN_ESCAPED_MAX,
-                   "dry_run": "show sends nothing; publish without --live is a dry run with no request; a live "
-                              "send needs approval, REACHWEAVER_ENV=prod, REACHWEAVER_ALLOW_LIVE=1 and --live"}
-        if account is None:
-            preview["account_config"] = "not loaded; member URN unknown"
-        return preview
-    return None
-
-
-def _video_issues(post) -> list[str]:
-    """Blocking problems of a post's video (#22, #23), offline: malformed record, a record built for
-    another platform, images and a video together, or a changed/unusable file."""
-    from .video import BOTH_KINDS, file_issue
-    try:
-        record = post_video(post)
-        if record is None:
-            return []
-        if "media_json" in post.keys() and post["media_json"]:
-            return [f"video: {BOTH_KINDS}"]
-        if record["platform"] != post["platform"]:
-            return [f"video: record is for {record['platform']}, not this {post['platform']} post"]
-        issue = file_issue(record)
-    except ValidationError as exc:
-        return [f"video: {exc}"]
-    return [f"video: {issue}"] if issue else []
-
-
-def _video_view(post) -> dict | None:
-    """Offline review of a post's video (#22, #23): record, file check and the registry switches."""
-    from .capabilities import VIDEO_MODES, require_video_mode
-    try:
-        record = post_video(post)
-    except ValidationError as exc:
-        return {"error": str(exc), "send": "refused until the video is re-attached"}
-    if record is None:
-        return None
-    issues = _video_issues(post)
-    live = {}
-    for mode in VIDEO_MODES.get(record["platform"], {}):
-        try:
-            require_video_mode(record["platform"], mode)
-            live[mode] = "enabled in the capability registry"
-        except ValidationError as exc:
-            live[mode] = f"refused: {exc}"
-    view = {"record": record, "file_matches_record": not issues, "problems": issues, "live": live,
-            "bound_by_approval": "the whole video record except its local path (file sha256, size, parsed "
-                                 "headers, platform_options) and the text"}
-    if record["platform"] == "youtube":  # #22 review fields: exactly what the upload sends
-        from .video import file_issue
-        options = record["platform_options"]
-        view.update(title=options["title"], tags=options["tags"], category_id=options["category_id"],
-                    privacy_status=options["privacy_status"], made_for_kids=options["self_declared_made_for_kids"],
-                    file_status=file_issue(record) or "matches_recorded_sha256", live_upload=live.get("upload"))
-    if record["platform"] == "tiktok":
-        direct = video_mode(record) == "direct_post"
-        view["caption_sent"] = ("yes, as post_info.title" if direct
-                                else "no: in creator_inbox mode the creator writes the caption in the TikTok app")
-        view["public_after_send"] = ("only for direct_post when TikTok returns a public post id; a creator_inbox "
-                                     "upload is never recorded as published")
-    return view
 
 
 def _private_link_refusal(args, texts=(), urls=()) -> str | None:
@@ -1798,7 +1661,30 @@ def _execute_read_only(args) -> int:
     raise ValidationError(f"not a read-only command: {args.command}")
 
 
+def _run_ui(args) -> int:
+    """``ui``: serve the read-only dashboard until interrupted (Ctrl-C returns 0)."""
+    from .storage import database_path
+    from .ui_server import make_server, url_for
+    server = make_server(database_path(args.db), accounts_path=args.accounts,
+                         optout_path=str(args.optout) if args.optout else None, port=args.port)
+    url = url_for(server)
+    print(f"ReachWeaver dashboard (read-only, loopback only): {url}", flush=True)
+    print("The address contains a per-run token; keep it private. Press Ctrl-C to stop.", flush=True)
+    if args.open:
+        import webbrowser
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
+
+
 def execute(args) -> int:
+    from . import term
+    term.set_plain(getattr(args, "plain", False))
     if args.command == "schema-validate":
         try:
             document = json.loads(args.file.read_text(encoding="utf-8"))
@@ -2487,6 +2373,17 @@ def execute(args) -> int:
         result = landing_check(args.briefs, args.campaign, online=args.online, allow_origins=args.allow_origin)
         print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else render_landing(result))
         return landing_exit_code(result)
+    if args.command == "completion":  # generated from the parser; no database, no account, no network
+        from .completion import render as render_completion
+        print(render_completion(args.shell, make_parser()), end="")
+        return 0
+    if args.command == "start":  # reads the accounts file and (if present) the database mode=ro; prints text
+        from .start import build_guide, render as render_guide
+        guide = build_guide(args.db, args.accounts)
+        print(json.dumps(guide, indent=2, ensure_ascii=False) if args.json else render_guide(guide))
+        return 1 if guide["state"] in ("accounts_invalid", "database_unreadable") else 0
+    if args.command == "ui":  # read-only server on loopback; opens the database mode=ro, never creates it
+        return _run_ui(args)
     if args.command in READ_ONLY_DB_COMMANDS:
         return _execute_read_only(args)
     with connect(args.db) as db:
@@ -2645,33 +2542,30 @@ def execute(args) -> int:
             if args.status:
                 query += " WHERE status=?"
                 params = (args.status,)
-            for row in db.execute(query + " ORDER BY created_at DESC",params):
-                print(" | ".join(str(row[k] or "") for k in row.keys()))
+            rows = db.execute(query + " ORDER BY created_at DESC",params).fetchall()
+            from . import term
+            if term.enabled(sys.stdout):  # a terminal gets an aligned, coloured table; pipes keep the plain format
+                if rows:
+                    print(term.table(["ID", "ACCOUNT", "PLATFORM", "STATUS", "SCHEDULED", "REMOTE URL"],
+                                     [[str(row[k] or "") for k in row.keys()] for row in rows], sys.stdout,
+                                     paint=lambda col, text: term.STATUS_COLOUR.get(text) if col == 3 else None,
+                                     fixed=(0,)))
+                    print(f"\n{len(rows)} post(s). Review one: reachweaver show POST_ID")
+                else:
+                    print("No posts yet. Create a draft: reachweaver draft --account ACCOUNT --text 'Your text'")
+            else:
+                for row in rows:
+                    print(" | ".join(str(row[k] or "") for k in row.keys()))
         elif args.command == "show":
             post = get_post(db,args.post_id)
-            fields=("id","account_id","platform","status","content","campaign","source_url","scheduled_at","approved_at")
-            shown = {key:post[key] for key in fields}
-            shown["approval"] = _approval_view(post, offline_key_mode(db))
-            media_view = _media_view(post)
-            if media_view is not None:
-                shown["media"] = media_view
-            video_view = _video_view(post)
-            if video_view is not None:
-                shown["video"] = video_view
-            from .replies import reply_view, row_target
-            try:
-                shown_reply = row_target(post)
-                if shown_reply is not None:
-                    shown["reply"] = reply_view(shown_reply)
-            except ValidationError as exc:
-                shown["reply"] = {"kind": "reply", "invalid": str(exc)}
-            platform_preview = _platform_preview(post, _optional_account(args, post["account_id"], post["platform"]))
-            if platform_preview is not None:
-                shown["platform_preview"] = platform_preview
-            shown["repeat_check"] = repeat_guard.summary(_repeat_findings(db, post))
-            from .capabilities import api_cost_note
-            shown["api_cost"] = api_cost_note(post["platform"])  # #39: estimated platform/API cost
-            print(json.dumps(shown,indent=2,ensure_ascii=False))
+            shown = build_post_view(db, post, _optional_account(args, post["account_id"], post["platform"]))
+            from . import term
+            if term.enabled(sys.stdout):  # a person at a terminal gets the review sheet; pipes and --plain get JSON
+                from .show_view import render_sheet
+                from .ui_data import next_steps
+                print(render_sheet(shown, next_steps(post), sys.stdout))
+            else:
+                print(json.dumps(shown,indent=2,ensure_ascii=False))
         elif args.command == "check":
             post = get_post(db,args.post_id)
             account = _optional_account(args, post["account_id"], post["platform"])
@@ -2689,7 +2583,9 @@ def execute(args) -> int:
             repeats = _repeat_findings(db, post)
             blocking_repeats = repeat_guard.blocking(repeats)
             issues.extend(f"repeat: {repeat_guard.describe(hit)}" for hit in blocking_repeats[:3])
-            print("OK" if not issues else "BLOCKED: " + "; ".join(issues))
+            from . import term
+            print(term.style("OK", "green", sys.stdout) if not issues
+                  else term.style("BLOCKED", "red", sys.stdout) + ": " + "; ".join(issues))
             for hit in repeats:
                 if hit not in blocking_repeats:
                     print(f"Warning: {repeat_guard.describe(hit)}")
@@ -3006,6 +2902,12 @@ def main(argv=None) -> int:
     except (ValidationError, PublishError, OSError, ValueError, csv.Error) as exc:
         from .privacy import redact  # last line of defence: a library message may quote a secret
         print(f"ERROR: {redact(str(exc))}",file=sys.stderr)
+        from . import term
+        if term.interactive(sys.stderr):  # a person at a terminal gets the next step; scripts see only ERROR:
+            from .cli_help import error_hint
+            hint = error_hint(str(exc))
+            if hint:
+                print(hint, file=sys.stderr)
         return 2
     except (TypeError, KeyError, AttributeError):
         # Safety net: user-supplied JSON of an unexpected shape (e.g. a list where an object

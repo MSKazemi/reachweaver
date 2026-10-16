@@ -228,3 +228,7 @@ Example Claude Code request:
 Claude Code example:
 
 > /reachweaver — Audit my public DEV profile and my three best engineering posts. Recommend prioritized, evidence-checked profile improvements; a 30-day human-owned technical writing and community participation plan; a DEV native-scheduling checklist; and first-party metrics for GitHub contributors and real collaborations. Do not generate DEV comments or automatically publish.
+
+## Local dashboard and friendlier terminal output (experimental)
+
+`reachweaver ui` serves a read-only dashboard of your local state on `127.0.0.1`: what needs a human, the queue, each post's exact text with a length meter and approval state, accounts and the offline channel research. It cannot approve, schedule, pause or publish. `reachweaver start` prints the exact next command for your current state, `reachweaver completion bash|zsh` prints a Tab-completion script, and at a terminal `show` prints a readable review sheet. See the [dashboard guide](DASHBOARD.md).

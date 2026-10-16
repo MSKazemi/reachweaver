@@ -64,3 +64,12 @@ Before turning ReachWeaver from a **private** repository into a **public** repos
 5. **Unknown outcome:** `reachweaver dead-letter` and `reachweaver queue-health` list `needs_review` and stale `sending` posts. Check each one by hand before `reconcile`.
 6. **Vulnerability in ReachWeaver:** report it privately ([SECURITY.md](SECURITY.md#reporting-a-vulnerability-private)), never in a public issue.
 7. Resume only after you know the cause: `reachweaver resume`.
+
+## D. If you run the local dashboard (`reachweaver ui`)
+
+- [ ] Keep the printed address (it contains a per-run token that is valid until you stop the dashboard) out of chat, issues, screenshots and shared terminals; stop the dashboard with Ctrl-C when you are done.
+- [ ] Prefer pasting the address into your browser over `ui --open`: `--open` hands the address to the browser on its command line, where another user on a shared computer could see it with `ps`.
+- [ ] Run it only on a computer you alone use. It has no login; another program running as you could read the same database file anyway.
+- [ ] Do not forward or tunnel its port (SSH `-L`/`-R`, ngrok, a reverse proxy). It is meant for `127.0.0.1` only, and the server refuses other hosts.
+- [ ] Remember it is read-only: approve, schedule, pause and publish stay terminal commands, and the commands it shows are suggestions. A page that offers a button to approve or send is not this dashboard.
+
