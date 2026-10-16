@@ -587,7 +587,7 @@ Invariants:
 
 - **Read-only metrics with allow-listed labels.** `ops_metrics.collect` reuses `queue_health` and four SELECT-only `storage` helpers; it never writes, retries or contacts a provider. Event `detail` text can hold provider error text (`needs_review` reasons), so only fixed tokens are parsed from it (the trailing `class=`, a leading `reason=`, the cooldown's `account=`/`stage=`) and each is checked against a fixed list before it becomes a label. Post text is read only to count opt-out mentions; it is never emitted. Without `--since`, event counts are all-time Prometheus counters (`*_total`); with it they become `*_in_window` gauges. `data-purge` can delete events, which Prometheus treats as a counter reset.
 
-Not implemented: alerting itself (only example rules, untested against a live Prometheus), traces, and per-provider spend ceilings in money. See [worker operations](WORKER-OPERATIONS.md#health-and-dead-letter-view-issue-26), the [runbook](WORKER-OPERATIONS.md#runbook-revoked-permissions-and-api-version-sunsets) and the [opt-out list](PRIVACY-LIFECYCLE.md#opt-out-list).
+Not implemented: alerting itself (only example rules; loaded into a running Prometheus 3.15.0 against synthetic `ops-metrics` output on 2026-10-16, not run in production), traces, and per-provider spend ceilings in money. See [worker operations](WORKER-OPERATIONS.md#health-and-dead-letter-view-issue-26), the [runbook](WORKER-OPERATIONS.md#runbook-revoked-permissions-and-api-version-sunsets) and the [opt-out list](PRIVACY-LIFECYCLE.md#opt-out-list).
 
 ## Canonical export of the legacy outbox (issue #4 slice)
 

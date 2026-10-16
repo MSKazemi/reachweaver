@@ -192,9 +192,9 @@ WantedBy=timers.target
 
 The `reachweaver` user needs write access to the textfile directory, and node_exporter needs read access to the file. Start node_exporter with `--collector.textfile.directory=/var/lib/node_exporter/textfile_collector`. Add `--optout /etc/reachweaver/optout.json` to count opt-out blocks; a named list that is missing or malformed makes the run fail (exit 2), which the staleness alert below catches.
 
-### Example alert rules (examples only, untested against a live Prometheus)
+### Example alert rules (examples; checked against a running Prometheus on 2026-10-16)
 
-These rules have not been loaded into a running Prometheus or checked with `promtool`. Review the thresholds before use.
+On 2026-10-16 these rules passed `promtool check rules` (9 rules) and were loaded into a running Prometheus 3.15.0 (official release, checksum verified). It scraped real `ops-metrics --format prometheus` output from a synthetic, paused database. All nine rules evaluated as healthy with no errors, and `ReachWeaverEmergencyPause` went to `pending` as expected. `tests/test_alert_rules_doc.py` keeps every metric name in these rules in step with what `ops-metrics` emits. They have not run on a production host, so review the thresholds before use. node_exporter's textfile collector serves the correct content type. A plain file server does not: it needs `fallback_scrape_protocol: PrometheusText0.0.4` in Prometheus 3.
 
 ```yaml
 groups:
