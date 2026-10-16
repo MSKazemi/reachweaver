@@ -2,7 +2,7 @@
 
 ReachWeaver turns your real software, research and knowledge into planned, platform-native social posts and measured results, with a human approving every send. The plugin adds one skill, `/reachweaver:reachweaver`, plus a bundled offline command-line tool. Drafting, brand and campaign validation, calendars, manual-export packages, health checks and analytics imports run locally with no network access. Live publishing is off by default and is run by the account owner, never by Claude on its own.
 
-Status: v0.2 experimental. No personal social account is connected by default, and nothing here promises viral reach.
+Status: v0.4 experimental. No personal social account is connected by default, and nothing here promises viral reach.
 
 > **Independent-use and liability notice.** Experimental user-operated software provided **"AS IS"** with **no warranty**, except as required by law or agreed in writing, under Apache-2.0 Sections 7–9. The original authors do not manage other people's accounts or authorize their independent content, misuse, modifications or deployments. Operators must check their own permissions, data, posts and compliance; no disclaimer eliminates non-waivable liability. ReachWeaver is independent of Anthropic and the social platforms. Read the [responsible-use notice](DISCLAIMER.md), [privacy policy](https://github.com/MSKazemi/reachweaver/blob/main/docs/PRIVACY.md) and [security policy](https://github.com/MSKazemi/reachweaver/blob/main/SECURITY.md).
 

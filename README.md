@@ -4,7 +4,7 @@
 
 **A Claude Code social media skill that helps you plan, write and safely publish posts about your real work, one human-approved post at a time.** Give it a release, a paper or a demo. It drafts a post that fits each platform, shows you exactly what would be sent, and sends nothing until you say yes.
 
-> **Status: v0.3, experimental.** Planning, drafting, checking and previewing work fully offline. For real sending, text-only adapters exist for Bluesky, Mastodon, Telegram and LinkedIn personal profiles, and one approved text post each was sent through ReachWeaver to Bluesky and Mastodon on 2026-10-11 (first-party receipts in [docs/receipts/](docs/receipts/)); Telegram and LinkedIn have had no live send and no other platform has a receipt. Adapters for Threads text, Facebook Page text/link, Instagram single images, YouTube and TikTok video, Mastodon images and Bluesky/Mastodon replies exist too, but they are tested against simulated servers only and stay switched off until the owner records a supervised live post. For those platforms, and all others, ReachWeaver prepares a draft or a package that you post by hand (`manual-export`). This is not a promise of viral growth.
+> **Status: v0.4, experimental.** Planning, drafting, checking and previewing work fully offline. For real sending, text-only adapters exist for Bluesky, Mastodon, Telegram and LinkedIn personal profiles, and one approved text post each was sent through ReachWeaver to Bluesky and Mastodon on 2026-10-11 (first-party receipts in [docs/receipts/](docs/receipts/)); Telegram and LinkedIn have had no live send and no other platform has a receipt. Adapters for Threads text, Facebook Page text/link, Instagram single images, YouTube and TikTok video, Mastodon images and Bluesky/Mastodon replies exist too, but they are tested against simulated servers only and stay switched off until the owner records a supervised live post. For those platforms, and all others, ReachWeaver prepares a draft or a package that you post by hand (`manual-export`). This is not a promise of viral growth.
 
 **New here? Start here:** [quickstart](docs/QUICKSTART.md) (10 minutes, no account needed) · [plain-language guide](docs/START-HERE.md) · [glossary](docs/GLOSSARY.md) · [troubleshooting](docs/TROUBLESHOOTING.md) · [security checklist](docs/SECURITY-CHECKLIST.md) · [all docs by goal](docs/README.md) · [changelog](CHANGELOG.md) · [contribute](CONTRIBUTING.md) · public-release safety checklist (maintainers)
 
@@ -79,7 +79,7 @@ for a technical audience. Make distinct LinkedIn, Bluesky and YouTube Shorts dra
 Explain what can be published automatically, prepare a dry run, and wait for approval.
 ```
 
-Claude does the research and writing; ReachWeaver's commands do the checking, approval and record keeping. More install routes (standalone installer, ZIP) are under [install and update](#install-and-update).
+Claude does the research and writing inside your Claude Code session, on your own subscription: ReachWeaver itself makes no model calls and needs no API key. Its commands do the checking, approval and record keeping. See [using ReachWeaver with Claude Code](docs/CLAUDE-CODE.md) for the first session, who does what, and how to keep usage low. More install routes (standalone installer, ZIP) are under [install and update](#install-and-update).
 
 ### Option 2: try it on your computer first, with no account
 

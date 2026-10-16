@@ -6,8 +6,9 @@ Pick the line that matches what you want to do. If you are new, read the first g
 
 1. [Start here](START-HERE.md): the ideas and the journey of one post, in plain words.
 2. [Quickstart](QUICKSTART.md): ten minutes, no account, nothing can be published.
-3. [Glossary](GLOSSARY.md): what each word means.
-4. [Troubleshooting](TROUBLESHOOTING.md): the exact error message and the fix.
+3. [Using ReachWeaver with Claude Code](CLAUDE-CODE.md): install the skill, your first session, who does what, and keeping usage low.
+4. [Glossary](GLOSSARY.md): what each word means.
+5. [Troubleshooting](TROUBLESHOOTING.md): the exact error message and the fix.
 
 ## 2. I want to connect a real account
 
