@@ -5,6 +5,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import sqlite3
 import sys
 import time
@@ -79,6 +80,7 @@ from .post_view import (build_post_view, repeat_findings as _repeat_findings, ap
                         video_view as _video_view)
 from . import disconnect as account_disconnect
 from . import repeat_guard
+from .journal import ALL_STATUSES as _JOURNAL_STATUSES
 from .storage import (
     APPROVAL_KEY_CREDENTIAL, APPROVAL_KEY_UNAVAILABLE, BINDING_MEDIA_CHANGED, BINDING_VIDEO_CHANGED, METRIC_FIELDS, account_send_hold, active_provider_cooldown, hold_refusal,
     add_post, approval_binding_problem, identity_mode_required, latch_identity_mode, approval_key_mode, approval_payload_sha256, latch_keyed_mode, offline_key_mode,
@@ -155,6 +157,22 @@ def make_parser() -> argparse.ArgumentParser:
                         "read-only identity check you confirm one account at a time")
     p.add_argument("--account", help="Only this account id")
     p.add_argument("--json", action="store_true", help="Machine-readable status table (no walkthrough)")
+    p = sub.add_parser("journal", help="Read-only: what was posted, when, where, with which metadata and files "
+                       "(text, account, approver, link, audit timeline, file paths and hashes), table/json/markdown/csv")
+    _add_journal_filters(p)
+    p.add_argument("--format", choices=("table", "json", "markdown", "csv"), default="table")
+    p.add_argument("--out", type=Path, metavar="FILE", help="Write to this NEW owner-only (0600) file instead of stdout")
+    p.add_argument("--verify-files", action="store_true",
+                   help="Also hash each recorded file that is still on disk and say whether it matches the record")
+    p = sub.add_parser("archive", help="Write a private folder with one sub-folder per post: the exact text, the "
+                       "metadata and, with --copy-files, hash-verified copies of the attached files; index.md/index.csv. "
+                       "Only ever adds; nothing is sent")
+    _add_journal_filters(p)
+    p.add_argument("--out", type=Path, metavar="DIR", help="Archive folder (default: archive/ next to the database); "
+                   "created 0700, or an existing archive folder to add to")
+    p.add_argument("--copy-files", action="store_true",
+                   help="Copy each attached image and video that is still on disk and still matches its recorded SHA-256")
+    p.add_argument("--json", action="store_true", help="Machine-readable summary")
     p = sub.add_parser("repeat-check", help="Read-only: have we already shared this video, image, wording or link on "
                        "this platform? Compares a stored post, or material you name, with the local history")
     p.add_argument("--post-id", help="A stored post to check (its text, images, video and link)")
@@ -799,6 +817,31 @@ def _accounts(args):
             raise ValidationError(f"{exc} Skill install: copy {example} to config/accounts.json "
                                   "in your project (no secrets).") from None
         raise
+
+
+def journal_statuses() -> tuple[str, ...]:
+    return _JOURNAL_STATUSES
+
+
+def _add_journal_filters(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--post-id", help="Only this post")
+    p.add_argument("--status", action="append", choices=journal_statuses(), metavar="STATUS",
+                   help="Include this status; repeatable (default: published, sending, needs_review)")
+    p.add_argument("--all-statuses", action="store_true", help="Include drafts, approved and scheduled posts too")
+    p.add_argument("--platform", help="Only this platform")
+    p.add_argument("--account", help="Only this account id")
+    p.add_argument("--since", metavar="DATE", help="From this date (YYYY-MM-DD, UTC) or ISO 8601 time with a timezone")
+    p.add_argument("--until", metavar="DATE", help="Up to this date (YYYY-MM-DD, UTC, end of day) or ISO 8601 time")
+    p.add_argument("--limit", type=int, default=100, metavar="N", help="Newest N entries (1..5000, default 100)")
+    p.add_argument("--no-by-hand", action="store_true", help="Leave out material recorded with mark-shared")
+
+
+def _journal_bound(value: str | None, *, end: bool) -> str | None:
+    if value is None:
+        return None
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return value + ("T23:59:59+00:00" if end else "T00:00:00+00:00")
+    return value
 
 
 def _campaign_history(args, campaign: dict) -> dict | None:
@@ -2065,6 +2108,59 @@ def execute(args) -> int:
         output["note"] = "No content posted. Human-approved live pilot still required."
         print(json.dumps(output,indent=2))
         return 2 if instance is not None and not instance["ok"] else 0
+    if args.command in ("journal", "archive"):
+        from . import journal as posting_journal
+        if isinstance(args.limit, bool) or not 1 <= args.limit <= 5000:
+            raise ValidationError("--limit must be an integer in 1..5000")
+        statuses = tuple(args.status) if args.status else (
+            tuple(s for s in posting_journal.ALL_STATUSES if s != "cancelled") if args.all_statuses
+            else posting_journal.POSTED_STATUSES)
+        if not storage_database_path(args.db).is_file():
+            print("No posts recorded yet: there is no database, so there is nothing to show or archive.")
+            return 0
+        with storage_connect_readonly(storage_database_path(args.db)) as ro:
+            entries = posting_journal.build_entries(
+                ro, statuses=statuses, platform=args.platform, account=args.account,
+                since=_journal_bound(args.since, end=False), until=_journal_bound(args.until, end=True),
+                post_id=args.post_id, limit=args.limit, by_hand=not args.no_by_hand,
+                verify_files=getattr(args, "verify_files", False))
+        if args.post_id is not None and not entries:
+            raise ValidationError(f"Unknown post {args.post_id!r}")
+        if args.command == "archive":
+            out_dir = args.out or storage_database_path(args.db).parent / "archive"
+            result = posting_journal.write_archive(entries, out_dir, copy_files=args.copy_files)
+            if args.json:
+                print(json.dumps(result, indent=2))
+            else:
+                print(f"Archive {'created' if result['created'] else 'updated'}: {result['dir']}")
+                print(f"  {len(result['archived'])} post(s) added, {len(result['skipped_existing'])} already there, "
+                      f"{result['files_copied']} file(s) copied, {result['files_unavailable']} file(s) not copied "
+                      "(missing or changed since they were attached)")
+                if not args.copy_files:
+                    print("  Files were not copied: add --copy-files to keep copies next to each post.")
+                print("  Open index.md for the overview. The folder is private (0700) and nothing was sent.")
+            return 0
+        if args.format == "json":
+            body = posting_journal.render_json(entries)
+        elif args.format == "markdown":
+            body = posting_journal.render_markdown(entries)
+        elif args.format == "csv":
+            body = posting_journal.render_csv(entries)
+        else:
+            headers, table_body = posting_journal.table_rows(entries)
+            from . import term
+            if not table_body:
+                body = "No matching posts."
+            elif term.enabled(sys.stdout):
+                body = term.table(headers, table_body, sys.stdout, fixed=(4,))
+            else:
+                body = "\n".join(" | ".join(row) for row in [headers, *table_body])
+        if args.out is not None:
+            write_private_file(args.out, body + ("" if body.endswith("\n") else "\n"))
+            print(f"Wrote {len(entries)} entries to {args.out} (owner-only file).")
+        else:
+            print(body, end="" if body.endswith("\n") else "\n")
+        return 0
     if args.command in ("repeat-check", "mark-shared"):
         text = args.text
         if args.file is not None:

@@ -20,6 +20,8 @@ Short, plain explanations, in alphabetical order. For the bigger picture read th
 
 **Credential** — A secret that proves who you are to a platform: a token, an app password, an access key. Credentials live only in your environment, never in the repository, a chat or an issue.
 
+**Archive** — A private folder made by `reachweaver archive`: one sub-folder per post with the exact text, the metadata and, if you ask, verified copies of the attached files. See [journal](JOURNAL.md).
+
 **Dead letter** — A post whose send ended in an unknown or failed state and now needs a person to look at it. `dead-letter` lists them.
 
 **Distribution plan** — An offline research suggestion of which channels to consider for a region and a goal. It is a hypothesis to test, not a forecast and not permission to post.
@@ -33,6 +35,8 @@ Short, plain explanations, in alphabetical order. For the bigger picture read th
 **Evidence / source** — The document, release page or data a claim comes from. Campaign files declare their sources so claims can be checked.
 
 **Human-only** — A venue where ReachWeaver writes nothing, because the community expects a person (Hacker News, Reddit and several others). You write and post.
+
+**Journal** — The read-only list of what you posted, when, on which account, with the approver, the link and the files, made by `reachweaver journal` from the local database.
 
 **Live** — Real, as opposed to rehearsal. A live send needs approval plus `--live`, `REACHWEAVER_ALLOW_LIVE=1` and `REACHWEAVER_ENV=prod`.
 

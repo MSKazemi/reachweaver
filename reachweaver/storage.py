@@ -1736,6 +1736,59 @@ def posting_history(con, account_ids: list[str], statuses: tuple[str, ...], *, s
     return [dict(row) for row in con.execute(query, params)]
 
 
+JOURNAL_ROWS_MAX = 5000
+
+
+def journal_posts(con, *, statuses: tuple[str, ...], platform: str | None = None, account: str | None = None,
+                  since: str | None = None, until: str | None = None, post_id: str | None = None,
+                  limit: int = 100) -> list[dict]:
+    """Posts for the journal (SELECT only), newest first, with ``posted_at`` (see :func:`posting_history`).
+
+    ``posted_at`` is the latest ``published`` audit event, else the send start, else the scheduled time, else the
+    creation time. Rows carry the text, ``media_json`` and ``video_json``; callers render them and never log them
+    outside the journal output the owner asked for.
+    """
+    activity = ("COALESCE((SELECT MAX(e.at) FROM event_log e WHERE e.post_id=p.id AND e.action='published'),"
+                " p.send_started_at, p.scheduled_at, p.created_at)")
+    where: list[str] = []
+    params: list = []
+    if post_id is not None:
+        where.append("p.id=?")
+        params.append(post_id)
+    else:
+        where.append(f"p.status IN ({','.join('?' for _ in statuses)})")
+        params.extend(statuses)
+    for column, value in (("p.platform", platform), ("p.account_id", account)):
+        if value is not None:
+            where.append(f"{column}=?")
+            params.append(value)
+    query = (f"""SELECT * FROM (SELECT p.id, p.account_id, p.platform, p.status, p.campaign, p.source_url, p.content,
+                                       p.created_at, p.approved_at, p.scheduled_at, p.send_started_at, p.remote_id,
+                                       p.remote_url, p.approved_by, p.approval_channel, p.approved_payload_sha256,
+                                       p.media_json, p.video_json, {activity} AS posted_at
+                                FROM posts p WHERE {' AND '.join(where)})
+                 WHERE 1=1 {'AND posted_at>=?' if since else ''} {'AND posted_at<=?' if until else ''}
+                 ORDER BY posted_at DESC, id LIMIT ?""")
+    if since:
+        params.append(parse_utc(since))
+    if until:
+        params.append(parse_utc(until))
+    params.append(min(int(limit), JOURNAL_ROWS_MAX))
+    return [dict(row) for row in con.execute(query, params)]
+
+
+def post_timelines(con, post_ids: list[str]) -> dict[str, list[dict]]:
+    """``{post_id: [{at, action}, ...]}`` oldest first. Only the fixed action code and its time: the free-text
+    ``detail`` column can hold provider text and is never returned."""
+    out: dict[str, list[dict]] = {pid: [] for pid in post_ids}
+    for start in range(0, len(post_ids), 400):
+        chunk = post_ids[start:start + 400]
+        for row in con.execute(f"SELECT post_id, at, action FROM event_log WHERE post_id IN ({','.join('?' for _ in chunk)})"
+                               " ORDER BY at, id", chunk):
+            out[row["post_id"]].append({"at": row["at"], "action": row["action"]})
+    return out
+
+
 REPEAT_ROWS_MAX = 5000  # newest posts of a platform compared per check
 
 
@@ -1761,15 +1814,17 @@ def _has_table(con, name: str) -> bool:
     return con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
 
 
-def shared_entries(con, platform: str) -> list[dict]:
-    """What the owner recorded as shared by hand on ``platform`` (``mark-shared``); [] if the table is absent."""
+def shared_entries(con, platform: str | None = None) -> list[dict]:
+    """What the owner recorded as shared by hand (``mark-shared``), on ``platform`` or on every platform;
+    [] if the table is absent."""
     if not _has_table(con, "shared_material"):
         return []
-    rows = con.execute("""SELECT id, account_id, recorded_at, posted_at, url, content, images_json, video_sha256,
-                                 links_json FROM shared_material WHERE platform=? ORDER BY recorded_at DESC, id
-                          LIMIT ?""", (platform, REPEAT_ROWS_MAX)).fetchall()
-    return [{"id": r["id"], "account_id": r["account_id"], "recorded_at": r["recorded_at"],
-             "posted_at": r["posted_at"], "url": r["url"], "content": r["content"],
+    where, params = ("WHERE platform=?", [platform]) if platform is not None else ("", [])
+    rows = con.execute(f"""SELECT id, platform, account_id, recorded_at, posted_at, url, note, content, images_json,
+                                  video_sha256, links_json FROM shared_material {where}
+                           ORDER BY recorded_at DESC, id LIMIT ?""", [*params, REPEAT_ROWS_MAX]).fetchall()
+    return [{"id": r["id"], "platform": r["platform"], "account_id": r["account_id"], "recorded_at": r["recorded_at"],
+             "posted_at": r["posted_at"], "url": r["url"], "note": r["note"], "content": r["content"],
              "images": json.loads(r["images_json"]), "video": r["video_sha256"],
              "links": json.loads(r["links_json"])} for r in rows]
 

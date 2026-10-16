@@ -26,6 +26,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 | Goal | Read |
 |---|---|
 | Avoid posting the same video, image or wording twice | [Repeat guard](REPEAT-GUARD.md) |
+| See what you posted, when and with which files; keep a folder of it | [Posting journal and archive](JOURNAL.md) |
 | Review the queue and a post's exact text in a browser (read-only) | [Local dashboard](DASHBOARD.md) |
 | Describe a campaign with its sources | [Schemas](SCHEMAS.md), [campaign preview](CAMPAIGN-PREVIEW.md), [claim grounding](CLAIM-GROUNDING.md) |
 | Post to a network ReachWeaver cannot send to | [Manual export](MANUAL-EXPORT.md) |

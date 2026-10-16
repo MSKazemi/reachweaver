@@ -66,3 +66,14 @@ RW repeat-check --platform youtube --video clip.mp4 # before drafting; exact fil
 RW mark-shared --platform youtube --video clip.mp4 --text "..." --url URL --note "launch"  # record what the owner posted by hand; local ledger only
 # approve POST_ID --allow-repeat is an OWNER decision, only when re-sharing is intended
 ```
+
+## Journal and archive (read-only record of what was posted)
+
+```bash
+RW journal [--platform P] [--account ID] [--since 2026-10-01] [--until DATE] [--format table|json|markdown|csv] [--out FILE]
+RW journal --post-id POST_ID --format json       # one post: exact text, approver, link, audit timeline, files with paths and hashes
+RW journal --all-statuses                        # drafts, approved and scheduled posts as well; --verify-files re-hashes recorded files
+RW archive --copy-files [--out DIR]              # private folder: one sub-folder per post (post.txt, meta.json, files/), index.md/index.csv
+```
+
+Both open the database read-only and send nothing. `journal` also lists material recorded with `mark-shared` (marked `shared_by_hand`). `archive` only ever adds: an existing post folder is never overwritten, and copies are made only for files whose bytes still match the recorded SHA-256. Details: `docs/JOURNAL.md` in the full repository.

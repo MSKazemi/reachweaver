@@ -38,6 +38,7 @@ description: Orchestrate evidence-backed, brand-aware social media strategy and 
 | Connecting accounts, credentials, scheduling, auto-posting, privacy, data export | `references/security.md`, `references/publishing.md`, `references/campaign-contract.md` |
 | Comments, replies, mentions, community | `references/engagement.md`, `references/creative-playbook.md`, `references/security.md` |
 | Analytics, experiments, timing results, peers, landing pages, UTM links | `references/measurement.md`, `references/experimental-learning.md`, `references/timing-intelligence.md` |
+| What was posted, when, with which files; a history or archive folder | Run the read-only `journal` (add `--format markdown`, `--platform P`, `--since DATE`); `archive --copy-files` writes a private folder with the exact text, metadata and hash-verified copies of the files. Both only read the local database and send nothing; see `references/cli-cookbook.md` |
 | "Is it release-ready", what actually works, comparing tools | `references/skill-evaluation.md` |
 | Anything not listed, or a row needs more detail | `references/routing-detail.md` (full routes), `references/workflows.md` (audits, the content-to-learning loop, regional planning, timing, durable delivery), `references/cli-cookbook.md` (every command with its flags) |
 

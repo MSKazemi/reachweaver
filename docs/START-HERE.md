@@ -67,7 +67,9 @@ You should see `DRY RUN: 1 due approved posts; no requests sent`. The post stays
 - If the account is on a platform ReachWeaver can send to, and you have finished the [security checklist](SECURITY-CHECKLIST.md) and [account onboarding](ACCOUNT-ONBOARDING.md), a real send is a separate, deliberate command that you run yourself. It is described in the [first live pilot](FIRST-LIVE-PILOT.md). Start with one post on a throwaway account.
 - If the platform is not supported for sending, use `manual-export` to get a ready-to-paste package and post it yourself. See [manual export](MANUAL-EXPORT.md).
 
-**6. Record and learn.** After a post is live, you can import the numbers from the platform's own analytics and get an honest report. Numbers you do not have are shown as *unknown*, never as zero. See [attribution](ATTRIBUTION.md) and the [weekly report example](WEEKLY-REPORT-EXAMPLE.md).
+**6. Look back.** `reachweaver journal` lists what you posted, when, on which account, with the exact text, who approved it, the link and the files. `reachweaver archive --copy-files` saves the same record as a private folder with copies of the files, so you still have them if you move or delete the originals. See the [journal guide](JOURNAL.md).
+
+**7. Record and learn.** After a post is live, you can import the numbers from the platform's own analytics and get an honest report. Numbers you do not have are shown as *unknown*, never as zero. See [attribution](ATTRIBUTION.md) and the [weekly report example](WEEKLY-REPORT-EXAMPLE.md).
 
 ## Three ways to use it
 
