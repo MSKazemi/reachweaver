@@ -7,9 +7,9 @@ Besides the Claude Code skill and plugin, every release publishes ReachWeaver as
 You need Python 3.11 or newer. There are no dependencies to download.
 
 ```bash
-pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.1/reachweaver-0.5.1-py3-none-any.whl"
+pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.2/reachweaver-0.5.2-py3-none-any.whl"
 # or, inside a virtual environment:
-python3 -m pip install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.1/reachweaver-0.5.1-py3-none-any.whl"
+python3 -m pip install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.2/reachweaver-0.5.2-py3-none-any.whl"
 reachweaver version
 ```
 

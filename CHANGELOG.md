@@ -6,10 +6,15 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-16
+
+The first release that can publish ReachWeaver to PyPI. The release workflow has an optional third job, `pypi`, that uploads the wheel and source archive already attached to the GitHub Release by trusted publishing (no stored token), after the owner approves the `pypi` deployment. A patch version: no command, option or default of the tool changed.
+
+**Upgrade notes.** None for the tool. Once the first upload has succeeded, `pip install reachweaver` and `pipx install reachweaver` work in addition to installing the wheel from the release page ([docs/PACKAGING.md](docs/PACKAGING.md)).
+
 ### Added
 
 - **Optional PyPI publishing by trusted publishing, prepared and off (owner go-ahead, 2026-10-16).** The release workflow gains a third job, `pypi`, that runs only after `publish`, only for the repository owner, only when the repository variable `PYPI_PUBLISH` is `true`, and only after the owner approves the `pypi` GitHub environment (created, with the owner as required reviewer and restricted to `v*` tags). It checks out nothing and builds nothing: it downloads the wheel and sdist from the GitHub Release, verifies them against `python-dist.sha256` and uploads exactly those files with `pypa/gh-action-pypi-publish` (pinned to a full commit SHA, v1.14.2). Its only extra permission is `id-token: write`; there is no stored PyPI token. Nothing is published until the owner creates a pending publisher on PyPI and sets `PYPI_PUBLISH` (steps in [docs/PACKAGING.md](docs/PACKAGING.md)). `publish` keeps `contents: write` as its only write. `tests/test_release_workflow.py` (`ReleaseWorkflowPyPITests`) and `tests/test_packaging_metadata.py` now pin the three-job model. The job has not run against PyPI.
-
 
 ## [0.5.1] - 2026-10-16
 

@@ -348,7 +348,7 @@ Restart Claude Code and use `/reachweaver`. The skill checks for a newer release
 Every release also carries a standard wheel and source archive, for servers and scripts. You need Python 3.11 or newer; there is nothing else to download.
 
 ```bash
-pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.1/reachweaver-0.5.1-py3-none-any.whl"
+pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.2/reachweaver-0.5.2-py3-none-any.whl"
 reachweaver version
 ```
 
