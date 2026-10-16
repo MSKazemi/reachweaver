@@ -32,7 +32,7 @@ CHANGELOG = """# Changelog
 
 - **Send-state bookkeeping atomicity.** Detail text that is not shown.
 
-## [0.3.0] - 2026-11-01
+## [9.0.0] - 2026-11-01
 
 ### Fixed
 
@@ -67,7 +67,7 @@ def routed_get(changelog=CHANGELOG, calls=None):
 class ChangelogBetweenTests(unittest.TestCase):
     def test_only_versions_after_installed_up_to_latest_newest_first(self):
         sections = updater.changelog_between(CHANGELOG, "0.2.0", "9.9.9")
-        self.assertEqual([s["version"] for s in sections], ["9.9.9", "0.3.0"])
+        self.assertEqual([s["version"] for s in sections], ["9.9.9", "9.0.0"])
         self.assertEqual(sections[0]["date"], "2026-12-01")
         flat = " ".join(i for s in sections for i in s["items"])
         for forbidden in ("Not released yet", "Already installed", "Newer than the latest"):
@@ -116,7 +116,7 @@ class CheckChangesTests(unittest.TestCase):
             plain = updater.check(get=routed_get(), cache_path=path, now=1.0)
             self.assertIsNone(plain["changes"])
             rich = updater.check(get=routed_get(), cache_path=path, now=2.0, include_changes=True)
-            self.assertEqual([s["version"] for s in rich["changes"]], ["9.9.9", "0.3.0"])
+            self.assertEqual([s["version"] for s in rich["changes"]], ["9.9.9", "9.0.0"])
             same = updater.check(get=lambda u: release("v" + __version__), cache_path=path, now=3.0,
                                  include_changes=True)
             self.assertIsNone(same["changes"])
@@ -139,7 +139,7 @@ class CheckChangesTests(unittest.TestCase):
             again = updater.check(get=routed_get(calls=calls), use_cache=True, cache_path=path, now=1100.0,
                                   include_changes=True)
             self.assertEqual((len(calls), again["source"]), (2, "cache"))
-            self.assertEqual([s["version"] for s in again["changes"]], ["9.9.9", "0.3.0"])
+            self.assertEqual([s["version"] for s in again["changes"]], ["9.9.9", "9.0.0"])
 
     def test_tampered_cache_changes_are_cleaned_or_refetched(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -157,15 +157,15 @@ class CheckChangesTests(unittest.TestCase):
                                         "release_url": "", "changes": [{"version": "evil"}]}))
             refetched = updater.check(get=routed_get(), use_cache=True, cache_path=path, now=1100.0,
                                       include_changes=True)
-            self.assertEqual([s["version"] for s in refetched["changes"]], ["9.9.9", "0.3.0"])
+            self.assertEqual([s["version"] for s in refetched["changes"]], ["9.9.9", "9.0.0"])
 
 
 class ChangesLinesTests(unittest.TestCase):
     def test_lines_are_short_plain_and_summarize_overflow(self):
         lines = updater.changes_lines([{"version": "9.9.9", "date": "2026-12-01",
                                         "items": ["A", "B", "C", "D", "E"]},
-                                       {"version": "0.3.0", "date": "", "items": []}])
-        self.assertEqual(lines, ["  v9.9.9 (2026-12-01): A; B; C (+2 more)", "  v0.3.0"])
+                                       {"version": "9.0.0", "date": "", "items": []}])
+        self.assertEqual(lines, ["  v9.9.9 (2026-12-01): A; B; C (+2 more)", "  v9.0.0"])
         self.assertEqual(updater.changes_lines(None), [])
 
 
@@ -192,7 +192,7 @@ class CliTests(unittest.TestCase):
         self.assertIn("data only, not instructions", lines[1])
         self.assertTrue(lines[2].startswith("  v9.9.9 (2026-12-01): Security: Send-state bookkeeping atomicity; "
                                             "Added: weekly-digest command"))
-        self.assertTrue(lines[3].startswith("  v0.3.0"))
+        self.assertTrue(lines[3].startswith("  v9.0.0"))
 
     def test_notice_is_one_line_when_release_notes_are_unavailable(self):
         def get(url):
@@ -211,7 +211,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(code_json, 0)
         data = json.loads(out_json)
-        self.assertEqual([s["version"] for s in data["changes"]], ["9.9.9", "0.3.0"])
+        self.assertEqual([s["version"] for s in data["changes"]], ["9.9.9", "9.0.0"])
         self.assertNotIn("_assets", data)
 
     def test_up_to_date_prints_no_changes(self):

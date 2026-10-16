@@ -6,6 +6,19 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-16
+
+The first release since 0.2.0: 149 commits, 13 new commands (82 in all, none removed), and the first live receipts. A minor version, not a patch, because it adds commands and changes two defaults (below). The section lists are the full record; the highlights:
+
+- **First live receipts.** One approved text post each was sent through ReachWeaver to Bluesky and Mastodon on 2026-10-11 and re-observed from the platforms' public APIs on 2026-10-15 ([docs/receipts/](docs/receipts/)). Telegram and LinkedIn have none; every other adapter stays disabled until its own supervised receipt.
+- **New commands.** `calendar-gaps`, `link-health`, `delivery-options`, `manual-export-batch`, `engagement-queue`, `seo-content-check`, `profile-audit` and `post-audit` (profile CSV, cross-platform consistency), `suggest`, `weekly-digest`, `peer-benchmark`, `disconnect` and `reconnect`.
+- **Safety, owner-reviewed.** Account hold after an unresolved send, approval expiry (opt-in), account disconnect with a terminal-only reconnect, rights on attached images bound under `approval/media-2`, a documented API cost note in `show` and the dry run, branch protection and a hermetic test for the ignore rules.
+- **Research and docs.** 92 distribution channels with dated sources and a platform-matrix table, a regional API feasibility matrix, the Mastodon guide, owner-run pilot runbooks, and the browser-assist decision (not planned).
+
+**Upgrade notes (behaviour you may notice).**
+1. **Account hold is on by default.** While any post of an account is `needs_review`, or `sending` for over 15 minutes, no other post is claimed for that account (`account_unresolved_send_hold`) until you check the native account and run `reconcile` or `cancel` on that post. There is no bypass flag.
+2. **Images that carry a rights record are approved under `approval/media-2`.** Images without one, and every existing approval, keep `approval/media-1` unchanged. Approval expiry (`approval-mode --max-age-hours`) is off until you set it.
+
 ### Security
 
 - **Rights on attached images: license, attribution, provenance and alt translations (issue #48, owner-reviewed and merged 2026-10-15, PR #73).** An image attached with `media-attach` can now carry an optional rights record (`--rights-confirmed --license ID --created-by owner|tool|third_party`, `--attribution`, `--tool`, `--rights-source-url`, repeatable `--alt-translation LANG=TEXT`), validated with the same rules as the `media-check` manifest (SPDX or `owner`/`licensed`, third-party media needs a real license and attribution, `CC-BY*` needs attribution, tool-made media names the tool and prints a disclosure note, translations validated like alt text). It is stored in `media_json`, shown by `show` and the confirmation display, and **bound by the approval hash under the new tag `approval/media-2`**: changing the license, attribution, provenance or a translation after approval invalidates it. An image without a rights record keeps `approval/media-1` byte for byte, so every existing approval still verifies. Rights text is never published and nothing is fetched. Tests: `tests/test_media_rights.py` (18) and the tag pins in `tests/test_binding_tags.py`. Changes what the approval binds for new images; owner-reviewed as a security change and merged 2026-10-15 (PR #73).
@@ -176,6 +189,12 @@ No section below claims a growth result. The only delivered posts claimed are th
 - **One Bluesky reply with an empty handle made the whole `engagement-fetch` export fail (issue #17, review F1).** `write_export` rejected the document (`author_handle must be a non-empty string`). An empty or missing handle now falls back to the author's DID; a reply with neither is skipped and noted as `reply_without_author_identity_skipped`.
 - **A credential with a control character could leak into `ERROR:` output (issue #5, review F1).** A `$CREDENTIALS_DIRECTORY` file ending in `\r\n` kept its `\r`, `http.client` refused the header with `ValueError("Invalid header value b'Bearer <token>\\r'")`, and the CLI printed that message, token included. `accounts.credential` now strips exactly one trailing `\n` or `\r\n` from a file and refuses any value, from a file or the environment, that still contains a C0 control character or DEL (`credential NAME contains control characters`, name only). As defence in depth, `publishers` turns a `ValueError`, `http.client.InvalidURL` or unknown-scheme error raised while building or sending a request into the fixed `PublishError("invalid_request")` (and a later `http.client.HTTPException` into `invalid_api_response_uncertain`), with the original message dropped; the CLI's top-level `ERROR:` line now passes through `privacy.redact`. Ambiguous-send classification is unchanged: a failure after `mark_write_started` is still C3 `ambiguous` and goes to `needs_review`. Tests: `ControlCharacterCredentialTests`, `ControlCharacterCliTests`, `RequestBuildErrorTests` in `tests/test_hardening.py`.
 
+
+### Not done
+
+- Telegram and LinkedIn member posts are mock-tested only: no live send has been recorded. Threads, Facebook Pages, Instagram, YouTube and TikTok adapters stay registry-disabled until the owner's supervised receipts.
+- No field pilot has been run, so there are no growth results and none are claimed.
+- Browser-assist delivery is not planned (the official terms prohibit it on LinkedIn and TikTok; see [docs/BROWSER-ASSIST-DECISION.md](docs/BROWSER-ASSIST-DECISION.md)).
 
 ## [0.2.0] - 2026-10-11
 
