@@ -1,5 +1,7 @@
 # Quickstart: from clone to a safe preview, with no credentials
 
+> **New to this?** Read [Start here](START-HERE.md) first for the ideas in plain words, and keep the [glossary](GLOSSARY.md) open for unfamiliar terms. You can also skip ahead: each step below says what you should see, so you always know whether it worked.
+
 This walk-through takes about ten minutes. You need **Python 3.11 or newer** and git. You do **not** need an account, an API key, a token, `pip install` or a network connection after the clone. Nothing below can publish: every command is offline, and the one-post preview is a dry run.
 
 `tests/test_onboarding.py` runs every `python3 -m reachweaver` line in this file, in order, against a fresh copy of the repository with an empty environment and every socket blocked. If a step here stops working, that test fails.
@@ -56,7 +58,7 @@ python3 -m reachweaver --db state/quickstart.sqlite --accounts config/accounts.e
 - `show` prints the exact text, the destination account, an offline Bluesky preview (grapheme count, facets, record key) and the hash that `approve` would bind.
 - `approve` binds a SHA-256 of the exact payload. Any later change to the post blocks a send until it is approved again.
 - `publish --post-id` is the **safe preview**. It prints `DRY RUN: 1 due approved posts; no requests sent` and the post stays `approved`. Without `--live`, `REACHWEAVER_ALLOW_LIVE=1` and `REACHWEAVER_ENV=prod` no send path runs at all.
-- `approval-mode` shows two optional approval safeguards, both `off` here. Before a live pilot you can tighten them in your own terminal: `approval-mode --confirmation tty_hash_prefix` makes `approve` and `publish --live` require an interactive terminal and the first 8 characters of the payload hash typed by you, and `approval-mode --require-key` (with `REACHWEAVER_APPROVAL_SECRET` provided) signs every approval with your own key. `approval-mode --max-age-hours N` (draft, off by default) makes an approval older than N hours expire, so the post must be re-approved before it can be sent; it can only be lowered later, never raised by a command. See the [first live pilot](FIRST-LIVE-PILOT.md) and [account onboarding](ACCOUNT-ONBOARDING.md#optional-the-owner-approval-key-7-d7).
+- `approval-mode` shows two optional approval safeguards, both `off` here. Before a live pilot you can tighten them in your own terminal: `approval-mode --confirmation tty_hash_prefix` makes `approve` and `publish --live` require an interactive terminal and the first 8 characters of the payload hash typed by you, and `approval-mode --require-key` (with `REACHWEAVER_APPROVAL_SECRET` provided) signs every approval with your own key. `approval-mode --max-age-hours N` (off by default) makes an approval older than N hours expire, so the post must be re-approved before it can be sent; it can only be lowered later, never raised by a command. See the [first live pilot](FIRST-LIVE-PILOT.md) and [account onboarding](ACCOUNT-ONBOARDING.md#optional-the-owner-approval-key-7-d7).
 
 Preview before you `schedule`: `publish --post-id` only selects posts that are approved **and due**, so a post scheduled for later is refused until its time comes.
 
@@ -85,7 +87,7 @@ rm -rf state/quickstart.sqlite state/quickstart-drafts state/quickstart-threads
 
 ## Next steps
 
-- Write your own campaign: [schemas](SCHEMAS.md), [campaign preview](CAMPAIGN-PREVIEW.md) and the Claude Code skill (`/reachweaver`, see the [README](../README.md#claude-code-skill)).
+- Write your own campaign: [schemas](SCHEMAS.md), [campaign preview](CAMPAIGN-PREVIEW.md) and the Claude Code skill (`/reachweaver`, see the [README](../README.md#option-1-with-claude-code-recommended)).
 - Before any live send, go through the [security checklist](SECURITY-CHECKLIST.md), then [account onboarding](ACCOUNT-ONBOARDING.md) and the [first live pilot](FIRST-LIVE-PILOT.md) (Bluesky: the [one-post pilot runbook](BLUESKY-PILOT.md)). A live send needs your own account, credentials entered privately on your machine, an approved post, `--live`, `REACHWEAVER_ALLOW_LIVE=1` **and** `REACHWEAVER_ENV=prod` (set only on the machine you publish from):
 
 ```text

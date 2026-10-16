@@ -17,6 +17,12 @@ class ReadmeChannelCountTests(unittest.TestCase):
         self.assertEqual(len(counts), 1, counts)
         self.assertEqual(int(counts[0]), len(distribution.load_registry()["platforms"]))
 
+    def test_features_page_channel_count_matches_the_registry(self) -> None:
+        text = (ROOT / "docs/FEATURES.md").read_text(encoding="utf-8")
+        counts = re.findall(r"catalogs \*\*(\d+) channels", text)
+        self.assertEqual(len(counts), 1, counts)
+        self.assertEqual(int(counts[0]), len(distribution.load_registry()["platforms"]))
+
 
 if __name__ == "__main__":
     unittest.main()

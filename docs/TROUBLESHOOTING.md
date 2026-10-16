@@ -2,6 +2,8 @@
 
 Problems a new user meets between `git clone` and a first safe preview, with the exact message ReachWeaver prints and the fix. Every command named here is offline unless it carries `--online` or `--live`. Start with the [quickstart](QUICKSTART.md); for anything security-related use the [security checklist](SECURITY-CHECKLIST.md).
 
+Unfamiliar word? See the [glossary](GLOSSARY.md). Not sure where you are in the process? [Start here](START-HERE.md) explains each step.
+
 **Rule of thumb:** a refusal is usually a safety gate working as designed. Do not look for a flag that bypasses it. None exists for approval, the dry-run default, the emergency pause, credential isolation or ambiguous-send reconciliation.
 
 ## Setup

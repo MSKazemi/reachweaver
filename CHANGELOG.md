@@ -6,6 +6,13 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Documentation
+
+- **README rewritten as a front page for newcomers.** It now opens with what ReachWeaver is in plain words, what it will never do, which platforms really work today, how one post travels from draft to approval, three ways to get started and the five commands most people use. The honest-limits statement, the liability notice and the read/run/send disclosure are unchanged. The full command list stays in the README (collapsed), because the release gate requires every subcommand to be named there.
+- **New [Start here](docs/START-HERE.md) guide, [glossary](docs/GLOSSARY.md) and [documentation index by goal](docs/README.md).** The long feature guides that used to fill the README moved unchanged to [docs/FEATURES.md](docs/FEATURES.md) (links adjusted).
+- The quickstart and troubleshooting pages point newcomers to the guide and glossary; the quickstart no longer calls `approval-mode --max-age-hours` a draft.
+- `tests/test_plain_language_docs.py` pins the structure; `tests/test_readme_channel_count.py` also checks the channel count in FEATURES.md.
+
 ## [0.3.0] - 2026-10-16
 
 The first release since 0.2.0: 149 commits, 13 new commands (82 in all, none removed), and the first live receipts. A minor version, not a patch, because it adds commands and changes two defaults (below). The section lists are the full record; the highlights:
