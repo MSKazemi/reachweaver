@@ -36,7 +36,8 @@ from .claims import DEFAULT_DUPLICATE_THRESHOLD, check_claims
 from . import confirmation
 from .distribution import GOALS, build_distribution_plan
 from .engagement import triage_files
-from .health import build_health, dead_letter, exit_code as health_exit_code, render_dead_letter, render_health
+from .health import (build_health, dead_letter, exit_code as health_exit_code, render_dead_letter, render_health,
+                     sanitize_error_code)
 from .experiments import evaluate_experiment
 from .growth import next_hypotheses, preregister, verify_preregistration, write_preregistration
 from .growth_readout import load_results, render_next, render_readout, render_simulation, run_readout, simulate_readout
@@ -80,6 +81,7 @@ from .storage import (
     approval_max_age_hours, approval_rebind_required, is_paused, parse_utc, pending, post_media, post_video, set_approval_max_age_hours,
     provider_cooldowns, published_text, queue_health, reconcile, record_binding_failure, reply_report, reply_target_text, report, set_paused,
     set_post_media, set_post_video, store_metrics, sync_cooldown_scopes, transition, uncertain_send, utc_now,
+    connect_readonly, database_path as storage_database_path,
 )
 
 
@@ -120,6 +122,13 @@ def make_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("connect-check", help="Explicit online, non-publishing account identity check")
     p.add_argument("--account", required=True, help="One account id from local ignored config")
     p.add_argument("--online", action="store_true", help="Required: allow authentication/read-only remote API requests")
+    p = sub.add_parser("connect", help="Guided account connection (experimental): a status table of your accounts, or "
+                       "--guide to walk through them one at a time with you present; takes no secret and never posts")
+    p.add_argument("--guide", action="store_true",
+                   help="Interactive walkthrough (needs a terminal): official sign-in steps per account, then an optional "
+                        "read-only identity check you confirm one account at a time")
+    p.add_argument("--account", help="Only this account id")
+    p.add_argument("--json", action="store_true", help="Machine-readable status table (no walkthrough)")
     p = sub.add_parser("disconnect", help="Stop publishing to one account on this installation (#38): tighten-only, local; "
                        "lists the credential variable names and the steps to revoke at the provider; revokes nothing itself")
     p.add_argument("--account", required=True, help="One account id from local ignored config")
@@ -2128,6 +2137,61 @@ def execute(args) -> int:
         output["note"] = "No content posted. Human-approved live pilot still required."
         print(json.dumps(output,indent=2))
         return 2 if instance is not None and not instance["ok"] else 0
+    if args.command == "connect":
+        from . import connect_guide
+        accounts = _accounts(args)
+        if args.account is not None and args.account not in accounts:
+            raise ValidationError("Unknown account. Run 'doctor' for account IDs")
+        if args.guide and args.json:
+            raise ValidationError("connect --json prints the status table; it cannot be combined with --guide")
+        registry = load_capabilities()
+        gone: list[str] = []
+        if storage_database_path(args.db).is_file():  # read-only: the status table never creates or changes the database
+            try:
+                ro = connect_readonly(storage_database_path(args.db))
+                try:
+                    gone = account_disconnect.disconnected_accounts(ro)
+                finally:
+                    ro.close()
+            except (ValidationError, sqlite3.Error):
+                gone = []
+        if not args.guide:
+            rows = connect_guide.account_rows(accounts, registry, disconnected=gone)
+            if args.account is not None:
+                rows = [r for r in rows if r["account"] == args.account]
+            if args.json:
+                print(json.dumps({"accounts": rows, "note": "Offline. Credential variable NAMES only; no request was made."}, indent=2))
+            else:
+                print(connect_guide.render_rows(rows))
+                print("\nOffline status only. `reachweaver connect --guide` walks through the accounts one at a time with you present.")
+            return 0
+        if not (sys.stdin.isatty() and sys.stdout.isatty()):
+            raise ValidationError("connect --guide needs an interactive terminal with you present (sign-ins and any "
+                                  "verification are yours to complete). Run it yourself in a terminal; "
+                                  "`reachweaver connect` prints the status table without prompts.")
+
+        def ask(prompt: str) -> str:
+            try:
+                return input(prompt)
+            except EOFError:
+                return "q"
+
+        def guided_check(account: dict) -> str | None:
+            try:
+                if account["platform"] == "bluesky" and account.get("backend") is None:
+                    with connect(args.db) as db:
+                        reserve_bluesky_sessions(db, account, needed=1, stage="connect_check")
+                check_connection(account)
+            except (ValidationError, PublishError, HTTPError, URLError, OSError) as exc:
+                return sanitize_error_code(str(exc))
+            return None
+
+        print("ReachWeaver connection guide. You stay in control: nothing is posted, no secret is asked for, and "
+              "every online check needs your 'y'.")
+        results = connect_guide.run_guided(accounts, registry, only=args.account, ask=ask, say=print,
+                                           check=guided_check, disconnected=gone)
+        print(connect_guide.render_summary(results))
+        return 1 if any(r["state"] == connect_guide.FAILED for r in results) else 0
     if args.command == "disconnect":
         account = _accounts(args).get(args.account)
         if account is None:

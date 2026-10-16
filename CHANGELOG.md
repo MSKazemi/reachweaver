@@ -6,6 +6,10 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Added
+
+- **`connect`: a guided way to connect your accounts (experimental, owner-chosen 2026-10-16).** `reachweaver connect` prints an offline status table (credential variable names only; nothing is read from the network or written to the database). `reachweaver connect --guide` walks through the accounts one at a time with you at a terminal: the official sign-in page and steps per platform (Bluesky, Mastodon, Telegram, LinkedIn), a hidden-input way to set each variable, and then, only after you answer `y` for that account, the same read-only identity check as `connect-check --online`. It asks for no secret, opens no browser, posts nothing, leaves approval, dry-run, pause, credential and reconciliation rules untouched, and refuses to run without an interactive terminal. `tests/test_connect_guide.py` (20) pins this, including a static check that the module cannot read the environment, open a browser or touch the network.
+
 ### Documentation
 
 - **README rewritten as a front page for newcomers.** It now opens with what ReachWeaver is in plain words, what it will never do, which platforms really work today, how one post travels from draft to approval, three ways to get started and the five commands most people use. The honest-limits statement, the liability notice and the read/run/send disclosure are unchanged. The full command list stays in the README (collapsed), because the release gate requires every subcommand to be named there.

@@ -99,7 +99,11 @@ python3 -m pip install -e .            # optional: gives you a plain `reachweave
 cp config/accounts.example.json config/accounts.json   # then edit it: NO passwords or tokens in this file
 reachweaver doctor                     # offline; lists which credential names are still missing
 reachweaver init                       # creates your private local database
+reachweaver connect                    # offline status table: which accounts still need credentials
+reachweaver connect --guide            # you at the terminal: walks through the accounts one at a time
 ```
+
+`connect --guide` shows, for each account, the official page to sign in on and the steps to create a limited credential. You sign in, solve any verification or robot check yourself, and keep the credential in your own environment. It never asks for a password, never drives a browser, never posts, and contacts a platform only after you type `y` for that one account. Publishing still needs your approval of every post.
 
 Credentials are set privately in your own environment, never typed into Claude, a chat or an issue. [Account onboarding](docs/ACCOUNT-ONBOARDING.md) explains how, one platform at a time. Then follow the [security checklist](docs/SECURITY-CHECKLIST.md) and the [first live pilot](docs/FIRST-LIVE-PILOT.md) (for Bluesky: the copy-and-paste [one-post pilot](docs/BLUESKY-PILOT.md)). The safest first real send is one text post on a throwaway account.
 
@@ -187,6 +191,7 @@ Every command is listed here with its options. Most people only need the five in
 reachweaver init                         local DB initialization
 reachweaver doctor                       check account mapping / missing env names
 reachweaver credentials-audit [--history FILE] [--json]  offline credential hygiene: names only, never values; exit 1 on findings
+reachweaver connect [--guide] [--account ID] [--json]  experimental: offline status table of your accounts (credential variable names only); --guide walks through them one at a time with you at a terminal, one read-only identity check per account you confirm; takes no secret, never posts
 reachweaver draft --account X --text Y [--optout F]   create a reviewable draft; refused if it @-mentions an opted-out handle/domain
 reachweaver draft --account X --file F    create draft from UTF-8 file
 reachweaver draft --account X --file F --reply-to ITEM [--online] [--override-flagged LABEL]

@@ -5,7 +5,7 @@ This guide covers the account lifecycle with the commands that exist today: `doc
 - **Environment variables** (the default), named `<env_prefix><SUFFIX>`.
 - **systemd credentials** (issue #5): when `$CREDENTIALS_DIRECTORY` is set, as systemd does for a unit with `LoadCredential=`, each credential is read from the file `$CREDENTIALS_DIRECTORY/<VARIABLE_NAME>` and environment variables are **not** consulted at all. See [Unattended host: systemd `LoadCredential=`](#unattended-host-systemd-loadcredential).
 
-It has no login wizard, no OAuth redirect flow and no keychain integration. The shell examples below show how an owner can feed those variables from a protected file or a password manager. ReachWeaver itself does not call any of these tools.
+It has no automated login, no OAuth redirect flow and no keychain integration. `connect --guide` ([below](#guided-walkthrough-connect---guide)) is a walkthrough, not a login: it shows you the steps and checks the result, and you do the signing in. The shell examples below show how an owner can feed those variables from a protected file or a password manager. ReachWeaver itself does not call any of these tools.
 
 **Status (2026-10-15):** Bluesky and Mastodon each have one live text-post receipt ([docs/receipts/](receipts/)); no other platform has been connected or tested from this repository. The steps have been checked against the code and against the provider pages cited below. The `LoadCredential=` path is covered by offline tests (`tests/test_hardening.py`). On 2026-10-16 it was also run once under a real systemd 255 user unit (`systemd-run --user -p LoadCredential=NAME:FILE`) with a synthetic value. ReachWeaver reported `credentials_directory` as the source and read the value from `$CREDENTIALS_DIRECTORY`. It ignored the environment variable of the same name, even though that was set. It has not run under a system (root-managed) worker unit.
 
@@ -21,6 +21,20 @@ Security context: threat model, [security policy](SECURITY.md), [first live pilo
 - `publish --live` sends only when **all three** are present: the `--live` flag, `REACHWEAVER_ALLOW_LIVE=1` and `REACHWEAVER_ENV=prod`. Set `REACHWEAVER_ENV=prod` only on the production host.
 
 ## 1. Connect
+
+### Guided walkthrough: `connect --guide`
+
+If you would rather be walked through than read the sections below, run these in your own terminal:
+
+```bash
+reachweaver connect            # offline table: each account, and the credential variable NAMES it still needs
+reachweaver connect --guide    # one account at a time, with you at the keyboard
+```
+
+For an account that still needs credentials, the guide prints the official page to open, the steps to create a limited credential, and a hidden-input command to set it (section 1b explains why). For an account whose variables are already set, it asks `Contact <platform> now to confirm the sign-in? [y = yes, n = skip, q = stop]`; only `y` makes one read-only identity request, the same one `connect-check --online` makes. The summary lists each account as connected and verified, check failed, credentials missing, skipped or manual only.
+
+What it will never do: ask for or store a password or token, open or drive a browser, solve or bypass a verification or CAPTCHA (you do), post anything, or skip per-post approval. It refuses to run without an interactive terminal, so an AI assistant or a script cannot start it for you. Browser automation was considered and declined; see the [decision record](BROWSER-ASSIST-DECISION.md).
+
 
 ### 1a. Describe the account (no secrets)
 

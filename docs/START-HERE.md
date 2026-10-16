@@ -85,6 +85,8 @@ Everything in the [quickstart](QUICKSTART.md) is safe. It uses example accounts,
 
 ## What you need before a real send
 
+Not sure which accounts are ready? `reachweaver connect` prints a status table without contacting anyone, and `reachweaver connect --guide` walks you through connecting them one at a time in your own terminal.
+
 All of these, never fewer:
 
 1. An account that **you** own or are allowed to post for.
