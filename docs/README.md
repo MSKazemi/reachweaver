@@ -52,7 +52,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 |---|---|
 | Unattended, scheduled delivery and monitoring | [Worker operations](WORKER-OPERATIONS.md) |
 | Export or delete your local data | [Privacy lifecycle](PRIVACY-LIFECYCLE.md) |
-| Move your data to another computer | [Moving to another computer](MOVING.md) |
+| Keep everything that is yours in one folder and move it to another computer | [Your workspace folder](MOVING.md) |
 | See every capability in one place | [All features in detail](FEATURES.md), [platforms and the capability registry](PLATFORMS.md) |
 
 ## 6. I want to understand or change the code

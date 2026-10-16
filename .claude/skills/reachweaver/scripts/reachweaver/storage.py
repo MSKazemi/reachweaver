@@ -15,6 +15,7 @@ from uuid import uuid4
 
 from dataclasses import dataclass
 
+from . import home
 from .policy import ValidationError, validate_post
 
 
@@ -276,7 +277,7 @@ def schema_gaps(con: sqlite3.Connection, tables: tuple[str, ...] | None = None) 
 
 def database_path(path: str | Path | None = None) -> Path:
     """``--db``, else ``$REACHWEAVER_DB``, else ``state/reachweaver.sqlite``."""
-    return Path(path or os.environ.get("REACHWEAVER_DB", "state/reachweaver.sqlite"))
+    return Path(path or os.environ.get("REACHWEAVER_DB", str(home.default_path("state/reachweaver.sqlite"))))
 
 
 @contextmanager

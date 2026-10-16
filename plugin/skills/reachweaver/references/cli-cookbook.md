@@ -81,6 +81,9 @@ Both open the database read-only and send nothing. `journal` also lists material
 ## Workspace and moving to another computer (read-only report, optional path repair)
 
 ```bash
+RW workspace --init DIR          # one-folder layout: config/, state/, media/, logs/, marker, README; never overwrites; commands then use it from any sub-folder or with --home DIR
+RW workspace --gather            # dry run: copy attachments of unsent posts into media/ (hash-verified); --apply writes (owner decision)
+RW workspace --repair            # dry run after copying the folder to a new computer: re-find attachments in media/ by size and SHA-256; --apply writes (owner decision)
 RW workspace [--json]            # layout, database integrity, approval-ledger consistency, credential NAMES missing, attachment files missing or changed; exit 1 when a copy would not work
 RW media-relink --from /old/media/folder --to /new/media/folder          # dry run: which unsent posts' attachment paths would move
 RW media-relink --from /old/media/folder --to /new/media/folder --apply  # OWNER decision: writes paths only for files whose SHA-256 still matches; approval hashes stay identical

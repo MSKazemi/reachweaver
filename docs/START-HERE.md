@@ -105,7 +105,7 @@ Today the real-send adapters are for Bluesky, Mastodon, Telegram and LinkedIn pe
 
 **Does it need my password?** No. It never asks for or stores your password. For platforms that allow it, you create a limited-permission token (for Bluesky an *App Password*, never your main password) and keep it in your own environment.
 
-**Can I move to another computer?** Yes. Your data is the `config/` and `state/` folders next to where you run ReachWeaver; they hold no passwords or tokens. `reachweaver workspace` checks they are ready to copy; set your credentials again on the new computer. See [moving to another computer](MOVING.md).
+**Can I move to another computer?** Yes. Keep everything that is yours in one folder: `reachweaver workspace --init ~/reachweaver-work`, then work from inside it. The folder holds your accounts file, database, approval ledger, archive, media and logs, and no passwords or tokens. On the new computer install ReachWeaver, copy the folder, and run `reachweaver workspace --repair --apply`; then set your credentials again. See [your workspace folder](MOVING.md).
 
 **Where is my data?** On your computer, in the `state/` folder, in a database only your user can read. ReachWeaver has no server of its own and uploads nothing there. The only things that touch the internet are a send to the platform you chose (`--live`), commands you start with an explicit `--online` flag, and a once-a-day check for a newer ReachWeaver release when it runs as a Claude Code plugin (you can turn that off). The [README](../README.md#security-and-reality-checks) lists exactly what each one contacts. See also the [privacy policy](PRIVACY.md).
 

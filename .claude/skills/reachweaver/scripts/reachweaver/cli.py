@@ -79,7 +79,7 @@ from .post_view import (build_post_view, repeat_findings as _repeat_findings, ap
                         platform_preview as _platform_preview, video_issues as _video_issues,
                         video_view as _video_view)
 from . import disconnect as account_disconnect
-from . import repeat_guard
+from . import home, repeat_guard
 from .journal import ALL_STATUSES as _JOURNAL_STATUSES
 from .storage import (
     APPROVAL_KEY_CREDENTIAL, APPROVAL_KEY_UNAVAILABLE, BINDING_MEDIA_CHANGED, BINDING_VIDEO_CHANGED, METRIC_FIELDS, account_send_hold, active_provider_cooldown, hold_refusal,
@@ -128,6 +128,9 @@ def make_parser() -> argparse.ArgumentParser:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--db", help="Local persistent SQLite database path (defaults to state/reachweaver.sqlite)")
     parser.add_argument("--accounts", help="Accounts config path (defaults to config/accounts.json)")
+    parser.add_argument("--home", type=Path, metavar="DIR", help="Use this workspace folder (one that carries a "
+                                                               ".reachweaver-workspace file; create it with workspace --init). "
+                                                               "Default: the nearest one at or above the current folder")
     parser.add_argument("--plain", action="store_true", help="No colour or tables, even in a terminal (the plain "
                                                               "text format that scripts rely on)")
     # help=SUPPRESS hides argparse's flat 80-line list; the grouped index (cli_help) is the epilog.
@@ -161,6 +164,17 @@ def make_parser() -> argparse.ArgumentParser:
                        "what does not (credentials, the installed skill), and whether copying it to another computer "
                        "will work")
     p.add_argument("--json", action="store_true", help="Machine-readable report")
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument("--init", nargs="?", const=".", type=Path, metavar="DIR",
+                      help="Create the one-folder layout (config/, state/, media/, logs/, marker, README) in DIR "
+                           "(default: here); never overwrites or moves existing files")
+    mode.add_argument("--gather", action="store_true",
+                      help="Copy attachments of unsent posts that live outside media/ into media/ and point the records "
+                           "at the copies (hash-verified); dry run unless --apply")
+    mode.add_argument("--repair", action="store_true",
+                      help="After copying the workspace to a new computer: find attachments of unsent posts again in "
+                           "media/ by size and SHA-256 and fix the recorded paths; dry run unless --apply")
+    p.add_argument("--apply", action="store_true", help="With --gather or --repair: write the change")
     p = sub.add_parser("media-relink", help="After moving the workspace: point recorded attachment paths of unsent posts "
                        "at the new folder, only for files whose SHA-256 still matches; dry run unless --apply")
     p.add_argument("--from", dest="from_prefix", required=True, metavar="OLD_FOLDER", help="Absolute folder the files were in")
@@ -2118,6 +2132,55 @@ def execute(args) -> int:
         output["note"] = "No content posted. Human-approved live pilot still required."
         print(json.dumps(output,indent=2))
         return 2 if instance is not None and not instance["ok"] else 0
+    if args.command == "workspace" and args.init is not None:
+        from . import workspace as ws_report
+        made = ws_report.init_workspace(args.init.expanduser().resolve())
+        if args.json:
+            print(json.dumps(made, indent=2))
+        else:
+            print(f"Workspace folder: {made['root']}")
+            for name in made["created"]:
+                print(f"  created {name}")
+            for name in made["kept"]:
+                print(f"  kept    {name} (already there, not touched)")
+            print("Everything that is yours now lives in this one folder. To use it, `cd` into it (or pass --home). "
+                  "To move to another computer, copy the whole folder, then run `reachweaver workspace --repair --apply` there. "
+                  "Credentials are never stored here; see secrets.env.example for the names.")
+        return 0
+    if args.command == "workspace" and (args.gather or args.repair):
+        from . import workspace as ws_report
+        if home.root() is None:
+            raise ValidationError("Not inside a ReachWeaver workspace. Run `reachweaver workspace --init DIR` first, "
+                                  "then `cd` into it or pass --home DIR")
+        db_file = storage_database_path(args.db)
+        if not db_file.is_file():
+            raise ValidationError(f"Database {db_file} does not exist; nothing to gather or repair")
+        workspace_root = home.root()
+        assert workspace_root is not None
+        moves_writer = connect(args.db) if args.apply else storage_connect_readonly(db_file)
+        with moves_writer as mdb:
+            moves = (ws_report.plan_gather(mdb, workspace_root) if args.gather else ws_report.plan_repair(mdb, workspace_root))
+            if args.apply and args.gather:
+                (workspace_root / "media").mkdir(mode=0o700, exist_ok=True)
+                for move in moves:
+                    if move["state"] == "ok" and not ws_report.copy_verified(move["from"], move["to"], move["sha256"]):
+                        move["state"] = "missing"
+            applied = ws_report.apply_relink(mdb, moves) if args.apply else {"relinked": [], "skipped": []}
+        if args.json:
+            print(json.dumps({"applied": args.apply, "attachments": moves, **applied}, indent=2))
+        else:
+            if not moves:
+                print("Nothing to do: every attachment of an unsent post is already in media/" if args.gather
+                      else "Nothing to repair: every attachment of an unsent post is where its record says.")
+            for move in moves:
+                print(f"{move['state']:<8} {move['post_id']} ({move['status']}) {move['kind']}: {move['from']}"
+                      + (f" -> {move['to']}" if move["to"] else " (not found in media/)"))
+            if args.apply:
+                print(f"Updated {len(applied['relinked'])} post(s); left {len(applied['skipped'])} untouched.")
+            elif moves:
+                print("Dry run: nothing was changed. Add --apply to write. Only 'ok' rows are written, files are copied "
+                      "or found by SHA-256, and the approval hash is checked to be unchanged.")
+        return 1 if any(move["state"] != "ok" for move in moves) else 0
     if args.command == "workspace":
         from . import workspace as ws_report
         from .accounts import accounts_path as resolve_accounts_path
@@ -2128,7 +2191,8 @@ def execute(args) -> int:
         except ValidationError:
             known = None
         if not db_file.is_file():
-            workspace_report = {"paths": [ws_report._entry("accounts", accounts_file), ws_report._entry("database", db_file)],
+            workspace_report: dict = {"workspace": str(home.root()) if home.root() else None,
+                                "paths": [ws_report._entry("accounts", accounts_file), ws_report._entry("database", db_file)],
                       "database": {"counts": {}}, "ledger": "absent", "files": [],
                       "credentials_missing": {n: missing_credentials(a) for n, a in (known or {}).items() if missing_credentials(a)},
                       "not_in_the_folder": list(ws_report.NOT_IN_THE_FOLDER),
@@ -2137,7 +2201,7 @@ def execute(args) -> int:
                       "ready_to_copy": True}
         else:
             with storage_connect_readonly(db_file) as ro:
-                workspace_report = ws_report.inspect(ro, db_file, known, accounts_file, Path.cwd())
+                workspace_report = ws_report.inspect(ro, db_file, known, accounts_file, home.root() or Path.cwd(), home.root())
         print(json.dumps(workspace_report, indent=2) if args.json else ws_report.render(workspace_report))
         return 0 if workspace_report["ready_to_copy"] else 1
     if args.command == "media-relink":
@@ -2148,7 +2212,7 @@ def execute(args) -> int:
         if args.apply:
             with connect(args.db) as db:
                 relink_plan = ws_report.plan_relink(db, args.from_prefix, args.to_prefix)
-                relink_result = ws_report.apply_relink(db, relink_plan, args.from_prefix, args.to_prefix)
+                relink_result = ws_report.apply_relink(db, relink_plan)
         else:
             with storage_connect_readonly(db_file) as ro:
                 relink_plan = ws_report.plan_relink(ro, args.from_prefix, args.to_prefix)
@@ -3054,7 +3118,9 @@ def execute(args) -> int:
 
 def main(argv=None) -> int:
     try:
-        return execute(make_parser().parse_args(argv))
+        parsed = make_parser().parse_args(argv)
+        home.activate(parsed.home if parsed.command != "workspace" or parsed.init is None else None, Path.cwd())
+        return execute(parsed)
     except (ValidationError, PublishError, OSError, ValueError, csv.Error) as exc:
         from .privacy import redact  # last line of defence: a library message may quote a secret
         print(f"ERROR: {redact(str(exc))}",file=sys.stderr)

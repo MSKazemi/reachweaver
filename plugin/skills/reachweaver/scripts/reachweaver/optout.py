@@ -24,6 +24,7 @@ import unicodedata
 from datetime import date
 from pathlib import Path
 
+from . import home
 from .policy import PLATFORMS, ValidationError
 
 OPTOUT_SCHEMA_VERSION = 1
@@ -110,7 +111,8 @@ def optout_source(path: str | Path | None = None) -> Path | None:
     env = os.environ.get(OPTOUT_ENV)
     if env:
         return Path(env)
-    return DEFAULT_OPTOUT_PATH if DEFAULT_OPTOUT_PATH.is_file() else None
+    default = home.default_path(DEFAULT_OPTOUT_PATH)
+    return default if default.is_file() else None
 
 
 def load_optout(path: str | Path | None = None) -> list[dict]:

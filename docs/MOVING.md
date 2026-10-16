@@ -1,77 +1,78 @@
-# Moving to another computer: your workspace
+# One folder for everything that is yours: your workspace
 
-Your own data is separate from the ReachWeaver program. It lives in the folder you run ReachWeaver from, your **workspace**, and you can copy that folder to another computer.
+Everything that belongs to you lives in **one folder**, your workspace. To use ReachWeaver on another computer, install the program there, copy this one folder, and run one command.
 
 ```text
 my-workspace/
+  .reachweaver-workspace      # marks the folder; commands run inside it use it automatically
+  README-WORKSPACE.txt        # the same instructions, kept next to your data
   config/
-    accounts.json        # your accounts: handles and servers only, never a secret
-    optout.json          # optional: handles and domains you never mention
-    caps.json            # optional: stricter send limits
-    retention.json       # optional: how long to keep local data
-  state/                 # private (0700)
-    reachweaver.sqlite   # every draft, approval, post, link, metric and audit event
-    approval-ledger.jsonl# the approval replay ledger; must travel WITH the database
-    archive/             # made by `archive`: text, metadata and copies of posted files
+    accounts.json             # your accounts: handles and servers only, never a secret
+    optout.json  caps.json  retention.json   # optional
+  state/                      # private (0700)
+    reachweaver.sqlite        # every draft, approval, post, link, metric and audit event
+    approval-ledger.jsonl     # the approval replay ledger; travels WITH the database
+    archive/                  # made by `archive`: text, metadata and copies of posted files
+  media/                      # keep the images and videos you attach here
+  logs/                       # worker logs: publish --log-file logs/worker.jsonl
+  secrets.env.example         # variable NAMES only, so you know what to set on a new computer
 ```
+
+## Set it up once
+
+```bash
+reachweaver workspace --init ~/reachweaver-work     # creates the layout; never overwrites or moves anything
+cd ~/reachweaver-work                               # from here on, every command uses this folder
+```
+
+Already have a folder with `config/` and `state/`? Run `reachweaver workspace --init .` inside it: it only adds the marker and the missing sub-folders and leaves your files alone. You can run commands from any sub-folder, or from anywhere with `--home ~/reachweaver-work`. An explicit `--db` or `--accounts`, or a `REACHWEAVER_DB` / `REACHWEAVER_ACCOUNTS` setting, still wins over the workspace. A folder without the marker behaves exactly as before.
+
+Keep the images and videos you attach in `media/`. If some live elsewhere (your Pictures folder), pull them in once:
+
+```bash
+reachweaver workspace --gather            # dry run: what would be copied
+reachweaver workspace --gather --apply    # copies into media/ (hash-verified) and points the records at the copies
+```
+
+## Move to another computer
+
+1. **On the old computer:** `reachweaver workspace` should end with `Ready to copy and use on another computer: yes`. Finish any running ReachWeaver command first.
+2. **Copy the whole folder** (a plain copy, `rsync` or a zip). **Do not copy `secrets.env` or any `.env*` file** with it; the report warns if one is there.
+3. **On the new computer:** install ReachWeaver (`/plugin install reachweaver@reachweaver`), then:
+
+```bash
+cd my-workspace
+reachweaver workspace --repair --apply   # re-finds your attached files in media/ and fixes the recorded paths
+reachweaver connect                      # which credential names still need to be set
+reachweaver connect --guide              # walk through connecting the accounts
+reachweaver list                         # your drafts and posts are all there
+```
+
+`--repair` is needed because attachments are recorded by absolute path. It finds each missing file in `media/` by size and SHA-256 (so a renamed file is still found), writes the path only for a verified match, and checks that the approval hash did not change, so **approved posts stay approved**. Anything it cannot find is listed and left alone. A dry run is the default; `--apply` writes.
 
 ## What is not in the folder, on purpose
 
-- **Credentials.** Tokens, app passwords and the approval key live in your environment, a password manager or systemd credentials, never in a file ReachWeaver owns. The folder carries no secret, so the new computer needs them set again. `reachweaver connect` lists the variable names that are still missing.
-- **The program.** Install ReachWeaver on the new computer (`/plugin install reachweaver@reachweaver`), then bring only the workspace. The two are updated separately.
+- **Credentials.** Tokens, app passwords and the approval key are never stored by ReachWeaver. They live in your environment, a password manager or systemd credentials, so the new computer needs them set again. `secrets.env.example` lists the names; if you keep your own `secrets.env` in the folder, keep it `chmod 600` and treat it like a password.
+- **The program.** Install it on each computer; the two are updated separately.
 - **The update cache** in `~/.cache/reachweaver` is rebuilt by itself.
-- **A worker log** you pointed `publish --log-file` at, and any attachment files that were kept outside the workspace.
 
-> If you keep a secrets file such as `.env.reachweaver` in the same folder, **do not copy it with the workspace**. Copy `config/` and `state/` only, and move the secrets through your password manager or another secure channel.
-
-## Check before you copy
+## Checking the folder
 
 ```bash
 reachweaver workspace
 ```
 
-It is read-only. It shows where everything is, whether the database is intact, whether the approval ledger still matches it, which credential names are missing on this computer, and which attached files are missing or changed. It ends with `Ready to copy and use on another computer: yes` or lists what to fix first. It exits 1 when something blocks.
+Read-only. It shows where everything is, whether the database is intact and not in use (a `-journal` or `-wal` file means a run is in progress), whether the approval ledger still matches it, which credential names are missing here, which attachments of unsent posts are missing, changed or outside the folder, and whether a secrets file is sitting in it. It exits 1 when something would break the copy.
 
-Things it will tell you to fix before copying:
+## If you moved files by hand instead
 
-- **The database is in use** (a `-journal` or `-wal` file exists). Let the running command finish, then copy.
-- **The approval ledger is missing or does not match.** Always copy `state/approval-ledger.jsonl` together with the database.
-
-## Copy
-
-Copy `config/` and `state/` (and your attachment files, see below) to the same relative layout on the new computer. A plain folder copy, `rsync` or a zip all work. Do it while no ReachWeaver command is running.
-
-## Use it on the new computer
-
-```bash
-cd my-workspace
-reachweaver workspace        # same report: what is missing here
-reachweaver connect          # which credential names still need to be set
-reachweaver connect --guide  # walk through connecting the accounts
-reachweaver list             # your drafts and posts are all there
-```
-
-## Attached images and videos
-
-The database records each attachment by **absolute path and SHA-256**. For a post that has already gone out, a moved file does not matter: the record keeps the hash and `journal` says the file is no longer available. For a post that is **not sent yet** (draft, approved, scheduled), the file has to be found at its recorded path, or a send is refused until it is.
-
-Two ways to fix that:
-
-1. Put the files at the same absolute path on the new computer.
-2. Point the records at the new folder:
-
-```bash
-reachweaver media-relink --from /old/media/folder --to /new/media/folder          # dry run
-reachweaver media-relink --from /old/media/folder --to /new/media/folder --apply
-```
-
-`media-relink` only rewrites posts that are not sent and not in flight. It writes a path only after reading the file at the new location and finding it matches the recorded SHA-256, and it checks inside one transaction that the approval hash is unchanged, so **a relinked post stays approved**. Anything that does not match is listed and left alone. It does not copy files; move them first.
+`reachweaver media-relink --from /old/media/folder --to /new/media/folder [--apply]` rewrites the folder prefix of recorded attachment paths (dry run by default). It has the same safety rules: only unsent posts, only files whose SHA-256 still matches, approval hash unchanged.
 
 ## Honest limits
 
-- Copying a folder is not a backup strategy: keep your own backups of `state/` and `config/`.
-- The approval ledger protects against replaying an old approval. It is a file next to the database; a copy that loses it leaves approvals that cannot be re-checked, and sends for them are refused.
-- Two computers using the same copy at the same time will diverge. Use one at a time.
-- `media-relink` handles absolute paths under one folder prefix. Files that moved individually need to be put back or re-attached.
+- Copying a folder is not a backup strategy: keep your own backups of the workspace.
+- The approval ledger protects against replaying an old approval. A copy that loses `state/approval-ledger.jsonl` leaves approvals that cannot be re-checked, and sends for them are refused.
+- Two computers using copies of the same workspace at the same time will diverge. Use one at a time.
+- Files of posts that were already sent do not matter for the move: the record keeps their hashes, and `journal` says whether the file is still there. `archive --copy-files` keeps copies.
 
 See also: [account onboarding](ACCOUNT-ONBOARDING.md) (credentials), [journal and archive](JOURNAL.md), [privacy lifecycle](PRIVACY-LIFECYCLE.md) and [start here](START-HERE.md).

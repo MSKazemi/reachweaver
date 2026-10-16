@@ -22,7 +22,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-from . import __version__
+from . import __version__, home
 from .policy import PLATFORMS, ValidationError
 
 REPO = "MSKazemi/reachweaver"
@@ -158,7 +158,7 @@ def configured_platforms(path: str | Path | None) -> list[str]:
     credential is read. A missing, oversized or malformed file gives ``[]``; this never raises.
     """
     try:
-        file = Path(path or "config/accounts.json")
+        file = Path(path or home.default_path("config/accounts.json"))
         if not file.is_file() or file.stat().st_size > MAX_ACCOUNTS_BYTES:
             return []
         data = json.loads(file.read_text(encoding="utf-8"))

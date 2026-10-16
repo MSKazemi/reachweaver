@@ -17,7 +17,10 @@ the approval hash did not change. No network, credential or browser is involved.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import os
+import re
 import sqlite3
 import stat
 from pathlib import Path, PurePosixPath
@@ -28,7 +31,7 @@ from .accounts import missing_credentials
 from .attachments import decode_media, encode_media
 from .policy import ValidationError
 from .repeat_guard import sha256_file
-from .storage import RELINK_STATUSES, rewrite_attachment_paths, schema_gaps
+from .storage import RELINK_STATUSES, rewrite_attachment_paths, schema_gaps, utc_now
 from .video import decode_video, encode_video
 
 UNSENT = ("draft", "approved", "scheduled", "needs_review")
@@ -81,7 +84,8 @@ def _file_state(record: dict, verify: bool) -> str:
     return "ok"
 
 
-def inspect(con, db_path: Path, accounts: Mapping[str, dict] | None, accounts_path: Path, base: Path) -> dict:
+def inspect(con, db_path: Path, accounts: Mapping[str, dict] | None, accounts_path: Path, base: Path,
+            root: Path | None = None) -> dict:
     """Read-only report. ``con`` is a read-only connection to the database."""
     paths = [_entry("accounts", accounts_path), *[_entry(label, base / rel) for label, rel in OPTIONAL_FILES],
              _entry("database", db_path, must_be_private=True),
@@ -131,20 +135,37 @@ def inspect(con, db_path: Path, accounts: Mapping[str, dict] | None, accounts_pa
         add("history_files_missing", "info", "some files of posts already sent are not on this computer",
             "Nothing to do: the record keeps their hashes. `archive --copy-files` keeps copies of the ones you still have.")
 
+    if root is None:
+        add("not_a_marked_workspace", "info", "there is no .reachweaver-workspace marker here or above",
+            "`workspace --init DIR` creates the one-folder layout (config, state, media, logs); until then copy config/ and "
+            "state/ yourself.")
+    else:
+        outside = [f for f in files if f["unsent"] and not _inside(f["path"], root)]
+        if outside:
+            add("attachment_outside_workspace", "warning",
+                f"{len(outside)} attachment(s) of unsent posts live outside {root}",
+                "`workspace --gather --apply` copies them into media/ so the folder is self-contained.")
+        secret_files = sorted(f.name for f in root.iterdir() if f.is_file() and (f.name == "secrets.env" or f.name.startswith(".env"))
+                              and not f.name.endswith(".example"))
+        if secret_files:
+            add("secrets_in_folder", "warning", f"{', '.join(secret_files)} in this folder holds plain-text credentials",
+                "ReachWeaver never writes it. Do not copy it with the workspace or over an insecure channel; keep it chmod 600 "
+                "and move credentials through your password manager.")
+
     credentials: dict[str, list[str]] = {}
     if accounts is None:
         add("accounts_file_missing", "info", f"{accounts_path} not found",
             "Copy config/accounts.json from the old computer, or start from config/accounts.example.json.")
     else:
         credentials = {name: missing_credentials(account) for name, account in accounts.items()}
-    return {"paths": paths, "database": database, "ledger": audit["status"], "files": files,
+    return {"workspace": str(root) if root is not None else None, "paths": paths, "database": database, "ledger": audit["status"], "files": files,
             "credentials_missing": {k: v for k, v in credentials.items() if v},
             "not_in_the_folder": list(NOT_IN_THE_FOLDER), "problems": problems,
             "ready_to_copy": not any(p["level"] == "blocking" for p in problems)}
 
 
 def render(report: dict) -> str:
-    lines = ["Workspace", ""]
+    lines = ["Workspace" + (f": {report['workspace']}" if report.get("workspace") else " (no marker file; see workspace --init)"), ""]
     for entry in report["paths"]:
         mark = "found  " if entry["exists"] else "absent "
         note = "" if entry["private"] in (None, True) else "  (readable by others: chmod it to 700/600)"
@@ -200,9 +221,11 @@ def plan_relink(con, old_prefix: str, new_prefix: str) -> list[dict]:
     return plan
 
 
-def apply_relink(con, plan: list[dict], old_prefix: str, new_prefix: str) -> dict:
-    """Rewrite posts whose every moved attachment verified; others are left untouched and reported."""
-    old, new = PurePosixPath(old_prefix), PurePosixPath(new_prefix)
+def apply_relink(con, plan: list[dict]) -> dict:
+    """Rewrite posts whose every moved attachment verified; others are left untouched and reported.
+
+    ``plan`` rows carry the exact ``from`` and ``to`` path; a post is rewritten only if all of its rows are ``ok``.
+    """
     by_post: dict[str, list[dict]] = {}
     for item in plan:
         by_post.setdefault(item["post_id"], []).append(item)
@@ -211,19 +234,165 @@ def apply_relink(con, plan: list[dict], old_prefix: str, new_prefix: str) -> dic
         if any(item["state"] != "ok" for item in items):
             skipped.append(post_id)
             continue
+        moved = {item["from"]: item["to"] for item in items}
         row = con.execute("SELECT media_json, video_json FROM posts WHERE id=?", (post_id,)).fetchone()
         media = decode_media(row["media_json"])
-        for item in media:
-            if item["source"] == "local":
-                moved = _moved(item["path"], old, new)
-                if moved is not None:
-                    item["path"] = moved
+        for entry in media:
+            if entry["source"] == "local" and entry["path"] in moved:
+                entry["path"] = moved[entry["path"]]
         video = decode_video(row["video_json"])
-        if video is not None:
-            moved = _moved(video["path"], old, new)
-            if moved is not None:
-                video["path"] = moved
+        if video is not None and video["path"] in moved:
+            video["path"] = moved[video["path"]]
         rewrite_attachment_paths(con, post_id, media_json=encode_media(media),
                                  video_json=encode_video(video) if video is not None else None)
         done.append(post_id)
     return {"relinked": done, "skipped": skipped}
+
+
+# ---- the one-folder layout: init, gather, repair -------------------------------------------------------------------
+
+LAYOUT = (("config", 0o755), ("state", 0o700), ("media", 0o700), ("logs", 0o700))
+_SAFE = re.compile(r"[^A-Za-z0-9._-]+")
+README_TEXT = """\
+This folder is a ReachWeaver workspace: everything that is yours, in one place.
+
+  config/   your accounts (handles and servers only, never a secret), opt-out list, caps
+  state/    the private database, the approval ledger, the archive of what you posted
+  media/    keep the images and videos you attach here
+  logs/     use `reachweaver publish --log-file logs/worker.jsonl` for worker logs
+
+To move to another computer: install ReachWeaver there, copy this whole folder (but NOT secrets.env if you made
+one), `cd` into it and run `reachweaver workspace --repair --apply`. Set your credentials again on the new
+computer (`reachweaver connect` lists the names). Details: docs/MOVING.md.
+
+Credentials are never stored in this folder by ReachWeaver. If you keep your own secrets.env here, keep it
+private (chmod 600) and do not send it over an insecure channel.
+"""
+
+
+def _example_accounts() -> Path | None:
+    here = Path(__file__).resolve()
+    for candidate in (here.parents[1] / "config" / "accounts.example.json", here.parents[2] / "assets" / "accounts.example.json"):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def init_workspace(root: Path) -> dict:
+    """Create (or complete) the one-folder layout. Existing files are never overwritten or moved."""
+    from .home import MARKER
+    created: list[str] = []
+    kept: list[str] = []
+    root.mkdir(parents=True, exist_ok=True)
+
+    def make_dir(rel: str, mode: int) -> None:
+        folder = root / rel
+        (kept if folder.is_dir() else created).append(rel + "/")
+        folder.mkdir(mode=mode, exist_ok=True)
+
+    def make_file(rel: str, text: str, mode: int = 0o644) -> None:
+        target = root / rel
+        if target.exists():
+            kept.append(rel)
+            return
+        fd = os.open(target, os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0), mode)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        created.append(rel)
+
+    for rel, mode in LAYOUT:
+        make_dir(rel, mode)
+    make_file(MARKER, json.dumps({"kind": "reachweaver-workspace", "version": 1, "created_at": utc_now()}) + "\n")
+    example = _example_accounts()
+    if example is not None:
+        make_file("config/accounts.json", example.read_text(encoding="utf-8"))
+    names: list[str] = []
+    try:
+        from .accounts import load_accounts, account_credential_suffixes
+        for account in load_accounts(root / "config" / "accounts.json").values():
+            names += [account["env_prefix"] + suffix for suffix in account_credential_suffixes(account)]
+    except ValidationError:
+        pass
+    template = ("# Names only. Copy to secrets.env, fill in the values on the computer you use, keep it chmod 600,\n"
+                "# and never copy it with the workspace. Load it in YOUR terminal: set -a; . ./secrets.env; set +a\n"
+                + "".join(f"{name}=\n" for name in sorted(set(names))))
+    make_file("secrets.env.example", template)
+    make_file(".gitignore", "state/\nmedia/\nlogs/\nsecrets.env\n.env*\n")
+    make_file("README-WORKSPACE.txt", README_TEXT)
+    for rel in ("state", "media", "logs"):
+        if os.name == "posix":
+            os.chmod(root / rel, 0o700)
+    return {"root": str(root), "created": created, "kept": kept}
+
+
+def _inside(path: str, folder: Path) -> bool:
+    try:
+        return Path(path).resolve().is_relative_to(folder.resolve())
+    except OSError:
+        return False
+
+
+def _unsent_attachments(con):
+    marks = ",".join("?" for _ in RELINK_STATUSES)
+    for row in con.execute(f"SELECT id, status, media_json, video_json FROM posts WHERE status IN ({marks})", RELINK_STATUSES):
+        for kind, record in _attachments(row):
+            yield row, kind, record
+
+
+def plan_gather(con, root: Path) -> list[dict]:
+    """Attachments of unsent posts that live outside ``media/``: where each would be copied to."""
+    media = root / "media"
+    plan = []
+    for row, kind, record in _unsent_attachments(con):
+        if _inside(record["path"], media):
+            continue
+        target = media / f"{record['sha256'][:8]}-{_SAFE.sub('-', Path(record['path']).name)[:80]}"
+        state = _file_state(record, verify=True)
+        plan.append({"post_id": row["id"], "status": row["status"], "kind": kind, "from": record["path"],
+                     "to": str(target), "state": state, "sha256": record["sha256"]})
+    return plan
+
+
+def copy_verified(source: str, target: str, expected_sha: str) -> bool:
+    """Copy a file into the workspace only if its bytes match the recorded SHA-256. Existing identical files are reused."""
+    destination = Path(target)
+    if destination.is_file() and sha256_file(destination) == expected_sha:
+        return True
+    temp = destination.with_name(destination.name + ".part")
+    digest = hashlib.sha256()
+    try:
+        with open(source, "rb") as handle, open(temp, "xb") as out:
+            for chunk in iter(lambda: handle.read(1 << 20), b""):
+                digest.update(chunk)
+                out.write(chunk)
+        if digest.hexdigest() != expected_sha:
+            temp.unlink(missing_ok=True)
+            return False
+        os.chmod(temp, 0o600)
+        os.replace(temp, destination)
+        return True
+    except OSError:
+        temp.unlink(missing_ok=True)
+        return False
+
+
+def plan_repair(con, root: Path) -> list[dict]:
+    """Attachments of unsent posts whose recorded path is gone, found again inside ``media/`` by size and SHA-256."""
+    media = root / "media"
+    by_size: dict[int, list[Path]] = {}
+    if media.is_dir():
+        for found in sorted(media.rglob("*")):
+            if found.is_file() and not found.is_symlink() and not found.name.endswith(".part"):
+                by_size.setdefault(found.stat().st_size, []).append(found)
+    plan = []
+    for row, kind, record in _unsent_attachments(con):
+        if _file_state(record, verify=False) == "ok":
+            continue
+        match = None
+        for candidate in by_size.get(record.get("bytes"), []):
+            if sha256_file(candidate) == record["sha256"]:
+                match = candidate
+                break
+        plan.append({"post_id": row["id"], "status": row["status"], "kind": kind, "from": record["path"],
+                     "to": str(match) if match else None, "state": "ok" if match else "missing"})
+    return plan

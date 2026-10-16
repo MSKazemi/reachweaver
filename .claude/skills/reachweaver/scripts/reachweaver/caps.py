@@ -32,6 +32,7 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
+from . import home
 from .policy import ValidationError
 
 CAPS_SCHEMA_VERSIONS = (1, 2)
@@ -108,7 +109,8 @@ def caps_source(path: str | Path | None = None) -> Path | None:
     env = os.environ.get(CAPS_ENV)
     if env:
         return Path(env)
-    return DEFAULT_CAPS_PATH if DEFAULT_CAPS_PATH.is_file() else None
+    default = home.default_path(DEFAULT_CAPS_PATH)
+    return default if default.is_file() else None
 
 
 def load_caps(path: str | Path | None = None) -> tuple[dict | None, Path | None]:

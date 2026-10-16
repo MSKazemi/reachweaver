@@ -78,6 +78,6 @@ Short, plain explanations, in alphabetical order. For the bigger picture read th
 
 **UTM link** — A web link with tracking labels added so you can later see which post brought a visitor. `utm-link` builds them without third-party trackers.
 
-**Workspace** — The folder you run ReachWeaver from: your `config/` (account metadata, no secrets) and `state/` (the private database, the approval ledger, the archive). It is separate from the program and holds no credentials, so you can copy it to another computer. See [moving to another computer](MOVING.md).
+**Workspace** — One folder that holds everything that is yours: `config/` (account metadata, no secrets), `state/` (the private database, the approval ledger, the archive), `media/` (images and videos you attach) and `logs/`. A small marker file, `.reachweaver-workspace`, makes commands run inside it use it automatically. It is separate from the program and holds no credentials, so you can copy it to another computer. Create one with `reachweaver workspace --init DIR`. See [your workspace folder](MOVING.md).
 
 **Unknown** — What a report shows when a number is missing. ReachWeaver never turns missing data into zero.

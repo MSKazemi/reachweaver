@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from . import home
 from .policy import ValidationError
 from .private_sources import (REDACTED_PRIVATE, is_private_evidence, redact_private_evidence, repo_of_url,
                               url_in_private_repo)
@@ -196,7 +197,8 @@ def policy_source(path: str | Path | None = None) -> Path | None:
         return Path(path)
     if os.environ.get(POLICY_ENV):
         return Path(os.environ[POLICY_ENV])
-    return DEFAULT_POLICY_PATH if DEFAULT_POLICY_PATH.is_file() else None
+    default = home.default_path(DEFAULT_POLICY_PATH)
+    return default if default.is_file() else None
 
 
 def load_policy(path: str | Path | None = None) -> tuple[dict, Path]:

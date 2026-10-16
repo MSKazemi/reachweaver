@@ -14,6 +14,7 @@ import re
 import stat
 from pathlib import Path
 from typing import Iterable, Mapping
+from . import home
 from .policy import (MASTODON_MEDIA_DEFAULTS, MASTODON_VISIBILITIES, PLATFORMS, ValidationError,
                      require_https_public_server)
 
@@ -292,7 +293,7 @@ def validate_mastodon_options(raw: dict, account_id: str = "") -> None:
 
 def accounts_path(path: str | Path | None = None) -> Path:
     """``--accounts``, else ``$REACHWEAVER_ACCOUNTS``, else ``config/accounts.json`` (relative to the working folder)."""
-    return Path(path or os.environ.get("REACHWEAVER_ACCOUNTS", "config/accounts.json"))
+    return Path(path or os.environ.get("REACHWEAVER_ACCOUNTS", str(home.default_path("config/accounts.json"))))
 
 
 def load_accounts(path: str | Path | None = None) -> dict[str, dict]:
