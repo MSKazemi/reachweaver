@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reviewed_on": "2026-10-15",
+  "reviewed_on": "2026-10-16",
   "decision_type": "editorial_research_hypotheses_not_predictions",
   "reachweaver_live_status": "As of 2026-10-15: one approved text post each was sent through ReachWeaver to Bluesky and Mastodon on 2026-10-11 (first-party receipts in docs/receipts/); Telegram/LinkedIn-member text adapters mock-tested only, with no live send; no other platform has a live receipt.",
   "time_slot_policy": {
@@ -1284,6 +1284,104 @@
       "human_only": false,
       "checked_on": "2026-10-15",
       "research_source": "https://developers.viber.com/docs/tools/channels-post-api/"
+    },
+    {
+      "id": "peertube",
+      "label": "PeerTube",
+      "category": "video",
+      "scheduling": {
+        "mode": "native_conditional",
+        "scope": "Federated, self-hosted video software run as separate instances. The official upload guide lists a Scheduled visibility (the video stays hidden until a chosen date) for PeerTube 6.0 or later, and says the platform administrator must enable the option, so it depends on the instance. Promotion rules were not read and are unverified.",
+        "official_source": "https://docs.joinpeertube.org/use/create-upload-video"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-16",
+      "research_source": "https://docs.joinpeertube.org/use/create-upload-video"
+    },
+    {
+      "id": "nostr",
+      "label": "Nostr",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Nostr describes itself as a free and open-source protocol for social media, controlled by users, not platforms. Posting is done through any client and relay, so there is no single product, scheduler, terms page or automation rule to cite; scheduling and rules depend on the client and relays chosen and were not verified.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-16",
+      "research_source": "https://nostr.com/"
+    },
+    {
+      "id": "farcaster",
+      "label": "Farcaster",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Farcaster's documentation describes a protocol for building sufficiently decentralized social networks. Posting goes through a client app built on the protocol. The docs site is rendered by script, so scheduling, limits and automation rules for posts were not read and are unverified.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-16",
+      "research_source": "https://docs.farcaster.xyz/"
+    },
+    {
+      "id": "pixelfed",
+      "label": "Pixelfed",
+      "category": "visual",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Federated photo-sharing software; the official documentation site lists ActivityPub documentation. The site is rendered by script, so scheduling, limits and promotion rules were not read and are unverified, and they may differ by instance and version.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-16",
+      "research_source": "https://docs.pixelfed.org/"
+    },
+    {
+      "id": "matrix",
+      "label": "Matrix rooms",
+      "category": "messaging",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Matrix.org's \"Matrix for Instant Messaging\" page was fetched (HTTP 200). Nothing on it covers scheduling or promotional posting, so both are unverified. Treat each room's own rules as binding and write as a person; ReachWeaver writes no text for it.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-16",
+      "research_source": "https://matrix.org/docs/chat_basics/matrix-for-im/"
+    },
+    {
+      "id": "kaggle",
+      "label": "Kaggle",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Kaggle's Terms of Use page was fetched (HTTP 200). Its description says it sets the rules and restrictions for use of the Services, but the text is rendered by script and nothing about scheduling, promotion or automation was read, so all three are unverified. Treated as human-only until the rules are read: ReachWeaver writes no text for it.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-16",
+      "research_source": "https://www.kaggle.com/terms"
+    },
+    {
+      "id": "hackernoon",
+      "label": "HackerNoon",
+      "category": "writing",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Tech publishing platform with a help centre for readers, writers and brands. The help page is rendered by script, so the submission process, scheduling and any AI-content rule were not read and are unverified. Check HackerNoon's current writer guidelines before submitting, and write the story yourself.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-16",
+      "research_source": "https://help.hackernoon.com/"
     }
   ],
   "markets": [

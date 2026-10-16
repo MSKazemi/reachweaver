@@ -142,7 +142,7 @@ ReachWeaver also has offline tools that never touch an account. Each is covered 
 
 - **Next actions**: `reachweaver suggest` turns your profile checks, imported metrics and open safety issues into one ranked to-do list. It never guesses rankings or predicts likes.
 - **Profile and post audits**: `profile-audit` and `post-audit` check each network on its own terms (LinkedIn, YouTube, Instagram, DEV, Mastodon, Reddit and more), and `peer-benchmark` compares public counters you copied by hand.
-- **Worldwide channel research**: `distribution-plan` ranks channels for a region and goal. The registry catalogs **93 channels across 18 market pilots**. It is a research hypothesis, never a promise of traffic and never permission to post.
+- **Worldwide channel research**: `distribution-plan` ranks channels for a region and goal. The registry catalogs **100 channels across 18 market pilots**. It is a research hypothesis, never a promise of traffic and never permission to post.
 - **Campaigns from evidence**: `campaign-check`, `campaign-preview`, `claims-check` and `campaign-export` keep every claim tied to a source.
 - **Analytics you import yourself**: `import-metrics`, `report`, `engagement-triage` and `experiment-*` help you learn from real numbers. Missing numbers are shown as unknown, never as zero.
 

@@ -2148,11 +2148,8 @@ def execute(args) -> int:
         gone: list[str] = []
         if storage_database_path(args.db).is_file():  # read-only: the status table never creates or changes the database
             try:
-                ro = connect_readonly(storage_database_path(args.db))
-                try:
+                with connect_readonly(storage_database_path(args.db)) as ro:
                     gone = account_disconnect.disconnected_accounts(ro)
-                finally:
-                    ro.close()
             except (ValidationError, sqlite3.Error):
                 gone = []
         if not args.guide:

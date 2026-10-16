@@ -26,7 +26,7 @@ class GlobalDistributionTests(unittest.TestCase):
 
     def test_version_and_complete_channel_coverage(self):
         self.assertEqual(self.data["schema_version"], 1)
-        self.assertEqual(self.data["reviewed_on"], "2026-10-15")
+        self.assertEqual(self.data["reviewed_on"], "2026-10-16")
         ids = {p["id"] for p in self.data["platforms"]}
         self.assertGreaterEqual(len(ids), 30)
         self.assertTrue({
@@ -44,12 +44,32 @@ class GlobalDistributionTests(unittest.TestCase):
         }.issubset(market_ids))
         self.assertEqual(validate_registry(self.data), [])
 
+    def test_channels_added_2026_10_16_are_manual_and_sourced(self):
+        added = ("peertube", "nostr", "farcaster", "pixelfed", "matrix", "kaggle", "hackernoon")
+        by_id = {p["id"]: p for p in self.data["platforms"]}
+        for platform_id in added:
+            with self.subTest(platform=platform_id):
+                platform = by_id[platform_id]
+                self.assertEqual(platform["reachweaver_delivery"], "manual_only")
+                self.assertEqual(platform["checked_on"], "2026-10-16")
+                self.assertTrue(platform["research_source"].startswith("https://"))
+                self.assertGreater(len(platform["scheduling"]["scope"]), 80)
+        # only PeerTube documents a scheduling feature; every other new entry says it could not verify one
+        self.assertEqual(by_id["peertube"]["scheduling"]["mode"], "native_conditional")
+        self.assertTrue(by_id["peertube"]["scheduling"]["official_source"].startswith("https://docs.joinpeertube.org/"))
+        for platform_id in added[1:]:
+            self.assertEqual(by_id[platform_id]["scheduling"]["mode"], "unverified", platform_id)
+        # communities whose rules were not read are treated as human-only
+        for platform_id in ("matrix", "kaggle"):
+            self.assertTrue(by_id[platform_id]["human_only"], platform_id)
+
     def test_added_regional_channels_remain_research_only(self):
         added = ["xiaohongshu","wechat_channels","toutiao","baidu_tieba","douban","maimai","qzone","note_jp","naver_blog","naver_cafe","kakao_openchat","dcard","ptt","pantip","line_openchat","zalo_official_account","kaskus","sharechat","moj","vk","odnoklassniki","dzen","habr","medium","substack","snapchat","kwai"]
         self.assertEqual(len(added), 27)
         # 72 global and regional entries, the 18 community and creator surfaces of tests/test_platform_research_batch.py
-        # the LINE Official Account and Kakao Talk Channel entries (#25, #26) and PIXNET (salvaged from PR #65)
-        self.assertEqual(len(self.data["platforms"]), 72 + 18 + 2 + 1)
+        # the LINE Official Account and Kakao Talk Channel entries (#25, #26), PIXNET (salvaged from PR #65) and
+        # the seven manual-only entries added 2026-10-16 (see test_channels_added_2026_10_16_are_manual_and_sourced)
+        self.assertEqual(len(self.data["platforms"]), 72 + 18 + 2 + 1 + 7)
         self.assertEqual(len(self.data["markets"]), 18)
         by_id = {p["id"]: p for p in self.data["platforms"]}
         for platform_id in added:
@@ -126,7 +146,7 @@ class GlobalDistributionTests(unittest.TestCase):
     def test_per_platform_evidence_dates_do_not_backfill_false_reviews(self):
         data = deepcopy(self.data)
         self.assertEqual(validate_registry(data), [])
-        data["platforms"][0]["checked_on"] = "2026-10-16"
+        data["platforms"][0]["checked_on"] = "2026-10-17"
         self.assertTrue(any("cannot be later" in e for e in validate_registry(data)))
         data["platforms"][0]["checked_on"] = "not-a-date"
         self.assertTrue(any("ISO 8601" in e for e in validate_registry(data)))

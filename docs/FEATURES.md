@@ -33,7 +33,7 @@ The CSV is read into memory, never published or saved elsewhere; owner acknowled
 
 ## International social discovery (research only, issue #64)
 
-The offline distribution planner catalogs **93 channels across 18 market pilots**, including India-focused ShareChat, Moj, Josh, Chingari, Hipi, Public App, Kutumb, Arattai Channels, LocalCircles, Pratilipi and Rooter; plus Xiaohongshu/REDnote, Weixin Channels, Naver, VK and other regional platforms. See [regional channel research and India use cases](REGIONAL-CHANNELS-2026-10-14.md) and [community, creator and publishing platform research](COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md) and try `reachweaver distribution-plan --region india --goal awareness --limit 12 --json`. New entries are **manual-only** with `unverified` native scheduling; community discussion and opt-in channel messages stay human-only. No new API adapter, account connection or remote publication is implied.
+The offline distribution planner catalogs **100 channels across 18 market pilots**, including India-focused ShareChat, Moj, Josh, Chingari, Hipi, Public App, Kutumb, Arattai Channels, LocalCircles, Pratilipi and Rooter; plus Xiaohongshu/REDnote, Weixin Channels, Naver, VK and other regional platforms. See [regional channel research and India use cases](REGIONAL-CHANNELS-2026-10-14.md) and [community, creator and publishing platform research](COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md) and try `reachweaver distribution-plan --region india --goal awareness --limit 12 --json`. New entries are **manual-only** with `unverified` native scheduling; community discussion and opt-in channel messages stay human-only. No new API adapter, account connection or remote publication is implied.
 
 ## Per-platform profile and post audits (offline, Issue #3)
 
@@ -63,7 +63,7 @@ For a source-backed, moderation-aware 30-day plan prioritizing DEV, LinkedIn, Gi
 
 ## Worldwide audience selection: executable, offline research
 
-ReachWeaver now includes a **versioned and tested research registry** spanning 93 networks/surfaces and 18 country/global market profiles, including India, China, Japan, Southeast Asia, Africa and Brazil. It also records native scheduling evidence separately from ReachWeaver's actual account and API capabilities. Results are **editorial channel hypotheses**, never guaranteed traffic, a detected account connection, a remote scheduling receipt or publishing permission.
+ReachWeaver now includes a **versioned and tested research registry** spanning 100 networks/surfaces and 18 country/global market profiles, including India, China, Japan, Southeast Asia, Africa and Brazil. It also records native scheduling evidence separately from ReachWeaver's actual account and API capabilities. Results are **editorial channel hypotheses**, never guaranteed traffic, a detected account connection, a remote scheduling receipt or publishing permission.
 
 ```bash
 # No account credentials or network access needed. These NEVER queue or publish.
