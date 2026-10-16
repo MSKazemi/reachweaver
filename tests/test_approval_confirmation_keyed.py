@@ -321,9 +321,9 @@ class KeyedBindingCliTests(Base):
         return {"REACHWEAVER_ALLOW_LIVE": "1", "REACHWEAVER_ENV": "prod",
                 "REACHWEAVER_TEST_KEYED_IDENTIFIER": "name", "REACHWEAVER_TEST_KEYED_APP_PASSWORD": "app-pw", **extra}
 
-    def draft(self):
+    def draft(self, text="A useful verified research note"):
         with connect(self.db) as db:
-            return add_post(db, "my-bluesky", "bluesky", "A useful verified research note")
+            return add_post(db, "my-bluesky", "bluesky", text)
 
     def test_approve_reports_keyed_and_live_send_blocks_forged_row_before_preflight(self):
         pid = self.draft()
@@ -349,7 +349,8 @@ class KeyedBindingCliTests(Base):
         self.assertEqual(code, 0, out + err)
         sent.assert_called_once()
         with patch("reachweaver.cli.check_connection") as preflight:
-            other = self.draft()
+            # different wording: the repeat guard (not under test here) refuses to re-approve the one just published
+            other = self.draft("Another verified research note about a different finding")
             self.cli("approve", other, env=WITH_KEY)
             code, out, err = self.cli("publish", "--live", "--post-id", other, env=self.live_env())  # key gone
         self.assertEqual(code, 2)

@@ -26,6 +26,7 @@ ReachWeaver itself runs on your own computer and keeps its records there, in a s
 ## What it will never do
 
 - It never posts without your approval of that exact text. Change one letter after approving and the approval no longer counts.
+- It never lets you approve the same video, image or wording twice for the same account on a platform by accident: `repeat-check` compares each draft with your history first, and you must pass `--allow-repeat` on purpose ([repeat guard](docs/REPEAT-GUARD.md)).
 - It never sends anything by default. Every command is a **dry run** (a rehearsal that contacts no one) unless you add the live switches on purpose.
 - It never stores your passwords. Account details go in an ignored file with **no secrets**, and credentials are read from your own environment only at the moment of sending.
 - It never buys views, fakes engagement, scrapes, bypasses CAPTCHAs or mass-messages strangers.
@@ -143,6 +144,7 @@ ReachWeaver also has offline tools that never touch an account. Each is covered 
 - **Next actions**: `reachweaver suggest` turns your profile checks, imported metrics and open safety issues into one ranked to-do list. It never guesses rankings or predicts likes.
 - **Profile and post audits**: `profile-audit` and `post-audit` check each network on its own terms (LinkedIn, YouTube, Instagram, DEV, Mastodon, Reddit and more), and `peer-benchmark` compares public counters you copied by hand.
 - **Worldwide channel research**: `distribution-plan` ranks channels for a region and goal. The registry catalogs **100 channels across 18 market pilots**. It is a research hypothesis, never a promise of traffic and never permission to post.
+- **Repeat guard**: `repeat-check` and `mark-shared` stop you posting the same video, image or wording twice. Record what you posted by hand with `mark-shared`; drafts are compared with it, and with everything ReachWeaver has sent, before approval. See the [repeat guard guide](docs/REPEAT-GUARD.md).
 - **Campaigns from evidence**: `campaign-check`, `campaign-preview`, `claims-check` and `campaign-export` keep every claim tied to a source.
 - **Analytics you import yourself**: `import-metrics`, `report`, `engagement-triage` and `experiment-*` help you learn from real numbers. Missing numbers are shown as unknown, never as zero.
 
@@ -191,6 +193,9 @@ Every command is listed here with its options. Most people only need the five in
 reachweaver init                         local DB initialization
 reachweaver doctor                       check account mapping / missing env names
 reachweaver credentials-audit [--history FILE] [--json]  offline credential hygiene: names only, never values; exit 1 on findings
+reachweaver repeat-check (--post-id ID | --platform P [--account ID] [--text T | --file F] [--image F]... [--video F] [--link URL]...) [--days N] [--json]  read-only: has this platform already received the same video file, image file, wording or link (stored posts plus `mark-shared` records)? exit 1 only for a repeat that would block approval; never carries earlier text (docs/REPEAT-GUARD.md)
+reachweaver mark-shared --platform P [--account ID] [--text T | --file F] [--image F]... [--video F] [--link URL]... [--url U] [--at ISO] [--note N]  record material you posted by hand so later drafts are checked against it; local ledger only, posts nothing
+reachweaver approve POST_ID ... [--allow-repeat]  refuses a blocking repeat (same video/image file or identical wording already shared by this account on this platform) unless --allow-repeat, which records a `repeat_override` audit event
 reachweaver connect [--guide] [--account ID] [--json]  experimental: offline status table of your accounts (credential variable names only); --guide walks through them one at a time with you at a terminal, one read-only identity check per account you confirm; takes no secret, never posts
 reachweaver draft --account X --text Y [--optout F]   create a reviewable draft; refused if it @-mentions an opted-out handle/domain
 reachweaver draft --account X --file F    create draft from UTF-8 file

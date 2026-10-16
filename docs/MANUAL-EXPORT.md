@@ -165,3 +165,7 @@ This slice delivers the manual fallback and the preflight that every issue names
 **Update (2026-10-09):** later slices added a mock-tested adapter with mocked API contract tests for each of #19 to #23 (owner-approved 2026-10-09; see [THREADS.md](THREADS.md), [INSTAGRAM.md](INSTAGRAM.md), [FACEBOOK.md](FACEBOOK.md), [YOUTUBE.md](YOUTUBE.md) and [TIKTOK.md](TIKTOK.md)). Every one stays disabled in the capability registry until a supervised live receipt, so manual export is still the publishing path; app review, real receipts and analytics remain open.
 
 Any future adapter needs its own security review and must keep human approval, dry run, the emergency stop, credential isolation and ambiguous-send reconciliation unchanged.
+
+## After you post a package by hand
+
+`manual-export` cannot see what you do with the package. Once you have posted it yourself, record it with `reachweaver mark-shared --platform P --video FILE --text "..."`, so the [repeat guard](REPEAT-GUARD.md) warns you if the same video or wording is about to go out again on that platform.

@@ -89,6 +89,20 @@ CREATE TABLE IF NOT EXISTS metric_snapshots (
   metric_status TEXT,
   UNIQUE(post_id, observed_at, source)
 );
+CREATE TABLE IF NOT EXISTS shared_material (
+  id TEXT PRIMARY KEY,
+  platform TEXT NOT NULL,
+  account_id TEXT,
+  recorded_at TEXT NOT NULL,
+  posted_at TEXT,
+  url TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL DEFAULT '',
+  content TEXT NOT NULL DEFAULT '',
+  images_json TEXT NOT NULL DEFAULT '[]',
+  video_sha256 TEXT,
+  links_json TEXT NOT NULL DEFAULT '[]'
+);
+CREATE INDEX IF NOT EXISTS idx_shared_platform ON shared_material(platform);
 CREATE TABLE IF NOT EXISTS cooldown_scope_members (
   account_id TEXT NOT NULL,
   scope TEXT NOT NULL,
@@ -1720,6 +1734,56 @@ def posting_history(con, account_ids: list[str], statuses: tuple[str, ...], *, s
                  WHERE activity_at>=? ORDER BY activity_at DESC, id LIMIT ?""")
     params = [*account_ids, *statuses, parse_utc(since), int(limit)]
     return [dict(row) for row in con.execute(query, params)]
+
+
+REPEAT_ROWS_MAX = 5000  # newest posts of a platform compared per check
+
+
+def repeat_candidates(con, platform: str, exclude_post_id: str | None = None) -> list[dict]:
+    """Posts of ``platform`` (any account, any status but cancelled) to compare new material with (SELECT only).
+
+    Each row carries the stored text, ``media_json``, ``video_json`` and ``source_url`` for the caller's hash and
+    similarity comparison, plus ``activity_at`` (see :func:`posting_history`). Callers must never emit the text.
+    """
+    activity = ("COALESCE((SELECT MAX(e.at) FROM event_log e WHERE e.post_id=p.id AND e.action='published'),"
+                " p.scheduled_at, p.created_at)")
+    where, params = "p.platform=? AND p.status<>'cancelled'", [platform]
+    if exclude_post_id is not None:
+        where += " AND p.id<>?"
+        params.append(exclude_post_id)
+    query = (f"""SELECT p.id, p.account_id, p.platform, p.status, p.content, p.source_url, p.media_json,
+                        p.video_json, {activity} AS activity_at FROM posts p
+                 WHERE {where} ORDER BY activity_at DESC, p.id LIMIT ?""")
+    return [dict(row) for row in con.execute(query, [*params, REPEAT_ROWS_MAX])]
+
+
+def _has_table(con, name: str) -> bool:
+    return con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
+def shared_entries(con, platform: str) -> list[dict]:
+    """What the owner recorded as shared by hand on ``platform`` (``mark-shared``); [] if the table is absent."""
+    if not _has_table(con, "shared_material"):
+        return []
+    rows = con.execute("""SELECT id, account_id, recorded_at, posted_at, url, content, images_json, video_sha256,
+                                 links_json FROM shared_material WHERE platform=? ORDER BY recorded_at DESC, id
+                          LIMIT ?""", (platform, REPEAT_ROWS_MAX)).fetchall()
+    return [{"id": r["id"], "account_id": r["account_id"], "recorded_at": r["recorded_at"],
+             "posted_at": r["posted_at"], "url": r["url"], "content": r["content"],
+             "images": json.loads(r["images_json"]), "video": r["video_sha256"],
+             "links": json.loads(r["links_json"])} for r in rows]
+
+
+def record_shared(con, *, platform: str, account_id: str | None, content: str, images: list[str], video: str | None,
+                  links: list[str], posted_at: str | None, url: str, note: str) -> str:
+    """Remember material shared by hand so later drafts for the platform are checked against it."""
+    entry_id = "shared-" + uuid4().hex[:10]
+    con.execute("""INSERT INTO shared_material(id,platform,account_id,recorded_at,posted_at,url,note,content,
+                                              images_json,video_sha256,links_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                (entry_id, platform, account_id, utc_now(), parse_utc(posted_at) if posted_at else None, url, note,
+                 content, json.dumps(images), video, json.dumps(links)))
+    event(con, "material_shared_recorded", None, f"id={entry_id} platform={platform}")
+    return entry_id
 
 
 def event_activity(con, actions: tuple[str, ...], *, since: str | None = None,

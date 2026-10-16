@@ -44,7 +44,7 @@ reachweaver show POST_ID
 reachweaver check POST_ID
 ```
 
-`show` prints the exact text, the account it is for, its status and a preview of how the network will display it. `check` points out problems such as placeholder text, a post that is too long, or a mention of someone who asked not to be tagged. Fix the text and draft again if needed.
+`show` prints the exact text, the account it is for, its status and a preview of how the network will display it. `check` points out problems such as placeholder text, a post that is too long, or a mention of someone who asked not to be tagged. It also looks at your history: if this account already shared the same video, image or wording on the same platform, `check` says BLOCKED and `approve` will refuse unless you pass `--allow-repeat` on purpose. If you post things by hand, tell ReachWeaver once with `mark-shared` so it can warn you next time. See the [repeat guard](REPEAT-GUARD.md). Fix the text and draft again if needed.
 
 **3. Approve.** When you are happy with it:
 

@@ -24,6 +24,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 
 | Goal | Read |
 |---|---|
+| Avoid posting the same video, image or wording twice | [Repeat guard](REPEAT-GUARD.md) |
 | Describe a campaign with its sources | [Schemas](SCHEMAS.md), [campaign preview](CAMPAIGN-PREVIEW.md), [claim grounding](CLAIM-GROUNDING.md) |
 | Post to a network ReachWeaver cannot send to | [Manual export](MANUAL-EXPORT.md) |
 | Choose channels for a region or goal | [Global strategy](GLOBAL-DISTRIBUTION-2026-10-08.md), [distribution governance](DISTRIBUTION-GOVERNANCE.md), [regional channels](REGIONAL-CHANNELS-2026-10-14.md), [community and creator platforms](COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md) |

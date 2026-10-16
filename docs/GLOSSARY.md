@@ -62,7 +62,11 @@ Short, plain explanations, in alphabetical order. For the bigger picture read th
 
 **Reconcile** — Telling ReachWeaver, after you looked at the real account, whether an uncertain post was published or not (`reconcile POST_ID --published ...` or `--not-published`).
 
+**Repeat check / repeat guard** — The comparison of a draft with what a platform has already received from you: the same video or image file, identical wording, or the same link. Identical files and wording by the same account block approval unless you pass `--allow-repeat`. See [repeat guard](REPEAT-GUARD.md).
+
 **Registry** — A versioned data file used by the offline tools: the capability registry, the distribution registry (channels and markets) and the audit registry (profile checklists).
+
+**Shared-material ledger** — The local list of things you posted by hand, kept so the repeat check knows about them. You add to it with `mark-shared`.
 
 **SQLite / state** — The small private database file in `state/` where your drafts, approvals and history live. Only your user can read it.
 

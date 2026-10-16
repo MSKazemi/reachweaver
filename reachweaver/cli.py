@@ -74,6 +74,7 @@ from .ratelimit import (
 from .report_format import REPORT_FORMATS, render_report
 from .richtext import bluesky_preview, deterministic_tid, mastodon_length
 from . import disconnect as account_disconnect
+from . import repeat_guard
 from .storage import (
     APPROVAL_KEY_CREDENTIAL, APPROVAL_KEY_UNAVAILABLE, BINDING_MEDIA_CHANGED, BINDING_VIDEO_CHANGED, METRIC_FIELDS, account_send_hold, active_provider_cooldown, hold_refusal,
     add_post, approval_binding_problem, identity_mode_required, latch_identity_mode, approval_key_mode, approval_payload_sha256, latch_keyed_mode, offline_key_mode,
@@ -81,7 +82,8 @@ from .storage import (
     approval_max_age_hours, approval_rebind_required, is_paused, parse_utc, pending, post_media, post_video, set_approval_max_age_hours,
     provider_cooldowns, published_text, queue_health, reconcile, record_binding_failure, reply_report, reply_target_text, report, set_paused,
     set_post_media, set_post_video, store_metrics, sync_cooldown_scopes, transition, uncertain_send, utc_now,
-    connect_readonly, database_path as storage_database_path,
+    connect_readonly as storage_connect_readonly, database_path as storage_database_path, event as record_event,
+    record_shared,
 )
 
 
@@ -129,6 +131,33 @@ def make_parser() -> argparse.ArgumentParser:
                         "read-only identity check you confirm one account at a time")
     p.add_argument("--account", help="Only this account id")
     p.add_argument("--json", action="store_true", help="Machine-readable status table (no walkthrough)")
+    p = sub.add_parser("repeat-check", help="Read-only: have we already shared this video, image, wording or link on "
+                       "this platform? Compares a stored post, or material you name, with the local history")
+    p.add_argument("--post-id", help="A stored post to check (its text, images, video and link)")
+    p.add_argument("--platform", help="With no --post-id: the platform to check against, e.g. youtube")
+    p.add_argument("--account", help="With no --post-id: the account (same-account repeats are the blocking ones)")
+    p.add_argument("--text", help="With no --post-id: the post text")
+    p.add_argument("--file", type=Path, help="With no --post-id: read the post text from this UTF-8 file")
+    p.add_argument("--image", action="append", default=[], type=Path, metavar="FILE", help="An image file; repeatable")
+    p.add_argument("--video", type=Path, metavar="FILE", help="A video file (compared by its exact bytes)")
+    p.add_argument("--link", action="append", default=[], metavar="URL", help="A link; repeatable")
+    p.add_argument("--days", type=int, default=repeat_guard.DEFAULT_DAYS, metavar="N",
+                   help="Look-back for similar (not identical) wording, 1..3650 (default 365); identical files and "
+                        "wording are always found")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
+    p = sub.add_parser("mark-shared", help="Record material you shared by hand (manual export, a platform app) so "
+                       "later drafts are checked against it; local, writes the shared-material ledger only")
+    p.add_argument("--platform", required=True, help="The platform it was shared on, e.g. youtube")
+    p.add_argument("--account", help="The account it was shared from; without it the record counts for every account "
+                                      "on that platform")
+    p.add_argument("--text", help="The post text")
+    p.add_argument("--file", type=Path, help="Read the post text from this UTF-8 file")
+    p.add_argument("--image", action="append", default=[], type=Path, metavar="FILE", help="An image file; repeatable")
+    p.add_argument("--video", type=Path, metavar="FILE", help="A video file")
+    p.add_argument("--link", action="append", default=[], metavar="URL", help="A link; repeatable")
+    p.add_argument("--url", default="", help="Where the post lives (your own record)")
+    p.add_argument("--at", help="When it was shared, ISO 8601 with a timezone (default: now)")
+    p.add_argument("--note", default="", help="A short label for yourself")
     p = sub.add_parser("disconnect", help="Stop publishing to one account on this installation (#38): tighten-only, local; "
                        "lists the credential variable names and the steps to revoke at the provider; revokes nothing itself")
     p.add_argument("--account", required=True, help="One account id from local ignored config")
@@ -182,6 +211,9 @@ def make_parser() -> argparse.ArgumentParser:
                         "A failed check approves nothing. Binds WHICH account, not WHO approved")
     p.add_argument("--online", action="store_true", help="Required with --verify-identity: allow that one read-only identity request")
     p.add_argument("--optout", type=Path, help=optout_help + "; a mention refuses approval")
+    p.add_argument("--allow-repeat", action="store_true",
+                   help="Approve even though this account has already shared the same video, image or wording on this "
+                        "platform (repeat-check shows what matched); recorded as an audit event")
     p.add_argument("--sources", type=Path, metavar="CONFIG",
                    help="sources-scan config (#9): refuse when any published text (post, alt texts, video title/tags), a hosted image URL or the source URL links into any visibility:private repository of that config (private repository URLs are never public links)")
     p = sub.add_parser("youtube-attach", help="#22 (owner-approved; disabled until a live receipt): attach one local MP4 + upload metadata to a YouTube "
@@ -725,6 +757,16 @@ def _accounts(args):
             raise ValidationError(f"{exc} Skill install: copy {example} to config/accounts.json "
                                   "in your project (no secrets).") from None
         raise
+
+
+def _repeat_findings(db, post, days: int = repeat_guard.DEFAULT_DAYS) -> list[dict]:
+    """Repeat findings for a stored post against the platform's history (read-only; never carries earlier text)."""
+    try:
+        material = repeat_guard.material_of_post(post)
+    except ValidationError:  # a malformed attachment is refused elsewhere; still compare the text
+        material = {"text": post["content"], "images": [], "video": None, "links": []}
+    return repeat_guard.find_repeats(db, platform=post["platform"], account_id=post["account_id"], material=material,
+                                     exclude_post_id=post["id"], days=days)
 
 
 def _campaign_history(args, campaign: dict) -> dict | None:
@@ -2137,6 +2179,70 @@ def execute(args) -> int:
         output["note"] = "No content posted. Human-approved live pilot still required."
         print(json.dumps(output,indent=2))
         return 2 if instance is not None and not instance["ok"] else 0
+    if args.command in ("repeat-check", "mark-shared"):
+        text = args.text
+        if args.file is not None:
+            if text is not None:
+                raise ValidationError("Give --text or --file, not both")
+            text = args.file.read_text(encoding="utf-8")
+        images = [repeat_guard.sha256_file(path) for path in args.image]
+        video_sha = repeat_guard.sha256_file(args.video) if args.video is not None else None
+        links = [repeat_guard.canonical_link(url) for url in args.link]
+        if any(link is None for link in links):
+            raise ValidationError("--link must be an http(s) URL")
+        clean_links = [link for link in links if link is not None]
+        if args.command == "mark-shared":
+            if args.platform not in PLATFORMS:
+                raise ValidationError(f"Unknown platform {args.platform!r}; known: {', '.join(sorted(PLATFORMS))}")
+            if args.account is not None:
+                known = _accounts(args).get(args.account)
+                if known is None or known["platform"] != args.platform:
+                    raise ValidationError("Unknown account for that platform. Run 'doctor' for account IDs")
+            if not (text or images or video_sha or clean_links):
+                raise ValidationError("Give at least one of --text/--file, --image, --video or --link")
+            with connect(args.db) as db:
+                entry_id = record_shared(db, platform=args.platform, account_id=args.account, content=text or "",
+                                         images=images, video=video_sha, links=clean_links, posted_at=args.at,
+                                         url=args.url, note=args.note)
+            print(f"Recorded {entry_id}: later drafts for {args.platform} are checked against this material. "
+                  "Nothing was posted or sent.")
+            return 0
+        notes: list[str] = []
+        if args.post_id is not None:
+            if any((args.platform, args.account, text, images, video_sha, clean_links)):
+                raise ValidationError("--post-id cannot be combined with --platform, --account, --text, --file, "
+                                      "--image, --video or --link")
+        elif not args.platform:
+            raise ValidationError("Give --post-id, or --platform with the material to check")
+        findings: list[dict] = []
+        if not storage_database_path(args.db).is_file():
+            notes.append("No history database yet, so there is nothing to compare with.")
+        else:
+            with storage_connect_readonly(storage_database_path(args.db)) as ro:
+                if args.post_id is not None:
+                    stored = get_post(ro, args.post_id)
+                    findings = _repeat_findings(ro, stored, args.days)
+                else:
+                    findings = repeat_guard.find_repeats(
+                        ro, platform=args.platform, account_id=args.account, days=args.days,
+                        material={"text": text or "", "images": images, "video": video_sha, "links": clean_links})
+        result = repeat_guard.summary(findings)
+        result["notes"] = notes
+        result["note"] = ("Read-only. Exact file and wording matches only; a re-encoded video or a reworded post is "
+                          "not an exact match. Nothing was posted.")
+        if args.json:
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+        else:
+            for note in notes:
+                print(note)
+            if not findings and not notes:
+                print("No repeat found: nothing you have shared or queued on this platform matches.")
+            for finding in findings:
+                tag = "BLOCKING" if finding in repeat_guard.blocking(findings) else "warning"
+                print(f"{tag}: {repeat_guard.describe(finding)}")
+            if result["blocking"]:
+                print("`approve` refuses a blocking repeat unless you pass --allow-repeat.")
+        return 1 if result["blocking"] else 0
     if args.command == "connect":
         from . import connect_guide
         accounts = _accounts(args)
@@ -2148,7 +2254,7 @@ def execute(args) -> int:
         gone: list[str] = []
         if storage_database_path(args.db).is_file():  # read-only: the status table never creates or changes the database
             try:
-                with connect_readonly(storage_database_path(args.db)) as ro:
+                with storage_connect_readonly(storage_database_path(args.db)) as ro:
                     gone = account_disconnect.disconnected_accounts(ro)
             except (ValidationError, sqlite3.Error):
                 gone = []
@@ -2562,6 +2668,7 @@ def execute(args) -> int:
             platform_preview = _platform_preview(post, _optional_account(args, post["account_id"], post["platform"]))
             if platform_preview is not None:
                 shown["platform_preview"] = platform_preview
+            shown["repeat_check"] = repeat_guard.summary(_repeat_findings(db, post))
             from .capabilities import api_cost_note
             shown["api_cost"] = api_cost_note(post["platform"])  # #39: estimated platform/API cost
             print(json.dumps(shown,indent=2,ensure_ascii=False))
@@ -2579,7 +2686,15 @@ def execute(args) -> int:
             private = _post_private_link_refusal(args, post)  # #9 over post text, alt texts, video title/tags
             if private:
                 issues.append(private)
+            repeats = _repeat_findings(db, post)
+            blocking_repeats = repeat_guard.blocking(repeats)
+            issues.extend(f"repeat: {repeat_guard.describe(hit)}" for hit in blocking_repeats[:3])
             print("OK" if not issues else "BLOCKED: " + "; ".join(issues))
+            for hit in repeats:
+                if hit not in blocking_repeats:
+                    print(f"Warning: {repeat_guard.describe(hit)}")
+            if blocking_repeats:
+                print("Pass --allow-repeat to approve if sharing it again is intended.")
             if post["platform"] not in SUPPORTED_LIVE:
                 print("Note: this platform is draft/manual only")
             return 1 if issues else 0
@@ -2599,6 +2714,17 @@ def execute(args) -> int:
             video_issues = _video_issues(post)  # #22/#23: the bytes on disk must be the ones being approved
             if video_issues:
                 raise ValidationError(f"Refusing to approve {args.post_id}: {'; '.join(video_issues)}")
+            repeats = _repeat_findings(db, post)
+            blocking_repeats = repeat_guard.blocking(repeats)
+            if blocking_repeats and not args.allow_repeat:
+                raise ValidationError(f"Refusing to approve {args.post_id}: {repeat_guard.describe(blocking_repeats[0])}. "
+                                      "Check `repeat-check --post-id` for the full list; pass --allow-repeat only if "
+                                      "sharing it again is intended. Nothing changed")
+            for hit in repeats:
+                print(f"Warning: {repeat_guard.describe(hit)}")
+            if blocking_repeats:  # --allow-repeat: leave a trace of the decision
+                record_event(db, "repeat_override", args.post_id,
+                      "kinds=" + ",".join(sorted({hit["kind"] for hit in blocking_repeats})))
             reply_problems = _reply_problems(post, _optional_account(args, post["account_id"], post["platform"]),
                                              optout)
             if reply_problems:
