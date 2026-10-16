@@ -2,9 +2,16 @@
 
 Besides the Claude Code skill and plugin, every release publishes ReachWeaver as a standard Python package: a **wheel** and a **source distribution**, attached to the GitHub Release next to `skill.zip`. It is for people who want the `reachweaver` command on a server or in a script. The Claude Code plugin ([using ReachWeaver with Claude Code](CLAUDE-CODE.md)) stays the main route.
 
-## Install from a release
+## Install
 
 You need Python 3.11 or newer. There are no dependencies to download.
+
+```bash
+pipx install reachweaver                      # from PyPI (first published with 0.5.2)
+python3 -m pip install reachweaver
+```
+
+Or install the wheel attached to a GitHub release:
 
 ```bash
 pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.2/reachweaver-0.5.2-py3-none-any.whl"
@@ -40,15 +47,8 @@ The release workflow's `publish` job rebuilds the package, checks it, writes `py
 ## What is not done, and why
 
 - **GitHub Packages.** Not used. GitHub's introduction lists its registries as npm, RubyGems, Apache Maven, Gradle, Docker/OCI (the container registry) and NuGet; there is no Python registry (docs checked 2026-10-16: <https://docs.github.com/en/packages/learn-github-packages/introduction-to-github-packages>). Release assets are the GitHub-native home for a wheel. A container image on `ghcr.io` would be possible for server use but nothing needs it yet.
-- **PyPI.** Prepared and **off**. The name `reachweaver` was free on 2026-10-16 (`https://pypi.org/pypi/reachweaver/json` answered 404). Publishing needs a PyPI account and a publisher on a third-party service, which only you can create. The release workflow has an optional `pypi` job that uploads the wheel and sdist that `publish` already attached to the GitHub Release, by *trusted publishing* (no stored token; <https://docs.pypi.org/trusted-publishers/>). It re-downloads those two files, verifies them against `python-dist.sha256`, and uploads exactly those bytes. It is skipped until you do the two things below, and then it still waits for your approval at the `pypi` environment on every release. Already done for you: the GitHub environment `pypi` exists, requires you as reviewer and only accepts `v*` tags.
+- **PyPI** is live as of 0.5.2 (<https://pypi.org/project/reachweaver/>). The release workflow's optional `pypi` job uploads the wheel and sdist that `publish` attached to the GitHub Release, by *trusted publishing* (no stored token; <https://docs.pypi.org/trusted-publishers/>): it re-downloads those two files, verifies them against `python-dist.sha256` and uploads exactly those bytes, so the PyPI files and the GitHub files have identical SHA-256 (checked for 0.5.2). It runs only for the repository owner, only while the repository variable `PYPI_PUBLISH` is `true`, and only after the owner approves the `pypi` deployment in the Actions run on every release; the `pypi` environment requires the owner as reviewer and accepts `v*` tags only. The PyPI project was created by a *pending publisher* (owner `MSKazemi`, repository `reachweaver`, workflow `release.yml`, environment `pypi`). To stop publishing to PyPI, delete the variable (or reject the deployment). An uploaded PyPI version cannot be replaced: a mistake needs a new version, and PyPI lets you yank (hide) a release but not reuse its number. If the job ever fails, the GitHub Release is already complete.
 
-  To turn it on:
-  1. On PyPI (log in, then *Your projects* > *Publishing*, <https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/>), add a **pending publisher**: PyPI project name `reachweaver`, owner `MSKazemi`, repository `reachweaver`, workflow `release.yml`, environment `pypi`. A pending publisher does not reserve the name until the first upload, so release soon after creating it.
-  2. Set the switch: `gh variable set PYPI_PUBLISH --body true --repo MSKazemi/reachweaver`.
-
-  On the next tag: `verify` and `publish` run as before, then `pypi` waits for you to approve the `pypi` deployment in the Actions run, then uploads. After the first successful upload `pip install reachweaver` works, and PyPI shows the upload's publish attestation (the publish action generates it from the same OpenID Connect identity). To turn it off again, delete the variable. If the upload ever fails, the GitHub Release is already complete; nothing is half-published there.
-
-  The job is covered by static tests (`tests/test_release_workflow.py`, `ReleaseWorkflowPyPITests`) but, by design, it has never run against PyPI: its first real run is the first release after you enable it. If it fails, fix the cause and release a new patch version; a published tag is never moved.
 - **GitHub build-provenance attestations** (`actions/attest-build-provenance`, which lets users run `gh attestation verify`) would need `attestations: write` as well as `id-token: write` on the `publish` job. Not enabled; PyPI's own publish attestation (above) covers the PyPI copy.
 - **Signing.** No signing key is configured; tags are annotated but unsigned.
 

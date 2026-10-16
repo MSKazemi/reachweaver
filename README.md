@@ -345,11 +345,13 @@ Restart Claude Code and use `/reachweaver`. The skill checks for a newer release
 
 ### As a Python package (command line only)
 
-Every release also carries a standard wheel and source archive, for servers and scripts. You need Python 3.11 or newer; there is nothing else to download.
+ReachWeaver is on [PyPI](https://pypi.org/project/reachweaver/), and every release also carries the same wheel and source archive on GitHub, for servers and scripts. You need Python 3.11 or newer; there are no dependencies.
 
 ```bash
-pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.2/reachweaver-0.5.2-py3-none-any.whl"
+pipx install reachweaver          # or: python3 -m pip install reachweaver
 reachweaver version
+# the same file from the GitHub release:
+pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.2/reachweaver-0.5.2-py3-none-any.whl"
 ```
 
 Checksums, what CI checks in the package, and why it is not on PyPI or GitHub Packages (yet) are in [the Python package guide](docs/PACKAGING.md).

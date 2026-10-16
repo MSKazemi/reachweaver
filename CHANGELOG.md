@@ -6,6 +6,10 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Documentation
+
+- **ReachWeaver is on PyPI.** 0.5.2 was the first upload, by the release workflow's `pypi` job after the owner approved the `pypi` deployment; the PyPI files have the same SHA-256 as the GitHub release assets, and `pipx install reachweaver` installs it. The README and [docs/PACKAGING.md](docs/PACKAGING.md) now say so.
+
 ## [0.5.2] - 2026-10-16
 
 The first release that can publish ReachWeaver to PyPI. The release workflow has an optional third job, `pypi`, that uploads the wheel and source archive already attached to the GitHub Release by trusted publishing (no stored token), after the owner approves the `pypi` deployment. A patch version: no command, option or default of the tool changed.
