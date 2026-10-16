@@ -77,3 +77,13 @@ RW archive --copy-files [--out DIR]              # private folder: one sub-folde
 ```
 
 Both open the database read-only and send nothing. `journal` also lists material recorded with `mark-shared` (marked `shared_by_hand`). `archive` only ever adds: an existing post folder is never overwritten, and copies are made only for files whose bytes still match the recorded SHA-256. Details: `docs/JOURNAL.md` in the full repository.
+
+## Workspace and moving to another computer (read-only report, optional path repair)
+
+```bash
+RW workspace [--json]            # layout, database integrity, approval-ledger consistency, credential NAMES missing, attachment files missing or changed; exit 1 when a copy would not work
+RW media-relink --from /old/media/folder --to /new/media/folder          # dry run: which unsent posts' attachment paths would move
+RW media-relink --from /old/media/folder --to /new/media/folder --apply  # OWNER decision: writes paths only for files whose SHA-256 still matches; approval hashes stay identical
+```
+
+The workspace is `config/` and `state/` (including `state/approval-ledger.jsonl`, which must travel with the database). It holds no credentials: those are re-set in the environment on the new computer. Never suggest copying a secrets file with it. Details: `docs/MOVING.md` in the full repository.

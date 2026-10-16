@@ -290,8 +290,13 @@ def validate_mastodon_options(raw: dict, account_id: str = "") -> None:
         raise ValidationError(f"Mastodon spoiler_text must be 1..{MAX_SPOILER_CHARS} printable characters{label}")
 
 
+def accounts_path(path: str | Path | None = None) -> Path:
+    """``--accounts``, else ``$REACHWEAVER_ACCOUNTS``, else ``config/accounts.json`` (relative to the working folder)."""
+    return Path(path or os.environ.get("REACHWEAVER_ACCOUNTS", "config/accounts.json"))
+
+
 def load_accounts(path: str | Path | None = None) -> dict[str, dict]:
-    path = Path(path or os.environ.get("REACHWEAVER_ACCOUNTS", "config/accounts.json"))
+    path = accounts_path(path)
     if not path.is_file():
         raise ValidationError(f"Missing {path}. Copy config/accounts.example.json and customize it (no secrets).")
     try:

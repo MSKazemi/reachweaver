@@ -1736,6 +1736,28 @@ def posting_history(con, account_ids: list[str], statuses: tuple[str, ...], *, s
     return [dict(row) for row in con.execute(query, params)]
 
 
+RELINK_STATUSES = ("draft", "approved", "scheduled", "needs_review")  # never in flight, never history
+
+
+def rewrite_attachment_paths(con, post_id: str, *, media_json: str | None, video_json: str | None) -> None:
+    """Point a post's attachment records at moved files (the whole workspace was copied to another place).
+
+    Only the ``path`` of an attachment changes; the caller has already verified that the file at the new path has the
+    recorded SHA-256. The approval hash binds the bytes (``sha256``) and not the path, so it must come out identical:
+    this function proves that inside one transaction and writes nothing if it does not. One ``attachment_relinked``
+    audit event (no path in it) is recorded.
+    """
+    with _atomic(con):
+        before = get_post(con, post_id)
+        if before["status"] not in RELINK_STATUSES:
+            raise ValidationError(f"Cannot relink attachments of a post in state {before['status']}")
+        hash_before = approval_payload_sha256(before)
+        con.execute("UPDATE posts SET media_json=?, video_json=? WHERE id=?", (media_json, video_json, post_id))
+        if approval_payload_sha256(get_post(con, post_id)) != hash_before:
+            raise ValidationError("Relinking would change the approval hash; nothing was written")
+        event(con, "attachment_relinked", post_id, "")
+
+
 JOURNAL_ROWS_MAX = 5000
 
 

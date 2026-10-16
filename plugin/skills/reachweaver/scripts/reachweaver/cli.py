@@ -157,6 +157,16 @@ def make_parser() -> argparse.ArgumentParser:
                         "read-only identity check you confirm one account at a time")
     p.add_argument("--account", help="Only this account id")
     p.add_argument("--json", action="store_true", help="Machine-readable status table (no walkthrough)")
+    p = sub.add_parser("workspace", help="Read-only: what lives in this folder (config, database, approval ledger, archive), "
+                       "what does not (credentials, the installed skill), and whether copying it to another computer "
+                       "will work")
+    p.add_argument("--json", action="store_true", help="Machine-readable report")
+    p = sub.add_parser("media-relink", help="After moving the workspace: point recorded attachment paths of unsent posts "
+                       "at the new folder, only for files whose SHA-256 still matches; dry run unless --apply")
+    p.add_argument("--from", dest="from_prefix", required=True, metavar="OLD_FOLDER", help="Absolute folder the files were in")
+    p.add_argument("--to", dest="to_prefix", required=True, metavar="NEW_FOLDER", help="Absolute folder they are in now")
+    p.add_argument("--apply", action="store_true", help="Write the change (default: show what would change)")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
     p = sub.add_parser("journal", help="Read-only: what was posted, when, where, with which metadata and files "
                        "(text, account, approver, link, audit timeline, file paths and hashes), table/json/markdown/csv")
     _add_journal_filters(p)
@@ -2108,6 +2118,56 @@ def execute(args) -> int:
         output["note"] = "No content posted. Human-approved live pilot still required."
         print(json.dumps(output,indent=2))
         return 2 if instance is not None and not instance["ok"] else 0
+    if args.command == "workspace":
+        from . import workspace as ws_report
+        from .accounts import accounts_path as resolve_accounts_path
+        db_file = storage_database_path(args.db)
+        accounts_file = resolve_accounts_path(args.accounts)
+        try:
+            known = load_accounts(accounts_file)
+        except ValidationError:
+            known = None
+        if not db_file.is_file():
+            workspace_report = {"paths": [ws_report._entry("accounts", accounts_file), ws_report._entry("database", db_file)],
+                      "database": {"counts": {}}, "ledger": "absent", "files": [],
+                      "credentials_missing": {n: missing_credentials(a) for n, a in (known or {}).items() if missing_credentials(a)},
+                      "not_in_the_folder": list(ws_report.NOT_IN_THE_FOLDER),
+                      "problems": [{"code": "no_database_yet", "level": "info", "detail": f"{db_file} does not exist",
+                                    "advice": "Nothing has been recorded here yet (`init` creates it), or you are in the wrong folder."}],
+                      "ready_to_copy": True}
+        else:
+            with storage_connect_readonly(db_file) as ro:
+                workspace_report = ws_report.inspect(ro, db_file, known, accounts_file, Path.cwd())
+        print(json.dumps(workspace_report, indent=2) if args.json else ws_report.render(workspace_report))
+        return 0 if workspace_report["ready_to_copy"] else 1
+    if args.command == "media-relink":
+        from . import workspace as ws_report
+        db_file = storage_database_path(args.db)
+        if not db_file.is_file():
+            raise ValidationError(f"Database {db_file} does not exist; nothing to relink")
+        if args.apply:
+            with connect(args.db) as db:
+                relink_plan = ws_report.plan_relink(db, args.from_prefix, args.to_prefix)
+                relink_result = ws_report.apply_relink(db, relink_plan, args.from_prefix, args.to_prefix)
+        else:
+            with storage_connect_readonly(db_file) as ro:
+                relink_plan = ws_report.plan_relink(ro, args.from_prefix, args.to_prefix)
+            relink_result = {"relinked": [], "skipped": []}
+        summary = {"applied": args.apply, "attachments": relink_plan, **relink_result}
+        if args.json:
+            print(json.dumps(summary, indent=2))
+        else:
+            if not relink_plan:
+                print("No attachment of an unsent post is recorded under that folder.")
+            for change in relink_plan:
+                print(f"{change['state']:<8} {change['post_id']} ({change['status']}) {change['kind']}: {change['from']} -> {change['to']}")
+            if args.apply:
+                print(f"Relinked {len(relink_result['relinked'])} post(s); left {len(relink_result['skipped'])} untouched "
+                      "(a file is missing or no longer matches its recorded SHA-256).")
+            elif relink_plan:
+                print("Dry run: nothing was changed. Add --apply to write these paths. Only 'ok' rows are written, and "
+                      "the approval hash is checked to be unchanged.")
+        return 1 if any(change["state"] != "ok" for change in relink_plan) else 0
     if args.command in ("journal", "archive"):
         from . import journal as posting_journal
         if isinstance(args.limit, bool) or not 1 <= args.limit <= 5000:

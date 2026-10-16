@@ -13,7 +13,7 @@ import textwrap
 
 # (title, command names in the order a person meets them)
 GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Get started and look around", ("start", "connect", "version", "init", "doctor", "health", "ui", "list", "show", "journal", "capabilities", "completion")),
+    ("Get started and look around", ("start", "connect", "version", "init", "doctor", "health", "workspace", "ui", "list", "show", "journal", "capabilities", "completion")),
     ("Draft and approve (nothing is sent)", (
         "draft", "check", "repeat-check", "mark-shared", "approve", "unapprove", "cancel", "schedule", "media-attach", "media-detach",
         "video-attach", "video-detach", "youtube-attach", "youtube-detach", "campaign-check", "campaign-preview",
@@ -33,7 +33,7 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
                                     "landing-check", "utm-link", "media-check", "media-storyboard")),
     ("Research channels and sources", ("distribution-plan", "sources-scan", "signal-brief")),
     ("Engagement", ("engagement-fetch", "engagement-triage", "engagement-queue")),
-    ("Data, privacy and schemas", ("archive", "data-export", "data-purge", "privacy-status", "schema-validate", "schema-export")),
+    ("Data, privacy and schemas", ("archive", "media-relink", "data-export", "data-purge", "privacy-status", "schema-validate", "schema-export")),
     ("Updates", ("update",)),
 )
 SUMMARY_WIDTH = 66

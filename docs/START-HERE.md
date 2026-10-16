@@ -105,6 +105,8 @@ Today the real-send adapters are for Bluesky, Mastodon, Telegram and LinkedIn pe
 
 **Does it need my password?** No. It never asks for or stores your password. For platforms that allow it, you create a limited-permission token (for Bluesky an *App Password*, never your main password) and keep it in your own environment.
 
+**Can I move to another computer?** Yes. Your data is the `config/` and `state/` folders next to where you run ReachWeaver; they hold no passwords or tokens. `reachweaver workspace` checks they are ready to copy; set your credentials again on the new computer. See [moving to another computer](MOVING.md).
+
 **Where is my data?** On your computer, in the `state/` folder, in a database only your user can read. ReachWeaver has no server of its own and uploads nothing there. The only things that touch the internet are a send to the platform you chose (`--live`), commands you start with an explicit `--online` flag, and a once-a-day check for a newer ReachWeaver release when it runs as a Claude Code plugin (you can turn that off). The [README](../README.md#security-and-reality-checks) lists exactly what each one contacts. See also the [privacy policy](PRIVACY.md).
 
 **Can I take something back?** Before it is sent, yes: `unapprove POST_ID` withdraws approval and `cancel POST_ID` removes it from the queue. After it is sent, ReachWeaver cannot delete a post for you; delete it in the platform's own app.
