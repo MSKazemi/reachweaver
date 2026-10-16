@@ -35,16 +35,21 @@ CI (`.github/workflows/ci.yml`, job `package`) and the release workflow (job `ve
 
 Locally: `make package` runs the same steps in a throwaway folder (it downloads `build` and `twine` through `pipx`). Build from a clean checkout when you intend to publish.
 
-The release workflow's `publish` job rebuilds the package, checks it, writes `python-dist.sha256`, and attaches the wheel, the sdist and the checksum file to the GitHub Release with the skill bundle. It has exactly the one write permission it had before (`contents: write`, to create the release).
+The release workflow's `publish` job rebuilds the package, checks it, writes `python-dist.sha256`, and attaches the wheel, the sdist and the checksum file to the GitHub Release with the skill bundle. It has exactly the one write permission it had before (`contents: write`, to create the release). The optional `pypi` job (below) is separate and only reads that release.
 
 ## What is not done, and why
 
 - **GitHub Packages.** Not used. GitHub's introduction lists its registries as npm, RubyGems, Apache Maven, Gradle, Docker/OCI (the container registry) and NuGet; there is no Python registry (docs checked 2026-10-16: <https://docs.github.com/en/packages/learn-github-packages/introduction-to-github-packages>). Release assets are the GitHub-native home for a wheel. A container image on `ghcr.io` would be possible for server use but nothing needs it yet.
-- **PyPI.** Not published. The name `reachweaver` was free on 2026-10-16 (`https://pypi.org/pypi/reachweaver/json` answered 404), but publishing to PyPI means creating an account and a publisher on a third-party service and accepting its terms, which is the owner's decision and action. When you want it, PyPI's *trusted publishing* needs no stored token (<https://docs.pypi.org/trusted-publishers/>):
-  1. On PyPI, add a *pending publisher* for project `reachweaver`: owner `MSKazemi`, repository `reachweaver`, workflow `release.yml`, environment `pypi`. A pending publisher does not reserve the name until the first upload (<https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/>).
-  2. In the repository settings, create an environment named `pypi` with yourself as required reviewer.
-  3. Add a third job to `release.yml` that downloads the checked `dist/` and runs `pypa/gh-action-pypi-publish` (pinned to a full commit SHA) with `id-token: write` and `environment: pypi`. This adds a job and a permission, so it changes the audited model that `tests/test_release_workflow.py` pins; it needs your explicit review and an update to those tests. It has not been written or exercised.
-- **Build provenance attestations** (`actions/attest-build-provenance`, which lets users run `gh attestation verify`) need `id-token: write` and `attestations: write` on the publish job, with the same review and test update as above. Not enabled.
+- **PyPI.** Prepared and **off**. The name `reachweaver` was free on 2026-10-16 (`https://pypi.org/pypi/reachweaver/json` answered 404). Publishing needs a PyPI account and a publisher on a third-party service, which only you can create. The release workflow has an optional `pypi` job that uploads the wheel and sdist that `publish` already attached to the GitHub Release, by *trusted publishing* (no stored token; <https://docs.pypi.org/trusted-publishers/>). It re-downloads those two files, verifies them against `python-dist.sha256`, and uploads exactly those bytes. It is skipped until you do the two things below, and then it still waits for your approval at the `pypi` environment on every release. Already done for you: the GitHub environment `pypi` exists, requires you as reviewer and only accepts `v*` tags.
+
+  To turn it on:
+  1. On PyPI (log in, then *Your projects* > *Publishing*, <https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/>), add a **pending publisher**: PyPI project name `reachweaver`, owner `MSKazemi`, repository `reachweaver`, workflow `release.yml`, environment `pypi`. A pending publisher does not reserve the name until the first upload, so release soon after creating it.
+  2. Set the switch: `gh variable set PYPI_PUBLISH --body true --repo MSKazemi/reachweaver`.
+
+  On the next tag: `verify` and `publish` run as before, then `pypi` waits for you to approve the `pypi` deployment in the Actions run, then uploads. After the first successful upload `pip install reachweaver` works, and PyPI shows the upload's publish attestation (the publish action generates it from the same OpenID Connect identity). To turn it off again, delete the variable. If the upload ever fails, the GitHub Release is already complete; nothing is half-published there.
+
+  The job is covered by static tests (`tests/test_release_workflow.py`, `ReleaseWorkflowPyPITests`) but, by design, it has never run against PyPI: its first real run is the first release after you enable it. If it fails, fix the cause and release a new patch version; a published tag is never moved.
+- **GitHub build-provenance attestations** (`actions/attest-build-provenance`, which lets users run `gh attestation verify`) would need `attestations: write` as well as `id-token: write` on the `publish` job. Not enabled; PyPI's own publish attestation (above) covers the PyPI copy.
 - **Signing.** No signing key is configured; tags are annotated but unsigned.
 
 ## Honest limits

@@ -4,8 +4,10 @@ name: Release skill bundle
 # python-dist.sha256), so `pip install` can use a release asset. No social platform
 # is contacted and no provider credential is read.
 # `verify` is read-only and runs every check; only `publish` may write, and only after `verify`
-# passed and only for the repository owner. scripts/release_ref_guard.py (run by both jobs)
-# refuses anything but the owner's vX.Y.Z tag at the current origin/main commit.
+# passed and only for the repository owner. The optional `pypi` job (off unless the owner enables it) only reads the
+# release `publish` created and uploads it to PyPI with a short-lived OpenID Connect token.
+# scripts/release_ref_guard.py (run by `verify` and `publish`) refuses anything but the owner's vX.Y.Z tag at the
+# current origin/main commit.
 # This workflow cannot turn on branch protection, and a green run is not legal, rights or
 # privacy clearance nor proof of any social-platform post (docs/RELEASE-PLAYBOOK.md).
 on:
@@ -100,3 +102,30 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: gh release create "$GITHUB_REF_NAME" skill.zip skill.zip.sha256 dist/* python-dist.sha256 --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+  pypi:
+    # Optional third job: uploads the wheel and sdist that `publish` already attached to the GitHub Release to PyPI,
+    # by trusted publishing (OpenID Connect, no stored token or password). It is skipped unless the owner has created
+    # the PyPI publisher and set the repository variable PYPI_PUBLISH to 'true', and it waits for the owner's approval
+    # of the `pypi` environment (restricted to v* tags). docs/PACKAGING.md lists the owner steps.
+    needs: publish
+    if: vars.PYPI_PUBLISH == 'true' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write # the only OpenID Connect use in this workflow: PyPI trusted publishing
+    steps:
+      - name: Download the published wheel and sdist from the GitHub Release and verify their checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir dist sums
+          gh release download "$GITHUB_REF_NAME" --pattern 'reachweaver-*' --dir dist
+          gh release download "$GITHUB_REF_NAME" --pattern 'python-dist.sha256' --dir sums
+          (cd dist && sha256sum --check --strict ../sums/python-dist.sha256)
+          test "$(ls dist | wc -l)" = 2
+      - name: Publish to PyPI (trusted publishing, no stored token)
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: dist/

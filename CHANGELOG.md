@@ -6,6 +6,11 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Added
+
+- **Optional PyPI publishing by trusted publishing, prepared and off (owner go-ahead, 2026-10-16).** The release workflow gains a third job, `pypi`, that runs only after `publish`, only for the repository owner, only when the repository variable `PYPI_PUBLISH` is `true`, and only after the owner approves the `pypi` GitHub environment (created, with the owner as required reviewer and restricted to `v*` tags). It checks out nothing and builds nothing: it downloads the wheel and sdist from the GitHub Release, verifies them against `python-dist.sha256` and uploads exactly those files with `pypa/gh-action-pypi-publish` (pinned to a full commit SHA, v1.14.2). Its only extra permission is `id-token: write`; there is no stored PyPI token. Nothing is published until the owner creates a pending publisher on PyPI and sets `PYPI_PUBLISH` (steps in [docs/PACKAGING.md](docs/PACKAGING.md)). `publish` keeps `contents: write` as its only write. `tests/test_release_workflow.py` (`ReleaseWorkflowPyPITests`) and `tests/test_packaging_metadata.py` now pin the three-job model. The job has not run against PyPI.
+
+
 ## [0.5.1] - 2026-10-16
 
 ReachWeaver is now also a standard Python package, built and checked by CI and attached to every release: a wheel, a source archive and `python-dist.sha256`, next to `skill.zip`. A patch version: no command, option or default changed, and the clearer `doctor`/`health` output and dashboard wording from the previous merge ship with it.

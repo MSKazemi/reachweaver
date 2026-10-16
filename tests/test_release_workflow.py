@@ -17,7 +17,8 @@ WORKFLOW = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="
 CI = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
 HEADER, JOBS = WORKFLOW.split("\njobs:\n", 1)
 VERIFY = ("\n" + JOBS).split("\n  verify:\n", 1)[1].split("\n  publish:\n", 1)[0]
-PUBLISH = ("\n" + JOBS).split("\n  publish:\n", 1)[1]
+PUBLISH = ("\n" + JOBS).split("\n  publish:\n", 1)[1].split("\n  pypi:\n", 1)[0]
+PYPI = ("\n" + JOBS).split("\n  pypi:\n", 1)[1]
 
 
 def step_names() -> list[str]:
@@ -72,12 +73,14 @@ class ReleaseWorkflowGateTests(unittest.TestCase):
 
     def test_permissions_are_limited_to_writing_the_release(self):
         # Workflow default is read-only; the single write permission belongs to the publish job.
+        # Only `publish` may write the release; the optional `pypi` job's single write is the OpenID Connect token.
         self.assertIn("\npermissions:\n  contents: read\n", HEADER + "\n")
-        self.assertEqual(len(re.findall(r"(?m)^\s+[a-z-]+: write\b", WORKFLOW)), 1)
+        self.assertEqual(len(re.findall(r"(?m)^\s+[a-z-]+: write\b", WORKFLOW)), 2)
         self.assertIn("    permissions:\n      contents: write", PUBLISH)
+        self.assertEqual(re.findall(r"(?m)^\s+[a-z-]+: write\b", PUBLISH), ["      contents: write"])
         self.assertIn("    permissions:\n      contents: read\n", VERIFY)
         self.assertNotIn("write", VERIFY)
-        self.assertEqual(set(re.findall(r"(?m)^\s+([a-z-]+): (?:read|write)\b", WORKFLOW)), {"contents"})
+        self.assertEqual(set(re.findall(r"(?m)^\s+([a-z-]+): (?:read|write)\b", WORKFLOW)), {"contents", "id-token"})
 
     def test_the_gate_script_the_workflow_calls_exists_and_accepts_the_tag_flag(self):
         script = (ROOT / "scripts" / "release_gate.py").read_text(encoding="utf-8")
@@ -89,8 +92,8 @@ class ReleaseWorkflowGateTests(unittest.TestCase):
 class ReleaseWorkflowSplitTests(unittest.TestCase):
     """Private #50/#51: read-only verification, owner-only publication, the same checks as CI."""
 
-    def test_there_are_exactly_two_jobs_and_publish_needs_verify_and_the_owner(self):
-        self.assertEqual(re.findall(r"(?m)^  ([a-z-]+):$", JOBS), ["verify", "publish"])
+    def test_there_are_exactly_three_jobs_and_publish_needs_verify_and_the_owner(self):
+        self.assertEqual(re.findall(r"(?m)^  ([a-z-]+):$", JOBS), ["verify", "publish", "pypi"])
         self.assertIn("\n    needs: verify\n", "\n" + PUBLISH)
         self.assertIn("    if: github.actor == github.repository_owner && "
                       "github.triggering_actor == github.repository_owner\n", PUBLISH)
@@ -153,10 +156,40 @@ class ReleaseWorkflowSplitTests(unittest.TestCase):
         self.assertIn("skill.zip skill.zip.sha256", release)
 
     def test_every_action_is_pinned_to_a_full_commit_sha(self):
-        actions = re.findall(r"(?m)^\s+- uses: (\S+)", WORKFLOW)
-        self.assertEqual(len(actions), 4)
+        actions = re.findall(r"(?m)^\s+(?:- )?uses: (\S+)", WORKFLOW)
+        self.assertEqual(len(actions), 5)  # checkout + setup-python in verify and publish, the PyPI publish action
         for action in actions:
             self.assertRegex(action, r"^[\w.-]+/[\w.-]+@[0-9a-f]{40}$")
+
+
+class ReleaseWorkflowPyPITests(unittest.TestCase):
+    """The optional PyPI job: trusted publishing only, off until the owner enables it, never able to change the release."""
+
+    def test_it_is_gated_by_the_owner_the_variable_the_release_job_and_an_approved_environment(self):
+        self.assertIn("\n    needs: publish\n", "\n" + PYPI)
+        self.assertIn("    if: vars.PYPI_PUBLISH == 'true' && github.actor == github.repository_owner && "
+                      "github.triggering_actor == github.repository_owner\n", PYPI)
+        self.assertIn("\n    environment: pypi\n", "\n" + PYPI)
+
+    def test_its_only_extra_permission_is_the_openid_connect_token(self):
+        self.assertIn("    permissions:\n      contents: read\n      id-token: write", PYPI)
+        self.assertNotIn("contents: write", PYPI)
+        self.assertEqual(re.findall(r"(?m)^\s+[a-z-]+: write\b", PYPI), ["      id-token: write"])
+
+    def test_it_publishes_only_what_the_release_job_attached_after_verifying_the_checksums(self):
+        steps = job_steps(PYPI)
+        self.assertEqual(len(steps), 2)
+        self.assertIn("gh release download \"$GITHUB_REF_NAME\" --pattern 'reachweaver-*' --dir dist", steps[0])
+        self.assertIn("(cd dist && sha256sum --check --strict ../sums/python-dist.sha256)", steps[0])
+        self.assertIn('test "$(ls dist | wc -l)" = 2', steps[0])
+        self.assertNotIn("pyproject-build", PYPI)  # it never builds: PyPI gets byte-identical files to the release
+        self.assertRegex(steps[1], r"uses: pypa/gh-action-pypi-publish@[0-9a-f]{40} # v\d+\.\d+\.\d+")
+        self.assertIn("packages-dir: dist/", steps[1])
+
+    def test_it_uses_no_stored_credential(self):
+        for stored in ("password:", "PYPI_API_TOKEN", "TWINE_PASSWORD", "TWINE_USERNAME", "twine upload", "secrets."):
+            self.assertNotIn(stored, PYPI)
+        self.assertEqual(set(re.findall(r"\$\{\{\s*([a-z.]+)", PYPI)), {"github.token", "github.repository"})
 
 
 if __name__ == "__main__":

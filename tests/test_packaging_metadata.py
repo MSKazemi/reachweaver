@@ -126,11 +126,10 @@ class ReleaseWorkflowPackageSteps(unittest.TestCase):
             self.assertIn(asset, release)
         self.assertIn("--verify-tag", release)
 
-    def test_no_new_permission_job_or_trigger_was_added_for_packaging(self):
-        self.assertEqual(re.findall(r"(?m)^  ([a-z-]+):$", JOBS), ["verify", "publish"])
-        self.assertEqual(set(re.findall(r"(?m)^\s+([a-z-]+): (?:read|write)\b", RELEASE)), {"contents"})
-        self.assertEqual(len(re.findall(r"(?m)^\s+[a-z-]+: write\b", RELEASE)), 1)
-        for forbidden in ("id-token", "attestations", "packages:", "pypi", "twine upload", "gh-action-pypi-publish"):
+    def test_the_only_job_added_for_packaging_is_the_gated_pypi_job(self):
+        self.assertEqual(re.findall(r"(?m)^  ([a-z-]+):$", JOBS), ["verify", "publish", "pypi"])
+        self.assertEqual(set(re.findall(r"(?m)^\s+([a-z-]+): (?:read|write)\b", RELEASE)), {"contents", "id-token"})
+        for forbidden in ("attestations", "packages:", "twine upload", "TWINE_", "PYPI_API_TOKEN"):
             self.assertNotIn(forbidden, RELEASE)
 
 
