@@ -232,6 +232,7 @@ const REASON_HELP = {
 const STATUS_LABEL = { draft: "draft", approved: "approved", scheduled: "scheduled", sending: "sending",
   needs_review: "needs review", published: "published", cancelled: "cancelled" };
 const STATUS_ORDER = ["needs_review", "sending", "approved", "scheduled", "draft", "published", "cancelled"];
+const SENT_STATUSES = ["sending", "published", "needs_review"];
 const STATUS_MEANING = {
   draft: ["Draft", "Not approved yet. Nothing can be sent until you approve this exact text."],
   approved: ["Approved", "Approved and waiting. A worker you run decides when it is sent; you can preview it with a dry run."],
@@ -570,7 +571,11 @@ async function viewPost(id) {
   const copyBtn = h("button", { type: "button" }, "Copy text");
   copyBtn.addEventListener("click", () => copy(p.content, "text"));
   out.push(h("h2", null, "Exact text"), h("pre", { class: "exact" }, p.content), lengthMeter(p.length), h("p", null, copyBtn));
-  out.push(h("details", null, h("summary", null, "Approval details"), h("div", { class: "card" }, kv(p.approval))));
+  // `show` only re-checks the binding while a post waits (approved/scheduled); after a send starts its
+  // "not_approved" default would read as "never approved", so the page says what it means instead.
+  const approval = Object.assign({}, p.approval);
+  if (SENT_STATUSES.includes(p.status) && approval.binding === "not_approved") approval.binding = "not re-checked after the send started";
+  out.push(h("details", null, h("summary", null, "Approval details"), h("div", { class: "card" }, kv(approval))));
   if (p.platform_preview) out.push(h("details", null, h("summary", null, "Platform preview (offline)"), h("div", { class: "card" }, kv(p.platform_preview))));
   out.push(h("details", null, h("summary", null, "Source, schedule and API cost"), h("div", { class: "card" },
     kv({ source_url: p.source_url, scheduled_at: p.scheduled_at || "not scheduled", approved_at: p.approved_at || "not approved", api_cost: p.api_cost }),

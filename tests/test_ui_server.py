@@ -438,6 +438,12 @@ class AssetTests(unittest.TestCase):
         self.assertIn("Could not load this check", js)
         self.assertIn("not a reach prediction", js)
 
+    def test_a_sent_post_does_not_read_as_never_approved(self):
+        js = ui_assets.APP_JS
+        self.assertIn('const SENT_STATUSES = ["sending", "published", "needs_review"];', js)
+        self.assertIn('approval.binding = "not re-checked after the send started"', js)
+        self.assertIn("kv(approval)", js)  # a copy: the API document (the `show` contract) is unchanged
+
     def test_print_stylesheet_hides_controls(self):
         css = ui_assets.APP_CSS
         self.assertIn("@media print", css)
