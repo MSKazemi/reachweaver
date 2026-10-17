@@ -348,7 +348,9 @@ class SafetyTests(DataBase):
         self.assertIn("attachment_missing", codes)
 
 
-class ResultsTests(DataBase):
+class ResultsBase(DataBase):
+    """Two published posts on accounts of their own, one with two recorded snapshots."""
+
     def setUp(self):
         super().setUp()
         with connect(str(self.db)) as con:  # a second account: the first is held by its needs_review post
@@ -364,6 +366,8 @@ class ResultsTests(DataBase):
                           reposts="suppressed")
             store_metrics(con, self.sent, "2030-01-02T00:00:00+00:00", "native_export", views=150, likes=6)
 
+
+class ResultsTests(ResultsBase):
     def test_latest_exact_values_and_unknown_is_never_zero(self):
         with ui_data.open_database(self.db) as con:
             view = ui_data.results_view(con)
@@ -395,7 +399,25 @@ class ResultsTests(DataBase):
             self.assertEqual(ui_data.results_view(con, platform="mastodon")["platforms"], [])
 
 
-class CampaignTests(ResultsTests):
+class SearchTests(ResultsBase):
+    def test_search_finds_text_campaigns_ids_and_hand_shared_records(self):
+        with connect(str(self.db)) as con:
+            record_shared(con, platform="youtube", account_id=None, content="Talk recording", images=[], video=None,
+                          links=[], posted_at=NOW, url="https://youtube.com/watch?v=z", note="LAUNCH day")
+        with ui_data.open_database(self.db) as con:
+            by_text = ui_data.search(con, "  NEVER   measured ")
+            by_campaign = ui_data.search(con, "laun")
+            by_id = ui_data.search(con, self.draft[:8])
+            with self.assertRaises(ValidationError):
+                ui_data.search(con, "   ")
+        self.assertEqual([p["id"] for p in by_text["posts"]], [self.quiet])
+        self.assertEqual(by_campaign["campaigns"], ["launch"])
+        self.assertEqual(by_campaign["shared_total"], 1)  # the note matched, case-insensitively
+        self.assertEqual([p["id"] for p in by_id["posts"]], [self.draft])
+        self.assertNotIn(SECRET, json.dumps([by_text, by_campaign, by_id]))
+
+
+class CampaignTests(ResultsBase):
     def test_campaigns_are_grouped_with_status_counts(self):
         with ui_data.open_database(self.db) as con:
             view = ui_data.campaigns_view(con)

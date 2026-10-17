@@ -270,6 +270,19 @@ class ApiTests(ServerBase):
         self.assertEqual(hashlib.sha256(self.db.read_bytes()).hexdigest(), before)
         self.assertEqual(sorted(p.name for p in self.db.parent.iterdir()), names)
 
+    def test_search_and_schedule_days(self):
+        status, found = self.api("search?q=draft")
+        self.assertEqual(status, 200)
+        self.assertEqual([p["id"] for p in found["posts"]], [self.draft])
+        self.assertIn(HOSTILE, found["posts"][0]["excerpt"])  # data; the page inserts it as text
+        self.assertEqual(self.api("search?q=")[0], 400)
+        self.assertEqual(self.api("search?q=%01")[0], 400)
+        self.assertEqual(self.api("search?q=" + "x" * 101)[0], 400)
+        self.assertEqual(self.api("schedule?days=42")[1]["days"], 42)
+        for bad in ("0", "63", "x"):
+            self.assertEqual(self.api("schedule?days=" + bad)[0], 400, bad)
+        self.assertNotIn(SECRET, json.dumps(self.api("search?q=ambiguous")[1]))
+
     def test_results_and_campaign_endpoints(self):
         status, results = self.api("results")
         self.assertEqual(status, 200)
@@ -367,7 +380,7 @@ class AssetTests(unittest.TestCase):
         for use in re.finditer(r"localStorage", js):
             window = js[max(0, use.start() - 80):use.start()]
             self.assertIn("try {", window)
-        self.assertEqual(sorted(set(re.findall(r'"(rw-[a-z]+)"', js))), ["rw-auto", "rw-theme"])
+        self.assertEqual(sorted(set(re.findall(r'"(rw-[a-z]+)"', js))), ["rw-alerts", "rw-auto", "rw-theme"])
 
     def test_router_cannot_reach_object_prototype_or_throw_on_bad_escapes(self):
         js = ui_assets.APP_JS
@@ -443,6 +456,23 @@ class AssetTests(unittest.TestCase):
         self.assertIn('schedule: ["schedule", viewSchedule], posted: ["posted", viewPosted]', js)
         self.assertIn('s: "#/schedule", p: "#/posted"', js)
         self.assertIn("g then o / q / s / p", js)
+
+    def test_alerts_are_opt_in_and_carry_counts_only(self):
+        js = ui_assets.APP_JS
+        self.assertIn('id="alerts"', ui_assets.INDEX_HTML)
+        self.assertIn("Notification.requestPermission()", js)
+        call = js[js.index("new Notification("):js.index("new Notification(") + 120]
+        self.assertNotRegex(call, r"excerpt|content|text|account")  # nothing private on a lock screen
+        self.assertIn('store("rw-alerts") === "1" && typeof Notification !== "undefined" && Notification.permission === "granted"', js)
+
+    def test_month_calendar_and_global_search_are_wired(self):
+        js = ui_assets.APP_JS
+        self.assertIn('href: "#/schedule?view=month"', js)
+        self.assertIn("function calendar(d)", js)
+        self.assertIn('search: ["search", viewSearch]', js)
+        self.assertIn('id="gq"', ui_assets.INDEX_HTML)
+        self.assertNotIn("<form", ui_assets.INDEX_HTML)  # the CSP forbids form submission; Enter is handled in script
+        self.assertIn('document.getElementById("search") || document.getElementById("gq")', js)
 
     def test_results_and_campaigns_pages_are_routed(self):
         html, js = ui_assets.INDEX_HTML, ui_assets.APP_JS

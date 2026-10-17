@@ -267,7 +267,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, ui_data.journal_view(con, platform=self._filter(query, "platform"),
                                                      account=self._filter(query, "account")))
             elif route == "schedule":
-                self._json(200, ui_data.schedule_view(con))
+                days = self._filter(query, "days") or str(ui_data.SCHEDULE_DAYS)
+                if not days.isdigit() or not 1 <= int(days) <= ui_data.MAX_SCHEDULE_DAYS:
+                    raise ValidationError(f"days must be 1..{ui_data.MAX_SCHEDULE_DAYS}")
+                self._json(200, ui_data.schedule_view(con, days=int(days)))
+            elif route == "search":
+                text = (query.get("q") or [""])[0]
+                if not CAMPAIGN_NAME.fullmatch(text):  # printable text only; used as a substring, never as SQL
+                    raise ValidationError("search needs printable text")
+                self._json(200, ui_data.search(con, text))
             elif route == "safety":
                 self._json(200, self._safety(con))
             elif route == "suggest":

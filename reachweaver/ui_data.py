@@ -18,6 +18,7 @@ from .accounts import missing_credentials
 from .caps import load_caps
 from .journal import NOTE as JOURNAL_NOTE
 from .journal import build_entries
+from .storage import shared_entries
 from .ops_summary import build_summary
 from .policy import SUPPORTED_LIVE, ValidationError
 from .post_view import build_post_view
@@ -37,6 +38,9 @@ SCHEDULE_DAYS = 14
 SUGGESTION_LIMIT = 5
 RESULTS_LIMIT = 100
 CAMPAIGN_LIMIT = 200
+SEARCH_LIMIT = 50
+SEARCH_MAX_CHARS = 100
+MAX_SCHEDULE_DAYS = 62
 # Rows a human has to look at first, in this order.
 ATTENTION_ORDER = {"needs_review": 0, "sending": 1, "approved": 2, "scheduled": 3, "draft": 4,
                    "published": 5, "cancelled": 6}
@@ -429,3 +433,40 @@ def campaign_detail(con, campaign: str) -> dict:
         counts[row["status"]] = counts.get(row["status"], 0) + 1
     return {"campaign": redact(campaign), "posts": posts, "status_counts": counts,
             "note": "Each post is approved, scheduled and sent on its own; a campaign groups them for review only."}
+
+
+def _contains(haystack: object, needle: str) -> bool:
+    return isinstance(haystack, str) and needle in haystack.casefold()
+
+
+def search(con, query: str) -> dict:
+    """Posts (any status), campaign names and hand-shared records whose text, id, account, platform, campaign,
+    note or link contains ``query`` (case-insensitive). Read-only; at most ``SEARCH_LIMIT`` of each kind."""
+    needle = " ".join(query.split()).casefold()
+    if not 1 <= len(needle) <= SEARCH_MAX_CHARS:
+        raise ValidationError(f"search needs 1 to {SEARCH_MAX_CHARS} characters")
+    posts, campaigns = [], set()
+    for row in sorted(list_posts(con), key=lambda r: r["created_at"], reverse=True):
+        fields = (row["content"], row["id"], row["account_id"], row["platform"], row["campaign"], row["remote_url"])
+        if any(_contains(f, needle) for f in fields):
+            posts.append(row)
+        if _contains(row["campaign"], needle):
+            campaigns.add(row["campaign"])
+    hits = []
+    for row in posts[:SEARCH_LIMIT]:
+        item = redact_value({"id": row["id"], "status": row["status"], "platform": row["platform"],
+                             "account_id": row["account_id"], "campaign": row["campaign"] or None,
+                             "created_at": row["created_at"]})
+        item["excerpt"] = _excerpt(row["content"])
+        item["looks_like_secret"] = redact(row["content"]) != row["content"]
+        hits.append(item)
+    shared = []
+    for entry in shared_entries(con):
+        if any(_contains(entry.get(k), needle) for k in ("content", "note", "url", "platform", "account_id")):
+            item = redact_value({"id": entry["id"], "platform": entry["platform"], "account_id": entry["account_id"],
+                                 "when": entry["posted_at"] or entry["recorded_at"], "url": entry["url"] or None,
+                                 "note": entry["note"] or None})
+            item["excerpt"] = _excerpt(entry["content"] or "")
+            shared.append(item)
+    return {"query": query, "posts": hits, "posts_total": len(posts), "campaigns": sorted(redact_value(sorted(campaigns))),
+            "shared": shared[:SEARCH_LIMIT], "shared_total": len(shared)}

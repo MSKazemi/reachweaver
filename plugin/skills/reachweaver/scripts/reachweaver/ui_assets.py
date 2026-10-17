@@ -34,7 +34,9 @@ INDEX_HTML = r"""<!doctype html>
   </nav>
   <div class="tools">
     <span class="readonly" title="This dashboard cannot approve, schedule, pause or publish">Read-only</span>
+    <input type="search" id="gq" placeholder="Search everything" aria-label="Search posts, campaigns and shared records" maxlength="100">
     <label class="auto"><input type="checkbox" id="auto"> Auto-refresh</label>
+    <label class="auto" title="A browser notification when a send needs review or something new blocks readiness; counts only, never post text"><input type="checkbox" id="alerts"> Alerts</label>
     <button type="button" id="theme">Theme: auto</button>
     <button type="button" id="refresh">Refresh</button>
   </div>
@@ -173,6 +175,18 @@ dialog table td { border: 0; padding: 3px 10px 3px 0; }
 kbd { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; }
 .agenda table { table-layout: fixed; }  /* the same columns line up from one day to the next */
 .agenda th:nth-child(1) { width: 140px; } .agenda th:nth-child(2) { width: 120px; } .agenda th:nth-child(4) { width: 180px; }
+input[type="search"] { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; width: 13em; max-width: 100%; }
+.viewswitch { display: inline-flex; gap: 6px; margin: 0 0 12px; }
+a.chipbtn { border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; font-size: 13px; text-decoration: none; color: var(--ink); background: var(--panel); }
+a.chipbtn[aria-current="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.cal .dow { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); padding: 0 4px; }
+.cal .cell { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-height: 86px; padding: 6px; min-width: 0; }
+.cal .cell.past { opacity: .6; } .cal .cell.today { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.cal .num { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
+.cal .item { display: block; font-size: 12px; text-decoration: none; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 3px solid var(--info); padding-left: 4px; margin: 2px 0; }
+.cal .item.overdue { border-left-color: var(--warn); } .cal .item.expired { border-left-color: var(--bad); }
+.cal .more { font-size: 12px; }
 .day { margin: 18px 0 6px; font-size: 15px; } .day small { color: var(--muted); font-weight: 400; margin-left: 6px; }
 .flag { display: block; font-size: 13px; color: var(--warn); } .flag.bad { color: var(--bad); font-weight: 600; }
 .src { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
@@ -190,6 +204,8 @@ kbd { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var
   td { border: 0; padding: 4px 14px; }
   td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
   td.num { text-align: left; }
+  .cal { grid-template-columns: 1fr; } .cal .dow, .cal .cell.blank { display: none; } .cal .cell { min-height: 0; }
+  input[type="search"] { width: 100%; }
 }
 @media print {
   /* A post sheet printed or saved as PDF: the exact text and the approval binding, no controls. */
@@ -428,11 +444,45 @@ function agendaRows(items, timeCell) {
       p.last_error ? h("div", { class: "muted" }, "Last error: " + p.last_error) : null),
     h("td", null, p.account_id, h("div", { class: "muted" }, p.platform))));
 }
-async function viewSchedule() {
-  const d = await api("schedule");
+function viewSwitch(month) {
+  return h("div", { class: "viewswitch", role: "group", "aria-label": "Schedule view" },
+    h("a", { class: "chipbtn", href: "#/schedule", "aria-current": month ? null : "true" }, "List"),
+    h("a", { class: "chipbtn", href: "#/schedule?view=month", "aria-current": month ? "true" : null }, "Month"));
+}
+const CAL_WEEKS = 5;
+function calendar(d) { // 5 weeks from this Monday, in local time; overdue posts sit on the day they were due
+  const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  const today = localDay(new Date().toISOString()), byDay = new Map();
+  for (const p of [...d.overdue, ...d.upcoming]) { const k = localDay(p.scheduled_at); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(p); }
+  const cells = [];
+  let names = [];
+  try { names = [...Array(7)].map((_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(undefined, { weekday: "short" })); } catch (e) { names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]; }
+  for (const n of names) cells.push(h("div", { class: "dow" }, n));
+  for (let i = 0; i < CAL_WEEKS * 7; i++) {
+    const day = new Date(start); day.setDate(start.getDate() + i);
+    const key = localDay(day.toISOString()), items = (byDay.get(key) || []).sort((a, b) => a.scheduled_at < b.scheduled_at ? -1 : 1);
+    const label = day.getDate() === 1 || i === 0 ? day.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : String(day.getDate());
+    cells.push(h("div", { class: "cell" + (key < today ? " past" : "") + (key === today ? " today" : "") + (items.length ? "" : " blank"),
+      "aria-label": day.toDateString() + ": " + items.length + " post(s)" },
+      h("span", { class: "num" }, key === today ? "Today · " + label : label),
+      items.slice(0, 3).map(p => h("a", { class: "item" + (d.overdue.includes(p) ? " overdue" : "") + (p.approval_expired ? " expired" : ""),
+        href: "#/post/" + encodeURIComponent(p.id), title: p.excerpt }, clock(p.scheduled_at), " " + p.platform + " · " + (p.excerpt || ""))),
+      items.length > 3 ? h("a", { class: "more", href: "#/schedule" }, "+" + (items.length - 3) + " more") : null));
+  }
+  return h("div", { class: "cal" }, cells);
+}
+async function viewSchedule(params) {
+  const month = !!params && params.get("view") === "month";
+  const d = await api("schedule" + (month ? "?days=" + (CAL_WEEKS * 7 + 7) : ""));
   const head = ["When", "Status", "Text", "Account"];
   const out = [h("h1", null, "Schedule"),
-    h("p", { class: "lede" }, "Approved posts by due time, in your local time (UTC on hover). A post is only sent by a worker you run; ", h("code", null, "reachweaver pause"), " stops every send.")];
+    h("p", { class: "lede" }, "Approved posts by due time, in your local time (UTC on hover). A post is only sent by a worker you run; ", h("code", null, "reachweaver pause"), " stops every send."),
+    viewSwitch(month)];
+  if (month) {
+    out.push(calendar(d), h("p", { class: "note" }, "Orange: past its time and not sent. Red: the approval has expired. Approved posts with no time (" + d.unscheduled.length + ") are in the List view."));
+    if (d.sending.length) out.push(h("p", { class: "warn" }, d.sending.length + " send(s) in progress; see the List view."));
+    return out;
+  }
   if (d.overdue.length) out.push(h("h2", null, "Past their time (" + d.overdue.length + ")"),
     h("div", { class: "warn" }, "These were due and have not been sent. Check whether each still makes sense before a worker runs."),
     table(head, agendaRows(d.overdue, p => when(p.scheduled_at))));
@@ -574,6 +624,29 @@ async function viewCampaign(params) {
       h("td", null, p.results ? [h("div", null, keys.filter(k => p.results[k] != null).map(k => k + " " + NUM.format(p.results[k])).join(" · ") || h("span", { class: "muted" }, "no exact values")),
         h("div", { class: "note" }, "recorded ", when(p.results.observed_at))] : h("span", { class: "muted" }, p.status === "published" ? "not recorded" : "—"))))),
     h("p", { class: "note" }, d.note)];
+  return out;
+}
+
+// ---- Search across posts, campaigns and hand-shared records (server-side, read-only)
+async function viewSearch(params) {
+  const q = (params.get("q") || "").trim();
+  const box = document.getElementById("gq"); if (box && box.value !== q) box.value = q;
+  if (!q) return [h("h1", null, "Search"), empty("Type in the search box", "Search finds posts in any status, campaign names and posts you recorded as shared by hand.")];
+  const d = await api("search?q=" + encodeURIComponent(q));
+  const out = [h("h1", null, "Search"), h("p", { class: "lede" }, "Results for \u201c" + d.query + "\u201d: " + d.posts_total + " post(s), " + d.campaigns.length + " campaign(s), " + d.shared_total + " shared by hand.")];
+  if (d.campaigns.length) out.push(h("h2", null, "Campaigns"), h("p", null, d.campaigns.map(c => [h("a", { href: "#/campaign?name=" + encodeURIComponent(c) }, c), " "])));
+  if (d.posts.length) out.push(h("h2", null, "Posts"), table(["Status", "Text", "Account", "Created"], d.posts.map(p => h("tr", null,
+    h("td", null, chip(p.status)),
+    h("td", null, h("a", { class: "row-link", href: "#/post/" + encodeURIComponent(p.id) }, p.excerpt || "(empty)"),
+      p.looks_like_secret ? h("span", { class: "warnbadge" }, "looks like a secret") : null,
+      p.campaign ? h("div", { class: "note" }, "campaign " + p.campaign) : null),
+    h("td", null, p.account_id, h("div", { class: "muted" }, p.platform)), h("td", null, when(p.created_at))))));
+  if (d.posts_total > d.posts.length) out.push(h("p", { class: "muted" }, "Showing the newest " + d.posts.length + " of " + d.posts_total + " posts; refine the search to narrow them."));
+  if (d.shared.length) out.push(h("h2", null, "Shared by hand"), table(["When", "Text", "Platform", "Link"], d.shared.map(e => { const link = safeLink(e.url); return h("tr", null,
+    h("td", null, when(e.when)), h("td", null, e.excerpt || h("span", { class: "muted" }, "(no text recorded)"), e.note ? h("div", { class: "muted" }, "Note: " + e.note) : null),
+    h("td", null, e.platform, h("div", { class: "muted" }, e.account_id || "")),
+    h("td", null, link ? h("a", { href: link, rel: "noopener noreferrer", target: "_blank" }, "Open") : h("span", { class: "muted" }, "no link"))); })));
+  if (!d.posts.length && !d.campaigns.length && !d.shared.length) out.push(empty("Nothing matches", "Search looks at post text, ids, accounts, platforms, campaign names, notes and links."));
   return out;
 }
 
@@ -729,7 +802,7 @@ async function viewDistribution(params) {
 // ---- router (own-property lookup only: '#/constructor' must not reach Object.prototype)
 const ROUTES = Object.assign(Object.create(null), { "": ["overview", viewOverview], queue: ["queue", viewQueue],
   schedule: ["schedule", viewSchedule], posted: ["posted", viewPosted], results: ["results", viewResults],
-  campaigns: ["campaigns", viewCampaigns], campaign: ["campaigns", viewCampaign],
+  campaigns: ["campaigns", viewCampaigns], campaign: ["campaigns", viewCampaign], search: ["search", viewSearch],
   accounts: ["accounts", viewAccounts], distribution: ["distribution", viewDistribution] });
 let rendering = 0, lastPath = null;
 function parseHash() {
@@ -789,6 +862,39 @@ function setAuto(on) {
 auto.checked = store("rw-auto") === "1"; setAuto(auto.checked);
 auto.addEventListener("change", () => { store("rw-auto", auto.checked ? "1" : "0"); setAuto(auto.checked); });
 
+// ---- header search: Enter opens the search page (no form, so nothing is submitted anywhere)
+const gq = document.getElementById("gq");
+gq.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); const q = gq.value.trim(); if (q) location.hash = "#/search?q=" + encodeURIComponent(q); } });
+
+// ---- opt-in alerts: a browser notification with counts only (never post text), while this tab is open
+const alerts = document.getElementById("alerts");
+let alertTimer = null, alertLast = null;
+async function checkAlerts() {
+  let s;
+  try { s = await api("overview"); } catch (e) { return; }
+  const counts = s.global.status_counts || {}, now = { review: counts.needs_review || 0, blocked: s.reasons.filter(r => r.level === "blocked").length };
+  setBadge(counts);
+  if (alertLast && (now.review > alertLast.review || now.blocked > alertLast.blocked) && typeof Notification !== "undefined" && Notification.permission === "granted") {
+    const body = (now.review ? now.review + " send(s) need your review. " : "") + (now.blocked ? now.blocked + " readiness block(s)." : "");
+    try { new Notification("ReachWeaver needs you", { body: body.trim(), tag: "reachweaver" }); } catch (e) { /* notifications unavailable */ }
+  }
+  alertLast = now;
+}
+function setAlerts(on) {
+  clearInterval(alertTimer); alertTimer = null; alertLast = null;
+  if (on) { checkAlerts(); alertTimer = setInterval(checkAlerts, 60000); }
+}
+alerts.addEventListener("change", async () => {
+  if (alerts.checked) {
+    if (typeof Notification === "undefined") { alerts.checked = false; toast("This browser has no notifications"); return; }
+    let permission = Notification.permission;
+    if (permission === "default") { try { permission = await Notification.requestPermission(); } catch (e) { permission = "denied"; } }
+    if (permission !== "granted") { alerts.checked = false; toast("Notifications are blocked for this page"); return; }
+  }
+  store("rw-alerts", alerts.checked ? "1" : "0"); setAlerts(alerts.checked); toast(alerts.checked ? "Alerts on" : "Alerts off");
+});
+alerts.checked = store("rw-alerts") === "1" && typeof Notification !== "undefined" && Notification.permission === "granted"; setAlerts(alerts.checked);
+
 // ---- keyboard shortcuts
 const SHORTCUTS = [["?", "Show this help"], ["g then o / q / s / p", "Go to Overview / Queue / Schedule / Posted"],
   ["g then r / m", "Go to Results / Campaigns"], ["g then a / c", "Go to Accounts / Channels"], ["j / k", "Move down / up in the queue or the posted list"],
@@ -818,7 +924,7 @@ document.addEventListener("keydown", e => {
     case "j": select(1); break;
     case "k": select(-1); break;
     case "Enter": { const row = queueRows[queueSel]; if (row && !row.hidden && (el === document.body || el === main)) { const a = row.querySelector('a[href^="#/"]'); if (a) location.hash = a.getAttribute("href"); } break; }
-    case "/": { const s = document.getElementById("search"); if (s) { e.preventDefault(); s.focus(); } break; }
+    case "/": { const s = document.getElementById("search") || document.getElementById("gq"); if (s) { e.preventDefault(); s.focus(); } break; }
     case "r": render(); toast("Refreshed"); break;
     case "t": cycleTheme(); break;
     case "[": if (neighbours.prev && location.hash.startsWith("#/post/")) location.hash = "#/post/" + encodeURIComponent(neighbours.prev); break;
