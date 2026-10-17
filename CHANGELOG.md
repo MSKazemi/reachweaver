@@ -6,6 +6,12 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-18
+
+Easier posting by hand and better preparation, all offline: a browser page for writing and saving posts (`share --web`), a checklist for draft posts (`creative-preflight`), tools to prepare consent-based coverage by other creators (`creator-match`, `creator-kit`, `creator-coverage`), help choosing platforms and setting up accounts yourself (`account-advisor`), a clearer dashboard and an Instagram hashtag warning. 5 new commands (101 in all, none removed). No change to approval, dry-run, emergency-stop or credential rules, and no new live adapter.
+
+**Upgrade notes.** Instagram captions with 6 to 30 hashtags now get a warning in `manual-export` and `share` (more than 30 still blocks). Nothing else changes for existing users. Update the package with `pipx upgrade reachweaver` and the plugin through `/plugin`.
+
 ### Added
 
 - **`reachweaver share --web`: a browser composer for posting by hand (experimental).** One command opens a local page where you write a caption, pick up to ten manual-only networks, preview each network's text and warnings, tailor the caption per network, copy it, and save the same private `share` packages to disk. It is a separate server from the read-only `ui` dashboard: it binds 127.0.0.1 only, needs a per-run random token in a request header, checks the exact Host on every request and the exact Origin on every POST, sends no CORS header, limits a request body to 96 KiB and 10 seconds, and serves a strict CSP with a per-response nonce. Preview writes nothing; saving rechecks every rule and writes a fresh owner-only folder below `state/shares`. Human-only destinations such as Reddit and Hacker News get notes, never post text, including through per-network edits. It has no Publish button, uploads no media, connects no account and calls no platform. Guide: [docs/BROWSER-SHARE-COMPOSER.md](docs/BROWSER-SHARE-COMPOSER.md). `tests/test_share_browser.py` covers the HTTP boundary, including malformed, oversized and slow requests.

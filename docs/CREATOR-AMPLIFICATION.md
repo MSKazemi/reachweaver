@@ -73,6 +73,8 @@ Counts only owner-confirmed, independently contributed derivatives; keeps unveri
 
 ## Privacy, responsible outreach and retention
 
+**The creator list you enter is your data and your responsibility** (see [DISCLAIMER.md section 3](../DISCLAIMER.md#3-responsibility-for-content-and-third-party-rules)). Keep only public information, and delete the list and its reports when the campaign ends. ReachWeaver keeps it only on your computer and never sends it anywhere.
+
 A public professional handle may still be **personal data**. This feature never ships a real-person dataset, private messages, emails, phone numbers, creator contact lists or raw third-party transcripts. Operators must have an appropriate lawful basis, minimize data, respect local marketing laws and each platform's rules, honor opt-outs, and delete local files when no longer needed. Local reports can include the operator-entered public handles: keep outputs private and never commit real creator information.
 
 No automatic unsolicited DMs, mass mentions, scripted engagement rings, fake or coordinated likes, account scraping, captcha bypasses, credential harvesting, marketing automation or synthetic influencer endorsements. Candidate matching, kit preparation and coverage measurement are **offline-only**.
