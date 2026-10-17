@@ -21,6 +21,7 @@ import os
 from pathlib import Path
 from typing import Any, cast
 
+from . import china
 from .campaigns import _sensitive_keys, public_url
 from .capabilities import load_registry as load_capability_registry
 from .distribution import load_registry as load_distribution_registry
@@ -110,7 +111,8 @@ def package_preflight(platform: str, variant: object,
     if not isinstance(raw_options, dict):
         errors.append("variant.platform_options must be an object")
     options = _options(variant)
-    for key in sorted(set(options) - {"title"}):
+    china_profile = china.is_china(platform) and not human_only
+    for key in sorted(set(options) - ({"title", "topics"} if china_profile else {"title"})):
         warnings.append(f"platform_options.{key} is not used by the generic package (ignored)")
     text, title, points = variant.get("text"), options.get("title"), variant.get("talking_points")
     if human_only:
@@ -146,6 +148,12 @@ def package_preflight(platform: str, variant: object,
                 _check_text_common(title, errors, "title")
         if points is not None:
             warnings.append("variant.talking_points is used only for human-only destinations (ignored)")
+        if china_profile:
+            china_errors, china_warnings = china.preflight(platform, text if isinstance(text, str) else None,
+                                                           title if isinstance(title, str) else None,
+                                                           options.get("topics"))
+            errors += china_errors
+            warnings += china_warnings
     if account_meta is not None:
         errors.extend(_check_account_meta(platform, account_meta, warnings))
     return errors, warnings
@@ -279,6 +287,11 @@ def build_package(platform: str, variant: dict, media_manifest=None, account_met
                                                          media_manifest, media_base_dir)
     errors += media_errors
     warnings += media_warnings
+    china_profile = china.is_china(platform) and not human_only
+    if china_profile:
+        china_errors, china_warnings = china.media_check(platform, media["assets"])
+        errors += china_errors
+        warnings += china_warnings
     link_url = variant.get("link_url")
     if human_only:
         points = variant.get("talking_points")
@@ -328,6 +341,10 @@ def build_package(platform: str, variant: dict, media_manifest=None, account_met
                    f"{label}. This package is not evidence that a post exists. The account holder decides "
                    "whether to post, by hand, in the platform's own app or website."),
     }
+    if china_profile:
+        package["china"] = china.section(platform, content.get("text"), content.get("title"),
+                                         _options(variant).get("topics"))
+        package["limits"]["text"] = china.text_limit(platform)
     package["checklist"] = _checklist(package)
     return package
 
@@ -368,6 +385,8 @@ def _checklist(package: dict) -> list[str]:
                         f"{rights.get('rights_confirmed')}" if rights else "; no rights record in the manifest"))
     if package["media"]["required_kinds"] and not package["media"]["validated"]:
         steps.append("Run media-check on the media you attach (alt text, captions, rights, limits).")
+    if "china" in package:
+        steps.extend(china.checklist(platform, package))
     steps.append("Confirm rights, consent and disclosure for all text and media.")
     steps.append("If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver "
                  "records nothing from this package.")
@@ -401,7 +420,8 @@ def render_markdown(package: dict) -> str:
         lines.append(f"- Destination link: {package['links']['link_url']}")
     lines.append("")
     limits = package["limits"]
-    lines += ["## Limits (from the registries only)", "", f"- Text: {limits['text']['display']}"]
+    lines += ["## Limits (from the registries only)" if "china" not in package else "## Limits", "",
+              f"- Text: {limits['text']['display']}"]
     for row in limits["media"]:
         if row["table"] is None:
             lines.append(f"- Media: {row['display']}")
@@ -420,6 +440,8 @@ def render_markdown(package: dict) -> str:
                          + (", ".join(f"{k} {v}" for k, v in rights.items() if v is not None) if rights
                             else "no rights record in the manifest"))
         lines.append("")
+    if "china" in package:
+        lines += _china_markdown(package)
     lines += ["## Checklist", ""] + [f"- [ ] {step}" for step in package["checklist"]] + [""]
     registry = package["registry"]
     capability = registry["capability"]
@@ -431,6 +453,34 @@ def render_markdown(package: dict) -> str:
                  f"`{capability['reachweaver_adapter']}`, verified {capability['verified_date']}."
                  if capability else ""), ""]
     return "\n".join(lines) + "\n"
+
+
+def _china_markdown(package: dict) -> list[str]:
+    block = package["china"]
+    lines = [f"## China ({block['label_zh']})", "", f"Post it yourself in: {block['composer']}.", "",
+             block["api_status"], ""]
+    measured = block["measured"]
+    if measured:
+        lines.append("- Measured: " + ", ".join(f"{k} {v}" for k, v in measured.items()))
+    if block["topics"]["rendered"]:
+        lines.append("- Topics (topics.txt): " + block["topics"]["rendered"].replace("\n", " "))
+    for key, fact in block["facts"].items():
+        value = fact["value"] if fact["value"] is not None else china.LIMIT_UNKNOWN
+        if isinstance(value, dict):
+            value = ", ".join(f"{k} {v!r}" if k == "forbidden" else f"{k} {v}" for k, v in value.items())
+        lines.append(f"- `{key}`: {value} ({fact['status']}, {fact['checked_on']})"
+                     + (f" {fact['source']}" if fact["source"] else "")
+                     + (f" Quote: {fact['quote']} ({fact['translation']})" if fact["quote"] else "")
+                     + (f" {fact['note']}" if fact["note"] else ""))
+    lines += ["", "### Decisions only you can make (nothing pre-selected)", ""]
+    for decision in block["human_decisions"]:
+        lines.append(f"- **{decision['id']}**: {decision['question']} Options: {' / '.join(decision['options'])}. "
+                     f"Source: {decision['source']}. {decision['note']}")
+    lines += ["", "### Rules that apply on every Chinese platform", ""]
+    for rule in block["legal"].values():
+        lines.append(f"- {rule['value']}. {rule['source']} Quote: {rule['quote']} ({rule['translation']}) "
+                     f"{rule['note']}")
+    return lines + [""]
 
 
 def render_notes(package: dict) -> str:
@@ -471,6 +521,8 @@ def write_package(package: dict, destination: str | Path) -> list[str]:
         if package["content"]["title"] is not None:
             files["title.txt"] = package["content"]["title"]
         files["post.txt"] = package["content"]["text"]
+        if package.get("china", {}).get("topics", {}).get("rendered"):
+            files["topics.txt"] = package["china"]["topics"]["rendered"]
     written = []
     for name, text in files.items():
         path = destination / name

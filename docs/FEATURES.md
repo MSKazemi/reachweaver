@@ -94,6 +94,7 @@ Read [global strategy](GLOBAL-DISTRIBUTION-2026-10-08.md), [operating/governance
 | LinkedIn personal profile (member) | Text-only Posts API adapter with pinned `Linkedin-Version`, mocked tests; organization pages unsupported ([guide](LINKEDIN.md)) |
 | Threads, Facebook Page, Instagram, YouTube, TikTok | Mock-tested adapters (Threads text #19, Facebook Page text/link #21, Instagram single image #20, YouTube upload #22, TikTok creator-inbox video #23), owner-approved 2026-10-09 and **disabled** in the capability registry until a supervised live receipt; `manual-export` creator packages meanwhile |
 | X, Reddit, Pinterest | Creative/manual workflow only; no adapter |
+| Weibo, Xiaohongshu, Douyin, Bilibili, WeChat Official Accounts, Zhihu and six more Chinese platforms | China-aware `manual-export` packages: sourced limits, platform topic syntax, AI-label and ad-label decisions; you post by hand ([CHINA.md](CHINA.md)). No adapter: no open posting API the owner qualifies for |
 | Analytics / comparisons | User-supplied snapshot ingestion, read-only polling of public Bluesky/Mastodon counters (`metrics-fetch`), coverage-aware local report and matched-age directional experiment evaluator |
 | Campaign validation and brand identity boundaries | Offline evidence/brand JSON checks; immutable idempotent draft staging |
 | Private/owner analytics fetching (views, impressions, clicks) or media rendering | Not implemented; `metrics-fetch` reads only public like/repost/reply(/bookmark) counters |

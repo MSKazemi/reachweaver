@@ -26,6 +26,8 @@ It builds on, and does not repeat, the [regional channel catalog](REGIONAL-CHANN
 | Kuaishou | `kuaishou` | China | not verified (developer pages JavaScript-only) | not verified (JavaScript-only) | not verified (JavaScript-only) | Open platform: not verified (open.kuaishou.com and its OpenAPI page return a JavaScript-only shell) | Unknown | not verified (JavaScript-only) | not verified (JavaScript-only) | not verified (JavaScript-only) | not verified (JavaScript-only) | 2026-10-16 | Native only: the owner posts in the app | NO-GO |
 <!-- regional-feasibility:end -->
 
+**Using these platforms today:** `manual-export` writes a China-aware package for each of them (sourced limits, topic syntax, AI and ad declarations), which the owner posts by hand: see [CHINA.md](CHINA.md) (2026-10-17).
+
 **Verdicts.** NO-GO means: no ReachWeaver adapter, keep the native human handoff (`manual-export` package or the owner posting in the provider's own app). CONDITIONAL means: an official write API exists, but it may be used only after the owner-gated steps below, and the matrix does not say the owner qualifies. No row is a GO, and no row is a ReachWeaver adapter, an account connection or a receipt.
 
 **Toutiao is not covered by the Douyin row.** Nothing above says anything about a Toutiao or Toutiaohao posting API. `toutiao` stays `manual_only` with `unverified` scheduling until its own documentation is read.
