@@ -30,7 +30,7 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
         "experiment-preregister", "experiment-verify", "experiment-evaluate", "experiment-readout", "experiment-next",
         "experiment-simulate")),
     ("Audit profiles and content", ("profile-audit", "post-audit", "seo-destinations", "seo-content-check",
-                                    "landing-check", "utm-link", "media-check", "media-storyboard")),
+                                    "landing-check", "utm-link", "media-check", "media-storyboard", "media-cutlist")),
     ("Research channels and sources", ("distribution-plan", "sources-scan", "signal-brief")),
     ("Engagement", ("engagement-fetch", "engagement-triage", "engagement-queue")),
     ("Data, privacy and schemas", ("archive", "media-relink", "data-export", "data-purge", "privacy-status", "schema-validate", "schema-export")),

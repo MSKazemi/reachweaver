@@ -212,6 +212,42 @@ Each value must be a fraction from 0 up to, but not including, 0.5. Only video t
 
 Whichever tool you use, record it in the manifest: `provenance.created_by: "tool"` and `provenance.tool: "<name and version>"`. `media-check` then asks for disclosure and likeness review.
 
+## Cut list: `media-cutlist`
+
+Repurpose one master video for several platforms. You describe the master and mark its segments; ReachWeaver says, per platform, which segments to keep, how to crop and which limits apply. It never opens, cuts or encodes a file: the master's numbers are yours, and it prints an `ffmpeg` command for you to run.
+
+```bash
+reachweaver media-cutlist examples/cut-list.example.json          # readable plan
+reachweaver media-cutlist examples/cut-list.example.json --json   # for scripts
+```
+
+```json
+{
+  "schema_version": "reachweaver.cut-list.v1",
+  "source": {"file": "media/release-talk.mp4", "duration_s": 312.5, "width": 1920, "height": 1080,
+             "focus_x": 0.42, "focus_y": 0.5, "has_audio": true},
+  "segments": [{"id": "hook", "start_s": 4.0, "end_s": 16.0, "label": "The one-line problem", "priority": 1}],
+  "targets": [{"platform": "youtube_shorts"}, {"platform": "tiktok", "max_s": 60}, {"platform": "instagram", "aspect": "4:5"}]
+}
+```
+
+| Field | Rule |
+|---|---|
+| `source.file` | The master's path. It only appears in the suggested command; the file is not opened |
+| `source.duration_s`, `width`, `height` | The master's length and frame size, as your player or `ffprobe` reports them |
+| `focus_x`, `focus_y` | 0 to 1 (default 0.5): where the subject is, so a crop keeps it in frame |
+| `segments[]` | Up to 100, no overlaps: `id` (lowercase slug), `start_s`, `end_s`, optional `label`, `priority` 1 (keep first) to 5. No segments means the whole video |
+| `targets[]` | Up to 12 of `youtube_shorts`, `tiktok`, `instagram`, `linkedin`, `bluesky`, `mastodon` (the platforms with a video row in the [constraint table](#platform-constraint-table-verified-2026-10-08-github-2026-10-14-devto-2026-10-15)); optional `aspect` (`W:H`) and `max_s`, which can only shorten a cut |
+
+For each target:
+
+- **Keep**: segments are taken by priority, then by time, while the cut fits the platform's maximum duration, and are then played in time order. The maximum and minimum come from the constraint table with their official source and checked date. A limit the source does not establish (for example Mastodon's duration) is reported as `unverified` with a warning, and nothing is cut to fit it.
+- **Aspect and crop**: your `aspect`, else 9:16 for Shorts (inside the official square-or-vertical range; the choice is ReachWeaver's) and for TikTok (a hypothesis: the cited sources set no aspect), else the master's own. The crop is the largest window of that aspect centred on the focus point. It is scaled down to a 1080-pixel-wide frame when larger, and never scaled up; a smaller crop keeps its size with a warning.
+- **Subtitles and size**: the subtitle format (`vtt` for Bluesky, `srt` for LinkedIn) and the maximum file size, when the source establishes them.
+- **Suggested command**: `ffmpeg` with the `trim`/`atrim`, `setpts`, `concat`, `crop` and `scale` filters ([ffmpeg filters](https://ffmpeg.org/ffmpeg-filters.html), accessed 2026-10-17), H.264 with AAC audio and `-movflags +faststart`, written to `NAME.PLATFORM.mp4` next to the master, with every argument shell-quoted. ReachWeaver and its tests do not run it: check it with your ffmpeg version and watch the result.
+
+Then run `media-check` on the cut before attaching it to a draft. The cut list adds no media to a post and changes no approval.
+
 ## Rights on the attached image (issue #48, draft for owner review)
 
 `media-check` validates the rights of a manifest, but until now an image attached to a draft carried none of it. `media-attach` now accepts an **optional rights record** that is stored with the image, shown by `show` and the confirmation display, and bound by the approval hash:

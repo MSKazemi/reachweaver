@@ -289,6 +289,7 @@ reachweaver media-attach POST_ID --url HTTPS_URL (--alt T | --alt-file F) --onli
 reachweaver media-detach POST_ID               offline: remove a draft's image attachments
 reachweaver media-storyboard --campaign CAMPAIGN.json --out NEW_DIR [--duration S] [--aspect 9:16] [--video-targets T...] [--image-targets T...] [--locale L] [--fit cover|contain] [--safe-zones F] [--json]  offline storyboard + SRT skeleton + alt-text placeholders + image specs + media manifest; generates no media (docs/MEDIA-ASSETS.md)
 reachweaver media-storyboard --check STORYBOARD.json [--safe-zones F] [--json]  re-check edited text/focal boxes against crop and UI-overlay safe areas, subtitle timing and placeholders
+reachweaver media-cutlist PLAN.json [--json]  offline: one master video -> per-platform cut list (segments that fit each sourced duration limit, crop to the target aspect, subtitle format, a suggested ffmpeg command you run yourself); opens and edits no media (docs/MEDIA-ASSETS.md)
 reachweaver sources-scan --config F [--online] [--allow-private] [--state S] [--top N] [--json]  rank opt-in GitHub/feed/changelog/DOI signals; research only
 reachweaver signal-brief --scan SCAN.json --signal-id ID --brand B --out CAMPAIGN.json [--accounts A] [--objective O] [--allow-duplicate] [--json]  NEW 0600 campaign scaffold + .brief.md from one signal; placeholders block staging; no copy generated (docs/SOURCES.md)
 reachweaver capabilities [--platform P] [--json] [--max-age-days 120]  offline capability/API-approval registry (docs/PLATFORMS.md)

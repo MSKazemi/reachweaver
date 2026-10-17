@@ -754,6 +754,11 @@ def make_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("media-check", help="Offline media manifest checks: headers, platform limits, alt text, captions, rights; never uploads")
     p.add_argument("manifest", type=Path, help="Media manifest JSON; asset paths are relative to it")
     p.add_argument("--json", action="store_true", help="Machine-readable errors/warnings report")
+    p = sub.add_parser("media-cutlist", help="Offline: one master video -> per-platform cut list (segments that fit each "
+                       "platform's sourced duration limit, crop to the target aspect, subtitle format, a suggested "
+                       "ffmpeg command); opens and edits no media")
+    p.add_argument("plan", type=Path, help="Cut-list JSON (docs/MEDIA-ASSETS.md#cut-list-media-cutlist)")
+    p.add_argument("--json", action="store_true", help="Machine-readable cut list")
     p = sub.add_parser("media-storyboard", help="Offline: campaign brief -> vertical-video storyboard, SRT skeleton, "
                        "alt-text placeholders, image specs, media manifest, safe-area check; generates no media")
     p.add_argument("--campaign", type=Path, help="Campaign JSON (campaign contract or signal-brief scaffold)")
@@ -1980,6 +1985,11 @@ def execute(args) -> int:
                 print("  WARNING:", item)
             print(result["note"])
         return 2 if result["errors"] else 0
+    if args.command == "media-cutlist":  # reads only the plan file; no database, no media file, no network
+        from .cutlist import build_cutlist, load_plan, render_text as render_cutlist
+        cut_result = build_cutlist(load_plan(args.plan))
+        print(json.dumps(cut_result, indent=2, ensure_ascii=False) if args.json else render_cutlist(cut_result))
+        return 0
     if args.command == "media-storyboard":
         from .storyboard import run_command as run_storyboard
         return run_storyboard(args)

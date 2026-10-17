@@ -1,0 +1,18 @@
+{
+  "schema_version": "reachweaver.cut-list.v1",
+  "source": {"file": "media/release-talk.mp4", "duration_s": 312.5, "width": 1920, "height": 1080,
+             "focus_x": 0.42, "has_audio": true},
+  "segments": [
+    {"id": "hook", "start_s": 4.0, "end_s": 16.0, "label": "The one-line problem", "priority": 1},
+    {"id": "demo", "start_s": 40.0, "end_s": 118.0, "label": "Dashboard demo", "priority": 2},
+    {"id": "approval", "start_s": 130.0, "end_s": 205.0, "label": "Why approval comes first", "priority": 3},
+    {"id": "call-to-action", "start_s": 290.0, "end_s": 300.0, "label": "Where to get it", "priority": 1}
+  ],
+  "targets": [
+    {"platform": "youtube_shorts"},
+    {"platform": "tiktok", "max_s": 60},
+    {"platform": "instagram", "aspect": "4:5"},
+    {"platform": "linkedin"},
+    {"platform": "mastodon"}
+  ]
+}
