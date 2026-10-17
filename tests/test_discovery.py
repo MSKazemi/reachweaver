@@ -135,6 +135,19 @@ class DiscoveryTests(unittest.TestCase):
         self.assertTrue(any(x["reason"] == "tag_not_lexically_related_to_post_or_keywords"
                             for x in p["skipped"]))
 
+    def test_unrelated_keywords_alone_cannot_add_off_topic_trend(self):
+        payload = basic(keywords=["WorldCup"], candidates=[
+            {"tag": "#WorldCup", "kind": "trend", "source_type": "official_tool_recorded",
+             "source_url": "https://ads.tiktok.com/resources/help/article/how-to-use-trends",
+             "observed_on": "2026-10-17", "region": "US",
+             "evidence_note": "Synthetic unrelated popular topic."},
+        ])
+        result = build_discovery_plan(payload)
+        self.assertNotIn("#WorldCup", tagnames(result))
+        self.assertTrue(any(x["reason"] == "tag_not_lexically_related_to_post_or_keywords"
+                            for x in result["skipped"]))
+        self.assertTrue(any("WorldCup" in w for w in result["warnings"]))
+
     def test_youtube_does_not_pretend_tags_drive_video_discovery(self):
         item = basic(platform="youtube", candidates=[{"tag": "#Linux", "kind": "niche"}])
         p = build_discovery_plan(item)
