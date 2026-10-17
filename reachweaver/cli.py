@@ -776,6 +776,23 @@ def make_parser() -> argparse.ArgumentParser:
                    help="Assumed player fit for non-9:16 frames: centered crop (default) or letterbox")
     p.add_argument("--safe-zones", type=Path, help="Owner UI-overlay zones JSON overriding the built-ins (sourced from paid-ad specs, accessed 2026-10-09)")
     p.add_argument("--json", action="store_true", help="Machine-readable result")
+    p = sub.add_parser("share", help="Easy offline handoff: choose social networks, type a caption and get copy-ready text and checklists; never sends")
+    p.add_argument("--platform", action="append", metavar="NAME",
+                   help="Social network(s), e.g. instagram,threads or --platform tiktok --platform youtube")
+    p.add_argument("--list", action="store_true", help="Show friendly example network names; no network")
+    p.add_argument("--guide", action="store_true", help="Ask simple questions in your terminal; no login required")
+    body = p.add_mutually_exclusive_group()
+    body.add_argument("--text", help="Caption to prepare (one exact text, reviewed separately per platform)")
+    body.add_argument("--file", type=Path, help="Existing local UTF-8 file with the caption, including line breaks")
+    p.add_argument("--note", action="append", help="Short idea for human-only groups; never used as ready-made post text")
+    p.add_argument("--title", help="YouTube video title when a YouTube destination is selected")
+    p.add_argument("--format", choices=("text", "image", "video", "carousel", "link"),
+                   help="Override a platform's inferred format (image/video requires manual media attachment)")
+    p.add_argument("--attach", action="append", type=Path, help="List a local photo/video to attach yourself in each app; not uploaded or validated")
+    p.add_argument("--media", type=Path, help="Optional advanced media-check manifest for existing validation")
+    p.add_argument("--out", type=Path, help="New output folder (default: a unique private folder under state/)")
+    p.add_argument("--preview", action="store_true", help="Check without writing any files")
+
     p = sub.add_parser("manual-export", help="Offline creator-ready package for Threads/Instagram/Facebook Pages/YouTube/TikTok, or a generic package for any other manual_only distribution-registry destination; never sends")
     p.add_argument("--platform", required=True, choices=MANUAL_PLATFORMS + generic_platforms(), metavar="PLATFORM",
                    help="threads, instagram, facebook, youtube or tiktok (sourced package), or any other manual_only "
@@ -2053,6 +2070,9 @@ def execute(args) -> int:
         else:
             print(render_routes(routes), end="")
         return 0
+    if args.command == "share":
+        from .share import run as run_share
+        return run_share(args)
     if args.command == "manual-export-batch":
         from .manual_batch import build_batch, manifest as batch_manifest, render_text as render_batch, write_batch
         batch = build_batch(read_json(args.file))
