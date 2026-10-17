@@ -44,6 +44,7 @@ Some destinations (e.g. Reddit and Hacker News) are treated as human-only. They 
 ## How is the browser interface kept private?
 
 - It binds only to 127.0.0.1 (loopback). It is **not a public website**. Do not set up proxy forwarding to the composer.
+- This session is meant for the **same computer** that runs ReachWeaver. Do not expose it with SSH tunnels, reverse proxies, remote-access tools or router port forwarding.
 - A new cryptographically random session token is required for both reads of the manual platform catalog and POST actions. Mutating requests also require the correct local Origin and Host headers; cross-origin preflights are refused.
 - No cookies, external JavaScript, remote fonts, images, trackers or cloud backend. The local page uses a restrictive Content Security Policy and inserts content as text, not executable HTML.
 - No caption is transmitted to social platforms. Text is sent from your browser to the **local ReachWeaver server on the same computer** for validation and file generation.
