@@ -4,6 +4,16 @@ This is the easiest way to prepare social posts with ReachWeaver. You can use it
 
 **Important:** this feature prepares private folders with captions and checklists. It does **not** sign in, upload, schedule or publish anything. You finish each post in the social media app yourself.
 
+## Even easier: open the browser composer
+
+From the ReachWeaver folder:
+
+```bash
+python3 -m reachweaver share --web --open
+```
+
+Use its editor, tap the social-network choices, preview the exact captions and save a new private folder. Then open the native platforms and publish yourself. It never connects to a social account, uploads files or publishes. See [the illustrated browser workflow](BROWSER-SHARE-COMPOSER.md).
+
 ## Option A: answer a few questions
 
 From the ReachWeaver project folder, enter:
