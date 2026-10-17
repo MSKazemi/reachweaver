@@ -26,8 +26,8 @@ Your browser should open an address starting with http://127.0.0.1. If it doesn'
 
 1. **Write:** enter one caption/description. For YouTube, add a video title. For human-only communities, add a short private note and write the real message yourself.
 2. **Choose:** search or tap networks, up to ten at once. Only platforms with an existing offline manual-export route appear. Platforms with a separate approved live-posting path are intentionally not shown here.
-3. **Preview and tailor:** see the exact text and warnings, and edit each network's caption separately (for example a short Threads version and a longer Instagram version). After editing, click **Preview my posts** again to revalidate every network before saving. The Copy button copies the current editor text; nothing posts automatically.
-4. **Save:** click Save posting files. ReachWeaver writes a new private folder below state/shares. Open OPEN-FIRST.md, review each platform's CHECKLIST.md, and paste the relevant caption into the native app yourself.
+3. **Preview and tailor:** see the exact text and warnings, and edit each network's caption separately (for example a short Threads version and a longer Instagram version). After editing, click **Preview my posts** again to revalidate every network before saving. Changing the main caption discards these per-network edits, so finish the main caption first. The Copy button copies the current editor text; nothing posts automatically.
+4. **Save:** click Save posting files. ReachWeaver writes a new private folder below state/shares (in your workspace, or else the folder you started the command from) and shows its full path. Open OPEN-FIRST.md, review each platform's CHECKLIST.md, and paste the relevant caption into the native app yourself.
 
 There is **no Publish button**, because this UI is a manual handoff, not a new API integration.
 
@@ -45,7 +45,7 @@ Some destinations (e.g. Reddit and Hacker News) are treated as human-only. They 
 
 - It binds only to 127.0.0.1 (loopback). It is **not a public website**. Do not set up proxy forwarding to the composer.
 - This session is meant for the **same computer** that runs ReachWeaver. Do not expose it with SSH tunnels, reverse proxies, remote-access tools or router port forwarding.
-- A new cryptographically random session token is required for both reads of the manual platform catalog and POST actions. Mutating requests also require the correct local Origin and Host headers; cross-origin preflights are refused.
+- A new cryptographically random session token is required for both reads of the manual platform catalog and POST actions. Every request must carry the exact local Host header (a DNS-rebinding defence); POST actions also require the exact local Origin. Cross-origin preflights and other methods are refused, and no CORS header is sent. A request body is limited to 96 KiB and must arrive within 10 seconds.
 - No cookies, external JavaScript, remote fonts, images, trackers or cloud backend. The local page uses a restrictive Content Security Policy and inserts content as text, not executable HTML.
 - No caption is transmitted to social platforms. Text is sent from your browser to the **local ReachWeaver server on the same computer** for validation and file generation.
 - Preview never writes files. Saving always rechecks rules, creates a fresh 0700 owner-only directory (on POSIX), writes 0600 files and stages the entire handoff before a final rename.

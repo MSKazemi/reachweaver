@@ -8,10 +8,14 @@ from __future__ import annotations
 from contextlib import contextmanager
 import http.client
 import json
+import os
 from pathlib import Path
+import socket
 import tempfile
 import threading
+import time
 import unittest
+from unittest.mock import patch
 
 from reachweaver import home
 from reachweaver.policy import ValidationError
@@ -91,6 +95,7 @@ class BrowserComposerTests(unittest.TestCase):
             self.assertIn("script-src 'nonce-", headers["Content-Security-Policy"])
             self.assertEqual(headers["Cache-Control"], "no-store")
             self.assertEqual(headers["Referrer-Policy"], "no-referrer")
+            self.assertEqual(headers["Cross-Origin-Opener-Policy"], "same-origin")
             self.assertNotIn(srv.token, html, "secret must be in link fragment only")
             self.assertFalse((self.root / "state").exists())
 
@@ -245,6 +250,85 @@ class BrowserComposerTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             _incoming({"platforms": ["bluesky"], "text": "text"})
         self.assertFalse((self.root / "state").exists())
+
+    def test_non_ascii_token_header_is_refused_not_crashed(self):
+        # hmac.compare_digest raised TypeError on a non-ASCII str: no response, a traceback on stderr.
+        with running_server() as srv:
+            code, _, body = request(srv, "POST", "/api/preview", {"platforms": ["threads"], "text": "x"},
+                                    token=chr(0xE9) * 2, origin=srv.origin, content_type="application/json")
+            self.assertEqual(code, 403, body.decode())
+            code, _, _ = request(srv, "GET", "/api/catalog", token=chr(0xE9) * 43)
+            self.assertEqual(code, 403)
+
+    def test_deeply_nested_json_is_a_422_not_a_dropped_connection(self):
+        with running_server() as srv:
+            code, _, body = request(srv, "POST", "/api/preview", b"[" * 50000, token=srv.token,
+                                    origin=srv.origin, content_type="application/json")
+            self.assertEqual(code, 422, body.decode())
+            self.assertIn("nested too deeply", body.decode())
+            self.assertFalse((self.root / "state").exists())
+
+    def _raw_post(self, srv, declared: int) -> socket.socket:
+        sock = socket.create_connection((BIND_ADDRESS, srv.server_port), timeout=10)
+        sock.sendall((f"POST /api/prepare HTTP/1.1\r\nHost: {BIND_ADDRESS}:{srv.server_port}\r\n"
+                      f"Origin: {srv.origin}\r\nX-ReachWeaver-Token: {srv.token}\r\n"
+                      f"Content-Type: application/json\r\nContent-Length: {declared}\r\n\r\n").encode())
+        return sock
+
+    def test_short_or_slow_drip_body_is_bounded_by_one_deadline(self):
+        # Before: a short body surfaced as a misleading 500 "could not save", and a 1-byte drip held
+        # a thread forever because the 10 s timeout was per socket read, not per request.
+        with patch("reachweaver.share_browser.REQUEST_TIMEOUT_SECONDS", 1), running_server() as srv:
+            sock = self._raw_post(srv, 100)
+            try:
+                sock.sendall(b'{"platforms"')
+                self.assertIn(b" 408 ", sock.recv(4096).split(b"\r\n", 1)[0] + b" ")
+            finally:
+                sock.close()
+            sock = self._raw_post(srv, 100)
+            started = time.monotonic()
+            status = b""
+            try:
+                sock.settimeout(0.25)
+                while time.monotonic() - started < 6 and not status:
+                    try:
+                        sock.sendall(b" ")
+                        status = sock.recv(4096).split(b"\r\n", 1)[0]
+                    except socket.timeout:
+                        continue
+                    except OSError:
+                        break
+            finally:
+                sock.close()
+            self.assertIn(b" 408", status)
+            self.assertLess(time.monotonic() - started, 4)
+            self.assertFalse((self.root / "state").exists())
+
+    def test_other_methods_get_a_json_405_with_security_headers(self):
+        with running_server() as srv:
+            for method in ("OPTIONS", "PUT", "DELETE", "PATCH"):
+                with self.subTest(method=method):
+                    code, headers, body = request(srv, method, "/api/prepare", b"{}", token=srv.token,
+                                                  origin=srv.origin, content_type="application/json")
+                    self.assertEqual(code, 405)
+                    self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
+                    self.assertNotIn("Access-Control-Allow-Origin", headers)
+                    self.assertIn("errors", json.loads(body))
+
+    def test_saved_to_is_absolute_without_a_workspace(self):
+        home.set_root(None)
+        old_cwd = os.getcwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, old_cwd)
+        with running_server() as srv:
+            code, _, body = request(srv, "POST", "/api/prepare",
+                                    {"platforms": ["threads"], "text": "An original project update"},
+                                    token=srv.token, origin=srv.origin, content_type="application/json")
+            self.assertEqual(code, 200, body.decode())
+            saved = Path(json.loads(body)["saved_to"])
+            self.assertTrue(saved.is_absolute(), saved)
+            self.assertEqual(saved.parent, Path(os.getcwd()) / "state" / "shares")
+            self.assertTrue((saved / "OPEN-FIRST.md").is_file())
 
 
 if __name__ == "__main__":

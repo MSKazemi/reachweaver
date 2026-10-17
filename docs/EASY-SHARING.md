@@ -12,7 +12,7 @@ From the ReachWeaver folder:
 python3 -m reachweaver share --web --open
 ```
 
-Use its editor, tap the social-network choices, preview the exact captions and save a new private folder. Then open the native platforms and publish yourself. It never connects to a social account, uploads files or publishes. See [the illustrated browser workflow](BROWSER-SHARE-COMPOSER.md).
+Use its editor, tap the social-network choices, preview the exact captions and save a new private folder. Then open the native platforms and publish yourself. It never connects to a social account, uploads files or publishes. See [the browser workflow guide](BROWSER-SHARE-COMPOSER.md).
 
 ## Option A: answer a few questions
 

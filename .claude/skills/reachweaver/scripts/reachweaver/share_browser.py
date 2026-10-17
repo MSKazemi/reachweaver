@@ -16,6 +16,7 @@ import secrets
 import shutil
 import stat
 import tempfile
+import time
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlsplit
@@ -33,6 +34,7 @@ from .share_browser_ui import HTML
 SEND_PATH = None
 BIND_ADDRESS = "127.0.0.1"
 MAX_REQUEST_BYTES = 96 * 1024
+REQUEST_TIMEOUT_SECONDS = 10  # per socket read, and the whole-body deadline for a POST
 _ALLOWED_FIELDS = frozenset({"platforms", "text", "title", "note", "overrides"})
 
 
@@ -168,7 +170,7 @@ def _write_private(packages: list[tuple[str, dict]]) -> Path:
         if stage.exists():
             shutil.rmtree(stage)
         raise
-    return target
+    return target.absolute()
 
 
 def _json(data: Any) -> bytes:
@@ -203,7 +205,7 @@ class ShareHandler(BaseHTTPRequestHandler):
     def setup(self) -> None:
         super().setup()
         # A local client must not keep an unfinished request thread forever.
-        self.connection.settimeout(10)
+        self.connection.settimeout(REQUEST_TIMEOUT_SECONDS)
 
     def log_message(self, fmt: str, *args: Any) -> None:
         # Never log captions, paths, tokens, URL fragments, headers or HTTP bodies.
@@ -218,6 +220,7 @@ class ShareHandler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
         self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         csp = ("default-src 'none'; base-uri 'none'; object-src 'none'; "
                "frame-ancestors 'none'; form-action 'none'; connect-src 'self'; "
@@ -239,7 +242,8 @@ class ShareHandler(BaseHTTPRequestHandler):
 
     def _token_ok(self) -> bool:
         supplied = self.headers.get("X-ReachWeaver-Token", "")
-        return hmac.compare_digest(supplied, self.server.token)
+        # Bytes, not str: compare_digest raises TypeError on a non-ASCII str header value.
+        return hmac.compare_digest(supplied.encode("utf-8"), self.server.token.encode("ascii"))
 
     def _origin_ok(self) -> bool:
         return self.headers.get("Origin") == self.server.origin
@@ -261,8 +265,34 @@ class ShareHandler(BaseHTTPRequestHandler):
         else:
             self._json_response(404, {"errors": ["Not found."]})
 
-    def do_OPTIONS(self) -> None:
-        self._json_response(405, {"errors": ["Cross-origin requests are not supported."]})
+    def _read_body(self, size: int) -> bytes | None:
+        """The whole body within one overall deadline; None for a short or slow-dripped body."""
+        deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
+        chunks: list[bytes] = []
+        remaining = size
+        try:
+            while remaining:
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    return None
+                self.connection.settimeout(left)
+                chunk = self.rfile.read1(min(remaining, 65536))
+                if not chunk:
+                    return None
+                chunks.append(chunk)
+                remaining -= len(chunk)
+        except OSError:
+            return None
+        finally:
+            self.connection.settimeout(REQUEST_TIMEOUT_SECONDS)
+        return b"".join(chunks)
+
+    def _refuse_method(self) -> None:
+        self.close_connection = True  # an unread request body must not desync a kept-alive connection
+        self._json_response(405, {"errors": ["Only GET and same-origin POST are supported; "
+                                             "cross-origin requests are not."]})
+
+    do_OPTIONS = do_PUT = do_DELETE = do_PATCH = _refuse_method
 
     def do_POST(self) -> None:
         if not self._host_ok() or not self._token_ok() or not self._origin_ok():
@@ -283,8 +313,12 @@ class ShareHandler(BaseHTTPRequestHandler):
             self.close_connection = True
             self._json_response(404, {"errors": ["Not found."]})
             return
+        body = self._read_body(int(raw_size))
+        if body is None:
+            self.close_connection = True
+            self._json_response(408, {"errors": ["The request body was incomplete or too slow."]})
+            return
         try:
-            body = self.rfile.read(int(raw_size))
             obj = json.loads(body.decode("utf-8"))
             packages = _incoming(obj)
             if path == "/api/preview":
@@ -300,6 +334,8 @@ class ShareHandler(BaseHTTPRequestHandler):
                     "published": False,
                     "notice": "Private files prepared locally. Open OPEN-FIRST.md and post by hand.",
                 })
+        except RecursionError:  # deeply nested JSON: refuse it rather than drop the connection
+            self._json_response(422, {"errors": ["The request JSON is nested too deeply."]})
         except (ValidationError, UnicodeError, ValueError, TypeError) as exc:
             self._json_response(422, {"errors": [str(exc)]})
         except OSError:
