@@ -168,6 +168,20 @@ class ShareTests(unittest.TestCase):
         self.assertIn("approve", errors.casefold())
         self.assertFalse((self.root / "bad").exists())
 
+    def test_default_output_goes_into_a_selected_workspace(self):
+        workspace = self.root / "my-workspace"
+        workspace.mkdir()
+        (workspace / ".reachweaver-workspace").write_text("{}", encoding="utf-8")
+        code, output, errors = self.cli(
+            "--home", str(workspace), "share", "--platform", "threads",
+            "--text", "A caption saved inside my workspace"
+        )
+        self.assertEqual(code, 0, errors)
+        exports = list((workspace / "state").glob("share-*/OPEN-FIRST.md"))
+        self.assertEqual(len(exports), 1)
+        self.assertIn("my-workspace", output)
+        self.assertFalse((self.root / "packages").exists())
+
     def test_guided_terminal_flow_can_be_cancelled(self):
         with patch("sys.stdin", TerminalText("instagram\nA real caption\nn\n")):
             code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
