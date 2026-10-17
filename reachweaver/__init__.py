@@ -1,3 +1,3 @@
 """ReachWeaver: local-first, approval-gated social publishing."""
 
-__version__ = "0.5.3"
+__version__ = "0.6.0"
