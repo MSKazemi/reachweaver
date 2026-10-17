@@ -9,6 +9,7 @@ from datetime import datetime
 import os
 from pathlib import Path
 import sys
+from typing import Any
 
 from . import home
 from .manual_export import MANUAL_PLATFORMS, build_export, write_export
@@ -159,6 +160,7 @@ def make_packages(
         return [], errors
     packages = []
     for platform in platforms:
+        variant: dict[str, Any]
         if platform in human:
             variant = {"platform": platform, "talking_points": notes}
         else:
