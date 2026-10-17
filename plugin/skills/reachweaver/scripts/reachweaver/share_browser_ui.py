@@ -136,7 +136,7 @@ button { font-family:inherit; }
   <div class="review-head">
     <div>
       <h2 id="review-title">Your previews</h2>
-      <p class="explain">Every network receives its own checklist. Warnings are shown before files are saved.</p>
+      <p class="explain">Tailor each caption for its network, then preview again to recheck all limits before saving.</p>
     </div>
     <button id="save" class="primary" type="button" disabled>Save posting files</button>
   </div>
@@ -152,6 +152,7 @@ button { font-family:inherit; }
  const sessionToken = window.location.hash.slice(1);
  const el = id => document.getElementById(id);
  const selected = new Set();
+ const edits = new Map();
  let catalog = [];
  let filter = "popular";
  let previewValid = false;
@@ -186,7 +187,8 @@ button { font-family:inherit; }
      platforms:Array.from(selected),
      text:el("caption").value || null,
      title:selected.has("youtube") ? el("title").value : null,
-     note:catalog.some(p => selected.has(p.id) && p.human_only) ? el("notes").value : ""
+     note:catalog.some(p => selected.has(p.id) && p.human_only) ? el("notes").value : "",
+     overrides:Object.fromEntries(Array.from(edits).filter(entry => selected.has(entry[0])))
    };
  }
  function invalidate() {
@@ -219,7 +221,7 @@ button { font-family:inherit; }
      button.appendChild(text("strong", p.label));
      button.appendChild(text("span",p.human_only ? "You write the final post · Notes only" : "Manual posting package"));
      button.addEventListener("click",function(){
-       if(selected.has(p.id)) selected.delete(p.id);
+       if(selected.has(p.id)) {selected.delete(p.id); edits.delete(p.id);}
        else if(selected.size < 10) selected.add(p.id);
        else {showMessage("You can select a maximum of ten networks at once.",false);return;}
        conditionalFields();
@@ -255,10 +257,23 @@ button { font-family:inherit; }
          card.appendChild(text("strong","Title"));
          card.appendChild(text("pre",item.title));
        }
-       card.appendChild(text("pre",item.text || ""));
+       const label = text("label","Customize the caption for " + item.label);
+       const editor = document.createElement("textarea");
+       editor.id = "edit-" + item.id;
+       editor.rows = 5;
+       editor.value = item.text || "";
+       label.setAttribute("for", editor.id);
+       card.appendChild(label);
+       card.appendChild(editor);
+       editor.addEventListener("input",function(){
+         edits.set(item.id, editor.value);
+         previewValid = false;
+         el("save").disabled = true;
+         showMessage("Edited " + item.label + ". Preview again to validate all network rules.",false);
+       });
        const button = text("button","Copy this caption","secondary");
        button.type = "button";
-       button.addEventListener("click",function(){copy(item.text || "",button);});
+       button.addEventListener("click",function(){copy(editor.value,button);});
        card.appendChild(button);
      }
      if(item.warnings.length) {
@@ -308,6 +323,7 @@ button { font-family:inherit; }
    el("save").disabled = true;
  }
  el("caption").addEventListener("input",function(){
+   edits.clear();
    el("counter").textContent = el("caption").value.length + " characters · No social upload";
    invalidate();
  });
@@ -326,6 +342,7 @@ button { font-family:inherit; }
  el("save").addEventListener("click",save);
  el("reset").addEventListener("click",function(){
    selected.clear();
+   edits.clear();
    el("caption").value="";el("title").value="";el("notes").value="";
    el("counter").textContent="0 characters · No social upload";
    conditionalFields();invalidate();renderNetworks();
