@@ -170,6 +170,46 @@ class BrowserComposerTests(unittest.TestCase):
             self.assertEqual(status, 422, body.decode())
             self.assertIn("human-only", body.decode())
 
+    def test_per_platform_captions_are_rechecked_and_saved_separately(self):
+        with running_server() as srv:
+            extra = {"token": srv.token, "origin": srv.origin, "content_type": "application/json"}
+            original = {"platforms": ["instagram", "threads"],
+                        "text": "One original story",
+                        "overrides": {"threads": "A concise Threads version",
+                                      "instagram": "A visual Instagram version"}}
+            status, _, body = request(srv, "POST", "/api/preview", original, **extra)
+            self.assertEqual(status, 200, body.decode())
+            items = {row["id"]: row for row in json.loads(body)["platforms"]}
+            self.assertEqual(items["threads"]["text"], "A concise Threads version")
+            self.assertEqual(items["instagram"]["text"], "A visual Instagram version")
+            self.assertFalse((self.root / "state").exists())
+            status, _, body = request(srv, "POST", "/api/prepare", original, **extra)
+            self.assertEqual(status, 200, body.decode())
+            out = Path(json.loads(body)["saved_to"])
+            self.assertEqual((out / "threads" / "caption.txt").read_text(encoding="utf-8"),
+                             "A concise Threads version")
+            self.assertEqual((out / "instagram" / "caption.txt").read_text(encoding="utf-8"),
+                             "A visual Instagram version")
+
+    def test_invalid_platform_edit_cannot_bypass_any_preflight(self):
+        with running_server() as srv:
+            extra = {"token": srv.token, "origin": srv.origin, "content_type": "application/json"}
+            cases = [
+                {"platforms": ["threads"], "text": "A short original story",
+                 "overrides": {"threads": "x" * 700}},
+                {"platforms": ["threads"], "text": "Valid original",
+                 "overrides": {"instagram": "Unselected network"}},
+                {"platforms": ["threads", "reddit"], "text": "Valid normal post",
+                 "note": "Read rules", "overrides": {"reddit": "Do not auto-write group posts"}},
+                {"platforms": ["threads"], "text": "Valid original",
+                 "overrides": {"threads": 42}},
+            ]
+            for data in cases:
+                with self.subTest(data=str(data)[:100]):
+                    code, _, body = request(srv, "POST", "/api/prepare", data, **extra)
+                    self.assertEqual(code, 422, body.decode())
+            self.assertFalse((self.root / "state").exists())
+
     def test_one_invalid_network_blocks_every_write(self):
         with running_server() as srv:
             extra = {"token": srv.token, "origin": srv.origin, "content_type": "application/json"}
