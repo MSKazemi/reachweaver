@@ -157,7 +157,8 @@ class NoNetworkCliTests(unittest.TestCase):
                          ("pause",), ("resume",),
                          ("campaign-check", "--file", str(examples / "campaign.reachweaver.json"),
                           "--brand", str(examples / "brand.reachweaver.json"), "--json"),
-                         ("distribution-plan", "--region", "india", "--goal", "adoption", "--json")):
+                         ("distribution-plan", "--region", "india", "--goal", "adoption", "--json"),
+                         ("account-advisor", "--region", "india", "--setup", "youtube", "--json")):
                 with self.subTest(argv=argv):
                     code, _, err = self.cli(*argv)
                     self.assertEqual(code, 0, err)

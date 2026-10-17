@@ -17,6 +17,7 @@ from reachweaver.policy import ValidationError
 
 ROOT = Path(__file__).resolve().parents[1]
 NAMES = ("browser_assist", "browser-assist", "browserassist")
+AGENT_NAMES = ("claude in chrome", "claude-in-chrome", "claude_in_chrome", "claude_chrome")
 # Human-only channels named in #44; each is checked to exist in the distribution registry.
 HUMAN_ONLY = ("reddit", "hacker_news", "discord", "whatsapp", "facebook_groups", "indie_hackers")
 SKILL_SENTENCE = "Never assume an unofficial browser login/cookie automation is permissible."
@@ -67,6 +68,16 @@ class NoBrowserAssistModeTests(unittest.TestCase):
             with self.subTest(module=path.name):
                 text = path.read_text(encoding="utf-8").casefold()
                 for name in NAMES:
+                    self.assertNotIn(name, text)
+
+    def test_no_runtime_module_recommends_a_browser_agent_extension(self):
+        # Owner decision 2026-10-17 (account-advisor): setup coaching is a normal chat, never an
+        # agent in the user's browser. Runtime code, including the skill bundle copies, names none.
+        roots = (ROOT / "reachweaver", ROOT / ".claude/skills/reachweaver/scripts/reachweaver")
+        for path in sorted(p for root in roots for p in root.glob("*.py")):
+            with self.subTest(module=str(path.relative_to(ROOT))):
+                text = path.read_text(encoding="utf-8").casefold()
+                for name in AGENT_NAMES:
                     self.assertNotIn(name, text)
 
 

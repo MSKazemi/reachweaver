@@ -72,6 +72,10 @@ From here, describe the job in plain words:
 
 Claude runs the checks, previews and dry runs itself and reports what they printed.
 
+## Optional: choose where to create your next account
+
+Use `reachweaver account-advisor --region global --goal awareness --format short_video --weekly-hours 5` to shortlist channels, and `reachweaver account-advisor --setup instagram` to get the official starting page, the steps you do yourself and a **coaching** prompt for a normal Claude chat, which works only from what you describe and never opens or operates the site. You register and verify the account yourself, following the platform's own help pages; neither the CLI nor Claude handles your credentials. This is separate from `reachweaver connect --guide`. See [account advisor](ACCOUNT-ADVISOR.md).
+
 ## Step 4. The only things you do yourself
 
 Run these in your own terminal, inside the workspace folder:

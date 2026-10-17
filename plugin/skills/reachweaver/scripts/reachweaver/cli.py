@@ -35,6 +35,7 @@ from .briefs import build_brief, load_scan, write_brief
 from .campaigns import OBJECTIVES, read_json, stage_campaign, validate_campaign
 from .claims import DEFAULT_DUPLICATE_THRESHOLD, check_claims
 from . import confirmation
+from .account_advisor import FORMATS as ADVISOR_FORMATS
 from .distribution import GOALS, build_distribution_plan
 from .engagement import triage_files
 from .health import (build_health, dead_letter, exit_code as health_exit_code, render_dead_letter, render_health,
@@ -763,6 +764,23 @@ def make_parser() -> argparse.ArgumentParser:
                        "never publishes (docs/CREATIVE-PREFLIGHT.md)")
     p.add_argument("--file", type=Path, required=True, help="Owner-controlled JSON brief (reachweaver.creative-preflight.v1), at most 256 KB")
     p.add_argument("--json", action="store_true", help="Machine-readable checklist, findings and limitations")
+    p = sub.add_parser("account-advisor", help="Offline channel shortlist and setup coaching; creates no account",
+                       description="Offline shortlist of social channels for a region, goal, format and weekly time, "
+                       "plus optional account-setup steps you do yourself and a coaching prompt for a normal Claude "
+                       "chat. Contacts no site, reads no credential, never creates or connects an account "
+                       "(docs/ACCOUNT-ADVISOR.md).")
+    p.add_argument("--region", default="global", help="Distribution registry market, e.g. global, india, china (default global)")
+    p.add_argument("--goal", default="awareness", choices=GOALS, help="Audience objective (default awareness)")
+    p.add_argument("--format", default="mixed", choices=ADVISOR_FORMATS, help="Content you will make (default mixed)")
+    p.add_argument("--weekly-hours", type=int, default=6, help="Available weekly effort, 1..40 estimated hours (default 6)")
+    p.add_argument("--limit", type=int, default=4, help="Number of recommended new channels, 1..8 (default 4)")
+    p.add_argument("--existing", action="append", default=[], help="Platform ID you already use (your statement, not verified); repeat for each")
+    p.add_argument("--brand", default="My project", help="Public-safe brand name, not private data")
+    p.add_argument("--audience", default="People interested in my topic", help="Public-safe audience description")
+    p.add_argument("--language", default="en", help="Public content language, e.g. en or pt-BR")
+    p.add_argument("--setup", metavar="PLATFORM_ID", help="Print the official starting link, the steps you do yourself and a "
+                   "coaching prompt for a normal Claude chat that never opens or operates the site")
+    p.add_argument("--json", action="store_true", help="Machine-readable recommendations and optional setup steps")
     p = sub.add_parser("discovery-plan", help="Offline platform discovery and topic/hashtag recommendations; not a reach forecast or publisher")
     p.add_argument("--file", type=Path, required=True, help="Owner-reviewed JSON with post text, topics and optional dated trend evidence")
     p.add_argument("--json", action="store_true", help="Evidence, selected/skipped tags and creative checklist")
@@ -2090,6 +2108,13 @@ def execute(args) -> int:
         from .creative_preflight import check_file as preflight_check_file, render_text as preflight_render
         preflight = preflight_check_file(args.file)
         print(json.dumps(preflight, indent=2, ensure_ascii=False) if args.json else preflight_render(preflight))
+        return 0
+    if args.command == "account-advisor":
+        from .account_advisor import advise as advise_accounts, render_text as advisor_render
+        plan = advise_accounts(region=args.region, goal=args.goal, content_format=args.format,
+                               weekly_hours=args.weekly_hours, limit=args.limit, existing=tuple(args.existing),
+                               brand=args.brand, audience=args.audience, language=args.language, setup=args.setup)
+        print(json.dumps(plan, indent=2, ensure_ascii=False) if args.json else advisor_render(plan))
         return 0
     if args.command == "discovery-plan":
         from .discovery import check_file as discovery_check_file, render_text as discovery_render

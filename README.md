@@ -330,6 +330,7 @@ reachweaver sources-scan --config F [--online] [--allow-private] [--state S] [--
 reachweaver signal-brief --scan SCAN.json --signal-id ID --brand B --out CAMPAIGN.json [--accounts A] [--objective O] [--allow-duplicate] [--json]  NEW 0600 campaign scaffold + .brief.md from one signal; placeholders block staging; no copy generated (docs/SOURCES.md)
 reachweaver capabilities [--platform P] [--json] [--max-age-days 120]  offline capability/API-approval registry (docs/PLATFORMS.md)
 reachweaver distribution-plan --region R --goal G [--limit N] [--date D --timezone TZ] [--json]  offline worldwide channel hypotheses; never schedules or posts
+reachweaver account-advisor [--region R] [--goal G] [--format F] [--weekly-hours N] [--limit N] [--existing ID]... [--setup ID [--brand B] [--audience A] [--language L]] [--json]  offline shortlist of platforms to start, from the distribution registry; --setup prints the official start page, the steps you do yourself and a coaching prompt for a normal Claude chat that never opens the site; creates and connects no account (docs/ACCOUNT-ADVISOR.md)
 reachweaver postiz-check --account ID --online [--post-id ID]  read-only Postiz integration listing / job lookup; never posts (docs/POSTIZ.md)
 ```
 

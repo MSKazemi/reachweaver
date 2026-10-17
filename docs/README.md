@@ -34,6 +34,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 | Describe a campaign with its sources | [Schemas](SCHEMAS.md), [campaign preview](CAMPAIGN-PREVIEW.md), [claim grounding](CLAIM-GROUNDING.md) |
 | Post to a network ReachWeaver cannot send to | [Manual export](MANUAL-EXPORT.md) |
 | Post to Weibo, Xiaohongshu, Douyin, Bilibili, WeChat or Zhihu | [Chinese platforms](CHINA.md) |
+| Decide which platforms to start, and set up an account yourself with a coaching prompt | [Account advisor (offline)](ACCOUNT-ADVISOR.md) |
 | Choose channels for a region or goal | [Global strategy](GLOBAL-DISTRIBUTION-2026-10-08.md), [distribution governance](DISTRIBUTION-GOVERNANCE.md), [regional channels](REGIONAL-CHANNELS-2026-10-14.md), [community and creator platforms](COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md) |
 | Pick times to post | [Calendar planner](CALENDAR-PLANNER.md), [timing evaluation](TIMING-EVALUATION.md), [platform algorithm and scheduling evidence](PLATFORM-ALGORITHMS-SCHEDULING-2026-10-08.md) |
 | Check images and video | [Media assets](MEDIA-ASSETS.md) |
