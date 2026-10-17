@@ -50,7 +50,8 @@ This document distinguishes implementation, validation and aspiration. A complet
 - [x] Local `config/optout.json`: no reply/issue draft for listed authors; `optout_mention` error in campaign and claims checks.
 - [x] Tighten-only `config/caps.json` for `publish --live` (strictest of CLI and file); a looser file value is ignored.
 - [x] Runbook for revoked permissions, LinkedIn version sunsets and Mastodon instance changes ([worker operations](WORKER-OPERATIONS.md#runbook-revoked-permissions-and-api-version-sunsets)).
-- [ ] Remaining #26: alerts, traces/retry metrics, per-provider spend ceilings, dependency-compromise and poisoned-feed tests. **Do not close #26.**
+- [x] Read-only `trace POST_ID [--log FILE|-]`: one post's audit events joined with the worker-log lines and runs that handled it (2026-10-17). Alert-rule examples exist (WORKER-OPERATIONS.md); poisoned-feed tests exist in `tests/test_sources.py` and `tests/test_security_regressions.py`.
+- [ ] Remaining #26: retry metrics (preflight retries are not logged yet; logging them touches the send path), per-provider spend ceilings (a new send-refusal rule: needs a security-review proposal), dependency-compromise tests. **Do not close #26.**
 
 ## Native owner-exported profile/post CSV overlay (2026-10-12, issue #3)
 

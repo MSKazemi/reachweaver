@@ -35,6 +35,7 @@ python -m reachweaver.cli engagement-queue export.json  # offline aging/SLA queu
 python -m reachweaver.cli weekly-digest --snapshot state/owned-profiles.json --out state/digest.md  # suggest (+ report with --include-db) as one private Markdown file; never sent
 python -m reachweaver.cli ops-metrics --format prometheus  # read-only monitoring counts
 python -m reachweaver.cli ops-summary --json  # one redacted read-only readiness + metrics report; exit 1 when blocked
+python -m reachweaver.cli trace POST_ID [--log worker.jsonl]  # read-only: what happened to one post (audit events + worker-log runs), oldest first
 python -m reachweaver.cli start  # read-only: prints the exact next command for the current accounts/database/queue state (--json); runs nothing
 python -m reachweaver.cli ui  # the OWNER runs this in their own terminal: read-only local dashboard on 127.0.0.1 (queue, schedule, posted record, post review sheets, readiness, approval-ledger and folder check, accounts); cannot approve, schedule, pause or publish; the URL carries a per-run token, so never paste it into chat or an issue; Claude must not start it or read its URL
 python -m reachweaver.cli completion bash  # prints a shell completion script (bash, or zsh via bashcompinit); reads no database; the owner loads it, Claude does not

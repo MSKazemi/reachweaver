@@ -22,7 +22,7 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
         "publish", "pause", "resume", "reconcile", "approval-mode", "calendar-plan", "calendar-gaps",
         "connect-check", "postiz-check", "disconnect", "reconnect")),
     ("Post by hand", ("manual-export", "manual-export-batch", "delivery-options")),
-    ("Monitor", ("queue-health", "dead-letter", "ops-metrics", "ops-summary", "credentials-audit", "link-health")),
+    ("Monitor", ("queue-health", "dead-letter", "ops-metrics", "ops-summary", "credentials-audit", "link-health", "trace")),
     ("Measure and learn", (
         "metrics", "import-metrics", "metrics-fetch", "report", "youtube-analytics", "timing-evaluate",
         "baseline-eval", "attribution-report", "pilot-report", "peer-benchmark", "suggest", "weekly-digest")),

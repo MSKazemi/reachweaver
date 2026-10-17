@@ -325,6 +325,19 @@ jq -c 'select(.event == "run_end" and (.outcome != "completed" or .dropped_lines
 
 With `--log-file /var/log/reachweaver/worker.jsonl` the directory must exist, belong to the service user and be in `ReadWritePaths=`. Rotate the file with your own tool; ReachWeaver only appends. A log line is the worker's local record, not a platform receipt: confirm a `post_published` line against the native account like any other local state.
 
+### Trace one post
+
+`reachweaver trace POST_ID` prints everything recorded about one post, oldest first: its audit events from the database (draft, approval, send claim, outcome, reconcile) and, with `--log`, the worker-log lines that name it together with the start and end lines of those runs. So you can see which run claimed it, whether that run was a dry run, and how the run ended.
+
+```bash
+reachweaver trace 3e2f452ea59e4958                                   # database events only
+reachweaver trace 3e2f452ea59e4958 --log /var/log/reachweaver/worker.jsonl
+journalctl -u reachweaver-publish.service --since -7d -o cat | reachweaver trace 3e2f452ea59e4958 --log -
+reachweaver trace 3e2f452ea59e4958 --log worker.jsonl --json          # for scripts
+```
+
+It is read-only: the database is opened `mode=ro` and never created, and nothing is sent, retried or contacted. A log is treated as untrusted input. Only lines with the worker-log schema version and a known event name are used, only the fields above are kept, every value is redacted, a line over 16 KiB is skipped, a file over 64 MiB, a symbolic link or a missing file is refused, and the number of skipped lines is reported. Lines from `journalctl` without `-o cat` are also accepted (the prefix before the JSON is ignored). The trace is a local record, like the log itself: confirm anything important on the native account.
+
 ## Provider rate limits and cooldowns (issue #11)
 
 Owner-approved 2026-10-08 (decisions D11–D16). **The rule this does not change:** a claimed post is never retried, resent or released automatically. A 429 can only make ReachWeaver wait longer before trying a *different* post of the same account.
