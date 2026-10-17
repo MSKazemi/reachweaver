@@ -294,7 +294,7 @@ def build_discovery_plan(raw: object) -> dict:
         "platform_guidance": {
             "description": policy["description"], "creative_checks": policy["creative_checks"],
             "measure": policy["measure"], "sources": policy["sources"],
-            "evidence_level": "official_signal_families_only" if specific else "editorial_only",
+            "evidence_level": specific.get("evidence_level", "source_linked_editorial") if specific else "editorial_only",
         },
         "experiment": {
             "hypothesis": "A platform-native, audience-relevant creative variant may outperform the current baseline; test before inferring improvement.",
