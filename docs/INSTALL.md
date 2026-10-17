@@ -4,6 +4,9 @@ You need **Python 3.11 or newer**. ReachWeaver has no other dependencies. Every 
 
 ## The short answer
 
+**Updating an existing installation?** See [Upgrade ReachWeaver: exact commands](UPGRADE.md). For the recommended Claude Code plugin + pipx setup, run `claude plugin marketplace update reachweaver`, `claude plugin update reachweaver@reachweaver`, and `pipx upgrade reachweaver` in your normal terminal, then `/reload-plugins` in Claude Code.
+
+
 Want the full step-by-step version of the best route? See the [recommended setup](RECOMMENDED-SETUP.md).
 
 **Use Claude Code? Do this, and you are done:**

@@ -4,7 +4,7 @@
 
 **A Claude Code social media skill that helps you plan, write and safely publish posts about your real work, one human-approved post at a time.** Give it a release, a paper or a demo. It drafts a post that fits each platform, shows you exactly what would be sent, and sends nothing until you say yes.
 
-> **Status: v0.5, experimental.** Planning, drafting, checking and previewing work fully offline. For real sending, text-only adapters exist for Bluesky, Mastodon, Telegram and LinkedIn personal profiles, and one approved text post each was sent through ReachWeaver to Bluesky and Mastodon on 2026-10-11 (first-party receipts in [docs/receipts/](docs/receipts/)); Telegram and LinkedIn have had no live send and no other platform has a receipt. Adapters for Threads text, Facebook Page text/link, Instagram single images, YouTube and TikTok video, Mastodon images and Bluesky/Mastodon replies exist too, but they are tested against simulated servers only and stay switched off until the owner records a supervised live post. For those platforms, and all others, ReachWeaver prepares a draft or a package that you post by hand (`manual-export`). This is not a promise of viral growth.
+> **Status: experimental** (release history in [CHANGELOG.md](CHANGELOG.md)). Planning, drafting, checking and previewing work fully offline. For real sending, text-only adapters exist for Bluesky, Mastodon, Telegram and LinkedIn personal profiles, and one approved text post each was sent through ReachWeaver to Bluesky and Mastodon on 2026-10-11 (first-party receipts in [docs/receipts/](docs/receipts/)); Telegram and LinkedIn have had no live send and no other platform has a receipt. Adapters for Threads text, Facebook Page text/link, Instagram single images, YouTube and TikTok video, Mastodon images and Bluesky/Mastodon replies exist too, but they are tested against simulated servers only and stay switched off until the owner records a supervised live post. For those platforms, and all others, ReachWeaver prepares a draft or a package that you post by hand (`manual-export`). This is not a promise of viral growth.
 
 **New here? Start here:** [quickstart](docs/QUICKSTART.md) (10 minutes, no account needed) · [plain-language guide](docs/START-HERE.md) · [glossary](docs/GLOSSARY.md) · [troubleshooting](docs/TROUBLESHOOTING.md) · [security checklist](docs/SECURITY-CHECKLIST.md) · [all docs by goal](docs/README.md) · [changelog](CHANGELOG.md) · [contribute](CONTRIBUTING.md) · public-release safety checklist (maintainers)
 
@@ -357,6 +357,17 @@ Use `--db PATH` and `--accounts PATH` as global options preceding the subcommand
 
 ## Install and update
 
+**Already installed? Upgrade the Claude Code plugin and pipx CLI separately.** Run these commands in your **normal terminal** (skip any component you do not use):
+
+```bash
+claude plugin marketplace update reachweaver
+claude plugin update reachweaver@reachweaver
+pipx upgrade reachweaver
+```
+
+Then run `/reload-plugins` inside Claude Code or restart it. The first command refreshes the plugin marketplace, the second updates the installed plugin, and the third upgrades the separately installed CLI. For a standalone skill, project-local install, or source checkout, use the [complete upgrade command guide](docs/UPGRADE.md).
+
+
 **Recommended: Claude Code plugin** (Claude Code manages install and updates; needs the repository to be reachable by git):
 
 ```text
@@ -385,7 +396,7 @@ ReachWeaver is on [PyPI](https://pypi.org/project/reachweaver/), and every relea
 pipx install reachweaver          # or: python3 -m pip install reachweaver
 reachweaver version
 # the same file from the GitHub release:
-pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.7.0/reachweaver-0.7.0-py3-none-any.whl"
+pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.8.0/reachweaver-0.8.0-py3-none-any.whl"
 ```
 
 Checksums, what CI checks in the package, and why it is not on PyPI or GitHub Packages (yet) are in [the Python package guide](docs/PACKAGING.md).
