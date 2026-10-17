@@ -32,7 +32,7 @@ The media `id` from step 5 is the receipt (`remote_id`). The permalink is stored
 
 - `handle`: the `username` from `GET /me` (a leading `@` is stripped). Compared case-insensitively.
 - `threads_user_id`: the `id` from `GET /me`, compared exactly. Only digits are accepted, because the documented examples are numeric; this shape is an assumption.
-- `authorization_expires_at`: optional, non-secret. Long-lived Threads tokens are valid for 60 days. `doctor` warns 7 days ahead, and an expired value is refused before any request.
+- `authorization_expires_at`: optional, non-secret. Long-lived Threads tokens are valid for 60 days. `doctor` and `health` (and so `ops-summary` and the dashboard) warn 7 days ahead, and an expired value is refused before any request.
 - Any other key on an account that has `threads_user_id` is refused. An account without `threads_user_id` is manual-only metadata and loads as before, but the adapter preflight refuses it.
 - The token is read only from `{env_prefix}_ACCESS_TOKEN` via `accounts.credential` (environment or systemd `$CREDENTIALS_DIRECTORY`). `_ACCESS_TOKEN` is in `accounts.CREDENTIAL_SUFFIXES`, so the env_prefix overlap rule and `credentials-audit` cover Threads accounts.
 

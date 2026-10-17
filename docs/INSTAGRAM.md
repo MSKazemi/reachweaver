@@ -43,7 +43,7 @@ curl -s https://img.example.org/2026/release.jpg | sha256sum   # optional: compa
  "authorization_expires_at": "2026-12-01T00:00:00+00:00"}
 ```
 
-`ig_user_id` is the `user_id` from `GET /me` (a string of digits). Without it the account stays manual-only metadata, as before. The token is read only from `REACHWEAVER_IG_ACCESS_TOKEN` (environment or `$CREDENTIALS_DIRECTORY`). Dashboard tokens are valid for 60 days; record `authorization_expires_at` so `doctor` warns 7 days ahead and refuses an expired token offline.
+`ig_user_id` is the `user_id` from `GET /me` (a string of digits). Without it the account stays manual-only metadata, as before. The token is read only from `REACHWEAVER_IG_ACCESS_TOKEN` (environment or `$CREDENTIALS_DIRECTORY`). Dashboard tokens are valid for 60 days; record `authorization_expires_at` so `doctor` and `health` (and so `ops-summary` and the dashboard) warn 7 days ahead, and an expired token is refused offline.
 
 ## Documented limits (read 2026-10-09)
 

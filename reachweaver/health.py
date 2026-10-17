@@ -251,6 +251,19 @@ def account_health(con, account: dict, *, registry: dict, stale: list[str], queu
             reasons.append(_reason("blocked", "linkedin_authorization_expired", t_message))
         elif t_level in ("warning", "unknown"):
             reasons.append(_reason("attention", f"linkedin_authorization_{t_level}", t_message))
+    if platform in ("instagram", "threads") and account.get("backend") is None:
+        # The send preflight already refuses an expired token; this says so before a send is due. While the
+        # registry keeps the adapter manual nothing can be sent with the token, so expiry is only attention
+        # then, and an unrecorded expiry is not reported at all (the account may hold no token).
+        from . import instagram, threads
+        t_level, t_message = (instagram if platform == "instagram" else threads).token_status(account, current)
+        result[platform] = {"authorization": {"expires_at": account.get("authorization_expires_at"),
+                                              "status": t_level, "message": t_message}}
+        if t_level == "expired":
+            reasons.append(_reason("blocked" if adapter != "manual" else "attention",
+                                   f"{platform}_authorization_expired", t_message))
+        elif t_level == "warning" or (t_level == "unknown" and adapter != "manual"):
+            reasons.append(_reason("attention", f"{platform}_authorization_{t_level}", t_message))
     if platform == "mastodon" and account.get("backend") is None:
         result["mastodon"] = {"server": account.get("server"),
                               "max_characters_pinned": account.get("max_characters") is not None}

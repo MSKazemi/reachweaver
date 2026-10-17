@@ -218,7 +218,16 @@ const REASON_HELP = {
   registry_entry_stale: "The platform capability research is old. Re-check the platform before relying on it.",
   approval_key_unavailable: "Keyed approvals are on but the key is not readable in this process.",
   caps_file_invalid: "The send-limits file is invalid.",
-  capability_registry_invalid: "The capability registry failed validation."
+  capability_registry_invalid: "The capability registry failed validation.",
+  linkedin_authorization_expired: "The LinkedIn authorization has expired. Re-run the consent, export the new token and update authorization_expires_at.",
+  linkedin_authorization_warning: "The LinkedIn authorization expires within a week. Re-authorize soon.",
+  linkedin_authorization_unknown: "authorization_expires_at is not recorded for LinkedIn, so expiry cannot be warned about. Record it.",
+  instagram_authorization_expired: "The Instagram token has expired. Refresh or regenerate it and update authorization_expires_at.",
+  instagram_authorization_warning: "The Instagram token expires within a week. Refresh it soon.",
+  instagram_authorization_unknown: "authorization_expires_at is not recorded for Instagram, so expiry cannot be warned about. Record it.",
+  threads_authorization_expired: "The Threads token has expired. Refresh or regenerate it and update authorization_expires_at.",
+  threads_authorization_warning: "The Threads token expires within a week. Refresh it soon.",
+  threads_authorization_unknown: "authorization_expires_at is not recorded for Threads, so expiry cannot be warned about. Record it."
 };
 const STATUS_LABEL = { draft: "draft", approved: "approved", scheduled: "scheduled", sending: "sending",
   needs_review: "needs review", published: "published", cancelled: "cancelled" };

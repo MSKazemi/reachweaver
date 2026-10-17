@@ -38,6 +38,10 @@ LINKEDIN = {"id": "h-linkedin", "platform": "linkedin", "env_prefix": "REACHWEAV
 POSTIZ = {"id": "h-postiz", "platform": "mastodon", "env_prefix": "REACHWEAVER_H_PZ", "backend": "postiz",
           "postiz_base_url": "https://api.postiz.com", "postiz_integration_id": "integ-1", "handle": "owner"}
 YOUTUBE = {"id": "h-youtube", "platform": "youtube", "env_prefix": "REACHWEAVER_H_YT"}
+INSTAGRAM = {"id": "h-instagram", "platform": "instagram", "env_prefix": "REACHWEAVER_H_IG", "handle": "owner",
+             "ig_user_id": "1784140000000001", "authorization_expires_at": "2026-12-01T00:00:00+00:00"}
+THREADS = {"id": "h-threads", "platform": "threads", "env_prefix": "REACHWEAVER_H_TH", "handle": "owner",
+           "threads_user_id": "1234567", "authorization_expires_at": "2026-12-01T00:00:00+00:00"}
 
 
 class _NoSockets:
@@ -180,6 +184,35 @@ class HealthReportTests(HealthTestBase):
         report = self.health(env=env, now="2027-07-15T00:00:00+00:00")
         self.assertIn("linkedin_version_ageing", self.codes(report))
         self.assertNotIn(LI_VALUE, json.dumps(report))
+
+    def test_instagram_and_threads_token_expiry_is_reported_before_a_send_is_due(self):
+        self.write_accounts(INSTAGRAM, THREADS)
+        report = self.health(env={})
+        self.assertEqual(report["accounts"][0]["instagram"]["authorization"]["status"], "ok")
+        self.assertEqual(report["accounts"][1]["threads"]["authorization"]["status"], "ok")
+        self.assertFalse({c for c in self.codes(report) if "_authorization_" in c})
+        # 3 days left: a warning for both, though the bundled registry keeps them manual-only.
+        report = self.health(env={}, now="2026-11-28T00:00:00+00:00")
+        self.assertTrue({"instagram_authorization_warning", "threads_authorization_warning"} <= self.codes(report))
+        # Expired while manual-only: attention, not a block (nothing can be sent with the token).
+        report = self.health(env={}, now="2026-12-02T00:00:00+00:00")
+        levels = {r["code"]: r["level"] for r in report["reasons"]}
+        self.assertEqual(levels["instagram_authorization_expired"], "attention")
+        self.assertEqual(levels["threads_authorization_expired"], "attention")
+
+    def test_threads_expiry_blocks_once_the_adapter_is_live_and_unknown_is_flagged(self):
+        # As if the owner had enabled the adapter after a live receipt (registry + SUPPORTED_LIVE change).
+        live = patch("reachweaver.health._adapter", return_value=("live_text", None))
+        self.write_accounts(THREADS)
+        with live:
+            report = self.health(env={}, now="2026-12-02T00:00:00+00:00")
+        self.assertIn(("blocked", "threads_authorization_expired"), {(r["level"], r["code"]) for r in report["reasons"]})
+        self.assertEqual(report["overall"], "blocked")
+        unrecorded = {k: v for k, v in THREADS.items() if k != "authorization_expires_at"}
+        self.write_accounts(unrecorded)
+        with live:
+            self.assertIn("threads_authorization_unknown", self.codes(self.health(env={})))
+        self.assertNotIn("threads_authorization_unknown", self.codes(self.health(env={})))  # manual: not reported
 
     def test_postiz_backend_and_manual_adapters(self):
         self.write_accounts(BSKY, POSTIZ, YOUTUBE)

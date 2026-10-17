@@ -112,8 +112,8 @@ It also shows the emergency pause, the live opt-in flag and posts that belong to
 
 | Level | Codes |
 | --- | --- |
-| `blocked` (exit 1) | `emergency_pause_active`, `accounts_config_unloadable`, `caps_file_invalid`, `capability_registry_invalid`, `linkedin_version_unsupported`, `linkedin_authorization_expired`, `credentials_missing` on an account with approved or scheduled posts |
-| `attention` (exit 0) | `credentials_missing` with nothing queued, `registry_entry_stale`, `manual_platform_has_queued_posts`, `rolling_budget_exhausted`, `needs_review`, `stale_sending`, `overdue_scheduled`, `approval_rebind_required`, `provider_cooldown_active`, `provider_cooldown_ceiling_clamped`, `linkedin_version_ageing`, `linkedin_authorization_warning`/`_unknown`, `queued_posts_for_unconfigured_accounts`, `no_accounts_configured` |
+| `blocked` (exit 1) | `emergency_pause_active`, `accounts_config_unloadable`, `caps_file_invalid`, `capability_registry_invalid`, `linkedin_version_unsupported`, `linkedin_authorization_expired`, `instagram_authorization_expired`/`threads_authorization_expired` once that adapter is live, `credentials_missing` on an account with approved or scheduled posts |
+| `attention` (exit 0) | `credentials_missing` with nothing queued, `registry_entry_stale`, `manual_platform_has_queued_posts`, `rolling_budget_exhausted`, `needs_review`, `stale_sending`, `overdue_scheduled`, `approval_rebind_required`, `provider_cooldown_active`, `provider_cooldown_ceiling_clamped`, `linkedin_version_ageing`, `linkedin_authorization_warning`/`_unknown`, `instagram_authorization_*`/`threads_authorization_*` (`_warning`; `_expired` while the adapter is manual-only; `_unknown` only once it is live), `queued_posts_for_unconfigured_accounts`, `no_accounts_configured` |
 
 A monitor can alert on a nonzero exit. `health` never contacts a provider, so `ok` does not prove a token still works; `connect-check --online` does that.
 
@@ -441,7 +441,7 @@ For each post the effective budget is the **strictest** of the CLI flag, the fil
 | Provider | Token lifetime and expiry | Version or API change | Where to look |
 |---|---|---|---|
 | LinkedIn | about 60 days; `authorization_expires_at` | monthly versions, HTTP 426 after at least a year | `health` shows `linkedin_version_*` and `linkedin_authorization_*` |
-| Instagram, Facebook, Threads (Meta) | long-lived tokens about 60 days; `authorization_expires_at` (Instagram) | pinned Graph API version (`v25.0` in the Instagram adapter); Meta retires old versions and some metrics (for example `post_impressions` from v25) | adapters are disabled until a live receipt; re-read the Meta changelog before enabling |
+| Instagram, Facebook, Threads (Meta) | long-lived tokens about 60 days; `authorization_expires_at` (Instagram, Threads); `health` shows `instagram_authorization_*` and `threads_authorization_*` 7 days ahead | pinned Graph API version (`v25.0` in the Instagram adapter); Meta retires old versions and some metrics (for example `post_impressions` from v25) | adapters are disabled until a live receipt; re-read the Meta changelog before enabling |
 | YouTube, TikTok | OAuth grants can be revoked in the account's security page; no refresh flow exists here | quotas and audit status change; the registry video switches stay `off` | re-run the sourced-facts review in the adapter's proposal before enabling |
 | Bluesky, Mastodon, Telegram, Postiz | app passwords, tokens and keys are revoked by deleting them | instance limits and domains change | `connect-check --online`, `postiz-check --online` |
 
