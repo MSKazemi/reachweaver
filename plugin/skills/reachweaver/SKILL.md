@@ -35,6 +35,7 @@ description: Orchestrate evidence-backed, brand-aware social media strategy and 
 | GitHub contributors, repo traffic or SEO, Reddit/Hacker News caution | `references/open-source-growth.md`, `references/github-discovery.md`, `references/channel-selection.md` |
 | A country or region, best posting time, a calendar or batch queue | `references/global-distribution.md`, `references/platform-algorithms.md`, `references/timing-intelligence.md` (offline `distribution-plan`, `calendar-plan`) |
 | DEV Community | `references/dev-community.md` (no AI-generated DEV comments or promotional articles) |
+| Editorial planning, audience jobs, content pillars, production capacity | `references/editorial-system.md`, `references/creative-playbook.md` (planning worksheet; no command reads it) |
 | A new paper, release or blog; voice and hooks; drafts, videos, carousels | `references/campaign-contract.md`, `references/creative-playbook.md`, `references/formats.md`, `references/platform-playbooks.md` |
 | An easy one-post handoff to Instagram/TikTok/Threads or multiple manual networks (browser: `RW share --web --open` is owner-run) | Use the offline `share` CLI with `--platform`, `--text` / `--file`, optional `--note` for human-only venues. The owner can run `share --guide` in their terminal. This only prepares local files; see the full-repo `docs/EASY-SHARING.md`. |
 | Connecting accounts, credentials, scheduling, auto-posting, privacy, data export | `references/security.md`, `references/publishing.md`, `references/campaign-contract.md` |

@@ -6,6 +6,10 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Documentation
+
+- **Editorial planning worksheet.** New [docs/EDITORIAL-SYSTEM.md](docs/EDITORIAL-SYSTEM.md) and `examples/editorial-plan.example.json`: an audience-first way to decide what to make each week (brand voice, one goal, up to three audiences, content pillars, channel slots, prioritised ideas with an effort estimate, and the weekly time you really have), with each later step handed to a command that exists (`campaign-check`, `claims-check`, `campaign-preview`, `repeat-check`, `discovery-plan`, `share`, `manual-export`, `post-audit`, `experiment-readout`). No command reads the worksheet; it is a planning aid, not a new feature. The skill gains a matching reference loaded on demand, and `scripts/sync_skill.py` now mirrors the example into both bundles.
+
 ## [0.8.0] - 2026-10-17
 
 Two new offline commands (`share` and `discovery-plan`), China-aware manual packages for twelve Chinese platforms, ten more planning destinations (110 in the registry), and Month, Results and Campaigns pages on the dashboard. Everything new is offline or read-only. No change to approval, dry-run, emergency-stop or credential rules, and no new live adapter.

@@ -1,0 +1,115 @@
+{
+  "schema_version": "reachweaver.editorial-plan.v1",
+  "brand": {
+    "name": "ReachWeaver",
+    "voice_do": [
+      "Explain one useful workflow using factual examples",
+      "Show proof and limitations before proposing next steps"
+    ],
+    "voice_avoid": [
+      "Guaranteed virality or engagement bait",
+      "Imply a platform approval without a receipt"
+    ]
+  },
+  "goal": "qualified_visits",
+  "audiences": [
+    {
+      "id": "indie-maintainers",
+      "job": "Share open-source releases with the people most likely to use them",
+      "pain": "Time spent posting without useful feedback",
+      "evidence_basis": "hypothesis"
+    },
+    {
+      "id": "creator-teams",
+      "job": "Turn a short tutorial or demo into platform-native educational content",
+      "pain": "Recreating nearly the same content for each network",
+      "evidence_basis": "hypothesis"
+    }
+  ],
+  "pillars": [
+    {
+      "id": "proof-led-demos",
+      "theme": "Show one testable product improvement",
+      "audience_id": "indie-maintainers"
+    },
+    {
+      "id": "creator-workflows",
+      "theme": "Make cross-platform content production less manual",
+      "audience_id": "creator-teams"
+    }
+  ],
+  "channels": [
+    {
+      "platform": "linkedin",
+      "weekly_slots": 2,
+      "reactive_slots": 1,
+      "formats": [
+        "text",
+        "carousel_outline"
+      ]
+    },
+    {
+      "platform": "instagram",
+      "weekly_slots": 2,
+      "reactive_slots": 1,
+      "formats": [
+        "reel_script",
+        "carousel_outline"
+      ]
+    }
+  ],
+  "week_start": "2026-10-19",
+  "weeks": 2,
+  "weekly_budget_minutes": 120,
+  "ideas": [
+    {
+      "id": "proof-first",
+      "pillar_id": "proof-led-demos",
+      "audience_id": "indie-maintainers",
+      "platform": "linkedin",
+      "format": "text",
+      "angle": "Explain how a testable claim is tied to a post preview",
+      "reader_payoff": "Know what to verify before pressing publish",
+      "evidence_status": "needs_source_check",
+      "cta": "Read the public usage guide",
+      "minutes": 50,
+      "priority": 5
+    },
+    {
+      "id": "video-cut",
+      "pillar_id": "creator-workflows",
+      "audience_id": "creator-teams",
+      "platform": "instagram",
+      "format": "reel_script",
+      "angle": "A creator turns one original demo into a short sequence",
+      "reader_payoff": "Learn a small reusable production routine",
+      "evidence_status": "editorial_opinion",
+      "minutes": 60,
+      "priority": 4
+    },
+    {
+      "id": "audit-proof",
+      "pillar_id": "proof-led-demos",
+      "audience_id": "indie-maintainers",
+      "platform": "linkedin",
+      "format": "carousel_outline",
+      "angle": "Compare an honest audit with a fabricated reach score",
+      "reader_payoff": "Learn how to interpret an uncertain result",
+      "evidence_status": "needs_source_check",
+      "minutes": 60,
+      "priority": 3
+    },
+    {
+      "id": "alt-text",
+      "pillar_id": "creator-workflows",
+      "audience_id": "creator-teams",
+      "platform": "instagram",
+      "format": "carousel_outline",
+      "angle": "Show the steps for accessible descriptive alt text",
+      "reader_payoff": "Give every reader access to the main point",
+      "evidence_status": "editorial_opinion",
+      "minutes": 55,
+      "priority": 3
+    }
+  ]
+}
