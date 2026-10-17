@@ -18,7 +18,7 @@ from reachweaver.accounts import load_accounts
 from reachweaver.cli import main
 from reachweaver.policy import ValidationError
 from reachweaver.storage import (add_post, claim_sending, connect, finish_send, record_shared,
-                                 set_approval_max_age_hours, transition, uncertain_send)
+                                 set_approval_max_age_hours, store_metrics, transition, uncertain_send)
 
 SECRET = "-".join(("very", "private", "app", "password", "value"))
 BSKY = {"id": "u-bluesky", "platform": "bluesky", "env_prefix": "REACHWEAVER_U_BSKY", "handle": "o.bsky.social"}
@@ -346,6 +346,75 @@ class SafetyTests(DataBase):
         image.unlink()
         codes = [c["code"] for c in self.view()["checks"]]
         self.assertIn("attachment_missing", codes)
+
+
+class ResultsTests(DataBase):
+    def setUp(self):
+        super().setUp()
+        with connect(str(self.db)) as con:  # a second account: the first is held by its needs_review post
+            self.sent = add_post(con, "u-bluesky-2", "bluesky", "Sent " + HOSTILE, "launch")
+            transition(con, self.sent, "approve", approver="owner")
+            self.assertTrue(claim_sending(con, self.sent, now=NOW))
+            finish_send(con, self.sent, "at://did:x/post/9", "https://bsky.app/profile/o/post/9")
+            self.quiet = add_post(con, "u-bluesky-3", "bluesky", "Sent, never measured", "launch")
+            transition(con, self.quiet, "approve", approver="owner")
+            self.assertTrue(claim_sending(con, self.quiet, now=NOW))
+            finish_send(con, self.quiet, "at://did:x/post/10", "https://bsky.app/profile/o/post/10")
+            store_metrics(con, self.sent, "2030-01-01T00:00:00+00:00", "native_export", views=120, likes=4,
+                          reposts="suppressed")
+            store_metrics(con, self.sent, "2030-01-02T00:00:00+00:00", "native_export", views=150, likes=6)
+
+    def test_latest_exact_values_and_unknown_is_never_zero(self):
+        with ui_data.open_database(self.db) as con:
+            view = ui_data.results_view(con)
+        by_id = {p["id"]: p for p in view["posts"]}
+        latest = by_id[self.sent]["latest"]
+        self.assertEqual(latest["metrics"]["views"], {"state": "exact", "value": 150})
+        self.assertEqual(latest["metrics"]["clicks"], {"state": "unknown", "value": None})
+        self.assertIsNone(by_id[self.quiet]["latest"])  # not recorded, not zero
+        self.assertEqual((view["shown"], view["with_snapshot"]), (2, 1))
+        bluesky = next(p for p in view["platforms"] if p["platform"] == "bluesky")
+        self.assertEqual(bluesky["metrics"]["views"]["value"], 150)
+        self.assertEqual(bluesky["metrics"]["views"]["coverage"], "1/2")
+        self.assertIsNone(bluesky["metrics"]["clicks"]["value"])
+        self.assertIn(HOSTILE, by_id[self.sent]["excerpt"])  # data, escaped by the page
+        self.assertNotIn(SECRET, json.dumps(view))
+
+    def test_post_page_lists_every_snapshot_with_its_status(self):
+        with ui_data.open_database(self.db) as con:
+            results = ui_data.post_detail(con, self.sent, self.accounts)["results"]
+            none = ui_data.post_detail(con, self.quiet, self.accounts)["results"]
+        self.assertEqual([r["metrics"]["views"]["value"] for r in results], [120, 150])
+        self.assertEqual(results[0]["metrics"]["reposts"]["state"], "suppressed")
+        self.assertIsNotNone(results[0]["age_hours"])
+        self.assertEqual(none, [])
+
+    def test_filters(self):
+        with ui_data.open_database(self.db) as con:
+            self.assertEqual([p["id"] for p in ui_data.results_view(con, account="u-bluesky-3")["posts"]], [self.quiet])
+            self.assertEqual(ui_data.results_view(con, platform="mastodon")["platforms"], [])
+
+
+class CampaignTests(ResultsTests):
+    def test_campaigns_are_grouped_with_status_counts(self):
+        with ui_data.open_database(self.db) as con:
+            view = ui_data.campaigns_view(con)
+        launch = next(c for c in view["campaigns"] if c["campaign"] == "launch")
+        self.assertEqual(launch["posts"], 2)
+        self.assertEqual(launch["status_counts"], {"published": 2})
+        self.assertEqual(launch["accounts"], ["u-bluesky-2", "u-bluesky-3"])
+        self.assertEqual(view["posts_without_campaign"], 3)
+
+    def test_campaign_detail_shows_each_post_and_its_exact_results(self):
+        with ui_data.open_database(self.db) as con:
+            detail = ui_data.campaign_detail(con, "launch")
+            with self.assertRaises(ValidationError):
+                ui_data.campaign_detail(con, "nope")
+        by_id = {p["id"]: p for p in detail["posts"]}
+        self.assertEqual(by_id[self.sent]["results"]["views"], 150)
+        self.assertIsNone(by_id[self.sent]["results"]["reposts"])  # suppressed is not an exact value
+        self.assertIsNone(by_id[self.quiet]["results"])
+        self.assertIn("approved, scheduled and sent on its own", detail["note"])
 
 
 class SuggestionTests(DataBase):

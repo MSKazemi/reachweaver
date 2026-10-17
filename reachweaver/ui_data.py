@@ -24,8 +24,9 @@ from .post_view import build_post_view
 from .privacy import redact, redact_value
 from .show_view import approval_sentence, length_of
 from .suggest import build_suggestions
-from .storage import (approval_expiry_problem, approval_max_age_hours, connect_readonly, get_post, list_posts,
-                      parse_utc, schema_gaps, utc_now)
+from .storage import (METRIC_FIELDS, approval_expiry_problem, approval_max_age_hours, connect_readonly, get_post,
+                      latest_snapshot, list_posts, metric_states, parse_utc, report, schema_gaps, snapshots_for,
+                      utc_now)
 
 REQUIRED_TABLES = ("posts", "event_log", "settings")
 LIST_LIMIT = 500
@@ -34,6 +35,8 @@ EXCERPT = 160
 JOURNAL_LIMIT = 100
 SCHEDULE_DAYS = 14
 SUGGESTION_LIMIT = 5
+RESULTS_LIMIT = 100
+CAMPAIGN_LIMIT = 200
 # Rows a human has to look at first, in this order.
 ATTENTION_ORDER = {"needs_review": 0, "sending": 1, "approved": 2, "scheduled": 3, "draft": 4,
                    "published": 5, "cancelled": 6}
@@ -151,6 +154,8 @@ def post_detail(con, post_id: str, accounts: dict) -> dict:
     detail["remote_url"] = post["remote_url"]
     detail["length"] = length_of(detail)  # the platform's own count and limit, or None (never guessed)
     detail["approval_summary"] = approval_sentence(detail)
+    published = next((e["at"] for e in reversed(detail["events"]) if e["action"] == "published"), None)
+    detail["results"] = post_results(con, post_id, published)  # recorded snapshots only; [] when none
     exact = post["content"]
     detail = redact_value(detail)  # errors, events and previews may quote a secret
     detail["content"] = exact  # the exact text a reviewer approves is never altered ...
@@ -297,3 +302,130 @@ def suggestions_view(con) -> dict:
     return redact_value({"actions": [{**{k: a[k] for k in keep}, "evidence_source": a["evidence"]["source"]}
                                      for a in actions[:SUGGESTION_LIMIT]],
                          "more": max(0, len(actions) - SUGGESTION_LIMIT), "limitations": result["limitations"][:2]})
+
+
+RESULTS_NOTE = ("Only what you recorded from each platform's own analytics (metrics, import-metrics, metrics-fetch). "
+                "'unknown' means no exact value was recorded, never zero; platform estimates are shown apart and never "
+                "added to exact counts. A number here is a local record, not proof of reach.")
+
+
+def _snapshot_view(row, posted_at: str | None) -> dict | None:
+    """One snapshot: observed time, source, window, age since posting, and every metric as (state, value)."""
+    if row is None:
+        return None
+    states = metric_states(row)
+    age = None
+    if posted_at and row["observed_at"]:
+        try:
+            seconds = (datetime.fromisoformat(parse_utc(row["observed_at"])) -
+                       datetime.fromisoformat(parse_utc(posted_at))).total_seconds()
+            age = round(seconds / 3600, 1) if seconds >= 0 else None
+        except ValidationError:
+            age = None
+    keys = row.keys()
+    return redact_value({"observed_at": row["observed_at"], "source": row["source"], "age_hours": age,
+                         "window_start": row["window_start"] if "window_start" in keys else None,
+                         "window_end": row["window_end"] if "window_end" in keys else None,
+                         "metrics": {k: {"state": states[k][0], "value": states[k][1]} for k in METRIC_FIELDS}})
+
+
+def results_view(con, *, account: str | None = None, platform: str | None = None) -> dict:
+    """Recorded results: per-platform totals of exact values (``storage.report``) and each published post's latest
+    snapshot, newest post first. Nothing is fetched; a post without a snapshot is listed as not recorded."""
+    entries = build_entries(con, statuses=("published",), account=account, platform=platform, by_hand=False,
+                            limit=RESULTS_LIMIT + 1)
+    shown = entries[:RESULTS_LIMIT]
+    posts = []
+    for entry in shown:
+        item = redact_value({k: entry.get(k) for k in ("id", "when", "platform", "account", "campaign", "remote_url")})
+        text = entry.get("text") or ""
+        item["excerpt"] = _excerpt(text)
+        item["looks_like_secret"] = redact(text) != text
+        item["latest"] = _snapshot_view(latest_snapshot(con, entry["id"]), entry.get("when"))
+        posts.append(item)
+    platforms = []
+    for name, summary in report(con).items():
+        if platform is not None and name != platform:
+            continue
+        platforms.append({"platform": name, "published": summary["published"],
+                          "with_snapshot": summary["metric_coverage"],
+                          "metrics": {k: {"value": summary["metrics"][k]["value"],
+                                          "coverage": summary["metrics"][k]["coverage"],
+                                          "estimated": summary["metrics"][k]["estimated"]} for k in METRIC_FIELDS}})
+    recorded = sum(1 for p in posts if p["latest"] is not None)
+    return {"metrics": list(METRIC_FIELDS), "platforms": platforms, "posts": posts, "shown": len(posts),
+            "with_snapshot": recorded, "truncated": len(entries) > RESULTS_LIMIT,
+            "platform_totals_scope": "all published posts of each platform (not filtered by account)",
+            "note": RESULTS_NOTE}
+
+
+def post_results(con, post_id: str, posted_at: str | None) -> list[dict]:
+    """Every recorded snapshot of one post, oldest first, for the post page."""
+    rows = sorted(snapshots_for(con, post_id), key=lambda r: (r["observed_at"] or "", r["id"]))
+    return [view for view in (_snapshot_view(r, posted_at) for r in rows) if view is not None]
+
+
+def _exact(view: dict | None, key: str) -> int | None:
+    if view is None:
+        return None
+    metric = view["metrics"][key]
+    return metric["value"] if metric["state"] == "exact" else None
+
+
+def campaigns_view(con) -> dict:
+    """Every campaign named on a post: status counts, platforms, accounts and last activity, newest first."""
+    groups: dict[str, dict] = {}
+    for row in list_posts(con):
+        name = row["campaign"] or ""
+        if not name:
+            continue
+        group = groups.setdefault(name, {"campaign": name, "posts": 0, "status_counts": {}, "platforms": set(),
+                                         "accounts": set(), "first_created": row["created_at"],
+                                         "last_activity": row["created_at"]})
+        group["posts"] += 1
+        group["status_counts"][row["status"]] = group["status_counts"].get(row["status"], 0) + 1
+        group["platforms"].add(row["platform"])
+        group["accounts"].add(row["account_id"])
+        for stamp in (row["created_at"], row["approved_at"], row["scheduled_at"]):
+            if stamp and stamp > (group["last_activity"] or ""):
+                group["last_activity"] = stamp
+        if row["created_at"] < (group["first_created"] or row["created_at"]):
+            group["first_created"] = row["created_at"]
+    variants = dict(con.execute("SELECT campaign_id, COUNT(*) FROM campaign_variants GROUP BY campaign_id").fetchall())
+    items = []
+    for group in groups.values():
+        group["platforms"], group["accounts"] = sorted(group["platforms"]), sorted(group["accounts"])
+        group["staged_variants"] = variants.get(group["campaign"], 0)
+        items.append(group)
+    items.sort(key=lambda g: (g["last_activity"] or "", g["campaign"]), reverse=True)
+    unnamed = sum(1 for row in list_posts(con) if not (row["campaign"] or ""))
+    return redact_value({"campaigns": items[:CAMPAIGN_LIMIT], "truncated": len(items) > CAMPAIGN_LIMIT,
+                         "posts_without_campaign": unnamed})
+
+
+def campaign_detail(con, campaign: str) -> dict:
+    """One campaign: each post side by side (status, platform, account, excerpt, schedule, latest exact results)
+    and the staged variant records. Raises ValidationError for an unknown campaign."""
+    rows = list_posts(con, campaign=campaign)
+    if not rows:
+        raise ValidationError("Unknown campaign")
+    staged = {r["post_id"]: {"variant_id": r["variant_id"], "brand_id": r["brand_id"]} for r in con.execute(
+        "SELECT post_id, variant_id, brand_id FROM campaign_variants WHERE campaign_id=?", (campaign,)).fetchall()}
+    posts = []
+    for row in sorted(rows, key=lambda r: (ATTENTION_ORDER.get(r["status"], 9), r["platform"], r["account_id"])):
+        latest = _snapshot_view(latest_snapshot(con, row["id"]), None)
+        item = redact_value({"id": row["id"], "status": row["status"], "platform": row["platform"],
+                             "account_id": row["account_id"], "scheduled_at": row["scheduled_at"],
+                             "approved_at": row["approved_at"], "remote_url": row["remote_url"],
+                             "last_error": row["last_error"], "variant": staged.get(row["id"])})
+        item["excerpt"] = _excerpt(row["content"])
+        item["looks_like_secret"] = redact(row["content"]) != row["content"]
+        item["chars"] = len(row["content"])
+        item["results"] = ({k: _exact(latest, k) for k in METRIC_FIELDS} | {"observed_at": latest["observed_at"]}
+                           if latest else None)
+        posts.append(item)
+    counts: dict[str, int] = {}
+    for row in rows:
+        counts[row["status"]] = counts.get(row["status"], 0) + 1
+    return {"campaign": redact(campaign), "posts": posts, "status_counts": counts,
+            "note": "Each post is approved, scheduled and sent on its own; a campaign groups them for review only."}

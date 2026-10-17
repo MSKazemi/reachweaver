@@ -6,6 +6,11 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Added
+
+- **Dashboard: Results and Campaigns pages.** Results shows what you recorded from each platform's own analytics: per-platform totals of exact values with their coverage (for example `3/5` posts), and each published post's latest record with when it was taken, how long after posting and its source. The post page lists every record of that post. A value you did not record is "unknown", never 0; platform estimates are labelled and never added to exact counts. Campaigns lists every campaign name with its status counts, platforms and accounts, and a campaign's page shows its posts side by side with their recorded results. Both are read-only and fetch nothing; a campaign groups posts for review only, and each post is still approved and sent on its own. New shortcuts: `g r` and `g m`.
+- **`reachweaver` with no command now helps.** It prints the same guidance as `reachweaver start` (your state and the next command to type) and points to `reachweaver --help`, instead of a usage error. It reads only local state and creates nothing.
+
 ## [0.7.0] - 2026-10-17
 
 Four new offline commands (`trace`, `media-cutlist`, `seo-destinations --suggest-for`, multi-account `draft`), Instagram and Threads token-expiry reminders in `health`, two dashboard fixes, and PyPI publishing without a manual approval. No change to approval, dry-run, emergency-stop or credential rules.

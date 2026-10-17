@@ -134,7 +134,7 @@ def make_parser() -> argparse.ArgumentParser:
     parser.add_argument("--plain", action="store_true", help="No colour or tables, even in a terminal (the plain "
                                                               "text format that scripts rely on)")
     # help=SUPPRESS hides argparse's flat 80-line list; the grouped index (cli_help) is the epilog.
-    sub = parser.add_subparsers(dest="command", required=True, metavar="COMMAND", help=argparse.SUPPRESS)
+    sub = parser.add_subparsers(dest="command", required=False, metavar="COMMAND", help=argparse.SUPPRESS)
     optout_help = "Opt-out list JSON (default $REACHWEAVER_OPTOUT or config/optout.json if present)"
     sub.add_parser("init", help="Initialize local database (not an online account)")
     p = sub.add_parser("version", help="Print the installed ReachWeaver version and install kind; offline")
@@ -3193,6 +3193,12 @@ def main(argv=None) -> int:
     try:
         parsed = make_parser().parse_args(argv)
         home.activate(parsed.home if parsed.command != "workspace" or parsed.init is None else None, Path.cwd())
+        if parsed.command is None:  # bare `reachweaver`: where you are and what to type next, not a usage error
+            from .start import build_guide, render as render_guide
+            guide = build_guide(parsed.db, parsed.accounts)
+            print(render_guide(guide))
+            print("\nEvery command, grouped by task: reachweaver --help")
+            return 1 if guide["state"] in ("accounts_invalid", "database_unreadable") else 0
         return execute(parsed)
     except (ValidationError, PublishError, OSError, ValueError, csv.Error) as exc:
         from .privacy import redact  # last line of defence: a library message may quote a secret

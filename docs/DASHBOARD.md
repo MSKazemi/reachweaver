@@ -45,6 +45,8 @@ Keep the address private. It is the only thing that lets a browser read your que
 - **Post**: a status card that says in plain language what the state means and offers the next command to run; the exact text with a **length meter** against the platform's own limit (Bluesky, Mastodon, LinkedIn) and a Copy text button; the approval binding, offline platform preview and attachments in collapsible sections; previous/next post links; and the event timeline with relative times ("2 hours ago", exact time on hover).
 
 The exact text is shown **as stored**, not redacted, because you are reviewing what would be sent. A warning appears when it looks like it contains a password, token or key. Errors, events and previews are redacted.
+- **Results**: what you recorded from each platform's own analytics (`metrics`, `import-metrics`, `metrics-fetch`). Per platform: the total of exact values and how many published posts have one (`3/5`). Per post, newest first: the latest record with its time, how long after posting it was taken and its source. A value you did not record is "unknown", never 0. A platform estimate is labelled "(platform estimate)" and never added to exact counts, and a value the platform withheld says so (for example "not available"). The post page lists every record of that post. Nothing is fetched: the page only shows what is already in your database.
+- **Campaigns**: every campaign name used on a post, most recent first, with its status counts, platforms, accounts and staged variants. A campaign's page shows its posts side by side (status, platform and account, text, when, recorded results) with links to each post. A campaign only groups posts for review: each post is still approved, scheduled and sent on its own.
 - **Accounts**: configured accounts, adapter kind and, per account, whether every credential variable is set ("all set") or which are missing (names only). Credentials are needed for live sending only.
 - **Channels**: the offline distribution research by market and goal. These are research hypotheses, not predictions, not an account connection and not permission to publish.
 
@@ -52,7 +54,7 @@ A value that is not recorded is shown as "unknown", never as zero.
 
 ## Keyboard shortcuts
 
-Press `?` for the list. `g` then `o`/`q`/`s`/`p`/`a`/`c` jumps to Overview, Queue, Schedule, Posted, Accounts or Channels; `j`/`k` move through the queue or the posted list and `Enter` opens the selected post; `[` and `]` go to the previous or next post; `/` searches the queue or the posted list; `r` refreshes; `t` cycles the theme; `Esc` leaves a field. Shortcuts are ignored while you type in a field.
+Press `?` for the list. `g` then `o`/`q`/`s`/`p`/`r`/`m`/`a`/`c` jumps to Overview, Queue, Schedule, Posted, Results, Campaigns, Accounts or Channels; `j`/`k` move through the queue or the posted list and `Enter` opens the selected post; `[` and `]` go to the previous or next post; `/` searches the queue or the posted list; `r` refreshes; `t` cycles the theme; `Esc` leaves a field. Shortcuts are ignored while you type in a field.
 
 ## Narrow screens
 
@@ -88,7 +90,7 @@ If another program on your computer runs as you, it can read the same files the 
 - `reachweaver show POST_ID` at a terminal prints a review sheet: the exact text in a box, the length meter, the approval state in a sentence, attachments and the commands you could run next. Piped or with `--plain` it prints the same JSON as before.
 - A mistyped command gets a short suggestion (`unknown command 'aprove'. Did you mean: approve, ...`) instead of a list of every command.
 - `reachweaver completion bash` (or `zsh`) prints a Tab-completion script for commands, options and fixed choices. Load it with `eval "$(reachweaver completion bash)"` or save it where your shell loads completions. It reads no database and runs nothing; regenerate it after an upgrade.
-- `reachweaver start` looks at your accounts file, database and queue and prints the exact next command. It runs nothing and never creates the database. `--json` gives the same guidance for scripts.
+- `reachweaver start` looks at your accounts file, database and queue and prints the exact next command. It runs nothing and never creates the database. `--json` gives the same guidance for scripts. Typing `reachweaver` alone prints the same guidance and points to `reachweaver --help`, instead of a usage error.
 - `reachweaver --help` now lists commands grouped by task. `reachweaver COMMAND --help` is unchanged.
 - In a terminal, `list` prints an aligned table with the status coloured (the id column is never shortened, so you can copy it), and `check` colours `OK`/`BLOCKED`. Control characters in stored text are replaced before they reach the terminal. When output is piped or redirected, the format is exactly what it always was, so scripts keep working. Pass `--plain` before the command (`reachweaver --plain list`) to turn colour and tables off in a terminal too.
 - At a terminal, a few common errors add one "Next:" line (missing accounts file, unknown post id, missing database). Scripts see only the `ERROR:` line.

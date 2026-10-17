@@ -81,6 +81,20 @@ class GroupTests(unittest.TestCase):
             self.parser.parse_args(["youtube-attach", "--privacy", "bogus"])
         self.assertIn("invalid choice", err.getvalue())
 
+    def test_bare_command_prints_the_start_guide_and_creates_nothing(self):
+        import tempfile
+        from pathlib import Path
+        from reachweaver.cli import main
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "state" / "x.sqlite"
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+                code = main(["--db", str(db), "--accounts", str(Path(tmp) / "none.json")])
+            self.assertEqual(code, 0)
+            self.assertIn("reachweaver --help", out.getvalue())
+            self.assertIn("only reads local state", out.getvalue())
+            self.assertFalse(db.parent.exists())
+
     def test_usage_names_the_command_slot_without_polluting_subcommand_usage(self):
         self.assertIn("COMMAND", self.parser.format_usage())
         sub = self.action.choices["list"]

@@ -676,6 +676,8 @@ browser --GET /<token>/api/*--> ui_server.Handler  (loopback, token, Host/Origin
    next -> start.build_guide (read-only; the dashboard drops its own `ui` step)
    journal -> journal.build_entries (verify_files off: no file is opened)      schedule -> storage.list_posts + approval max age
    safety -> ledger.audit + workspace.inspect (hashes unsent attachments; cached 60 s per server)
+   results -> storage.report + latest_snapshot/metric_states (recorded values only; unknown never 0)
+   campaigns, campaign?name= -> storage.list_posts + campaign_variants (grouping only; no shared approval)
    suggest -> suggest.build_suggestions(con=...) minus publishing-safety items (already status reasons)
                                    |  every document through privacy.redact_value
                                    v

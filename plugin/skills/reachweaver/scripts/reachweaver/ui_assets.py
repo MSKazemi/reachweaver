@@ -27,6 +27,8 @@ INDEX_HTML = r"""<!doctype html>
     <a href="#/queue" data-route="queue">Queue</a>
     <a href="#/schedule" data-route="schedule">Schedule</a>
     <a href="#/posted" data-route="posted">Posted</a>
+    <a href="#/results" data-route="results">Results</a>
+    <a href="#/campaigns" data-route="campaigns">Campaigns</a>
     <a href="#/accounts" data-route="accounts">Accounts</a>
     <a href="#/distribution" data-route="distribution">Channels</a>
   </nav>
@@ -254,7 +256,7 @@ function h(tag, attrs, ...kids) {
     else if (k === "text") el.textContent = v;
     else el.setAttribute(k, v === true ? "" : String(v));
   }
-  for (const kid of kids.flat()) {
+  for (const kid of kids.flat(Infinity)) {
     if (kid == null || kid === false) continue;
     el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
   }
@@ -486,6 +488,95 @@ async function viewPosted(params) {
     h("p", { class: "note" }, d.note)];
 }
 
+// ---- Results (only what was recorded from the platforms' own analytics; unknown is never zero)
+const NUM = (typeof Intl !== "undefined" && Intl.NumberFormat) ? new Intl.NumberFormat() : { format: n => String(n) };
+function metricLine(metrics, keys) { // "views 1,204 · likes 31" from exact values; the rest summarised, never as 0
+  const exact = [], other = [];
+  for (const k of keys) { const m = metrics[k]; if (!m) continue;
+    if (m.state === "exact") exact.push(k + " " + NUM.format(m.value));
+    else if (m.state === "estimated" && m.value != null) other.push(k + " ~" + NUM.format(m.value) + " (platform estimate)");
+    else if (m.state !== "unknown") other.push(k + " " + m.state.replace(/_/g, " ")); }
+  return [exact.length ? h("div", null, exact.join(" · ")) : h("div", { class: "muted" }, "no exact values recorded"),
+    other.length ? h("div", { class: "note" }, other.join(" · ")) : null];
+}
+function snapshotCell(s, keys) {
+  if (!s) return h("span", { class: "muted" }, "not recorded");
+  return [metricLine(s.metrics, keys), h("div", { class: "note" }, "recorded ", when(s.observed_at),
+    s.age_hours != null ? " · " + s.age_hours + " h after posting" : "", " · " + s.source)];
+}
+async function viewResults(params) {
+  const account = params.get("account") || "", platform = params.get("platform") || "";
+  const q = new URLSearchParams(); if (account) q.set("account", account); if (platform) q.set("platform", platform);
+  const [d, accounts] = await Promise.all([api("results" + (q.toString() ? "?" + q : "")), api("accounts")]);
+  const go = (a, p) => { const n = new URLSearchParams(); if (a) n.set("account", a); if (p) n.set("platform", p); location.hash = "#/results" + (n.toString() ? "?" + n : ""); };
+  const ids = accounts.accounts.map(a => a.id); if (account && !ids.includes(account)) ids.push(account);
+  const acc = h("select", { "aria-label": "Account filter" }, h("option", { value: "" }, "All accounts"), ids.map(id => h("option", { value: id, selected: id === account }, id)));
+  acc.addEventListener("change", () => go(acc.value, platform));
+  const names = [...new Set(d.platforms.map(p => p.platform).concat(platform ? [platform] : []))];
+  const plat = h("select", { "aria-label": "Platform filter" }, h("option", { value: "" }, "All platforms"), names.map(n => h("option", { value: n, selected: n === platform }, n)));
+  plat.addEventListener("change", () => go(account, plat.value));
+  const out = [h("h1", null, "Results"), h("p", { class: "lede" }, "What you recorded from each platform's own analytics. Unknown is shown as unknown, never as zero."),
+    h("div", { class: "filters" }, acc, plat)];
+  if (d.platforms.length) {
+    out.push(h("h2", null, "By platform"), h("p", { class: "note" }, "Totals of exact values over " + d.platform_totals_scope + "; the coverage says how many posts have a value."));
+    out.push(table(["Platform", "Published", "With data", ...d.metrics], d.platforms.map(p => h("tr", null,
+      h("td", null, p.platform), h("td", { class: "num" }, p.published), h("td", { class: "num" }, p.with_snapshot),
+      d.metrics.map(k => { const m = p.metrics[k]; return h("td", { class: "num" }, m.value == null ? h("span", { class: "muted" }, "unknown") : NUM.format(m.value),
+        h("div", { class: "note" }, m.coverage + (m.estimated ? " · ~" + NUM.format(m.estimated.sum) + " est." : ""))); })))));
+  }
+  out.push(h("h2", null, "Posts (" + d.with_snapshot + " of " + d.shown + " with a record)"));
+  out.push(d.posts.length ? table(["Posted", "Text", "Account", "Latest record"], d.posts.map(p => h("tr", null,
+    h("td", null, when(p.when)),
+    h("td", null, h("a", { class: "row-link", href: "#/post/" + encodeURIComponent(p.id) }, p.excerpt || "(empty)"),
+      p.campaign ? h("div", { class: "note" }, "campaign " + p.campaign) : null),
+    h("td", null, p.account, h("div", { class: "muted" }, p.platform)),
+    h("td", null, snapshotCell(p.latest, d.metrics))))) :
+    empty("Nothing published yet", "Results appear here once a post is published and you record its numbers."));
+  if (d.posts.length && !d.with_snapshot) out.push(h("div", { class: "card" }, h("strong", null, "Record results in your terminal"),
+    command("reachweaver metrics POST_ID --observed-at 2026-10-20T09:00:00+02:00 --source native_export --views 120 --likes 4"),
+    h("p", { class: "note" }, "Or import a native export with reachweaver import-metrics --csv FILE. Bluesky and Mastodon public counters: reachweaver metrics-fetch --online.")));
+  if (d.truncated) out.push(h("p", { class: "muted" }, "Showing the newest " + d.shown + " published posts."));
+  out.push(h("p", { class: "note" }, d.note));
+  return out;
+}
+
+// ---- Campaigns (a campaign groups posts for review; each post is still approved and sent on its own)
+function statusChips(counts) {
+  return STATUS_ORDER.filter(k => counts[k]).map(k => [h("span", { class: "chip " + k }, counts[k] + " " + STATUS_LABEL[k]), " "]);
+}
+async function viewCampaigns() {
+  const d = await api("campaigns");
+  const out = [h("h1", null, "Campaigns"), h("p", { class: "lede" }, "Posts grouped by their campaign name, most recent first. Each post is still approved and sent on its own.")];
+  out.push(d.campaigns.length ? table(["Campaign", "Posts", "Status", "Platforms", "Last activity"], d.campaigns.map(c => h("tr", null,
+    h("td", null, h("a", { class: "row-link", href: "#/campaign?name=" + encodeURIComponent(c.campaign) }, c.campaign),
+      c.staged_variants ? h("div", { class: "note" }, c.staged_variants + " staged variant(s)") : null),
+    h("td", { class: "num" }, c.posts), h("td", null, statusChips(c.status_counts)),
+    h("td", null, c.platforms.join(", "), h("div", { class: "muted" }, c.accounts.join(", "))),
+    h("td", null, when(c.last_activity))))) :
+    empty("No campaigns yet", h("span", null, "Give drafts a campaign name, e.g. ", h("code", null, "reachweaver draft --account A --text '...' --campaign launch"), ", or stage a campaign file with campaign-stage.")));
+  if (d.posts_without_campaign) out.push(h("p", { class: "muted" }, d.posts_without_campaign + " post(s) have no campaign name; they are in the Queue."));
+  return out;
+}
+async function viewCampaign(params) {
+  const name = params.get("name") || "";
+  const d = await api("campaign?name=" + encodeURIComponent(name));
+  const keys = ["views", "likes", "replies", "reposts", "clicks"];
+  const out = [h("div", { class: "pager" }, h("a", { href: "#/campaigns" }, "← Campaigns")),
+    h("h1", null, "Campaign ", h("code", null, d.campaign)), h("p", null, statusChips(d.status_counts)),
+    table(["Status", "Where", "Text", "When", "Recorded results"], d.posts.map(p => h("tr", null,
+      h("td", null, chip(p.status)),
+      h("td", null, p.platform, h("div", { class: "muted" }, p.account_id), p.variant ? h("div", { class: "note" }, "variant " + p.variant.variant_id) : null),
+      h("td", null, h("a", { class: "row-link", href: "#/post/" + encodeURIComponent(p.id) }, p.excerpt || "(empty)"),
+        h("div", { class: "note" }, p.chars + " characters"),
+        p.looks_like_secret ? h("span", { class: "warnbadge" }, "looks like a secret") : null,
+        p.last_error ? h("div", { class: "muted" }, "Last error: " + p.last_error) : null),
+      h("td", null, p.status === "published" ? "published" : p.scheduled_at ? when(p.scheduled_at) : h("span", { class: "muted" }, "not scheduled")),
+      h("td", null, p.results ? [h("div", null, keys.filter(k => p.results[k] != null).map(k => k + " " + NUM.format(p.results[k])).join(" · ") || h("span", { class: "muted" }, "no exact values")),
+        h("div", { class: "note" }, "recorded ", when(p.results.observed_at))] : h("span", { class: "muted" }, p.status === "published" ? "not recorded" : "—"))))),
+    h("p", { class: "note" }, d.note)];
+  return out;
+}
+
 // ---- Queue (keyboard: j/k move, Enter opens, / searches)
 let queueRows = [], queueSel = -1;
 function select(delta) {
@@ -586,6 +677,13 @@ async function viewPost(id) {
   for (const [t, v] of [["Media", p.media], ["Video", p.video], ["Reply", p.reply]]) { const s = reviewSection(t, v); if (s) out.push(s); }
   if (rest.length) out.push(h("h2", null, "More commands for your terminal"), rest.map(s => h("div", null, h("div", null, s.label), command(s.command))));
   out.push(h("p", { class: "muted" }, "This page cannot approve, schedule, pause or publish; run commands in your terminal."));
+  if (p.results && p.results.length) {
+    const keys = ["views", "impressions", "likes", "replies", "reposts", "saves", "clicks", "signups"];
+    out.push(h("h2", null, "Recorded results"), table(["Recorded", "After posting", "Source", "Values"], p.results.map(r => h("tr", null,
+      h("td", null, when(r.observed_at)), h("td", null, r.age_hours != null ? r.age_hours + " h" : h("span", { class: "muted" }, "unknown")),
+      h("td", null, r.source), h("td", null, metricLine(r.metrics, keys))))),
+      h("p", { class: "note" }, "From the platform's own analytics as you recorded them; unknown is never shown as zero."));
+  } else if (p.status === "published") out.push(h("p", { class: "muted" }, "No results recorded for this post yet. Record them with reachweaver metrics " + p.id + " ..."));
   out.push(h("h2", null, "Timeline"), p.events.length ? table(["When", "Action", "Detail"],
     p.events.map(e => h("tr", null, h("td", null, when(e.at)), h("td", null, e.action), h("td", null, e.detail)))) : h("p", { class: "muted" }, "No events."));
   return out.flat();
@@ -630,7 +728,8 @@ async function viewDistribution(params) {
 
 // ---- router (own-property lookup only: '#/constructor' must not reach Object.prototype)
 const ROUTES = Object.assign(Object.create(null), { "": ["overview", viewOverview], queue: ["queue", viewQueue],
-  schedule: ["schedule", viewSchedule], posted: ["posted", viewPosted],
+  schedule: ["schedule", viewSchedule], posted: ["posted", viewPosted], results: ["results", viewResults],
+  campaigns: ["campaigns", viewCampaigns], campaign: ["campaigns", viewCampaign],
   accounts: ["accounts", viewAccounts], distribution: ["distribution", viewDistribution] });
 let rendering = 0, lastPath = null;
 function parseHash() {
@@ -640,7 +739,7 @@ function parseHash() {
   let name = parts[0] || "", fn, arg = new URLSearchParams(query);
   if (name === "post" && parts[1]) {
     try { arg = decodeURIComponent(parts[1]); fn = viewPost; name = "queue"; } catch (e) { name = ""; fn = viewOverview; arg = new URLSearchParams(); }
-  } else if (ROUTES[name]) fn = ROUTES[name][1]; else { name = ""; fn = viewOverview; }
+  } else if (ROUTES[name]) { fn = ROUTES[name][1]; name = ROUTES[name][0]; } else { name = ""; fn = viewOverview; }
   return { name, fn, arg, path: "/" + pathPart };
 }
 async function render() {
@@ -692,7 +791,7 @@ auto.addEventListener("change", () => { store("rw-auto", auto.checked ? "1" : "0
 
 // ---- keyboard shortcuts
 const SHORTCUTS = [["?", "Show this help"], ["g then o / q / s / p", "Go to Overview / Queue / Schedule / Posted"],
-  ["g then a / c", "Go to Accounts / Channels"], ["j / k", "Move down / up in the queue or the posted list"],
+  ["g then r / m", "Go to Results / Campaigns"], ["g then a / c", "Go to Accounts / Channels"], ["j / k", "Move down / up in the queue or the posted list"],
   ["Enter", "Open the selected post"], ["[ / ]", "Previous / next post"], ["/", "Search the queue or the posted list"], ["r", "Refresh"], ["t", "Cycle the theme"], ["Esc", "Close help, leave a field"]];
 let helpDialog = null, pendingG = false, gTimer = null;
 function showHelp() {
@@ -705,7 +804,7 @@ function showHelp() {
   }
   if (typeof helpDialog.showModal === "function" && !helpDialog.open) helpDialog.showModal();
 }
-const GO = Object.assign(Object.create(null), { o: "#/", q: "#/queue", s: "#/schedule", p: "#/posted", a: "#/accounts", c: "#/distribution" });
+const GO = Object.assign(Object.create(null), { o: "#/", q: "#/queue", s: "#/schedule", p: "#/posted", r: "#/results", m: "#/campaigns", a: "#/accounts", c: "#/distribution" });
 document.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (helpDialog && helpDialog.open) return;

@@ -270,6 +270,23 @@ class ApiTests(ServerBase):
         self.assertEqual(hashlib.sha256(self.db.read_bytes()).hexdigest(), before)
         self.assertEqual(sorted(p.name for p in self.db.parent.iterdir()), names)
 
+    def test_results_and_campaign_endpoints(self):
+        status, results = self.api("results")
+        self.assertEqual(status, 200)
+        self.assertEqual(results["posts"], [])  # nothing published in this fixture
+        self.assertIn("never zero", results["note"])
+        self.assertEqual(self.api("results?platform=%3Cx%3E")[0], 400)
+        status, campaigns = self.api("campaigns")
+        self.assertEqual(status, 200)
+        self.assertEqual(campaigns["campaigns"], [])
+        self.assertEqual(self.api("campaign?name=nope")[0], 404)
+        self.assertEqual(self.api("campaign?name=%01bad")[0], 400)
+        self.assertEqual(self.api("campaign")[0], 400)
+        before = hashlib.sha256(self.db.read_bytes()).hexdigest()
+        for rest in ("api/results", "api/campaigns", "api/campaign?name=nope"):
+            self.get(rest)
+        self.assertEqual(hashlib.sha256(self.db.read_bytes()).hexdigest(), before)
+
     def test_schedule_posted_safety_and_suggest_endpoints(self):
         status, schedule = self.api("schedule")
         self.assertEqual(status, 200)
@@ -426,6 +443,15 @@ class AssetTests(unittest.TestCase):
         self.assertIn('schedule: ["schedule", viewSchedule], posted: ["posted", viewPosted]', js)
         self.assertIn('s: "#/schedule", p: "#/posted"', js)
         self.assertIn("g then o / q / s / p", js)
+
+    def test_results_and_campaigns_pages_are_routed(self):
+        html, js = ui_assets.INDEX_HTML, ui_assets.APP_JS
+        for route in ("results", "campaigns"):
+            self.assertIn(f'href="#/{route}" data-route="{route}"', html)
+        self.assertIn('campaign: ["campaigns", viewCampaign]', js)  # the detail page highlights Campaigns
+        self.assertIn('r: "#/results", m: "#/campaigns"', js)
+        self.assertIn('"not recorded"', js)
+        self.assertIn('(platform estimate)', js)  # estimates are labelled, never added to exact values
 
     def test_enter_only_follows_in_page_links_and_rows_reset_per_page(self):
         js = ui_assets.APP_JS

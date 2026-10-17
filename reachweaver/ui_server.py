@@ -38,6 +38,7 @@ from .privacy import redact
 LOOPBACK_HOSTS = ("127.0.0.1", "localhost")
 POST_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 FILTER_VALUE = re.compile(r"[A-Za-z0-9_.:@ -]{1,80}")
+CAMPAIGN_NAME = re.compile(r"[^\x00-\x1f\x7f]{1,200}")  # any printable name; used only as a query parameter
 SAFETY_TTL = 60  # seconds: the folder check hashes the files of unsent posts, so auto-refresh reuses it briefly
 SECURITY_HEADERS = {
     "Content-Security-Policy": ("default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; "
@@ -187,7 +188,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._error(404, "not found")
         except ValidationError as exc:
-            self._error(404 if str(exc).startswith("Unknown post id") else 400, str(exc))
+            self._error(404 if str(exc).startswith(("Unknown post id", "Unknown campaign")) else 400, str(exc))
         except (OSError, ValueError, KeyError):
             self._error(500, "internal error reading local state")
 
@@ -271,5 +272,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, self._safety(con))
             elif route == "suggest":
                 self._json(200, ui_data.suggestions_view(con))
+            elif route == "results":
+                self._json(200, ui_data.results_view(con, account=self._filter(query, "account"),
+                                                     platform=self._filter(query, "platform")))
+            elif route == "campaigns":
+                self._json(200, ui_data.campaigns_view(con))
+            elif route == "campaign":
+                name = (query.get("name") or [""])[0]
+                if not CAMPAIGN_NAME.fullmatch(name):
+                    raise ValidationError("invalid campaign name")
+                self._json(200, ui_data.campaign_detail(con, name))
             else:
                 self._error(404, "not found")
