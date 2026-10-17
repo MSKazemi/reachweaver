@@ -106,7 +106,7 @@ jobs:
     # Optional third job: uploads the wheel and sdist that `publish` already attached to the GitHub Release to PyPI,
     # by trusted publishing (OpenID Connect, no stored token or password). It is skipped unless the owner has created
     # the PyPI publisher and set the repository variable PYPI_PUBLISH to 'true', and it runs without a manual approval
-    # (the `pypi` environment has no required reviewer since 0.6.0; it is restricted to v* tags). docs/PACKAGING.md lists the owner steps.
+    # (the `pypi` environment has no required reviewer since 0.7.0; it is restricted to v* tags). docs/PACKAGING.md lists the owner steps.
     needs: publish
     if: vars.PYPI_PUBLISH == 'true' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     runs-on: ubuntu-latest
