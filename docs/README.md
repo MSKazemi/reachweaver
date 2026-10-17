@@ -5,7 +5,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 ## 1. I am new
 
 1. [Start here](START-HERE.md): the ideas and the journey of one post, in plain words.
-2. [Easy sharing](EASY-SHARING.md): choose Instagram, TikTok and other networks, prepare captions in one command, then paste them yourself. No account needed.
+2. [Easy sharing](EASY-SHARING.md) and the [browser composer](BROWSER-SHARE-COMPOSER.md): choose Instagram, TikTok and other networks, prepare captions in one command, then paste them yourself. No account needed.
 3. [Quickstart](QUICKSTART.md): ten minutes, no account, nothing can be published.
 4. [Recommended setup](RECOMMENDED-SETUP.md): the one route we suggest, step by step, with Claude doing the work. Other routes and who should use them: [how to install](INSTALL.md).
 5. [Using ReachWeaver with Claude Code](CLAUDE-CODE.md): install the skill, your first session, who does what, and keeping usage low.
