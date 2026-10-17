@@ -259,9 +259,10 @@ def account_health(con, account: dict, *, registry: dict, stale: list[str], queu
         t_level, t_message = (instagram if platform == "instagram" else threads).token_status(account, current)
         result[platform] = {"authorization": {"expires_at": account.get("authorization_expires_at"),
                                               "status": t_level, "message": t_message}}
-        if t_level == "expired":
+        if t_level == "expired":  # an unreadable date fails closed like an expired one, but is named as such
+            invalid = t_message.startswith(f"{platform}_token_expiry_invalid")
             reasons.append(_reason("blocked" if adapter != "manual" else "attention",
-                                   f"{platform}_authorization_expired", t_message))
+                                   f"{platform}_authorization_{'expiry_invalid' if invalid else 'expired'}", t_message))
         elif t_level == "warning" or (t_level == "unknown" and adapter != "manual"):
             reasons.append(_reason("attention", f"{platform}_authorization_{t_level}", t_message))
     if platform == "mastodon" and account.get("backend") is None:

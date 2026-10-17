@@ -108,6 +108,28 @@ class CropTests(unittest.TestCase):
         self.assertIsNone(small["scale_to"])
         self.assertTrue(any("never upscales" in w for w in small["warnings"]))
 
+    def test_landscape_keeps_its_height_and_platform_size_limits_apply(self):
+        self.assertEqual(cutlist.output_size(1440, 810, "linkedin"), ((1440, 810), []))  # review: not shrunk to 608
+        self.assertEqual(cutlist.output_size(3840, 2160, "linkedin")[0], (1920, 1080))  # short side capped at 1080
+        self.assertEqual(cutlist.output_size(3840, 2160, "instagram")[0], (1920, 1080))  # and max_width 1920 holds
+        self.assertEqual(cutlist.output_size(1921, 1081, "linkedin")[0], (1918, 1080))  # aspect kept, even sides for 4:2:0
+        size, warnings = cutlist.output_size(134, 240, "tiktok")
+        self.assertTrue(any("minimum of 360" in w for w in warnings), warnings)
+        plan = copy.deepcopy(PLAN)
+        plan["source"].update(width=1921, height=1081)
+        plan["targets"] = [{"platform": "linkedin"}]
+        self.assertIn("scale=1918:1080", target(build(plan), "linkedin")["ffmpeg"])
+
+    def test_output_names_never_read_as_options_and_bad_names_are_refused(self):
+        self.assertEqual(cutlist._output_name("-x.mp4", "linkedin"), "./-x.linkedin.mp4")
+        self.assertEqual(cutlist._output_name("talk.mp4", "tiktok"), "./talk.tiktok.mp4")
+        self.assertEqual(cutlist._output_name("media/talk.mp4", "tiktok"), "media/talk.tiktok.mp4")
+        for bad in ("/", ".", "..", "media/.."):
+            plan = copy.deepcopy(PLAN)
+            plan["source"]["file"] = bad
+            with self.subTest(file=bad), self.assertRaises(ValidationError):
+                cutlist.validate_plan(plan)
+
     def test_aspect_defaults_and_allowed_range(self):
         result = build()
         self.assertEqual(target(result, "youtube_shorts")["aspect"]["basis"], "repo_policy")

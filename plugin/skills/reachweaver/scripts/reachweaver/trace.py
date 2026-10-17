@@ -17,9 +17,11 @@ from __future__ import annotations
 
 import io
 import json
+import re
 from pathlib import Path
 from typing import IO, Iterable
 
+from . import term
 from .policy import ValidationError
 from .privacy import redact, redact_value
 from .storage import get_post, parse_utc
@@ -33,6 +35,7 @@ RUN_EVENTS = ("run_start", "run_end")
 KEEP = ("run_id", "seq", "dry_run", "event", "ts", "post_id", "account_id", "platform", "reason", "backend",
         "send_class", "code", "rate_limited", "remote_url", "live_requested", "outcome", "exit_code", "counts")
 SOURCE_ORDER = {"database": 0, "worker_log": 1}
+_RUN_ID = re.compile(r"^[0-9A-Za-z.:_-]{1,64}$")
 
 
 def _db_events(con, post_id: str) -> list[dict]:
@@ -58,6 +61,9 @@ def _clean(record: dict) -> dict | None:
     """The allow-listed fields of one worker-log record, or None when it is not one."""
     if record.get("schema_version") != SCHEMA_VERSION or record.get("event") not in EVENTS:
         return None
+    run_id, seq = record.get("run_id"), record.get("seq")
+    if not isinstance(run_id, str) or not _RUN_ID.fullmatch(run_id) or type(seq) is not int or seq < 0:
+        return None  # every real worker-log line has both; anything else is not one
     try:
         stamp = parse_utc(str(record.get("ts")))
     except ValidationError:
@@ -196,4 +202,4 @@ def render_text(trace: dict) -> str:
         lines.append(f"Worker logs: {stats['lines']} line(s) read, {stats['used']} used, "
                      f"{stats['skipped_not_worker_log']} not worker-log JSON, {stats['skipped_too_long']} too long.")
     lines.append(trace["note"])
-    return "\n".join(lines)
+    return "\n".join(term.clean(line) for line in lines)  # a planted log line cannot steer the terminal

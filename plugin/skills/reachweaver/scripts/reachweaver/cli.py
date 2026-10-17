@@ -1640,8 +1640,10 @@ def _draft_many(db, args, accounts) -> int:
             problems.append(f"{name} ({account['platform']}): " + "; ".join(issues))
     if problems:
         raise ValidationError("Draft refused, nothing created:\n  " + "\n  ".join(problems))
-    created = [(add_post(db, name, accounts[name]["platform"], content, args.campaign, args.source_url,
-                         account=accounts[name]), name) for name in names]
+    from .storage import _atomic
+    with _atomic(db):  # one transaction: a locked database or Ctrl-C leaves no partial set behind
+        created = [(add_post(db, name, accounts[name]["platform"], content, args.campaign, args.source_url,
+                             account=accounts[name]), name) for name in names]
     print(f"Created {len(created)} drafts, one per account; none is approved or published:")
     for post_id, name in created:
         print(f"  {post_id}  {name} ({accounts[name]['platform']})")

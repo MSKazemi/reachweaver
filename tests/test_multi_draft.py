@@ -91,6 +91,20 @@ class MultiDraftTests(unittest.TestCase):
                 self.assertIn(message, err)
         self.assertEqual(self.rows(), [])
 
+    def test_a_database_error_midway_leaves_no_partial_set(self):
+        from unittest.mock import patch
+        from reachweaver import storage
+        real, calls = storage.add_post, []
+
+        def flaky(*a, **k):
+            calls.append(1)
+            if len(calls) == 2:
+                raise storage.sqlite3.OperationalError("database is locked")
+            return real(*a, **k)
+        with patch("reachweaver.cli.add_post", side_effect=flaky), self.assertRaises(storage.sqlite3.OperationalError):
+            self.run_cli("draft", "--account", "my-bluesky", "--account", "my-mastodon", "--text", "Hi")
+        self.assertEqual(self.rows(), [])  # review: the first draft is rolled back too
+
     def test_approval_is_still_one_post_at_a_time(self):
         self.run_cli("draft", "--account", "my-bluesky", "--account", "my-mastodon", "--text", "Two drafts")
         first, second = (r["id"] for r in self.rows())

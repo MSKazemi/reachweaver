@@ -227,7 +227,9 @@ const REASON_HELP = {
   instagram_authorization_unknown: "authorization_expires_at is not recorded for Instagram, so expiry cannot be warned about. Record it.",
   threads_authorization_expired: "The Threads token has expired. Refresh or regenerate it and update authorization_expires_at.",
   threads_authorization_warning: "The Threads token expires within a week. Refresh it soon.",
-  threads_authorization_unknown: "authorization_expires_at is not recorded for Threads, so expiry cannot be warned about. Record it."
+  threads_authorization_unknown: "authorization_expires_at is not recorded for Threads, so expiry cannot be warned about. Record it.",
+  instagram_authorization_expiry_invalid: "authorization_expires_at for Instagram cannot be read, so the token is treated as expired. Fix the date in the accounts file.",
+  threads_authorization_expiry_invalid: "authorization_expires_at for Threads cannot be read, so the token is treated as expired. Fix the date in the accounts file."
 };
 const STATUS_LABEL = { draft: "draft", approved: "approved", scheduled: "scheduled", sending: "sending",
   needs_review: "needs review", published: "published", cancelled: "cancelled" };
@@ -445,7 +447,8 @@ async function viewSchedule() {
   out.push(h("h2", null, "Approved, no time set (" + d.unscheduled.length + ")"));
   out.push(d.unscheduled.length ? table(["Approved", "Status", "Text", "Account"], agendaRows(d.unscheduled, p => when(p.approved_at)))
     : h("p", { class: "muted" }, "None."));
-  if (d.approval_max_age_hours != null) out.push(h("p", { class: "note" }, "Approvals expire after " + d.approval_max_age_hours + " hours (approval-mode)."));
+  if (d.approval_max_age_hours === 0) out.push(h("div", { class: "warn" }, "The approval time limit setting cannot be read, so every approval counts as expired (fail-closed). Check approval-mode in your terminal."));
+  else if (d.approval_max_age_hours != null) out.push(h("p", { class: "note" }, "Approvals expire after " + d.approval_max_age_hours + " hours (approval-mode)."));
   return [h("div", { class: "agenda" }, out.flat().filter(Boolean))];
 }
 

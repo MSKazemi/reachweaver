@@ -22,12 +22,13 @@ from pathlib import Path, PurePath
 
 from .media import CONSTRAINTS
 from .policy import ValidationError
-from .storyboard import frame_size, parse_aspect
+from .storyboard import parse_aspect
 
 SCHEMA = "reachweaver.cut-list.v1"
 MAX_BYTES = 256 * 1024
 MAX_SEGMENTS = 100
 MAX_TARGETS = 12
+SHORT_SIDE = 1080  # ReachWeaver's output size on the short side (1080x1920, 1920x1080, 1080x1080); a choice, not a rule
 VIDEO_PLATFORMS = tuple(sorted(p for p, kinds in CONSTRAINTS.items() if "video" in kinds))
 # The aspect used when the owner names none. Shorts must be square or vertical (official range); 9:16 within
 # it is ReachWeaver's choice. TikTok's sources do not establish an aspect, so 9:16 there is a hypothesis.
@@ -80,6 +81,8 @@ def validate_plan(data: object) -> dict:
     file = raw.get("file")
     if not isinstance(file, str) or not file.strip() or len(file) > 500 or "\n" in file or "\x00" in file:
         raise ValidationError("source.file must be a path (it is only written into the suggested command)")
+    if PurePath(file).name in ("", ".", "..") or not PurePath(file).stem.strip("."):
+        raise ValidationError("source.file must name a video file, for example media/talk.mp4")
     source = {"file": file, "duration_s": _number(raw.get("duration_s"), "source.duration_s", 0.1, 86_400),
               "width": int(_number(raw.get("width"), "source.width", 16, 16_384)),
               "height": int(_number(raw.get("height"), "source.height", 16, 16_384)),
@@ -213,9 +216,27 @@ def ffmpeg_command(source: dict, kept: list[dict], crop: dict | None, frame: tup
     return shlex.join(command)
 
 
+def output_size(width: int, height: int, platform: str) -> tuple[tuple[int, int], list[str]]:
+    """The output frame: scaled down (never up) so the short side is at most ``SHORT_SIDE`` and the sourced
+    maximum width/dimension is kept, with even sides (H.264 4:2:0 needs them); plus warnings."""
+    warnings: list[str] = []
+    scale = min(1.0, SHORT_SIDE / min(width, height))
+    max_width, max_dimension = _limit(platform, "max_width")["value"], _limit(platform, "max_dimension")["value"]
+    if max_width:
+        scale = min(scale, max_width / width)
+    if max_dimension:
+        scale = min(scale, max_dimension / max(width, height))
+    size = (_even(width * scale), _even(height * scale))
+    min_dimension = _limit(platform, "min_dimension")["value"]
+    if min_dimension and min(size) < min_dimension:
+        warnings.append(f"{size[0]}x{size[1]} is below {platform}'s minimum of {min_dimension} px per side")
+    return size, warnings
+
+
 def _output_name(file: str, platform: str) -> str:
     path = PurePath(file)
-    return str(path.with_name(f"{path.stem}.{platform}.mp4"))
+    name = str(path.with_name(f"{path.stem}.{platform}.mp4"))
+    return name if "/" in name and not name.startswith("-") else "./" + name  # never read as an ffmpeg option
 
 
 def target_plan(source: dict, segments: list[dict], target: dict) -> dict:
@@ -251,14 +272,13 @@ def target_plan(source: dict, segments: list[dict], target: dict) -> dict:
         warnings.append(f"aspect {aspect[0]}:{aspect[1]} is outside {platform}'s allowed range "
                         f"{allowed[0]:g} to {allowed[1]:g} (width / height)")
     crop = crop_box(source["width"], source["height"], aspect, source["focus_x"], source["focus_y"])
-    frame = None
-    if crop:
-        full = frame_size(aspect)
-        if crop["width"] > full[0]:  # scale down to the usual frame; never up, which would only blur
-            frame = full
-        else:
-            warnings.append(f"the crop stays {crop['width']}x{crop['height']} (below {full[0]}x{full[1]}; "
-                            "ReachWeaver never upscales). Use a higher-resolution master for a sharper cut")
+    picture = (crop["width"], crop["height"]) if crop else (source["width"], source["height"])
+    size, size_warnings = output_size(*picture, platform)
+    warnings += size_warnings
+    if crop and min(size) < SHORT_SIDE:
+        warnings.append(f"the cut stays {size[0]}x{size[1]}, below {SHORT_SIDE} px on its short side "
+                        "(ReachWeaver never upscales). Use a higher-resolution master for a sharper cut")
+    frame = size if size != picture else None
     output = _output_name(source["file"], platform)
     return {
         "platform": platform,

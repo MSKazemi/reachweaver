@@ -444,6 +444,13 @@ class AssetTests(unittest.TestCase):
         self.assertIn('approval.binding = "not re-checked after the send started"', js)
         self.assertIn("kv(approval)", js)  # a copy: the API document (the `show` contract) is unchanged
 
+    def test_an_unreadable_approval_limit_is_not_shown_as_zero_hours(self):
+        js = ui_assets.APP_JS
+        self.assertIn("d.approval_max_age_hours === 0", js)
+        self.assertIn("every approval counts as expired (fail-closed)", js)
+        for code in ("instagram_authorization_expiry_invalid", "threads_authorization_expiry_invalid"):
+            self.assertIn(code + ":", js)
+
     def test_print_stylesheet_hides_controls(self):
         css = ui_assets.APP_CSS
         self.assertIn("@media print", css)

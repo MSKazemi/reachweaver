@@ -125,6 +125,28 @@ class TraceTests(TraceBase):
         with self.assertRaises(ValidationError):
             self.trace(self.sent, [self.base / "missing.jsonl"])
 
+    def test_malformed_run_fields_are_skipped_not_fatal(self):
+        good = next(json.loads(line) for line in self.log.read_text(encoding="utf-8").splitlines()
+                    if '"post_published"' in line)
+        bad_lines = [{**good, "run_id": None}, {**good, "run_id": ["x"]}, {**good, "seq": "a"},
+                     {**good, "seq": True}, {k: v for k, v in good.items() if k != "run_id"}]
+        log = self.base / "bad.jsonl"
+        log.write_text("".join(json.dumps(line) + "\n" for line in bad_lines) + self.log.read_text(encoding="utf-8"),
+                       encoding="utf-8")
+        trace = self.trace(self.sent, [log])
+        self.assertEqual(trace["worker_logs"]["skipped_not_worker_log"], 2 + len(bad_lines))
+        self.assertIn("Worker runs", post_trace.render_text(trace))
+
+    def test_terminal_control_characters_from_a_log_are_neutralised(self):
+        good = next(json.loads(line) for line in self.log.read_text(encoding="utf-8").splitlines()
+                    if '"post_claimed"' in line and self.sent in line)
+        planted = {**good, "event": "post_skipped", "reason": "\x1b]0;pwned\x07\x1b[2J", "seq": 99}
+        log = self.base / "planted.jsonl"
+        log.write_text(self.log.read_text(encoding="utf-8") + json.dumps(planted) + "\n", encoding="utf-8")
+        text = post_trace.render_text(self.trace(self.sent, [log]))
+        self.assertNotIn("\x1b", text)
+        self.assertNotIn("\x07", text)
+
     def test_unknown_post_is_refused(self):
         with self.assertRaises(ValidationError):
             self.trace("nope")

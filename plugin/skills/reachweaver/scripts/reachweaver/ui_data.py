@@ -274,6 +274,13 @@ def safety_view(con, db_path: Path, accounts: dict | None, accounts_path: Path, 
     # The ledger has its own section above, and the Accounts page reports a missing accounts file.
     checks = [p for p in report["problems"]
               if p["code"] != "accounts_file_missing" and not p["code"].startswith("approval_ledger_")]
+    # `workspace` prints permissions from its path table rather than as problems; the card says them plainly.
+    for entry in report["paths"]:
+        if entry.get("private") is False:
+            mode = "700" if entry["name"] == "archive" else "600"
+            checks.append({"code": "readable_by_other_users", "level": "warning",
+                           "detail": f"the {entry['name']} ({entry['path']}) can be read by other users of this computer",
+                           "advice": f"chmod {mode} {entry['path']}"})
     return redact_value({"ledger": {"status": audit["status"], "sentence": LEDGER_SENTENCE.get(audit["status"], ""),
                                     "problems": problems},
                          "workspace": report["workspace"], "integrity": report["database"].get("integrity"),

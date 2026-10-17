@@ -312,6 +312,15 @@ class SafetyTests(DataBase):
         self.assertEqual(marker["level"], "info")
         self.assertNotIn(SECRET, json.dumps(view))
 
+    @unittest.skipUnless(os.name == "posix", "permission bits")
+    def test_a_database_other_users_can_read_is_reported(self):
+        self.db.chmod(0o600)
+        self.assertFalse(any(c["code"] == "readable_by_other_users" for c in self.view()["checks"]))
+        self.db.chmod(0o644)  # review: the folder check knew, but the card dropped it
+        finding = next(c for c in self.view()["checks"] if c["code"] == "readable_by_other_users")
+        self.assertEqual(finding["level"], "warning")
+        self.assertIn("chmod 600", finding["advice"])
+
     def test_ledger_problems_name_the_post_and_say_what_to_do(self):
         audit = {"status": "broken", "problems": [{"post_id": self.review, "reason": "approval_ledger_broken"},
                                                   {"post_id": self.approved,
