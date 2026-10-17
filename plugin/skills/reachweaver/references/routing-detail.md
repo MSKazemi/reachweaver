@@ -30,3 +30,5 @@
 | "Check my landing page / UTM links / attribution" | `references/measurement.md`: `utm-link`, offline `landing-check` (online GET only on request), `link-health` (links already stored in posts; read-only, online only on request), `attribution-report`, `seo-destinations` |
 | "Is it release-ready / what actually works" | `references/skill-evaluation.md`: report `release_gate.py --scorecard` statuses verbatim; only Bluesky and Mastodon text posts have one (`docs/receipts/`) |
 | "Check this skill / compare competitors" | `references/skill-evaluation.md` + `docs/UPSTREAM-RESEARCH.md` in the full repository: evidence-backed gap analysis and offline tests |
+
+For hashtag/topic research load `references/discovery-intelligence.md` and run `discovery-plan --file FILE --json`. Trend evidence is time-bounded owner data, not an automatic popularity claim.

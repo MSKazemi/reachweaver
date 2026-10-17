@@ -746,6 +746,9 @@ def make_parser() -> argparse.ArgumentParser:
                    help="Also suggest, per platform, how a post points at the destination: link and where to put "
                    "it, length, keyword, tags, alt text; each with its basis (official/unverified/repo_policy/"
                    "hypothesis). Repeat for several platforms")
+    p = sub.add_parser("discovery-plan", help="Offline platform discovery and topic/hashtag recommendations; not a reach forecast or publisher")
+    p.add_argument("--file", type=Path, required=True, help="Owner-reviewed JSON with post text, topics and optional dated trend evidence")
+    p.add_argument("--json", action="store_true", help="Evidence, selected/skipped tags and creative checklist")
     p = sub.add_parser("seo-content-check", help="Discoverability checks on owner-supplied post texts (length, alt text, hashtags, "
                        "UTM links, name spelling, cross-platform duplicates); offline unless --online link previews; read-only, never publishes")
     p.add_argument("file", type=Path, help="Local JSON: {\"items\": [{id, platform, text, alt_text?, media_count?, link?, keywords?}], \"names\"?: [...]}")
@@ -2020,6 +2023,11 @@ def execute(args) -> int:
             result["platform_suggestions"] = platform_suggestions(result["destination"], args.suggest_for, args.campaign)
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return 0 if result["status"] == "ok" else 2
+    if args.command == "discovery-plan":
+        from .discovery import check_file as discovery_check_file, render_text as discovery_render
+        plan = discovery_check_file(args.file)
+        print(json.dumps(plan, indent=2, ensure_ascii=False) if args.json else discovery_render(plan))
+        return 0
     if args.command == "seo-content-check":
         from .seo_content import check_file, render_text as seo_content_text
         seo_report = check_file(args.file, names=args.name, online=args.online, allow_origins=args.allow_origin)

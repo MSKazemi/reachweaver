@@ -137,6 +137,10 @@ Stuck or unsure? `reachweaver pause` stops all publishing until you run `reachwe
 | Understand how it works inside | [Architecture](docs/ARCHITECTURE.md), [security policy](docs/SECURITY.md) |
 | Browse every feature | [All features in detail](docs/FEATURES.md) |
 
+## Algorithm-aware discovery and relevant hashtags
+
+`reachweaver discovery-plan --file examples/discovery-plan.example.json --json` proposes **relevant niche, core and broad hashtags**, native Threads topic labels, and optional dated, owner-researched trends for the post's actual topic. Its 16 platform-specific guidance profiles describe verified signal *families* (not secret ranking weights), useful creative checks and first-party measurements. For YouTube it prioritizes title, thumbnail, viewer satisfaction and topic terms over tag stuffing. Unrelated, stale, region-mismatched or inadequately sourced trends are excluded. The score is editorial text relevance, **not predicted reach**. There is no real-time trend API, no new paid service, no account connection and no automatic posting. See [discovery optimization](docs/DISCOVERY-OPTIMIZATION.md).
+
 ## More than posting
 
 ReachWeaver also has offline tools that never touch an account. Each is covered in [all features in detail](docs/FEATURES.md):

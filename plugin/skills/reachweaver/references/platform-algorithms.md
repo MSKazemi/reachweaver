@@ -112,3 +112,7 @@ Always separate **research**, **draft**, **proposed schedule**, **native platfor
 ## Refresh protocol
 
 At use time, inspect the platform's current official docs; at least monthly refresh the evidence ledger. Log last verified date, content types, plan eligibility, queue horizon, native UI, API conditions and ranking signal version (especially X). Compare first-party creator/account insights and outcomes to population baselines, never fabricate a best time or an unobserved performance gain.
+
+## Offline topical hashtag planning (2026-10-17)
+
+Use `discovery-plan --file FILE --json` and `references/discovery-intelligence.md` for a deterministic relevance check with recorded signal-family sources. It never scrapes current trends, reproduces private ranking weights or forecasts views. Native country-specific source validation remains human work.
