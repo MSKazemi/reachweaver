@@ -61,6 +61,16 @@ Nothing to the right of **YOU approve** can happen without you. The [plain-langu
 
 You need **Python 3.11 or newer**. There is nothing else to install: ReachWeaver uses only Python's standard library.
 
+### Easiest option: Share a post in your browser
+
+You do not need to know JSON, use the terminal for every post, or connect any social account. Start the **local browser Share Composer** with:
+
+```bash
+python3 -m reachweaver share --web --open
+```
+
+Write one caption, select social networks, preview all drafts and save private handoff files. Open each app and publish **manually**. Nothing is sent to a social platform and no paid service, new API key or server hosting is required. See [Browser Share Composer](docs/BROWSER-SHARE-COMPOSER.md).
+
 ### Easiest option: Share a post without connecting an account
 
 You can prepare captions for Instagram, Threads, TikTok, YouTube and many other networks, then paste them in the apps yourself. No JSON, password, account connection, subscription or API key is required:
