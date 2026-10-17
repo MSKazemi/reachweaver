@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "reviewed_on": "2026-10-16",
+  "reviewed_on": "2026-10-17",
   "decision_type": "editorial_research_hypotheses_not_predictions",
   "reachweaver_live_status": "As of 2026-10-15: one approved text post each was sent through ReachWeaver to Bluesky and Mastodon on 2026-10-11 (first-party receipts in docs/receipts/); Telegram/LinkedIn-member text adapters mock-tested only, with no live send; no other platform has a live receipt.",
   "time_slot_policy": {
@@ -17,7 +17,7 @@
     ],
     "notes": "Illustrative audience-local candidates. Not empirically established best times; compare matched-age results."
   },
-  "source_methodology": "Native platform scheduling requires official documentation per non-unverified status. Market ordering is editorial hypothesis, never a claim about proprietary ranking or expected account reach. reviewed_on is the catalog edit date; each platform checked_on is its actual evidence date. Research-source homepages are not API or scheduler evidence. Nine India-focused entries were checked as candidate platform surfaces on 2026-10-15; website/help references do not establish account eligibility, native scheduling or publishing API access.",
+  "source_methodology": "Native platform scheduling requires official documentation per non-unverified status. Market ordering is editorial hypothesis, never a claim about proprietary ranking or expected account reach. reviewed_on is the catalog edit date; each platform checked_on is its actual evidence date. Research-source homepages are not API or scheduler evidence. Nine India-focused entries were checked as candidate platform surfaces on 2026-10-15; website/help references do not establish account eligibility, native scheduling or publishing API access. Ten additional channels added 2026-10-17 as manual-only research candidates; provider homepages are not API or scheduler evidence. BAND has native user-interface scheduling only.",
   "platforms": [
     {
       "id": "github",
@@ -1382,6 +1382,146 @@
       "human_only": false,
       "checked_on": "2026-10-16",
       "research_source": "https://help.hackernoon.com/"
+    },
+    {
+      "id": "misskey",
+      "label": "Misskey",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Scheduling and API publishing unverified; offline manual review and native posting only.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-17",
+      "research_source": "https://misskey-hub.net/en/docs/for-users/features/share-form/"
+    },
+    {
+      "id": "lemon8",
+      "label": "Lemon8",
+      "category": "visual",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Scheduling and API publishing unverified; offline manual review and native posting only.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-17",
+      "research_source": "https://www.lemon8-app.com/"
+    },
+    {
+      "id": "band",
+      "label": "BAND",
+      "category": "community",
+      "scheduling": {
+        "mode": "native",
+        "scope": "BAND native user interface permits scheduling posts, not ReachWeaver.",
+        "official_source": "https://help.band.us/help/1044"
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-17",
+      "research_source": "https://help.band.us/help/1044"
+    },
+    {
+      "id": "niconico",
+      "label": "Niconico",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Scheduling and API publishing unverified; offline manual review and native posting only.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-17",
+      "research_source": "https://www.nicovideo.jp/"
+    },
+    {
+      "id": "likee",
+      "label": "Likee",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Scheduling and API publishing unverified; offline manual review and native posting only.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-17",
+      "research_source": "https://www.likee.com/"
+    },
+    {
+      "id": "mewe",
+      "label": "MeWe",
+      "category": "community",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Scheduling and API publishing unverified; offline manual review and native posting only.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": true,
+      "checked_on": "2026-10-17",
+      "research_source": "https://about.mewe.com/"
+    },
+    {
+      "id": "odysee",
+      "label": "Odysee",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Scheduling and API publishing unverified; offline manual review and native posting only.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-17",
+      "research_source": "https://docs.odysee.tv/category-uploading/"
+    },
+    {
+      "id": "rumble",
+      "label": "Rumble",
+      "category": "video",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Scheduling and API publishing unverified; offline manual review and native posting only.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-17",
+      "research_source": "https://rumble.com/"
+    },
+    {
+      "id": "minds",
+      "label": "Minds",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Scheduling and API publishing unverified; offline manual review and native posting only.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-17",
+      "research_source": "https://www.minds.com/"
+    },
+    {
+      "id": "diaspora",
+      "label": "diaspora*",
+      "category": "microblog",
+      "scheduling": {
+        "mode": "unverified",
+        "scope": "Scheduling and API publishing unverified; offline manual review and native posting only.",
+        "official_source": ""
+      },
+      "reachweaver_delivery": "manual_only",
+      "human_only": false,
+      "checked_on": "2026-10-17",
+      "research_source": "https://diasporafoundation.org/"
     }
   ],
   "markets": [
@@ -1416,7 +1556,9 @@
           "product_hunt",
           "instagram",
           "medium",
-          "substack"
+          "substack",
+          "odysee",
+          "rumble"
         ],
         "awareness": [
           "youtube",
@@ -1427,7 +1569,11 @@
           "threads",
           "facebook_pages",
           "bluesky",
-          "snapchat"
+          "snapchat",
+          "lemon8",
+          "likee",
+          "mewe",
+          "minds"
         ],
         "collaboration": [
           "linkedin",
@@ -1437,7 +1583,8 @@
           "mastodon",
           "peerlist",
           "reddit",
-          "medium"
+          "medium",
+          "diaspora"
         ]
       }
     },
@@ -1483,7 +1630,8 @@
           "chingari",
           "hipi",
           "threads",
-          "facebook_pages"
+          "facebook_pages",
+          "likee"
         ],
         "collaboration": [
           "linkedin",
@@ -1566,7 +1714,8 @@
           "note_jp",
           "x",
           "youtube",
-          "bluesky"
+          "bluesky",
+          "misskey"
         ],
         "adoption": [
           "youtube",
@@ -1574,14 +1723,18 @@
           "zenn",
           "note_jp",
           "x",
-          "github"
+          "github",
+          "misskey",
+          "niconico"
         ],
         "awareness": [
           "youtube",
           "x",
           "instagram",
           "note_jp",
-          "tiktok"
+          "tiktok",
+          "niconico",
+          "misskey"
         ],
         "collaboration": [
           "qiita",
@@ -1955,7 +2108,8 @@
           "instagram",
           "tiktok",
           "facebook_pages",
-          "kwai"
+          "kwai",
+          "likee"
         ],
         "collaboration": [
           "linkedin",
@@ -1991,13 +2145,15 @@
           "youtube",
           "instagram",
           "naver_blog",
-          "tiktok"
+          "tiktok",
+          "band"
         ],
         "collaboration": [
           "github",
           "naver_cafe",
           "kakao_openchat",
-          "linkedin"
+          "linkedin",
+          "band"
         ]
       }
     },
