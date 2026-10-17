@@ -17,6 +17,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 | Step | Read |
 |---|---|
 | Understand the risks and the rules | [Security checklist](SECURITY-CHECKLIST.md), [security policy](SECURITY.md), [privacy policy](PRIVACY.md) |
+| Which platforms post automatically through a free API, and which you post by hand | [Free automatic publishing](FREE-PUBLISHING.md) |
 | Create credentials safely | [Account onboarding](ACCOUNT-ONBOARDING.md) |
 | Send one real post | [First live pilot](FIRST-LIVE-PILOT.md), [Bluesky one-post pilot](BLUESKY-PILOT.md) |
 | Platform specifics | [Mastodon](MASTODON.md), [LinkedIn](LINKEDIN.md), [Postiz backend](POSTIZ.md) |

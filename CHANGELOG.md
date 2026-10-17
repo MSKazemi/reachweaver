@@ -20,6 +20,7 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ### Documentation
 
+- **Which platforms post automatically for free.** New [docs/FREE-PUBLISHING.md](docs/FREE-PUBLISHING.md) answers, per platform, whether an approved post can go out through a free official API (Bluesky, Mastodon, Telegram, LinkedIn personal; Threads, Instagram professional, Facebook Page, YouTube and TikTok adapters built but switched off), which APIs cost money and are not used (X, Hashnode), and which platforms are posted by hand from a `manual-export` or `share` package. It also explains, with the dated terms readings, why Claude in Chrome does not post for you.
 - **Editorial planning worksheet.** New [docs/EDITORIAL-SYSTEM.md](docs/EDITORIAL-SYSTEM.md) and `examples/editorial-plan.example.json`: an audience-first way to decide what to make each week (brand voice, one goal, up to three audiences, content pillars, channel slots, prioritised ideas with an effort estimate, and the weekly time you really have), with each later step handed to a command that exists (`campaign-check`, `claims-check`, `campaign-preview`, `repeat-check`, `discovery-plan`, `share`, `manual-export`, `post-audit`, `experiment-readout`). No command reads the worksheet; it is a planning aid, not a new feature. The skill gains a matching reference loaded on demand, and `scripts/sync_skill.py` now mirrors the example into both bundles.
 
 ## [0.8.0] - 2026-10-17
