@@ -252,7 +252,6 @@ def build_discovery_plan(raw: object) -> dict:
         key = _compact(name)
         if key in seen:
             continue
-        seen.add(key)
         if surface == "keywords":
             skipped.append({"tag": name, "reason": "keyword_surface_no_hashtag_plan"})
             continue
@@ -264,15 +263,25 @@ def build_discovery_plan(raw: object) -> dict:
             skipped.append({"tag": name, "reason": issue})
             continue
         generated = bool(candidate.get("_generated"))
+        seen.add(key)
         valid.append(_suggestion(candidate, generated=generated,
                                  in_text=_is_about_tag(name, text)))
-    # Diversity quotas: at most one broad and one dated trend tag, no tag dumping.
+    # Diversity quotas: reserve limited room for relevant broad and dated trends.
+    # They never displace the last core tag and cannot bypass the relevance gate.
     selected: list[dict] = []
-    for group, cap in ((("core", "niche"), maximum), (("broad",), 1), (("trend",), 1)):
+    has_broad = any(v["category"] == "broad" for v in valid)
+    has_trend = any(v["category"] == "trend" for v in valid)
+    reserve = min(max(0, maximum - 1), int(has_broad) + int(has_trend))
+    for group, cap in ((("core", "niche"), maximum - reserve), (("broad",), 1), (("trend",), 1)):
         subset = sorted((v for v in valid if v["category"] in group),
                         key=lambda v: (-v["editorial_relevance_score"], v["tag"].casefold()))
         for value in subset[:min(cap, maximum - len(selected))]:
             selected.append(value)
+    # If broad/trend slots were unused, fill remaining space with honest niche tags.
+    if len(selected) < maximum:
+        remaining = sorted((v for v in valid if v not in selected and v["category"] in ("core", "niche")),
+                           key=lambda v: (-v["editorial_relevance_score"], v["tag"].casefold()))
+        selected.extend(remaining[:maximum - len(selected)])
     excluded = {v["tag"] for v in selected}
     skipped.extend({"tag": v["tag"], "reason": "editorial_budget_or_category_quota"}
                    for v in valid if v["tag"] not in excluded)
