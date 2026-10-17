@@ -183,3 +183,7 @@ Input is one local JSON file, `{"items": [{"id", "platform", "text", "alt_text"?
 - `landing-check` checks the page a post links to (and `seo-content-check --online` the preview of each post's link). Neither can see how each platform renders the preview card (platforms cache and crop previews), and it does not check that a claim is true. Those stay manual review steps.
 - Search and social referral outcomes can be compared only from the same analytics export. ReachWeaver makes no promise of ranking gains from social shares.
 - `examples/seo-briefs.example.json` is illustrative. The `example.org` paper page is a placeholder.
+
+## Topic- and source-aware discovery planning (2026-10-17)
+
+Before `seo-content-check`, run `reachweaver discovery-plan --file examples/discovery-plan.example.json --json` to propose relevant core, broad and optional researched trend tags. Its score is editorial, not predicted ranking. See [discovery optimization](DISCOVERY-OPTIMIZATION.md).

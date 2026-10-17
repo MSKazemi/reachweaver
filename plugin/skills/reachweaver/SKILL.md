@@ -29,6 +29,7 @@ description: Orchestrate evidence-backed, brand-aware social media strategy and 
 
 | The owner asks about... | Load (only these) |
 |---|---|
+| Relevant hashtags, trend research, platform algorithms and discovery | `references/discovery-intelligence.md`, `references/platform-algorithms.md`, `references/measurement.md`: run offline `discovery-plan --file FILE --json`; current trends need dated owner evidence, never predict viral reach |
 | Growing views, visibility, which platforms, a two-week trial | `references/channel-selection.md`, `references/platform-playbooks.md`, `references/strategy.md`, `references/measurement.md` |
 | Auditing a profile or posts, bio/headline, "what should I improve next" | `references/profile-post-audit.md`, `references/next-actions.md`, `references/platform-playbooks.md` (offline `profile-audit`, `post-audit`, `suggest`) |
 | GitHub contributors, repo traffic or SEO, Reddit/Hacker News caution | `references/open-source-growth.md`, `references/github-discovery.md`, `references/channel-selection.md` |
