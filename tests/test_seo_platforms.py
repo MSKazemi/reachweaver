@@ -38,6 +38,15 @@ class SuggestionTests(unittest.TestCase):
                 else:
                     self.assertIsNone(item["source"])
 
+    def test_instagram_tags_separate_the_api_cap_from_the_app_limit(self):
+        tags = [i for i in suggestions("instagram") if i["topic"] == "tags"]
+        api = next(i for i in tags if "30" in i["advice"])
+        app = next(i for i in tags if "five" in i["advice"])
+        self.assertEqual(api["basis"], "official")
+        self.assertIn("API", api["advice"])
+        self.assertEqual(app["basis"], "unverified")
+        self.assertTrue(app["source"].startswith("https://"))
+
     def test_link_placement_follows_the_recorded_facts(self):
         link = {p: next(i for i in suggestions(p) if i["topic"] == "link") for p in ("instagram", "youtube", "threads",
                                                                                         "mastodon")}

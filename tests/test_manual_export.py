@@ -103,6 +103,21 @@ class PreflightRules(unittest.TestCase):
         _, warnings = platform_preflight("instagram", variant("instagram", text="See https://example.org/x"))
         self.assertTrue(any("tappable" in w for w in warnings))
 
+    def test_instagram_app_five_tag_rule_warns_but_never_blocks(self):
+        # Private #78: the app limit (5) is a reported quote, the API limit (30) a verified fact.
+        five = " ".join(f"#t{i}" for i in range(5))
+        self.assertEqual(platform_preflight("instagram", variant("instagram", text=five)), ([], []))
+        errors, warnings = platform_preflight("instagram", variant("instagram", text=five + " #t5"))
+        self.assertEqual(errors, [])
+        self.assertTrue(any("6 hashtags" in w and "at most 5" in w and "reported" in w for w in warnings), warnings)
+        self.assertFalse(any("verified 2026-10-17" in w for w in warnings), warnings)
+        thirty_one = " ".join(f"#t{i}" for i in range(31))
+        errors, warnings = platform_preflight("instagram", variant("instagram", text=thirty_one))
+        self.assertTrue(any("limit is 30" in e for e in errors))
+        self.assertFalse(any("at most 5" in w for w in warnings), "one finding per caption, not both")
+        self.assertEqual(manual_export.IG_APP_HASHTAGS["basis"], "reported")
+        self.assertEqual(FACTS["instagram"]["max_hashtags"]["value"], 30)
+
     def test_youtube_title_description_and_tags(self):
         no_title = variant("youtube", platform_options={})
         self.assertBlocked("youtube", no_title, "platform_options.title")

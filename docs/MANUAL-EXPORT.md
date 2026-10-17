@@ -111,7 +111,7 @@ Errors block the export. Warnings need human judgment.
 | Platform | Blocking errors | Warnings |
 |---|---|---|
 | Threads | More than 500 characters, with emoji-like code points counted by their UTF-8 bytes; more than 5 links | More than one hashtag (only one topic tag per post); a tag longer than 50 characters |
-| Instagram | Caption over 2,200 characters; more than 30 hashtags; more than 20 @ tags; text-only format | A URL in the caption (do not rely on it being tappable) |
+| Instagram | Caption over 2,200 characters; more than 30 hashtags; more than 20 @ tags; text-only format | A URL in the caption (do not rely on it being tappable); 6 to 30 hashtags (the app is moving to at most five per post or reel) |
 | Facebook | Target not declared, or declared as a profile, personal account, user, timeline or group; text over the conservative 4,500 cap (no official limit was verified) | — |
 | YouTube | Missing title; title over 100 characters; description over 5,000 **UTF-8 bytes**; `<` or `>` in title or description; tags over 500 characters (commas count, and spaced tags count with quotes); non-video format | Empty description; description links (clickable only for eligible channels) |
 | TikTok | Caption over 2,200 UTF-16 units; non-video format | A URL in the caption |
@@ -144,6 +144,7 @@ Each fact is stored in `manual_export.FACTS` with its value, status, source, dat
 | Threads | Permissions `threads_basic`, `threads_content_publish`; App Review before users without an app role can grant them | verified | [Threads get started](https://developers.facebook.com/docs/threads/get-started) |
 | Threads | Account-type requirements | unknown | Not stated on the fetched page; re-checked 2026-10-15, no official page limits publishing to a business or creator profile (see [THREADS.md](THREADS.md#re-checked-2026-10-15-account-types-and-app-setup)), but no receipt shows that every profile can publish |
 | Instagram | Caption: 2,200 characters, 30 hashtags, 20 @ tags | verified | [IG User media](https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/media) |
+| Instagram | In the app: at most five hashtags per post or reel, rolled out gradually. Separate from the API's 30, and only a warning | reported (Instagram quoted by Social Media Today, 2025-12-18; Instagram's help page returned HTTP 400 on 2026-10-17) | [Social Media Today](https://www.socialmediatoday.com/news/instagram-implements-new-limits-on-hashtag-use/808309/) |
 | Instagram | API publishing needs an Instagram **professional** account; Business vs Creator split not stated | verified / unknown | [Content publishing](https://developers.facebook.com/docs/instagram-platform/content-publishing) |
 | Instagram | Instagram Login: `instagram_business_basic`, `instagram_business_content_publish`. Facebook Login: `instagram_basic`, `instagram_content_publish`, `pages_read_engagement` | verified | [Content publishing](https://developers.facebook.com/docs/instagram-platform/content-publishing) |
 | Instagram | Caption links tappable | unknown | No official statement found; the [Help Center](https://help.instagram.com/362497417173378) documents a profile website link |

@@ -54,6 +54,19 @@ TT_START = "https://developers.tiktok.com/doc/content-posting-api-get-started"
 TT_DIRECT = "https://developers.tiktok.com/doc/content-posting-api-reference-direct-post"
 TT_GUIDELINES = "https://developers.tiktok.com/doc/content-sharing-guidelines"
 
+# Not a FACT: the 5-tag app rule is known only from a press report quoting Instagram (its own help page
+# returned HTTP 400 on 2026-10-17), so it warns and never blocks. The API reference still documents 30.
+IG_APP_MAX_HASHTAGS = 5
+IG_APP_HASHTAGS = {
+    "value": IG_APP_MAX_HASHTAGS, "basis": "reported",
+    "source": "https://www.socialmediatoday.com/news/instagram-implements-new-limits-on-hashtag-use/808309/",
+    "verified_date": "2026-10-17",
+    "quote": "Instagram will gradually update the number of hashtags that you can include in a caption for "
+             "a reel or post to five.",
+    "note": "Social Media Today, 2025-12-18, quoting Instagram. A gradual in-app rollout; separate from the "
+            "publishing API's documented 30.",
+}
+
 
 def _fact(value, source, quote="", note="", status="verified"):
     return {"value": value, "status": status, "source": source, "verified_date": VERIFIED_DATE,
@@ -346,6 +359,11 @@ def platform_preflight(platform: str, variant: object,
         if len(hashtags) > 30:
             errors.append(_cited(f"Instagram caption has {len(hashtags)} hashtags; limit is 30",
                                  facts["max_hashtags"]))
+        elif len(hashtags) > IG_APP_MAX_HASHTAGS:
+            warnings.append(f"Instagram caption has {len(hashtags)} hashtags; the Instagram app is moving to at "
+                            f"most {IG_APP_MAX_HASHTAGS} per post or reel, so keep the most relevant five "
+                            f"[source: {IG_APP_HASHTAGS['source']}, reported (not an official page), checked "
+                            f"{IG_APP_HASHTAGS['verified_date']}]")
         if len(mentions) > 20:
             errors.append(_cited(f"Instagram caption has {len(mentions)} @ tags; limit is 20",
                                  facts["max_mentions"]))

@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 
 from .attribution import build_utm_link
-from .manual_export import FACTS
+from .manual_export import FACTS, IG_APP_HASHTAGS
 from .policy import CONSERVATIVE_TEXT_LIMITS, PLATFORMS, ValidationError
 from .seo_content import HUMAN_AUTHORED_ONLY
 
@@ -99,8 +99,11 @@ def platform_suggestion(destination: dict, platform: str, campaign: str | None =
                            "hypothesis"))
         if platform == "instagram":
             fact = _fact("instagram", "max_hashtags")
-            items.append(_item("tags", "Instagram allows at most 30 hashtags in a caption.", "official",
-                               fact))
+            items.append(_item("tags", "Instagram's publishing API allows at most 30 hashtags in a caption.",
+                               "official", fact))
+            items.append(_item("tags", "In the Instagram app, use at most five relevant hashtags: Instagram said it "
+                               "will limit a post or reel to five (reported quote; its help page could not be "
+                               "read).", "unverified", IG_APP_HASHTAGS))
 
     fact = _fact(platform, "alt_text")
     if fact and fact["value"]:
