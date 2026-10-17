@@ -157,8 +157,9 @@ def make_packages(
         errors.append("This selection is human-only. Remove --text/--file and supply --note")
     if errors:
         return [], errors
-    packages = []
+    packages: list[tuple[str, dict]] = []
     for platform in platforms:
+        variant: dict[str, object]
         if platform in human:
             variant = {"platform": platform, "talking_points": notes}
         else:
