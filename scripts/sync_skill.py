@@ -30,6 +30,8 @@ ASSET_SOURCES = (
     "config/accounts.example.json", "examples/example-post.txt",
     "examples/manual-batch.example.json",
     "examples/discovery-plan.example.json",
+    "examples/creator-candidates.example.json", "examples/creator-source.example.json",
+    "examples/creator-coverage.example.json", "examples/creative-preflight.example.json",
     "examples/editorial-plan.example.json",
     "examples/profile-post-audit.example.json",
     "examples/profile-post-metrics.example.csv",

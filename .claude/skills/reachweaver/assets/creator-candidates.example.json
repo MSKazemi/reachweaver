@@ -1,0 +1,59 @@
+{
+  "schema_version": "reachweaver.creator-candidates.v1",
+  "campaign_id": "example-creator-pilot",
+  "topic_terms": [
+    "claude code",
+    "open source",
+    "social media"
+  ],
+  "creators": [
+    {
+      "id": "example-technical-creator",
+      "platform": "youtube",
+      "handle": "@example-tech-creator",
+      "profile_url": "https://www.youtube.com/@example-tech-creator",
+      "topics": [
+        "claude code",
+        "open source",
+        "tutorials"
+      ],
+      "recent_work_urls": [
+        "https://www.youtube.com/watch?v=example123"
+      ],
+      "reviewed_on": "2026-10-16",
+      "status": "reviewed",
+      "audience_reason": "Readers can independently reproduce a practical coding workflow.",
+      "remix_idea": "Show a step-by-step tutorial and investigate where review is still required.",
+      "editorial_ratings": {
+        "audience_value": 4,
+        "remix_potential": 4,
+        "conversation": 2
+      },
+      "conversation_url": "https://www.youtube.com/watch?v=example123",
+      "relationship": "none",
+      "reach_tier": "micro"
+    },
+    {
+      "id": "example-unrelated-creator",
+      "platform": "instagram",
+      "handle": "@example-fashion-channel",
+      "profile_url": "https://www.instagram.com/example-fashion-channel/",
+      "topics": [
+        "fashion",
+        "travel"
+      ],
+      "recent_work_urls": [
+        "https://www.instagram.com/p/example123/"
+      ],
+      "reviewed_on": "2026-10-16",
+      "status": "reviewed",
+      "audience_reason": "Operator suspects broad reach but no topic benefit was established.",
+      "remix_idea": "A generic reaction without an authentic technology connection.",
+      "editorial_ratings": {
+        "audience_value": 1,
+        "remix_potential": 1
+      },
+      "reach_tier": "large"
+    }
+  ]
+}

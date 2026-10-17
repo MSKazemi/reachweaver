@@ -746,6 +746,23 @@ def make_parser() -> argparse.ArgumentParser:
                    help="Also suggest, per platform, how a post points at the destination: link and where to put "
                    "it, length, keyword, tags, alt text; each with its basis (official/unverified/repo_policy/"
                    "hypothesis). Repeat for several platforms")
+    p = sub.add_parser("creator-match", help="Offline creator relevance shortlist from owner-curated public-work evidence; "
+                       "contacts nobody, predicts no reach (docs/CREATOR-AMPLIFICATION.md)")
+    p.add_argument("--file", type=Path, required=True, help="Local owner-curated candidates JSON (reachweaver.creator-candidates.v1); never fetched from platforms")
+    p.add_argument("--json", action="store_true", help="Detailed local evidence coverage and editorial explanations")
+    p = sub.add_parser("creator-kit", help="Write one NEW private source kit for independent creator commentary; never sent "
+                       "(docs/CREATOR-AMPLIFICATION.md)")
+    p.add_argument("--file", type=Path, required=True, help="Owner-attested claims, evidence, rights and questions JSON (reachweaver.creator-source.v1)")
+    p.add_argument("--out", type=Path, required=True, help="NEW private directory (0700) for owner-review JSON and Markdown (0600); refused if it exists")
+    p.add_argument("--json", action="store_true", help="Machine-readable local file paths and review-only status")
+    p = sub.add_parser("creator-coverage", help="Offline owner-confirmed creator pickup counts at 48h/7d; never fetches analytics "
+                       "(docs/CREATOR-AMPLIFICATION.md)")
+    p.add_argument("--file", type=Path, required=True, help="Local derivative-coverage observations JSON (reachweaver.creator-coverage.v1)")
+    p.add_argument("--json", action="store_true", help="Machine-readable counts and missingness")
+    p = sub.add_parser("creative-preflight", help="Offline editorial checklist for 1-6 draft posts; not a reach prediction, "
+                       "never publishes (docs/CREATIVE-PREFLIGHT.md)")
+    p.add_argument("--file", type=Path, required=True, help="Owner-controlled JSON brief (reachweaver.creative-preflight.v1), at most 256 KB")
+    p.add_argument("--json", action="store_true", help="Machine-readable checklist, findings and limitations")
     p = sub.add_parser("discovery-plan", help="Offline platform discovery and topic/hashtag recommendations; not a reach forecast or publisher")
     p.add_argument("--file", type=Path, required=True, help="Owner-reviewed JSON with post text, topics and optional dated trend evidence")
     p.add_argument("--json", action="store_true", help="Evidence, selected/skipped tags and creative checklist")
@@ -2050,6 +2067,30 @@ def execute(args) -> int:
             result["platform_suggestions"] = platform_suggestions(result["destination"], args.suggest_for, args.campaign)
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return 0 if result["status"] == "ok" else 2
+    if args.command in ("creator-match", "creator-kit", "creator-coverage"):
+        from .creator_amplification import (
+            coverage_report, creator_kit, creator_rank, load_input, render_coverage, render_rank, write_kit,
+        )
+        creator_input = load_input(args.file)
+        if args.command == "creator-match":
+            outcome = creator_rank(creator_input)
+            print(json.dumps(outcome, indent=2, ensure_ascii=False) if args.json else render_rank(outcome))
+        elif args.command == "creator-kit":
+            kit = creator_kit(creator_input)
+            files = write_kit(kit, args.out)
+            outcome = {"status": kit["status"], "files": files, "campaign_id": kit["campaign_id"],
+                       "note": "Only a local owner-review kit was written; no creator was contacted."}
+            print(json.dumps(outcome, indent=2, ensure_ascii=False) if args.json else
+                  "\n".join([outcome["status"]] + ["  wrote " + path for path in files] + [outcome["note"]]))
+        else:
+            outcome = coverage_report(creator_input)
+            print(json.dumps(outcome, indent=2, ensure_ascii=False) if args.json else render_coverage(outcome))
+        return 0
+    if args.command == "creative-preflight":
+        from .creative_preflight import check_file as preflight_check_file, render_text as preflight_render
+        preflight = preflight_check_file(args.file)
+        print(json.dumps(preflight, indent=2, ensure_ascii=False) if args.json else preflight_render(preflight))
+        return 0
     if args.command == "discovery-plan":
         from .discovery import check_file as discovery_check_file, render_text as discovery_render
         plan = discovery_check_file(args.file)

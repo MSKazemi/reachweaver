@@ -31,7 +31,8 @@ description: Orchestrate evidence-backed, brand-aware social media strategy and 
 |---|---|
 | Relevant hashtags, trend research, platform algorithms and discovery | `references/discovery-intelligence.md`, `references/platform-algorithms.md`, `references/measurement.md`: run offline `discovery-plan --file FILE --json`; current trends need dated owner evidence, never predict viral reach |
 | Growing views, visibility, which platforms, a two-week trial | `references/channel-selection.md`, `references/platform-playbooks.md`, `references/strategy.md`, `references/measurement.md` |
-| Auditing a profile or posts, bio/headline, "what should I improve next" | `references/profile-post-audit.md`, `references/next-actions.md`, `references/platform-playbooks.md` (offline `profile-audit`, `post-audit`, `suggest`) |
+| Getting relevant YouTubers/influencers to cover, remix or cite a post; measuring earned creator pickup | `references/creator-amplification.md` (offline `creator-match`, `creator-kit`, `creator-coverage`); never contacts creators |
+| Auditing a profile or posts, bio/headline, "what should I improve next" | `references/profile-post-audit.md`, `references/next-actions.md`, `references/platform-playbooks.md` (offline `profile-audit`, `post-audit`, `suggest`, `creative-preflight --file F`) |
 | GitHub contributors, repo traffic or SEO, Reddit/Hacker News caution | `references/open-source-growth.md`, `references/github-discovery.md`, `references/channel-selection.md` |
 | A country or region, best posting time, a calendar or batch queue | `references/global-distribution.md`, `references/platform-algorithms.md`, `references/timing-intelligence.md` (offline `distribution-plan`, `calendar-plan`) |
 | DEV Community | `references/dev-community.md` (no AI-generated DEV comments or promotional articles) |

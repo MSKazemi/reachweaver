@@ -1,0 +1,25 @@
+{
+  "schema_version": "reachweaver.creator-source.v1",
+  "campaign_id": "example-creator-pilot",
+  "title": "A reproducible social-post draft workflow",
+  "original_url": "https://github.com/MSKazemi/reachweaver",
+  "summary": "This source describes an open-source workflow that prepares platform-specific social post drafts with explicit human approval before real publication.",
+  "claims": [
+    {
+      "text": "ReachWeaver creates drafts for different social media platforms.",
+      "evidence_url": "https://github.com/MSKazemi/reachweaver/blob/main/README.md",
+      "limitation": "Publication support differs by platform and account; verify current support."
+    }
+  ],
+  "topics": [
+    "claude code",
+    "open source",
+    "social media"
+  ],
+  "creator_questions": [
+    "Can an independent creator reproduce the demo using their own files?",
+    "Which steps still require manual review or a platform-native app?"
+  ],
+  "reuse_notice": "text_citation_only",
+  "media": []
+}

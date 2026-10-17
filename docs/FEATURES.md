@@ -4,7 +4,7 @@ This page holds the detailed feature guides that used to make the README long. N
 
 Every feature below is **offline and draft-only** unless it says otherwise. None of them publishes anything, and none of them promises views, followers or growth. Words you do not know are explained in the [glossary](GLOSSARY.md).
 
-**Jump to:** [Growth actions and analytics](#evidence-ranked-social-growth-actions-offline-issue-6) · [International channels](#international-social-discovery-research-only-issue-64) · [Profile and post audits](#per-platform-profile-and-post-audits-offline-issue-3) · [Supported operations](#supported-operations) · [Campaigns and experiments](#new-in-v02-source-bound-campaigns-and-evidence-aware-learning) · [Media checks](#media-asset-checks-offline-issue-18-slice) · [Scheduling](#safe-batch-calendar-planning-experimental) · [Choosing networks](#which-social-networks-to-prioritize-for-real-attention) · [DEV Community](#dev-community-build-technical-authority-without-spam)
+**Jump to:** [Growth actions and analytics](#evidence-ranked-social-growth-actions-offline-issue-6) · [International channels](#international-social-discovery-research-only-issue-64) · [Profile and post audits](#per-platform-profile-and-post-audits-offline-issue-3) · [Creative preflight and creator amplification](#creative-preflight-and-creator-amplification-offline) · [Supported operations](#supported-operations) · [Campaigns and experiments](#new-in-v02-source-bound-campaigns-and-evidence-aware-learning) · [Media checks](#media-asset-checks-offline-issue-18-slice) · [Scheduling](#safe-batch-calendar-planning-experimental) · [Choosing networks](#which-social-networks-to-prioritize-for-real-attention) · [DEV Community](#dev-community-build-technical-authority-without-spam)
 
 ## Evidence-ranked social growth actions (offline, Issue #6)
 
@@ -54,6 +54,21 @@ reachweaver peer-benchmark --file examples/peer-benchmark.example.json
 ```
 
 The profile score is **only an observed checklist-completion heuristic** and is omitted when less than 60% of the platform's fields have been checked. Post rates require compatible format, account, platform, native metric source and observation age; missing data is **unknown**. Inputs include no passwords or cookies and the audit commands never log in, change a profile, draft, schedule, publish, follow or generate votes. Without an actual owner-supplied snapshot, the skill offers a **general playbook**, not an audit of your real accounts. See the [portable skill reference](../.claude/skills/reachweaver/references/profile-post-audit.md).
+
+## Creative preflight and creator amplification (offline)
+
+`creative-preflight` reads one local brief with 1-6 draft posts and prints a disclosed editorial checklist per draft: audience and topic terms, opening length, owner-supplied source links, the platform's listed formats, captions or alt text, and the call to action, plus the hashtag, length and duplicate findings of `seo-content-check`. Unknown inputs lower `assessed_weight` instead of counting as failures. It is **not** a ranking formula or a reach prediction, and human-only destinations (Reddit, Hacker News) get no generated prompts.
+
+`creator-match`, `creator-kit` and `creator-coverage` help you prepare an original post so that relevant creators can choose to cover, critique, reproduce or cite it. You supply every creator entry yourself; nothing is looked up or scraped. Opted-out or declined creators are always held. Each row says that ReachWeaver contacts nobody, Reddit rows add the human-only rule, and the kit carries consent and disclosure reminders. Coverage counts only owner-confirmed, independent pickups.
+
+```bash
+reachweaver creative-preflight --file examples/creative-preflight.example.json
+reachweaver creator-match --file examples/creator-candidates.example.json
+reachweaver creator-kit --file examples/creator-source.example.json --out ./creator-kit-review
+reachweaver creator-coverage --file examples/creator-coverage.example.json --json
+```
+
+See [creative preflight](CREATIVE-PREFLIGHT.md) and [creator amplification](CREATOR-AMPLIFICATION.md).
 
 ## Developer attention and contributor growth
 

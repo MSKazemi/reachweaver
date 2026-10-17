@@ -61,6 +61,8 @@ Priority is static workflow urgency, not a platform/ranking score: P0 remote unc
 
 A registry rule defines each network's applicable field checklist, officially sourced platform capabilities or editorial hypotheses, format experiments, and one action/exposure metric pair. The profile output exposes checklist coverage and produces a completeness percentage only when enough fields are known; **it is not a provider algorithm or a traffic prediction**. The post audit only compares native metrics inside same platform/account/format/source and matched post age; missing denominators, source or dates are excluded rather than zero-filled. It never runs experiments or blindly promotes the "winning" idea. Human-only channels remain human-only.
 
+`reachweaver/creative_preflight.py` (`creative-preflight`) and `reachweaver/creator_amplification.py` (`creator-match`, `creator-kit`, `creator-coverage`) follow the same pattern: they dispatch before any SQLite connection, read one bounded local JSON file, use no network, credential or environment variable, and generate no wording for human-only destinations. Only `creator-kit` writes, a NEW 0700 folder through `privacy.write_private_file`. See [creative preflight](CREATIVE-PREFLIGHT.md) and [creator amplification](CREATOR-AMPLIFICATION.md).
+
 See [profile and post audits](PROFILE-AND-POST-AUDITS.md), [analytics protocol](GROWTH-EXPERIMENTS.md) and [user privacy](PRIVACY-LIFECYCLE.md). Do not add online reads to these offline commands without a dedicated security review and owner-approved scopes.
 
 ## Boundaries

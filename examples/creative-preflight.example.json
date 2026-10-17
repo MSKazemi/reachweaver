@@ -1,0 +1,31 @@
+{
+  "schema_version": "reachweaver.creative-preflight.v1",
+  "topic": "Kubernetes incident diagnosis",
+  "audience": {
+    "description": "Developers investigating incidents",
+    "keywords": [
+      "Kubernetes",
+      "incident"
+    ]
+  },
+  "goal": "qualified_visits",
+  "facts": [
+    {
+      "id": "f1",
+      "claim": "A synthetic demonstration exists",
+      "source_url": "https://example.org/sample"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "linkedin-a",
+      "platform": "linkedin",
+      "format": "text",
+      "text": "Kubernetes incident diagnosis begins with an important practical question.\nLearn about a synthetic example and read the guide.",
+      "evidence_refs": [
+        "f1"
+      ],
+      "cta": "read the guide."
+    }
+  ]
+}

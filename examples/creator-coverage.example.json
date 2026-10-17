@@ -1,0 +1,17 @@
+{
+  "schema_version": "reachweaver.creator-coverage.v1",
+  "campaign_id": "example-creator-pilot",
+  "original_url": "https://github.com/MSKazemi/reachweaver",
+  "published_at": "2026-10-14T12:00:00Z",
+  "items": [
+    {
+      "creator_id": "example-technical-creator",
+      "url": "https://www.youtube.com/watch?v=example-coverage-123",
+      "platform": "youtube",
+      "kind": "tutorial",
+      "observed_at": "2026-10-15T11:00:00Z",
+      "status": "unverified",
+      "independent": true
+    }
+  ]
+}
