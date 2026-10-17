@@ -51,7 +51,8 @@ This document distinguishes implementation, validation and aspiration. A complet
 - [x] Tighten-only `config/caps.json` for `publish --live` (strictest of CLI and file); a looser file value is ignored.
 - [x] Runbook for revoked permissions, LinkedIn version sunsets and Mastodon instance changes ([worker operations](WORKER-OPERATIONS.md#runbook-revoked-permissions-and-api-version-sunsets)).
 - [x] Read-only `trace POST_ID [--log FILE|-]`: one post's audit events joined with the worker-log lines and runs that handled it (2026-10-17). Alert-rule examples exist (WORKER-OPERATIONS.md); poisoned-feed tests exist in `tests/test_sources.py` and `tests/test_security_regressions.py`.
-- [ ] Remaining #26: retry metrics (preflight retries are not logged yet; logging them touches the send path), per-provider spend ceilings (a new send-refusal rule: needs a security-review proposal), dependency-compromise tests. **Do not close #26.**
+- [x] Dependency-compromise tests: `tests/test_dependency_policy.py` checks stdlib-only runtime imports, no stdlib-shadowing module on any script path, no dynamic dependency channel, CI actions pinned to commit SHAs and tools to exact versions; `scripts/check_runtime_deps.py` runs in CI.
+- [ ] Remaining #26: retry metrics (preflight retries are not logged yet; logging them touches the send path) and per-provider spend ceilings (a new send-refusal rule). Both wait for an owner security review (private proposals drafted 2026-10-17). **Do not close #26.**
 
 ## Native owner-exported profile/post CSV overlay (2026-10-12, issue #3)
 
