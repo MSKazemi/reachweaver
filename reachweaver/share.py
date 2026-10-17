@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import sys
 
+from . import home
 from .manual_export import MANUAL_PLATFORMS, build_export, write_export
 from .manual_package import build_package, generic_platforms, write_package
 from .policy import SUPPORTED_LIVE, ValidationError
@@ -180,7 +181,7 @@ def _output_path(path: Path | None) -> Path:
         if os.path.lexists(path):
             raise ValidationError(f"Output already exists: {path}. Choose a fresh folder.")
         return path
-    root = Path("state") / ("share-" + datetime.now().strftime("%Y%m%d-%H%M%S"))
+    root = home.default_path(Path("state") / ("share-" + datetime.now().strftime("%Y%m%d-%H%M%S")))
     result = root
     index = 1
     while os.path.lexists(result):
