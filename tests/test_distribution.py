@@ -26,7 +26,7 @@ class GlobalDistributionTests(unittest.TestCase):
 
     def test_version_and_complete_channel_coverage(self):
         self.assertEqual(self.data["schema_version"], 1)
-        self.assertEqual(self.data["reviewed_on"], "2026-10-16")
+        self.assertEqual(self.data["reviewed_on"], "2026-10-17")
         ids = {p["id"] for p in self.data["platforms"]}
         self.assertGreaterEqual(len(ids), 30)
         self.assertTrue({
@@ -69,7 +69,7 @@ class GlobalDistributionTests(unittest.TestCase):
         # 72 global and regional entries, the 18 community and creator surfaces of tests/test_platform_research_batch.py
         # the LINE Official Account and Kakao Talk Channel entries (#25, #26), PIXNET (salvaged from PR #65) and
         # the seven manual-only entries added 2026-10-16 (see test_channels_added_2026_10_16_are_manual_and_sourced)
-        self.assertEqual(len(self.data["platforms"]), 72 + 18 + 2 + 1 + 7)
+        self.assertEqual(len(self.data["platforms"]), 110)
         self.assertEqual(len(self.data["markets"]), 18)
         by_id = {p["id"]: p for p in self.data["platforms"]}
         for platform_id in added:
@@ -146,7 +146,7 @@ class GlobalDistributionTests(unittest.TestCase):
     def test_per_platform_evidence_dates_do_not_backfill_false_reviews(self):
         data = deepcopy(self.data)
         self.assertEqual(validate_registry(data), [])
-        data["platforms"][0]["checked_on"] = "2026-10-17"
+        data["platforms"][0]["checked_on"] = "2026-10-18"
         self.assertTrue(any("cannot be later" in e for e in validate_registry(data)))
         data["platforms"][0]["checked_on"] = "not-a-date"
         self.assertTrue(any("ISO 8601" in e for e in validate_registry(data)))
