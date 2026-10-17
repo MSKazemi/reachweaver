@@ -163,13 +163,17 @@ Stuck or unsure? `reachweaver pause` stops all publishing until you run `reachwe
 | Understand how it works inside | [Architecture](docs/ARCHITECTURE.md), [security policy](docs/SECURITY.md) |
 | Browse every feature | [All features in detail](docs/FEATURES.md) |
 
+## Algorithm-aware discovery and relevant hashtags
+
+`reachweaver discovery-plan --file examples/discovery-plan.example.json --json` proposes **relevant niche, core and broad hashtags**, native Threads topic labels, and optional dated, owner-researched trends for the post's actual topic. Its 16 platform-specific guidance profiles describe verified signal *families* (not secret ranking weights), useful creative checks and first-party measurements. For YouTube it prioritizes title, thumbnail, viewer satisfaction and topic terms over tag stuffing. Unrelated, stale, region-mismatched or inadequately sourced trends are excluded. The score is editorial text relevance, **not predicted reach**. There is no real-time trend API, no new paid service, no account connection and no automatic posting. See [discovery optimization](docs/DISCOVERY-OPTIMIZATION.md).
+
 ## More than posting
 
 ReachWeaver also has offline tools that never touch an account. Each is covered in [all features in detail](docs/FEATURES.md):
 
 - **Next actions**: `reachweaver suggest` turns your profile checks, imported metrics and open safety issues into one ranked to-do list. It never guesses rankings or predicts likes.
 - **Profile and post audits**: `profile-audit` and `post-audit` check each network on its own terms (LinkedIn, YouTube, Instagram, DEV, Mastodon, Reddit and more), and `peer-benchmark` compares public counters you copied by hand.
-- **Worldwide channel research**: `distribution-plan` ranks channels for a region and goal. The registry catalogs **100 channels across 18 market pilots**. It is a research hypothesis, never a promise of traffic and never permission to post.
+- **Worldwide channel research**: `distribution-plan` ranks channels for a region and goal. The registry catalogs **110 channels across 18 market pilots**. It is a research hypothesis, never a promise of traffic and never permission to post.
 - **Posting journal and archive**: `journal` lists what you posted, when, on which account, with the exact text, who approved it, the link and the files; `archive` writes it to a private folder with copies of the files. See the [journal guide](docs/JOURNAL.md).
 - **One folder for everything that is yours**: `reachweaver workspace --init DIR` makes a single folder (config, database, approval ledger, archive, media, logs; no credentials). To use another computer, install ReachWeaver there, copy the folder, and run `reachweaver workspace --repair --apply`. See [your workspace folder](docs/MOVING.md).
 - **Repeat guard**: `repeat-check` and `mark-shared` stop you posting the same video, image or wording twice. Record what you posted by hand with `mark-shared`; drafts are compared with it, and with everything ReachWeaver has sent, before approval. See the [repeat guard guide](docs/REPEAT-GUARD.md).

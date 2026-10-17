@@ -746,6 +746,9 @@ def make_parser() -> argparse.ArgumentParser:
                    help="Also suggest, per platform, how a post points at the destination: link and where to put "
                    "it, length, keyword, tags, alt text; each with its basis (official/unverified/repo_policy/"
                    "hypothesis). Repeat for several platforms")
+    p = sub.add_parser("discovery-plan", help="Offline platform discovery and topic/hashtag recommendations; not a reach forecast or publisher")
+    p.add_argument("--file", type=Path, required=True, help="Owner-reviewed JSON with post text, topics and optional dated trend evidence")
+    p.add_argument("--json", action="store_true", help="Evidence, selected/skipped tags and creative checklist")
     p = sub.add_parser("seo-content-check", help="Discoverability checks on owner-supplied post texts (length, alt text, hashtags, "
                        "UTM links, name spelling, cross-platform duplicates); offline unless --online link previews; read-only, never publishes")
     p.add_argument("file", type=Path, help="Local JSON: {\"items\": [{id, platform, text, alt_text?, media_count?, link?, keywords?}], \"names\"?: [...]}")
@@ -792,6 +795,7 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--media", type=Path, help="Optional advanced media-check manifest for existing validation")
     p.add_argument("--out", type=Path, help="New output folder (default: a unique private folder under state/)")
     p.add_argument("--preview", action="store_true", help="Check without writing any files")
+
     p.add_argument("--web", action="store_true",
                    help="Start the mobile-friendly browser composer on 127.0.0.1 (manual, offline)")
     p.add_argument("--open", action="store_true",
@@ -804,7 +808,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--platform", required=True, choices=MANUAL_PLATFORMS + generic_platforms(), metavar="PLATFORM",
                    help="threads, instagram, facebook, youtube or tiktok (sourced package), or any other manual_only "
                         "id in the distribution registry such as dev, x, product_hunt or hacker_news (generic package; "
-                        "human-only destinations get a notes form, never post text)")
+                        "human-only destinations get a notes form, never post text). Chinese platforms such as "
+                        "weibo, xiaohongshu, douyin, bilibili and wechat add sourced limits, topics and the "
+                        "AI/ad declarations (docs/CHINA.md)")
     p.add_argument("--variant", type=Path, required=True, help="Variant JSON: text, format, link_url, platform_options; talking_points for human-only destinations")
     p.add_argument("--media", type=Path, help="Media manifest JSON validated with media-check rules")
     p.add_argument("--account-meta", type=Path, help="PUBLIC account metadata JSON (handle, account_type); no secrets")
@@ -2044,6 +2050,11 @@ def execute(args) -> int:
             result["platform_suggestions"] = platform_suggestions(result["destination"], args.suggest_for, args.campaign)
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return 0 if result["status"] == "ok" else 2
+    if args.command == "discovery-plan":
+        from .discovery import check_file as discovery_check_file, render_text as discovery_render
+        plan = discovery_check_file(args.file)
+        print(json.dumps(plan, indent=2, ensure_ascii=False) if args.json else discovery_render(plan))
+        return 0
     if args.command == "seo-content-check":
         from .seo_content import check_file, render_text as seo_content_text
         seo_report = check_file(args.file, names=args.name, online=args.online, allow_origins=args.allow_origin)
@@ -2114,10 +2125,13 @@ def execute(args) -> int:
         if args.json:
             print(json.dumps(package, indent=2, ensure_ascii=False))
         else:
-            print(f"{package['status']}: {package['platform_label']} generic manual package for human review")
+            kind = "China-aware" if "china" in package else "generic"
+            print(f"{package['status']}: {package['platform_label']} {kind} manual package for human review")
             for item in package["preflight"]["warnings"]:
                 print("  WARNING:", item)
             print(f"  TEXT LIMIT: {package['limits']['text']['display']}")
+            for decision in package.get("china", {}).get("human_decisions", []):
+                print(f"  DECIDE YOURSELF: {decision['id']} (nothing pre-selected)")
             if package["human_only"]:
                 print(f"  WRITE IT YOURSELF: {package['platform_label']} is human-only; no post text was packaged "
                       "(NOTES.md is a notes form)")

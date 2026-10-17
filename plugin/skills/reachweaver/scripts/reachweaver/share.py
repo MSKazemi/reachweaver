@@ -9,6 +9,7 @@ from datetime import datetime
 import os
 from pathlib import Path
 import sys
+from typing import Any
 
 from . import home
 from .manual_export import MANUAL_PLATFORMS, build_export, write_export
@@ -157,9 +158,9 @@ def make_packages(
         errors.append("This selection is human-only. Remove --text/--file and supply --note")
     if errors:
         return [], errors
-    packages: list[tuple[str, dict]] = []
+    packages = []
     for platform in platforms:
-        variant: dict[str, object]
+        variant: dict[str, Any]
         if platform in human:
             variant = {"platform": platform, "talking_points": notes}
         else:

@@ -69,6 +69,8 @@ def text_files(package: dict) -> dict[str, str]:
         return {}
     files = {"title.txt": content["title"]} if content["title"] is not None else {}
     files["post.txt"] = content["text"]
+    if package.get("china", {}).get("topics", {}).get("rendered"):
+        files["topics.txt"] = package["china"]["topics"]["rendered"]
     return files
 
 

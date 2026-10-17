@@ -17,7 +17,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from reachweaver import manual_package
+from reachweaver import china, manual_package
 from reachweaver.cli import main
 from reachweaver.distribution import load_registry as load_distribution_registry
 from reachweaver.manual_export import MANUAL_PLATFORMS, STATUS, build_export, write_export
@@ -285,11 +285,15 @@ class HumanOnlyDestinations(Base):
 
 
 class UnknownLimits(Base):
-    def test_text_limit_is_always_unknown(self):
+    def test_text_limit_is_unknown_unless_a_china_profile_sources_it(self):
         for platform in generic_platforms():
             with self.subTest(platform=platform):
                 limits = build_package(platform, minimal_variant(platform))["limits"]
-                self.assertEqual((limits["text"]["value"], limits["text"]["display"]), (None, LIMIT_UNKNOWN))
+                fact = china.PROFILES[platform]["text_max"] if china.is_china(platform) else None
+                expected = fact["value"] if fact else None
+                self.assertEqual(limits["text"]["value"], expected)
+                if expected is None:
+                    self.assertEqual(limits["text"]["display"], LIMIT_UNKNOWN)
 
     def test_media_limit_unknown_without_a_table(self):
         media = build_package("product_hunt", minimal_variant("product_hunt"))["limits"]["media"]

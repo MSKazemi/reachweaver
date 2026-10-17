@@ -33,7 +33,7 @@ The CSV is read into memory, never published or saved elsewhere; owner acknowled
 
 ## International social discovery (research only, issue #64)
 
-The offline distribution planner catalogs **100 channels across 18 market pilots**, including India-focused ShareChat, Moj, Josh, Chingari, Hipi, Public App, Kutumb, Arattai Channels, LocalCircles, Pratilipi and Rooter; plus Xiaohongshu/REDnote, Weixin Channels, Naver, VK and other regional platforms. See [regional channel research and India use cases](REGIONAL-CHANNELS-2026-10-14.md) and [community, creator and publishing platform research](COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md) and try `reachweaver distribution-plan --region india --goal awareness --limit 12 --json`. New entries are **manual-only** with `unverified` native scheduling; community discussion and opt-in channel messages stay human-only. No new API adapter, account connection or remote publication is implied.
+The offline distribution planner catalogs **110 channels across 18 market pilots**, including India-focused ShareChat, Moj, Josh, Chingari, Hipi, Public App, Kutumb, Arattai Channels, LocalCircles, Pratilipi and Rooter; plus Xiaohongshu/REDnote, Weixin Channels, Naver, VK and other regional platforms. See [regional channel research and India use cases](REGIONAL-CHANNELS-2026-10-14.md) and [community, creator and publishing platform research](COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md) and try `reachweaver distribution-plan --region india --goal awareness --limit 12 --json`. New entries are **manual-only** with `unverified` native scheduling; community discussion and opt-in channel messages stay human-only. No new API adapter, account connection or remote publication is implied.
 
 ## Per-platform profile and post audits (offline, Issue #3)
 
@@ -94,6 +94,7 @@ Read [global strategy](GLOBAL-DISTRIBUTION-2026-10-08.md), [operating/governance
 | LinkedIn personal profile (member) | Text-only Posts API adapter with pinned `Linkedin-Version`, mocked tests; organization pages unsupported ([guide](LINKEDIN.md)) |
 | Threads, Facebook Page, Instagram, YouTube, TikTok | Mock-tested adapters (Threads text #19, Facebook Page text/link #21, Instagram single image #20, YouTube upload #22, TikTok creator-inbox video #23), owner-approved 2026-10-09 and **disabled** in the capability registry until a supervised live receipt; `manual-export` creator packages meanwhile |
 | X, Reddit, Pinterest | Creative/manual workflow only; no adapter |
+| Weibo, Xiaohongshu, Douyin, Bilibili, WeChat Official Accounts, Zhihu and six more Chinese platforms | China-aware `manual-export` packages: sourced limits, platform topic syntax, AI-label and ad-label decisions; you post by hand ([CHINA.md](CHINA.md)). No adapter: no open posting API the owner qualifies for |
 | Analytics / comparisons | User-supplied snapshot ingestion, read-only polling of public Bluesky/Mastodon counters (`metrics-fetch`), coverage-aware local report and matched-age directional experiment evaluator |
 | Campaign validation and brand identity boundaries | Offline evidence/brand JSON checks; immutable idempotent draft staging |
 | Private/owner analytics fetching (views, impressions, clicks) or media rendering | Not implemented; `metrics-fetch` reads only public like/repost/reply(/bookmark) counters |
