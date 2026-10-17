@@ -17,7 +17,7 @@ In Claude Code:
 /plugin install reachweaver@reachweaver
 ```
 
-Restart Claude Code if it asks you to. You need **Python 3.11 or newer**. The other install routes (standalone installer, ZIP, clone) are in the [README](../README.md#install-and-update).
+Restart Claude Code if it asks you to. You need **Python 3.11 or newer**. Which route suits you (plugin, Python package, standalone installer, ZIP, clone) is in [how to install](INSTALL.md). To connect accounts and approve posts from your own terminal, also run `pipx install reachweaver`: the plugin does not put a `reachweaver` command on your terminal's path.
 
 Update later with `/plugin marketplace update reachweaver`, then `/plugin update reachweaver@reachweaver`. Claude tells you when a newer release exists (one check to github.com at most every 24 hours, silent when offline) and never updates without asking.
 

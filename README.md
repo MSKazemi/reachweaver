@@ -79,7 +79,7 @@ for a technical audience. Make distinct LinkedIn, Bluesky and YouTube Shorts dra
 Explain what can be published automatically, prepare a dry run, and wait for approval.
 ```
 
-Claude does the research and writing inside your Claude Code session, on your own subscription: ReachWeaver itself makes no model calls and needs no API key. Its commands do the checking, approval and record keeping. See [using ReachWeaver with Claude Code](docs/CLAUDE-CODE.md) for the first session, who does what, and how to keep usage low. More install routes (standalone installer, ZIP) are under [install and update](#install-and-update).
+Claude does the research and writing inside your Claude Code session, on your own subscription: ReachWeaver itself makes no model calls and needs no API key. Its commands do the checking, approval and record keeping. See [using ReachWeaver with Claude Code](docs/CLAUDE-CODE.md) for the first session, who does what, and how to keep usage low. Not sure which install route fits you? See [how to install: pick one route](docs/INSTALL.md). If you will publish for real, also run `pipx install reachweaver` so you have the `reachweaver` command in your own terminal.
 
 ### Option 2: try it on your computer first, with no account
 
@@ -341,7 +341,7 @@ python3 install_skill.py            # add --project to install into ./.claude/sk
 # From a clone, no network: python3 scripts/install_skill.py --from-checkout
 ```
 
-Restart Claude Code and use `/reachweaver`. The skill checks for a newer release at the start of a session (at most one GET per 24 h, silent offline; opt out with `touch ~/.cache/reachweaver/no-update-check`; `update --apply` only applies to this installer route, never to a plugin), tells you, and updates only after you agree. By hand: `python3 ~/.claude/skills/reachweaver/scripts/run.py update --check` then `update --apply --yes`. The installer and updater verify the release's SHA-256, refuse unsafe archive paths and keep the previous copy under `~/.cache/reachweaver/previous/`. Releases come from the `release.yml` workflow on a `vX.Y.Z` tag; until the first release is tagged (and while the repository is private) use `--from-checkout`.
+Restart Claude Code and use `/reachweaver`. The skill checks for a newer release at the start of a session (at most one GET per 24 h, silent offline; opt out with `touch ~/.cache/reachweaver/no-update-check`; `update --apply` only applies to this installer route, never to a plugin), tells you, and updates only after you agree. By hand: `python3 ~/.claude/skills/reachweaver/scripts/run.py update --check` then `update --apply --yes`. The installer and updater verify the release's SHA-256, refuse unsafe archive paths and keep the previous copy under `~/.cache/reachweaver/previous/`. Releases come from the `release.yml` workflow on a `vX.Y.Z` tag; from a clone with no network use `--from-checkout`.
 
 ### As a Python package (command line only)
 

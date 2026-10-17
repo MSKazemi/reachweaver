@@ -272,7 +272,9 @@ private (chmod 600) and do not send it over an insecure channel.
 
 def _example_accounts() -> Path | None:
     here = Path(__file__).resolve()
-    for candidate in (here.parents[1] / "config" / "accounts.example.json", here.parents[2] / "assets" / "accounts.example.json"):
+    # The first is the copy that ships inside the pip package; the others serve a checkout and a skill bundle.
+    for candidate in (here.parent / "accounts.example.json", here.parents[1] / "config" / "accounts.example.json",
+                      here.parents[2] / "assets" / "accounts.example.json"):
         if candidate.is_file():
             return candidate
     return None

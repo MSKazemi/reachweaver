@@ -6,6 +6,10 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Fixed
+
+- **`workspace --init` from the pip package now creates `config/accounts.json`.** The example accounts file now ships inside the package (`reachweaver/accounts.example.json`, kept byte-equal to `config/accounts.example.json` by a test), so a user who runs `pipx install reachweaver` and `reachweaver workspace --init .` no longer meets "Missing .../config/accounts.json" at the first `doctor`. The package smoke check (`scripts/check_package.py --smoke`) now runs that exact sequence in a clean environment. Affects 0.5.2 from PyPI; fixed in the next release. No change to approval, dry-run, emergency-stop or credential rules.
+
 ### Documentation
 
 - **ReachWeaver is on PyPI.** 0.5.2 was the first upload, by the release workflow's `pypi` job after the owner approved the `pypi` deployment; the PyPI files have the same SHA-256 as the GitHub release assets, and `pipx install reachweaver` installs it. The README and [docs/PACKAGING.md](docs/PACKAGING.md) now say so.

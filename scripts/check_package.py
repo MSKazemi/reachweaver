@@ -159,6 +159,13 @@ def smoke(dist: Path, version: str) -> list[str]:
             if run.returncode != 0 or expect not in run.stdout:
                 errors.append(f"`reachweaver {' '.join(argv)}` failed in the installed wheel "
                               f"(exit {run.returncode}): {(run.stderr or run.stdout).strip()[:200]}")
+        # The first thing a new pip user does: make a workspace, then run the setup check in it.
+        folder = Path(tmp) / "my_social_media"
+        init = subprocess.run([str(command), "workspace", "--init", str(folder)], cwd=work, capture_output=True, text=True)
+        doctor = subprocess.run([str(command), "doctor"], cwd=folder, capture_output=True, text=True) if folder.is_dir() else init
+        if init.returncode != 0 or not (folder / "config" / "accounts.json").is_file() or doctor.returncode != 0:
+            errors.append("`workspace --init` then `doctor` failed in the installed wheel (is accounts.example.json packaged?): "
+                          f"{(doctor.stderr or doctor.stdout or init.stderr).strip()[:200]}")
     return errors
 
 

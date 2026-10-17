@@ -209,37 +209,51 @@ class CommandLine(Fixture):
 class SmokeInstall(Fixture):
     """The smoke step is exercised for real in CI; here its decisions are checked with the subprocess calls faked."""
 
-    def fake_run(self, results):
+    def fake_run(self, results, creates_accounts=True):
         calls = []
 
         def run(argv, **kw):
             calls.append([Path(a).name if i == 0 else a for i, a in enumerate(argv)])
+            if creates_accounts and argv[1:3] == ["workspace", "--init"]:  # what the installed command does for real
+                (Path(argv[3]) / "config").mkdir(parents=True)
+                (Path(argv[3]) / "config" / "accounts.json").write_text("{}", encoding="utf-8")
             return results.pop(0)
         return calls, run
 
     def done(self, code=0, out="", err=""):
         return subprocess.CompletedProcess([], code, out, err)
 
-    def test_install_then_three_commands_from_an_empty_folder(self):
+    def test_install_then_three_commands_and_a_new_workspace_from_an_empty_folder(self):
         self.good()
-        calls, run = self.fake_run([self.done(), self.done(out="reachweaver 1.2.3\n"), self.done(out="bluesky\n"), self.done(out="plan")])
+        calls, run = self.fake_run([self.done(), self.done(out="reachweaver 1.2.3\n"), self.done(out="bluesky\n"), self.done(out="plan"),
+                                    self.done(), self.done()])
         with patch.object(check_package.venv.EnvBuilder, "create"), patch.object(check_package.subprocess, "run", run):
             self.assertEqual(check_package.smoke(self.dist, VERSION), [])
         self.assertEqual([c[1:3] for c in calls[:1]], [["-m", "pip"]])
         self.assertIn("--no-index", calls[0])
         self.assertIn("--no-deps", calls[0])
-        self.assertEqual([c[1] for c in calls[1:]], ["version", "capabilities", "distribution-plan"])
+        self.assertEqual([c[1] for c in calls[1:]], ["version", "capabilities", "distribution-plan", "workspace", "doctor"])
 
     def test_failures_are_reported(self):
         self.good()
         calls, run = self.fake_run([self.done(code=1, err="boom")])
         with patch.object(check_package.venv.EnvBuilder, "create"), patch.object(check_package.subprocess, "run", run):
             self.assertTrue(any("pip install of the wheel failed" in e for e in check_package.smoke(self.dist, VERSION)))
-        calls, run = self.fake_run([self.done(), self.done(out="reachweaver 0.0.1\n"), self.done(out="bluesky"), self.done(code=2, err="no registry")])
+        calls, run = self.fake_run([self.done(), self.done(out="reachweaver 0.0.1\n"), self.done(out="bluesky"), self.done(code=2, err="no registry"),
+                                    self.done(), self.done()])
         with patch.object(check_package.venv.EnvBuilder, "create"), patch.object(check_package.subprocess, "run", run):
             errors = check_package.smoke(self.dist, VERSION)
         self.assertEqual(len(errors), 2)
         self.assertTrue(any("`reachweaver version` failed" in e for e in errors))
+
+    def test_a_workspace_without_accounts_json_is_reported(self):
+        self.good()
+        calls, run = self.fake_run([self.done(), self.done(out="reachweaver 1.2.3\n"), self.done(out="bluesky"), self.done(out="plan"),
+                                    self.done(), self.done(code=1, err="Missing config/accounts.json")], creates_accounts=False)
+        with patch.object(check_package.venv.EnvBuilder, "create"), patch.object(check_package.subprocess, "run", run):
+            errors = check_package.smoke(self.dist, VERSION)
+        self.assertEqual(len(errors), 1)
+        self.assertIn("workspace --init", errors[0])
 
 
 if __name__ == "__main__":
