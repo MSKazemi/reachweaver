@@ -200,6 +200,11 @@ class ShareHandler(BaseHTTPRequestHandler):
     server: ShareServer
     protocol_version = "HTTP/1.1"
 
+    def setup(self) -> None:
+        super().setup()
+        # A local client must not keep an unfinished request thread forever.
+        self.connection.settimeout(10)
+
     def log_message(self, fmt: str, *args: Any) -> None:
         # Never log captions, paths, tokens, URL fragments, headers or HTTP bodies.
         pass
@@ -261,9 +266,11 @@ class ShareHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         if not self._host_ok() or not self._token_ok() or not self._origin_ok():
+            self.close_connection = True
             self._json_response(403, {"errors": ["Not authorized from this browser session."]})
             return
         if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
+            self.close_connection = True
             self._json_response(415, {"errors": ["Send application/json only."]})
             return
         raw_size = self.headers.get("Content-Length", "")
@@ -273,6 +280,7 @@ class ShareHandler(BaseHTTPRequestHandler):
             return
         path = urlsplit(self.path).path
         if path not in ("/api/preview", "/api/prepare"):
+            self.close_connection = True
             self._json_response(404, {"errors": ["Not found."]})
             return
         try:
