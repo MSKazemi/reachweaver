@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "platform": "tiktok",
+  "as_of": "2026-10-17",
+  "text": "An original demo of offline AI speech recognition on Linux: transcription accuracy, setup steps and current limitations. No cloud required.",
+  "audience": "Linux developers and people who need private voice typing",
+  "region": "US",
+  "language": "en",
+  "keywords": [
+    "Linux",
+    "offline AI",
+    "speech recognition"
+  ],
+  "max_suggestions": 4,
+  "candidates": [
+    {
+      "tag": "#Linux",
+      "kind": "niche",
+      "source_type": "editorial"
+    },
+    {
+      "tag": "#AI",
+      "kind": "broad",
+      "source_type": "editorial"
+    },
+    {
+      "tag": "#SpeechRecognition",
+      "kind": "core",
+      "source_type": "editorial"
+    },
+    {
+      "tag": "#ViralDance",
+      "kind": "trend",
+      "source_type": "editorial",
+      "region": "US",
+      "evidence_note": "Intentionally irrelevant example, must be rejected."
+    }
+  ]
+}
