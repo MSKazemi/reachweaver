@@ -347,6 +347,17 @@ Use `--db PATH` and `--accounts PATH` as global options preceding the subcommand
 
 ## Install and update
 
+**Already installed? Upgrade the Claude Code plugin and pipx CLI separately.** Run these commands in your **normal terminal** (skip any component you do not use):
+
+```bash
+claude plugin marketplace update reachweaver
+claude plugin update reachweaver@reachweaver
+pipx upgrade reachweaver
+```
+
+Then run `/reload-plugins` inside Claude Code or restart it. The first command refreshes the plugin marketplace, the second updates the installed plugin, and the third upgrades the separately installed CLI. For a standalone skill, project-local install, or source checkout, use the [complete upgrade command guide](docs/UPGRADE.md).
+
+
 **Recommended: Claude Code plugin** (Claude Code manages install and updates; needs the repository to be reachable by git):
 
 ```text
