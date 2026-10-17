@@ -43,7 +43,8 @@
           "url": "https://www.linkedin.com/blog/engineering/feed/engineering-the-next-generation-of-linkedins-feed",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "official_signal_families_only"
     },
     "instagram": {
       "surface": "hashtags",
@@ -64,7 +65,8 @@
           "url": "https://about.fb.com/news/2026/01/2026-ai-drives-performance/",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "official_signal_families_only"
     },
     "tiktok": {
       "surface": "hashtags",
@@ -90,7 +92,8 @@
           "url": "https://ads.tiktok.com/resources/help/article/how-to-use-trends",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "official_signal_families_only"
     },
     "youtube": {
       "surface": "keywords",
@@ -116,7 +119,8 @@
           "url": "https://support.google.com/youtube/answer/146402?hl=en-EN",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "official_signal_families_only"
     },
     "threads": {
       "surface": "topic_label",
@@ -137,7 +141,8 @@
           "url": "https://about.fb.com/news/2025/03/new-threads-features-more-personalized-experience-you-control/",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "official_signal_families_only"
     },
     "x": {
       "surface": "hashtags",
@@ -158,7 +163,8 @@
           "url": "https://help.x.com/en/using-x/x-timeline",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "official_signal_families_only"
     },
     "bluesky": {
       "surface": "hashtags",
@@ -179,7 +185,8 @@
           "url": "https://bsky.social/about/blog/7-27-2023-custom-feeds",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "official_signal_families_only"
     },
     "mastodon": {
       "surface": "hashtags",
@@ -200,7 +207,8 @@
           "url": "https://docs.joinmastodon.org/user/posting/",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "official_guidance_no_verified_ranking_model"
     },
     "facebook_pages": {
       "surface": "hashtags",
@@ -221,7 +229,8 @@
           "url": "https://about.fb.com/news/2026/03/rewarding-original-creators-on-facebook/",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "official_signal_families_only"
     },
     "pinterest": {
       "surface": "keywords",
@@ -242,7 +251,8 @@
           "url": "https://help.pinterest.com/en/business/article/create-a-pin",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "official_guidance_no_verified_ranking_model"
     },
     "xiaohongshu": {
       "surface": "hashtags",
@@ -263,7 +273,8 @@
           "url": "https://www.xiaohongshu.com/",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "source_locator_not_ranking_evidence"
     },
     "bilibili": {
       "surface": "hashtags",
@@ -284,7 +295,8 @@
           "url": "https://www.bilibili.com/",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "source_locator_not_ranking_evidence"
     },
     "douyin": {
       "surface": "hashtags",
@@ -305,7 +317,8 @@
           "url": "https://open.douyin.com/",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "source_locator_not_ranking_evidence"
     },
     "weibo": {
       "surface": "hashtags",
@@ -326,7 +339,8 @@
           "url": "https://open.weibo.com/",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "source_locator_not_ranking_evidence"
     },
     "zhihu": {
       "surface": "keywords",
@@ -347,7 +361,8 @@
           "url": "https://www.zhihu.com/",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "source_locator_not_ranking_evidence"
     },
     "dev": {
       "surface": "keywords",
@@ -368,7 +383,8 @@
           "url": "https://dev.to/code-of-conduct",
           "checked_on": "2026-10-17"
         }
-      ]
+      ],
+      "evidence_level": "source_locator_not_ranking_evidence"
     }
   }
 }
