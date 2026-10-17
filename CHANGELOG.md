@@ -6,6 +6,10 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Changed
+
+- **PyPI upload no longer waits for a manual approval.** The `pypi` environment has no required reviewer (owner decision, 2026-10-17). A `v*` tag push that passes `verify` and `publish` now uploads the already-checked wheel and sdist to PyPI. The other guards are unchanged: tag-only environment, owner-only actor check, `PYPI_PUBLISH` switch, checksum verification. [docs/PACKAGING.md](docs/PACKAGING.md) says how to restore the approval.
+
 ## [0.6.0] - 2026-10-17
 
 The read-only dashboard (`reachweaver ui`) answers three more questions in the browser: what goes out this week, what was posted, and whether approvals and files are in order. No change to approval, dry-run, emergency-stop or credential rules; the dashboard stays GET-only.
