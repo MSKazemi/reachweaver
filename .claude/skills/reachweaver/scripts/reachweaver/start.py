@@ -33,6 +33,8 @@ def build_guide(db: str | Path | None, accounts_path: str | None) -> dict:
             _step("Create your accounts file from the example (it holds no secrets)",
                   f"cp {EXAMPLE_ACCOUNTS} config/accounts.json",
                   "Edit it to list only accounts you control. Tokens are never stored in it."),
+            _step("Or prepare a post for Instagram, TikTok and other networks without any account",
+                  "reachweaver share --guide", "Guided manual handoff; nothing is published."),
             _step("Or just try the no-account preview", None, "docs/QUICKSTART.md walks through it with no network.")]}
     if accounts_error is not None:  # the file exists but cannot be used: never suggest overwriting it
         return {"state": "accounts_invalid", "summary": f"The accounts file cannot be used: {accounts_error}",
@@ -40,7 +42,9 @@ def build_guide(db: str | Path | None, accounts_path: str | None) -> dict:
                                 "Compare it with config/accounts.example.json; do not overwrite your file.")]}
     if not database.is_file():
         return {"state": "no_database", "summary": f"{len(accounts)} account(s) configured; no local database yet.",
-                "steps": [_step("Create the local database (no account is contacted)", "reachweaver init"),
+                "steps": [_step("Prepare a manual social post with no database or password",
+                                "reachweaver share --guide", "Saves an offline package to paste by hand."),
+                          _step("Create the local database (no account is contacted)", "reachweaver init"),
                           _step("See which credential variables are missing", "reachweaver doctor")]}
     try:
         with open_database(database) as con:

@@ -64,6 +64,8 @@ Preview before you `schedule`: `publish --post-id` only selects posts that are a
 
 ## 5. Manual alternatives for platforms without an adapter
 
+**Easier than creating JSON:** use `python3 -m reachweaver share --guide` from a real terminal, or `python3 -m reachweaver share --platform instagram,threads --text "Your caption" --out state/my-post`. This prepares handoff files with no account, database, or external request. See [Easy sharing](EASY-SHARING.md).
+
 ```bash
 python3 -m reachweaver campaign-export --file examples/campaign.reachweaver.json --brand examples/brand.reachweaver.json --out state/quickstart-drafts
 python3 -m reachweaver manual-export --platform threads --variant examples/manual-variant.threads.json --out state/quickstart-threads

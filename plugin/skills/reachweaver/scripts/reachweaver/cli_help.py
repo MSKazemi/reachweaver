@@ -21,7 +21,7 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Publish and recover (owner only; live sends are gated)", (
         "publish", "pause", "resume", "reconcile", "approval-mode", "calendar-plan", "calendar-gaps",
         "connect-check", "postiz-check", "disconnect", "reconnect")),
-    ("Post by hand", ("manual-export", "manual-export-batch", "delivery-options")),
+    ("Post by hand", ("share", "manual-export", "manual-export-batch", "delivery-options")),
     ("Monitor", ("queue-health", "dead-letter", "ops-metrics", "ops-summary", "credentials-audit", "link-health", "trace")),
     ("Measure and learn", (
         "metrics", "import-metrics", "metrics-fetch", "report", "youtube-analytics", "timing-evaluate",

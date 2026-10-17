@@ -61,6 +61,22 @@ Nothing to the right of **YOU approve** can happen without you. The [plain-langu
 
 You need **Python 3.11 or newer**. There is nothing else to install: ReachWeaver uses only Python's standard library.
 
+### Easiest option: Share a post without connecting an account
+
+You can prepare captions for Instagram, Threads, TikTok, YouTube and many other networks, then paste them in the apps yourself. No JSON, password, account connection, subscription or API key is required:
+
+```bash
+python3 -m reachweaver share --guide
+```
+
+Or prepare two destinations at once:
+
+```bash
+python3 -m reachweaver share --platform instagram,threads --text "Here is our latest demonstration!" --out state/my-first-share
+```
+
+Open the resulting **OPEN-FIRST.md** file. It tells you which caption to copy, which app to open and what to check before posting. Media files are referenced, not uploaded. **This is manual preparation only: it never publishes or schedules posts.** See the [easy sharing guide](docs/EASY-SHARING.md), including photos, videos, YouTube titles and human-only community rules.
+
 ### Option 1: with Claude Code (recommended)
 
 Install the plugin once, then just describe what you want:

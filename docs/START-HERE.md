@@ -15,6 +15,18 @@ ReachWeaver is a careful helper for that work. It has two halves:
 
 The most important rule: **nothing is sent until you approve that exact post.** The AI can suggest and draft. Only you can approve.
 
+## The easiest option: prepare a post to paste into an app
+
+You can use ReachWeaver without connecting Instagram, TikTok, Facebook or any other account. In a terminal in the ReachWeaver folder, type:
+
+```bash
+python3 -m reachweaver share --guide
+```
+
+Answer which social networks you want, type a caption, review the plan and choose whether to save it. The new **OPEN-FIRST.md** file gives you simple steps, and each network has its own copy-ready text file and checklist. You then open the real social app and post manually. No one is logged in, and nothing is uploaded or published by this command.
+
+For two networks in one command, try `python3 -m reachweaver share --platform instagram,threads --text "Our new tutorial" --out state/my-post`. For photographs, video and human-only communities, see [Easy sharing](EASY-SHARING.md). Automatic account publishing is a separate, approval-first workflow explained below.
+
 ## Five ideas you need
 
 | Idea | In plain words |
