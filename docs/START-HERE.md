@@ -15,6 +15,16 @@ ReachWeaver is a careful helper for that work. It has two halves:
 
 The most important rule: **nothing is sent until you approve that exact post.** The AI can suggest and draft. Only you can approve.
 
+## Prefer clicking instead of typing commands?
+
+Open the **local browser composer** once from your ReachWeaver directory:
+
+```bash
+python3 -m reachweaver share --web --open
+```
+
+Then write your message in the browser, choose the social networks, preview the different posting files, and save a local folder. Nothing goes online. [Browser composer guide](BROWSER-SHARE-COMPOSER.md).
+
 ## The easiest option: prepare a post to paste into an app
 
 You can use ReachWeaver without connecting Instagram, TikTok, Facebook or any other account. In a terminal in the ReachWeaver folder, type:
