@@ -2,7 +2,7 @@
 
 **Status:** experimental, local-only manual publishing preparation. This feature does not post, upload, schedule, create accounts, fetch analytics, or call a social platform.
 
-The browser composer is for people who want to share work on Instagram, TikTok, Threads, YouTube and other platforms **without editing JSON or using lots of terminal commands**. It uses the existing ReachWeaver manual-export safety checks. No additional model API, subscription, cloud hosting or password is required.
+The browser composer is for people who want to share work on Instagram, TikTok, Threads, YouTube and other platforms **without editing JSON or using lots of terminal commands**. It uses the existing ReachWeaver manual-export safety checks, including the checks on each individually edited platform caption. No additional model API, subscription, cloud hosting or password is required.
 
 ## Start in one command
 
@@ -26,7 +26,7 @@ Your browser should open an address starting with http://127.0.0.1. If it doesn'
 
 1. **Write:** enter one caption/description. For YouTube, add a video title. For human-only communities, add a short private note and write the real message yourself.
 2. **Choose:** search or tap networks, up to ten at once. Only platforms with an existing offline manual-export route appear. Platforms with a separate approved live-posting path are intentionally not shown here.
-3. **Preview:** see the exact proposed text, warnings and platform-specific notices before any files are written. You can copy a caption using the browser's Copy button. This does not post.
+3. **Preview and tailor:** see the exact text and warnings, and edit each network's caption separately (for example a short Threads version and a longer Instagram version). After editing, click **Preview my posts** again to revalidate every network before saving. The Copy button copies the current editor text; nothing posts automatically.
 4. **Save:** click Save posting files. ReachWeaver writes a new private folder below state/shares. Open OPEN-FIRST.md, review each platform's CHECKLIST.md, and paste the relevant caption into the native app yourself.
 
 There is **no Publish button**, because this UI is a manual handoff, not a new API integration.
