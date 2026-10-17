@@ -234,6 +234,19 @@ def _readme(packages: list[tuple[str, dict]], files: list[Path]) -> str:
 
 def run(args) -> int:
     """Perform only local preflight and optional private file creation."""
+    if args.web:
+        if (args.platform or args.guide or args.list or args.text is not None or
+                args.file is not None or args.note or args.title is not None or
+                args.format is not None or args.attach or args.media is not None or
+                args.out is not None or args.preview):
+            raise ValidationError(
+                "The local browser composer takes its posts and network choices in the "
+                "browser. Run 'reachweaver share --web [--open]' without caption flags."
+            )
+        from .share_browser import serve
+        return serve(port=args.port, open_browser=args.open)
+    if args.open or args.port:
+        raise ValidationError("--open and --port need --web (local browser composer).")
     if args.list:
         print("Easy choices: " + ", ".join(x for x in SUGGESTED if x in available()))
         print("Use platform IDs from 'reachweaver delivery-options' for more networks.")
