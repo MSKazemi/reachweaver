@@ -800,7 +800,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--platform", required=True, choices=MANUAL_PLATFORMS + generic_platforms(), metavar="PLATFORM",
                    help="threads, instagram, facebook, youtube or tiktok (sourced package), or any other manual_only "
                         "id in the distribution registry such as dev, x, product_hunt or hacker_news (generic package; "
-                        "human-only destinations get a notes form, never post text)")
+                        "human-only destinations get a notes form, never post text). Chinese platforms such as "
+                        "weibo, xiaohongshu, douyin, bilibili and wechat add sourced limits, topics and the "
+                        "AI/ad declarations (docs/CHINA.md)")
     p.add_argument("--variant", type=Path, required=True, help="Variant JSON: text, format, link_url, platform_options; talking_points for human-only destinations")
     p.add_argument("--media", type=Path, help="Media manifest JSON validated with media-check rules")
     p.add_argument("--account-meta", type=Path, help="PUBLIC account metadata JSON (handle, account_type); no secrets")
@@ -2115,10 +2117,13 @@ def execute(args) -> int:
         if args.json:
             print(json.dumps(package, indent=2, ensure_ascii=False))
         else:
-            print(f"{package['status']}: {package['platform_label']} generic manual package for human review")
+            kind = "China-aware" if "china" in package else "generic"
+            print(f"{package['status']}: {package['platform_label']} {kind} manual package for human review")
             for item in package["preflight"]["warnings"]:
                 print("  WARNING:", item)
             print(f"  TEXT LIMIT: {package['limits']['text']['display']}")
+            for decision in package.get("china", {}).get("human_decisions", []):
+                print(f"  DECIDE YOURSELF: {decision['id']} (nothing pre-selected)")
             if package["human_only"]:
                 print(f"  WRITE IT YOURSELF: {package['platform_label']} is human-only; no post text was packaged "
                       "(NOTES.md is a notes form)")
