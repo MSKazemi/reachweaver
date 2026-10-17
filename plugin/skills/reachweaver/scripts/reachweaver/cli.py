@@ -792,6 +792,13 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--media", type=Path, help="Optional advanced media-check manifest for existing validation")
     p.add_argument("--out", type=Path, help="New output folder (default: a unique private folder under state/)")
     p.add_argument("--preview", action="store_true", help="Check without writing any files")
+    p.add_argument("--web", action="store_true",
+                   help="Start the mobile-friendly browser composer on 127.0.0.1 (manual, offline)")
+    p.add_argument("--open", action="store_true",
+                   help="With --web, open the local composer in your default browser")
+    p.add_argument("--port", type=int, default=0,
+                   help="With --web, local port; 0 chooses a free port (default)")
+
 
     p = sub.add_parser("manual-export", help="Offline creator-ready package for Threads/Instagram/Facebook Pages/YouTube/TikTok, or a generic package for any other manual_only distribution-registry destination; never sends")
     p.add_argument("--platform", required=True, choices=MANUAL_PLATFORMS + generic_platforms(), metavar="PLATFORM",
