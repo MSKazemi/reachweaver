@@ -6,6 +6,10 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Added
+
+- **`reachweaver share --web`: a browser composer for posting by hand (experimental).** One command opens a local page where you write a caption, pick up to ten manual-only networks, preview each network's text and warnings, tailor the caption per network, copy it, and save the same private `share` packages to disk. It is a separate server from the read-only `ui` dashboard: it binds 127.0.0.1 only, needs a per-run random token in a request header, checks the exact Host on every request and the exact Origin on every POST, sends no CORS header, limits a request body to 96 KiB and 10 seconds, and serves a strict CSP with a per-response nonce. Preview writes nothing; saving rechecks every rule and writes a fresh owner-only folder below `state/shares`. Human-only destinations such as Reddit and Hacker News get notes, never post text, including through per-network edits. It has no Publish button, uploads no media, connects no account and calls no platform. Guide: [docs/BROWSER-SHARE-COMPOSER.md](docs/BROWSER-SHARE-COMPOSER.md). `tests/test_share_browser.py` covers the HTTP boundary, including malformed, oversized and slow requests.
+
 ### Documentation
 
 - **Editorial planning worksheet.** New [docs/EDITORIAL-SYSTEM.md](docs/EDITORIAL-SYSTEM.md) and `examples/editorial-plan.example.json`: an audience-first way to decide what to make each week (brand voice, one goal, up to three audiences, content pillars, channel slots, prioritised ideas with an effort estimate, and the weekly time you really have), with each later step handed to a command that exists (`campaign-check`, `claims-check`, `campaign-preview`, `repeat-check`, `discovery-plan`, `share`, `manual-export`, `post-audit`, `experiment-readout`). No command reads the worksheet; it is a planning aid, not a new feature. The skill gains a matching reference loaded on demand, and `scripts/sync_skill.py` now mirrors the example into both bundles.

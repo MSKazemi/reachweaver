@@ -699,3 +699,24 @@ Invariants:
 
 Not implemented: any write action in the browser, authentication beyond the URL token, TLS (loopback only), push updates (the page polls only when the opt-in Auto-refresh is on), and a phone-tested layout (the narrow layout was checked in a 400 px frame in desktop Chrome only). The page keeps two preferences (theme, auto-refresh) in `localStorage`, always inside try/catch.
 
+## Browser Share composer (`share --web`)
+
+`reachweaver share --web [--open]` starts `share_browser.py`, a small local server separate from the read-only dashboard, for people who prefer a page to the terminal. User guide: [BROWSER-SHARE-COMPOSER.md](BROWSER-SHARE-COMPOSER.md).
+
+```text
+browser --GET /            --> page (share_browser_ui.HTML, CSP nonce per response)
+        --GET /api/catalog --> share_browser.catalog()  (manual-only destinations from the registries)
+        --POST /api/preview -> _incoming() -> share.make_packages()   (validation only, nothing written)
+        --POST /api/prepare -> _incoming() -> make_packages() -> private folder below state/shares (atomic rename)
+```
+
+Invariants:
+
+- **Same rules as `share`.** Every request goes through `share.make_packages` and the existing manual-export preflight. Per-network edits (`overrides`) are validated one network at a time, may target only a selected network, and are refused for human-only destinations, which receive notes and never post text.
+- **No send path.** The module imports no publisher, storage outbox, credential or network client (`SEND_PATH = None`); there is no Publish action. The approval, dry-run, emergency-pause, credential and reconciliation rules are untouched.
+- **Loopback and token.** It binds `127.0.0.1` only. The per-run token travels in the URL fragment (never sent to the server or in a Referer) and then in the `X-ReachWeaver-Token` header, compared as bytes in constant time. The Host must be exactly `127.0.0.1:<port>` on every request, and POSTs need the exact Origin and `application/json`. No CORS header is sent; other methods get a JSON 405.
+- **Bounded input.** Unknown fields are refused, a body is at most 96 KiB and must arrive within one 10 s deadline (408), and parse errors, including deeply nested JSON, are a 422, never a dropped connection.
+- **Private output.** Preview writes nothing. Saving rechecks every rule, stages the whole handoff and renames it into a fresh 0700 folder with 0600 files; the browser cannot choose the path, and the response reports the absolute folder.
+- **Untrusted text.** User text reaches the page only as text (no `innerHTML`); the CSP forbids remote resources and framing. Requests are not logged.
+
+Not implemented: media upload or inspection in the browser, a cap on concurrent local connections, and keeping per-network edits when the main caption changes (they are discarded). With `--open` the token URL is handed to the system browser launcher, as `ui --open` does, so it may be visible in the local process list.
