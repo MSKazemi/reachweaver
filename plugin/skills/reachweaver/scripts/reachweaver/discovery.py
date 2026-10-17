@@ -140,7 +140,7 @@ def _evidence_issue(candidate: dict, platform: str, region: str, today: date) ->
         return "trend_observation_in_future"
     if days > TREND_MAX_AGE_DAYS:
         return "trend_evidence_expired"
-    if region != "global" and candidate["region"] not in ("global", region):
+    if region != "global" and candidate["region"] != region:
         return "trend_region_mismatch"
     if candidate["source_type"] == "editorial":
         return "trend_requires_owner_or_official_source"
@@ -234,7 +234,7 @@ def build_discovery_plan(raw: object) -> dict:
     for keyword in keywords:
         if not _is_about_tag(keyword, text):
             warnings.append(f"Topic keyword '{keyword}' is not present in the submitted text; use it only if genuinely accurate.")
-    source_content = text + " " + " ".join(keywords)
+    source_content = text
     seen: set[str] = set()
     valid: list[dict] = []
     skipped: list[dict] = []
