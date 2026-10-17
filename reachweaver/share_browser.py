@@ -27,13 +27,13 @@ from .manual_export import LABELS, MANUAL_PLATFORMS, write_export
 from .manual_package import MAX_TALKING_POINT_CHARS, write_package
 from .policy import ValidationError
 from .privacy import write_private_file
-from .share import MAX_DESTINATIONS, MAX_TEXT_BYTES, _readme, destinations, make_packages
+from .share import MAX_DESTINATIONS, MAX_TEXT_BYTES, _human_only, _readme, destinations, make_packages
 from .share_browser_ui import HTML
 
 SEND_PATH = None
 BIND_ADDRESS = "127.0.0.1"
 MAX_REQUEST_BYTES = 96 * 1024
-_ALLOWED_FIELDS = frozenset({"platforms", "text", "title", "note"})
+_ALLOWED_FIELDS = frozenset({"platforms", "text", "title", "note", "overrides"})
 
 
 def catalog() -> list[dict[str, Any]]:
@@ -85,7 +85,37 @@ def _incoming(obj: Any) -> list[tuple[str, dict]]:
             f"Community note must be at most {MAX_TALKING_POINT_CHARS} characters."
         )
     notes = [note] if note.strip() else []
-    packages, errors = make_packages(selected, text, notes, title, None, [], None)
+    overrides = obj.get("overrides", {})
+    if not isinstance(overrides, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in overrides.items()
+    ):
+        raise ValidationError("Platform edits must be a map of network names to text.")
+    human = _human_only()
+    for platform, edited in overrides.items():
+        if platform not in selected:
+            raise ValidationError(f"An edit targets a network you did not select: {platform}.")
+        if platform in human:
+            raise ValidationError(f"{platform} is human-only; you cannot prepare post text.")
+        if len(edited.encode("utf-8")) > MAX_TEXT_BYTES:
+            raise ValidationError(f"Edited text for {platform} exceeds 64 KiB.")
+    if overrides:
+        if title is not None and "youtube" not in selected:
+            raise ValidationError("Video title is only for a selected YouTube destination.")
+        if notes and not any(p in human for p in selected):
+            raise ValidationError("Community notes require a human-only destination.")
+        packages: list[tuple[str, dict]] = []
+        errors: list[str] = []
+        for platform in selected:
+            post = None if platform in human else overrides.get(platform, text)
+            source_notes = notes if platform in human else []
+            source_title = title if platform == "youtube" else None
+            result, problems = make_packages(
+                [platform], post, source_notes, source_title, None, [], None
+            )
+            packages.extend(result)
+            errors.extend(problems)
+    else:
+        packages, errors = make_packages(selected, text, notes, title, None, [], None)
     if errors:
         raise ValidationError("; ".join(errors))
     return packages
