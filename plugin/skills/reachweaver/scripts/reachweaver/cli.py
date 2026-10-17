@@ -240,8 +240,10 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="Machine-readable names-only report")
     sub.add_parser("list", help="List posts and statuses").add_argument("--status", help="Filter by status")
     sub.add_parser("show", help="Show exact post text and account metadata for human review; offline").add_argument("post_id")
-    p = sub.add_parser("draft", help="Queue a platform-native text draft for an account")
-    p.add_argument("--account", required=True)
+    p = sub.add_parser("draft", help="Queue a platform-native text draft for an account (repeat --account for one "
+                       "draft per account; each still needs its own approval)")
+    p.add_argument("--account", required=True, action="append",
+                   help="Account id; repeat to create one separate draft per account, all or none")
     body = p.add_mutually_exclusive_group(required=True)
     body.add_argument("--text")
     body.add_argument("--file", type=Path)
@@ -1600,6 +1602,54 @@ def _run_publish(db, args) -> int:
         wlog.close()
 
 
+MAX_DRAFT_ACCOUNTS = 20
+
+
+def _draft_many(db, args, accounts) -> int:
+    """One separate draft per named account, all or none. Approval stays per post: nothing here approves."""
+    names = args.account
+    if args.reply_to is not None:
+        raise ValidationError("--reply-to takes exactly one --account: a reply belongs to one of your threads")
+    if args.online or args.override_flagged is not None:
+        raise ValidationError("--online and --override-flagged apply only with --reply-to")
+    if len(names) > MAX_DRAFT_ACCOUNTS:
+        raise ValidationError(f"At most {MAX_DRAFT_ACCOUNTS} --account values per draft command")
+    if len(set(names)) != len(names):
+        raise ValidationError("An --account is named twice; name each account once")
+    unknown = [name for name in names if name not in accounts]
+    if unknown:
+        raise ValidationError(f"Unknown account(s) {', '.join(unknown)}. Run 'doctor' to list configured accounts")
+    content = args.file.read_text(encoding="utf-8") if args.file else args.text
+    platforms = [accounts[name]["platform"] for name in names]
+    doubled = sorted({p for p in platforms if platforms.count(p) > 1})
+    if doubled:
+        raise ValidationError(f"Draft refused, nothing created: the same text on two {', '.join(doubled)} accounts "
+                              "reads as duplicate posting. Adapt the text per account and draft them separately")
+    private = _private_link_refusal(args, [content], [args.source_url])  # #9
+    if private:
+        raise ValidationError(f"Draft refused, nothing created: {private}")
+    optout = load_optout(args.optout)
+    problems = []
+    for name in names:
+        account = accounts[name]
+        hits = optout_mentions(content, optout, account["platform"])
+        if hits:
+            problems.append(f"{name}: {describe_mentions(hits)}")
+        issues = validate_post(account["platform"], content, account)
+        if issues:
+            problems.append(f"{name} ({account['platform']}): " + "; ".join(issues))
+    if problems:
+        raise ValidationError("Draft refused, nothing created:\n  " + "\n  ".join(problems))
+    created = [(add_post(db, name, accounts[name]["platform"], content, args.campaign, args.source_url,
+                         account=accounts[name]), name) for name in names]
+    print(f"Created {len(created)} drafts, one per account; none is approved or published:")
+    for post_id, name in created:
+        print(f"  {post_id}  {name} ({accounts[name]['platform']})")
+    print("Review and approve each one on its own: reachweaver show POST_ID, then reachweaver approve POST_ID "
+          "--approver YOUR_NAME")
+    return 0
+
+
 # Commands that only read the state database: opened with connect_readonly, so a missing
 # database fails (exit 2) instead of being created, and an older schema is never migrated.
 READ_ONLY_DB_COMMANDS = ("engagement-fetch", "ops-metrics", "youtube-analytics", "ops-summary", "calendar-gaps", "link-health",
@@ -2623,6 +2673,9 @@ def execute(args) -> int:
             print("Initialized local database. No accounts were accessed.")
         elif args.command == "draft":
             accounts = _accounts(args)
+            if len(args.account) > 1:
+                return _draft_many(db, args, accounts)
+            args.account = args.account[0]
             account = accounts.get(args.account)
             if not account:
                 raise ValidationError("Unknown account. Run 'doctor' to list configured accounts")

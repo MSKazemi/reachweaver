@@ -209,6 +209,7 @@ reachweaver approve POST_ID ... [--allow-repeat]  refuses a blocking repeat (sam
 reachweaver connect [--guide] [--account ID] [--json]  experimental: offline status table of your accounts (credential variable names only); --guide walks through them one at a time with you at a terminal, one read-only identity check per account you confirm; takes no secret, never posts
 reachweaver draft --account X --text Y [--optout F]   create a reviewable draft; refused if it @-mentions an opted-out handle/domain
 reachweaver draft --account X --file F    create draft from UTF-8 file
+reachweaver draft --account A --account B [--account ...] --text Y   one separate draft per account (all or none; refused for two accounts on the same platform or with --reply-to); each needs its own approve
 reachweaver draft --account X --file F --reply-to ITEM [--online] [--override-flagged LABEL]
                                           #17 (owner-approved 2026-10-09; gated off): reply draft under your own published Bluesky/Mastodon post; plan only without --online; sending blocked by the capability registry (`reachweaver_reply_adapter: none`)
 reachweaver list [--status STATUS]        display post statuses
