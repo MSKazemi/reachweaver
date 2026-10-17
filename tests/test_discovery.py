@@ -114,7 +114,7 @@ class DiscoveryTests(unittest.TestCase):
                 payload = basic(candidates=[{**source, **change}])
                 result = build_discovery_plan(payload)
                 self.assertTrue(any(x["reason"] == code for x in result["skipped"]), result)
-                self.assertNotIn("#SpeechRecognition", tag for tag in [])
+                self.assertFalse(any(x["category"] == "trend" for x in result["recommended"]))
                 self.assertTrue(all(x["category"] != "trend" for x in result["recommended"]))
         self.assertEqual(TREND_MAX_AGE_DAYS, 14)
 
