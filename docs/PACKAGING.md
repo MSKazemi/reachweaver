@@ -14,9 +14,9 @@ python3 -m pip install reachweaver
 Or install the wheel attached to a GitHub release:
 
 ```bash
-pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.2/reachweaver-0.5.2-py3-none-any.whl"
+pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.3/reachweaver-0.5.3-py3-none-any.whl"
 # or, inside a virtual environment:
-python3 -m pip install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.2/reachweaver-0.5.2-py3-none-any.whl"
+python3 -m pip install "https://github.com/MSKazemi/reachweaver/releases/download/v0.5.3/reachweaver-0.5.3-py3-none-any.whl"
 reachweaver version
 ```
 

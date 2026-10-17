@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reachweaver"
-version = "0.5.2"
+version = "0.5.3"
 description = "Approval-first social publishing and evidence-driven audience growth for Claude Code"
 requires-python = ">=3.11"
 license = "Apache-2.0"

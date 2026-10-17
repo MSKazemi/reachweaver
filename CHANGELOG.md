@@ -6,13 +6,20 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
-### Fixed
+## [0.5.3] - 2026-10-17
 
-- **`workspace --init` from the pip package now creates `config/accounts.json`.** The example accounts file now ships inside the package (`reachweaver/accounts.example.json`, kept byte-equal to `config/accounts.example.json` by a test), so a user who runs `pipx install reachweaver` and `reachweaver workspace --init .` no longer meets "Missing .../config/accounts.json" at the first `doctor`. The package smoke check (`scripts/check_package.py --smoke`) now runs that exact sequence in a clean environment. Affects 0.5.2 from PyPI; fixed in the next release. No change to approval, dry-run, emergency-stop or credential rules.
+A patch release for people who install with `pipx install reachweaver`: `reachweaver workspace --init` now creates `config/accounts.json` from the pip package, so the first `doctor` works. Plus two install guides. No change to approval, dry-run, emergency-stop or credential rules.
+
+**Upgrade notes.** None needed. Update the package with `pipx upgrade reachweaver` and the plugin through `/plugin`. An existing workspace is untouched: `workspace --init` never overwrites a file.
 
 ### Documentation
 
+- **Install guides.** [docs/INSTALL.md](docs/INSTALL.md) is a table of install routes (Claude Code plugin, Python package, standalone skill installer, ZIP, git clone) and who should use which. [docs/RECOMMENDED-SETUP.md](docs/RECOMMENDED-SETUP.md) is the one suggested route, step by step: plugin plus `pipx install reachweaver`, one workspace folder, Claude does the work and the owner keeps `connect --guide`, `approve` and the live send. The README and the docs index link both; a stale "while the repository is private" remark in the README installer text is corrected.
 - **ReachWeaver is on PyPI.** 0.5.2 was the first upload, by the release workflow's `pypi` job after the owner approved the `pypi` deployment; the PyPI files have the same SHA-256 as the GitHub release assets, and `pipx install reachweaver` installs it. The README and [docs/PACKAGING.md](docs/PACKAGING.md) now say so.
+
+### Fixed
+
+- **`workspace --init` from the pip package now creates `config/accounts.json`.** The example accounts file now ships inside the package (`reachweaver/accounts.example.json`, kept byte-equal to `config/accounts.example.json` by a test), so a user who runs `pipx install reachweaver` and `reachweaver workspace --init .` no longer meets "Missing .../config/accounts.json" at the first `doctor`. The package smoke check (`scripts/check_package.py --smoke`) now runs that exact sequence in a clean environment. Affects 0.5.2 from PyPI; fixed in the next release. No change to approval, dry-run, emergency-stop or credential rules.
 
 ## [0.5.2] - 2026-10-16
 
