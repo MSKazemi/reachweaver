@@ -318,7 +318,7 @@ class ApiTests(ServerBase):
         self.assertIn("actions", suggest)
 
     def test_new_routes_are_get_only(self):
-        for rest in ("api/schedule", "api/journal", "api/safety", "api/suggest"):
+        for rest in ("api/schedule", "api/journal", "api/safety", "api/suggest", "api/attention"):
             status, headers, _ = self.request("POST", f"/{self.token}/{rest}", body=b"x")
             self.assertEqual(status, 405, rest)
 
@@ -335,7 +335,7 @@ class ApiTests(ServerBase):
         before = hashlib.sha256(self.db.read_bytes()).hexdigest()
         names = sorted(p.name for p in self.db.parent.iterdir())
         blobs = []
-        for rest in ("api/schedule", "api/journal", "api/safety", "api/suggest"):
+        for rest in ("api/schedule", "api/journal", "api/safety", "api/suggest", "api/attention"):
             status, _, body = self.get(rest)
             self.assertEqual(status, 200, rest)
             blobs.append(body.decode("utf-8", "replace"))
@@ -468,7 +468,7 @@ class AssetTests(unittest.TestCase):
     def test_month_calendar_and_global_search_are_wired(self):
         js = ui_assets.APP_JS
         self.assertIn('href: "#/schedule?view=month"', js)
-        self.assertIn("function calendar(d)", js)
+        self.assertIn("function calendar(d, picked)", js)
         self.assertIn('search: ["search", viewSearch]', js)
         self.assertIn('id="gq"', ui_assets.INDEX_HTML)
         self.assertNotIn("<form", ui_assets.INDEX_HTML)  # the CSP forbids form submission; Enter is handled in script
@@ -514,6 +514,53 @@ class AssetTests(unittest.TestCase):
         js = ui_assets.APP_JS  # closed <details> never print, so the approval binding is opened for printing
         self.assertIn('addEventListener("beforeprint"', js)
         self.assertIn('addEventListener("afterprint"', js)
+
+    def test_app_shell_has_counts_drawer_and_bottom_tabs(self):
+        html, js = ui_assets.INDEX_HTML, ui_assets.APP_JS
+        for name in ("overview", "queue", "schedule"):
+            self.assertIn(f'data-count="{name}"', html)
+        self.assertIn('class="tabs"', html)
+        self.assertIn('id="more"', html)
+        self.assertIn('api("attention")', js)
+        self.assertIn("side.inert", js)  # the closed drawer is out of the tab order on a phone
+
+    def test_settings_popover_has_a_fallback_and_pauses_auto_refresh(self):
+        self.assertIn('id="settings" class="pop" popover', ui_assets.INDEX_HTML)
+        js = ui_assets.APP_JS
+        self.assertIn('typeof settings.togglePopover !== "function"', js)
+        self.assertIn("popOpen()", js[js.index("function holdRefresh"):js.index("function setAuto")])
+
+    def test_command_palette_only_navigates(self):
+        js = ui_assets.APP_JS
+        palette = js[js.index("// ---- command palette"):js.index("// ---- keyboard shortcuts")]
+        self.assertIn('api("posts")', palette)
+        self.assertIn("location.hash = target", palette)
+        self.assertNotRegex(palette, r"fetch\(|method")
+        self.assertIn('e.key.toLowerCase() === "k"', js)
+
+    def test_preview_and_sparkline_use_text_nodes_and_exact_values_only(self):
+        js = ui_assets.APP_JS
+        self.assertIn("function previewText(text)", js)
+        self.assertIn("The platform's own rendering", js)  # the look-alike says it is not the platform
+        spark = js[js.index("function spark(results)"):js.index("const EVENT_TONE")]
+        self.assertIn('r.metrics[k].state === "exact"', spark)
+        self.assertIn(">= 2", spark)  # no line from a single point
+
+    def test_results_hides_metrics_nobody_recorded_but_names_them(self):
+        js = ui_assets.APP_JS
+        self.assertIn("They stay unknown, not zero.", js)
+
+    def test_tab_icon_is_static_svg_without_script(self):
+        svg = ui_assets.ICON_SVG
+        self.assertTrue(svg.startswith("<svg"))
+        self.assertNotRegex(svg.lower(), r"<script|\son[a-z]+=|href=")
+        self.assertIn('href="icon.svg"', ui_assets.INDEX_HTML)
+        self.assertEqual(ui_server.STATIC["icon.svg"][0], "image/svg+xml")
+
+    def test_icons_are_drawn_here(self):
+        js = ui_assets.APP_JS
+        self.assertIn("const ICONS = {", js)
+        self.assertNotIn("<svg", ui_assets.INDEX_HTML)  # icons are built with createElementNS, never parsed
 
     def test_script_has_no_write_requests(self):
         js = ui_assets.APP_JS

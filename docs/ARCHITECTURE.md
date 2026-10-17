@@ -682,6 +682,8 @@ browser --GET /<token>/api/*--> ui_server.Handler  (loopback, token, Host/Origin
    campaigns, campaign?name= -> storage.list_posts + campaign_variants (grouping only; no shared approval)
    search?q= -> list_posts + shared_entries, substring match in Python (never SQL text); schedule?days=1..62
    suggest -> suggest.build_suggestions(con=...) minus publishing-safety items (already status reasons)
+   attention -> ui_data.schedule_view + list_posts: status counts and the posts needing a human, one kind each (nav counts, Needs you)
+   icon.svg -> a static tab icon (shapes only, no script)
                                    |  every document through privacy.redact_value
                                    v
                        JSON; ui_assets.APP_JS inserts it as text (never HTML)

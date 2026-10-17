@@ -41,6 +41,8 @@ CAMPAIGN_LIMIT = 200
 SEARCH_LIMIT = 50
 SEARCH_MAX_CHARS = 100
 MAX_SCHEDULE_DAYS = 62
+ATTENTION_LIMIT = 20
+ATTENTION_HORIZON_DAYS = 36500
 # Rows a human has to look at first, in this order.
 ATTENTION_ORDER = {"needs_review": 0, "sending": 1, "approved": 2, "scheduled": 3, "draft": 4,
                    "published": 5, "cancelled": 6}
@@ -269,6 +271,49 @@ def schedule_view(con, *, now: str | None = None, days: int = SCHEDULE_DAYS) -> 
     unscheduled.sort(key=lambda item: (item["approved_at"] or "", item["id"]))
     return {"now": now, "days": days, "approval_max_age_hours": max_age, "overdue": overdue, "upcoming": upcoming,
             "sending": sending, "unscheduled": unscheduled, "later": later}
+
+
+# What a human has to look at, most urgent first; a post is listed once, under its most urgent kind.
+ATTENTION_KINDS = ("needs_review", "sending", "approval_expired", "overdue", "expires_before_due", "draft")
+
+
+def attention_view(con, *, now: str | None = None) -> dict:
+    """Status counts for the navigation badges plus the posts that need a human, by kind. Nothing is changed.
+
+    ``kinds`` counts every post of each kind; ``items`` lists at most ``ATTENTION_LIMIT`` of them, most urgent
+    first. Drafts are listed oldest first: the longest-waiting draft is the one most likely forgotten."""
+    plan = schedule_view(con, now=now, days=ATTENTION_HORIZON_DAYS)  # every scheduled post, however far out
+    counts: dict[str, int] = {}
+    waiting = []
+    for row in list_posts(con):
+        counts[row["status"]] = counts.get(row["status"], 0) + 1
+        if row["status"] in ("needs_review", "draft"):
+            waiting.append(row)
+    found: dict[str, tuple[str, dict]] = {}
+    for item in plan["sending"]:
+        found[item["id"]] = ("sending", item)
+    for group in ("overdue", "upcoming", "unscheduled"):
+        for item in plan[group]:
+            kind = ("approval_expired" if item["approval_expired"] else "overdue" if group == "overdue"
+                    else "expires_before_due" if item["expires_before_due"] else None)
+            if kind:
+                found[item["id"]] = (kind, item)
+    for row in sorted(waiting, key=lambda r: (r["created_at"] or "", r["id"])):
+        item = redact_value({"id": row["id"], "status": row["status"], "account_id": row["account_id"],
+                             "platform": row["platform"], "campaign": row["campaign"],
+                             "scheduled_at": row["scheduled_at"], "approved_at": row["approved_at"],
+                             "last_error": row["last_error"], "created_at": row["created_at"]})
+        item["excerpt"] = _excerpt(row["content"])
+        item["looks_like_secret"] = redact(row["content"]) != row["content"]
+        found[row["id"]] = (row["status"], item)
+    order = {kind: i for i, kind in enumerate(ATTENTION_KINDS)}
+    ranked = sorted(found.values(), key=lambda pair: order[pair[0]])  # stable: each kind keeps its own order
+    kinds = {kind: 0 for kind in ATTENTION_KINDS}
+    for kind, _ in ranked:
+        kinds[kind] += 1
+    items = [dict(item, kind=kind) for kind, item in ranked[:ATTENTION_LIMIT]]
+    return {"now": plan["now"], "counts": counts, "kinds": kinds, "total": len(ranked), "items": items,
+            "truncated": len(ranked) > len(items)}
 
 
 def safety_view(con, db_path: Path, accounts: dict | None, accounts_path: Path, base: Path,

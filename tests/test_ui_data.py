@@ -298,6 +298,47 @@ class ScheduleTests(DataBase):
             self.assertNotIn(SECRET, json.dumps(ui_data.schedule_view(con, now=NOW)))
 
 
+class AttentionTests(ScheduleTests):
+    def test_each_post_is_listed_once_under_its_most_urgent_kind(self):
+        overdue = self.schedule("Missed", "2026-10-08T09:59:00+00:00")
+        later = self.schedule("Late", "2026-12-30T10:00:00+00:00")  # far beyond the schedule page's window
+        with connect(str(self.db)) as con:
+            set_approval_max_age_hours(con, 24)
+        with ui_data.open_database(self.db) as con:
+            view = ui_data.attention_view(con, now=NOW)
+        kinds = {item["id"]: item["kind"] for item in view["items"]}
+        self.assertEqual(kinds[self.review], "needs_review")
+        self.assertEqual(kinds[self.draft], "draft")
+        self.assertEqual(kinds[overdue], "overdue")
+        self.assertEqual(kinds[later], "expires_before_due")
+        self.assertEqual(len(kinds), len(view["items"]))
+        order = [ui_data.ATTENTION_KINDS.index(item["kind"]) for item in view["items"]]
+        self.assertEqual(order, sorted(order))
+        self.assertEqual(view["counts"]["needs_review"], 1)
+        self.assertEqual(sum(view["kinds"].values()), view["total"])
+
+    def test_expired_approval_outranks_overdue(self):
+        pid = self.schedule("Missed", "2026-10-08T09:59:00+00:00")
+        with connect(str(self.db)) as con:
+            set_approval_max_age_hours(con, 1)
+        with ui_data.open_database(self.db) as con:
+            view = ui_data.attention_view(con, now="2030-01-01T00:00:00+00:00")  # approvals carry the real clock
+        self.assertEqual(next(i["kind"] for i in view["items"] if i["id"] == pid), "approval_expired")
+
+    def test_list_is_capped_and_redacted_and_text_flagged(self):
+        with connect(str(self.db)) as con:
+            for n in range(ui_data.ATTENTION_LIMIT + 3):
+                add_post(con, "u-bluesky", "bluesky", f"Draft {n}")
+        before = digest(self.db)
+        with ui_data.open_database(self.db) as con:
+            view = ui_data.attention_view(con, now=NOW)
+        self.assertEqual(len(view["items"]), ui_data.ATTENTION_LIMIT)
+        self.assertTrue(view["truncated"])
+        blob = json.dumps(view)
+        self.assertNotIn(SECRET, blob)
+        self.assertEqual(digest(self.db), before)
+
+
 class SafetyTests(DataBase):
     def view(self, root=None):
         with ui_data.open_database(self.db) as con:

@@ -52,7 +52,8 @@ SECURITY_HEADERS = {
 }
 STATIC = {"": ("text/html; charset=utf-8", ui_assets.INDEX_HTML),
           "app.css": ("text/css; charset=utf-8", ui_assets.APP_CSS),
-          "app.js": ("text/javascript; charset=utf-8", ui_assets.APP_JS)}
+          "app.js": ("text/javascript; charset=utf-8", ui_assets.APP_JS),
+          "icon.svg": ("image/svg+xml", ui_assets.ICON_SVG)}
 
 
 class DashboardServer(ThreadingHTTPServer):
@@ -276,6 +277,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not CAMPAIGN_NAME.fullmatch(text):  # printable text only; used as a substring, never as SQL
                     raise ValidationError("search needs printable text")
                 self._json(200, ui_data.search(con, text))
+            elif route == "attention":
+                self._json(200, ui_data.attention_view(con))
             elif route == "safety":
                 self._json(200, self._safety(con))
             elif route == "suggest":
