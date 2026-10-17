@@ -21,11 +21,14 @@ import hmac
 import json
 import re
 import secrets
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from . import start, ui_assets, ui_data
+from . import home, start, ui_assets, ui_data
+from .accounts import accounts_path as resolve_accounts_path
 from .accounts import load_accounts
 from .distribution import GOALS, build_distribution_plan, load_registry
 from .optout import load_optout, optout_source
@@ -35,6 +38,7 @@ from .privacy import redact
 LOOPBACK_HOSTS = ("127.0.0.1", "localhost")
 POST_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 FILTER_VALUE = re.compile(r"[A-Za-z0-9_.:@ -]{1,80}")
+SAFETY_TTL = 60  # seconds: the folder check hashes the files of unsent posts, so auto-refresh reuses it briefly
 SECURITY_HEADERS = {
     "Content-Security-Policy": ("default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; "
                                 "img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"),
@@ -61,6 +65,8 @@ class DashboardServer(ThreadingHTTPServer):
         self.accounts_path = accounts_path
         self.optout_path = optout_path
         self.token = token
+        self.safety_lock = threading.Lock()
+        self.safety_cache: tuple[float, dict] | None = None
 
     @property
     def allowed_hosts(self) -> frozenset[str]:
@@ -198,6 +204,20 @@ class Handler(BaseHTTPRequestHandler):
     def _accounts(self):
         return ui_data.load_accounts_view(lambda: load_accounts(self.server.accounts_path))
 
+    def _safety(self, con) -> dict:
+        server = self.server
+        with server.safety_lock:
+            cached = server.safety_cache
+            if cached is not None and time.monotonic() - cached[0] < SAFETY_TTL:
+                return cached[1]
+            accounts, error = self._accounts()
+            document = ui_data.safety_view(con, server.database, None if error else accounts,
+                                           resolve_accounts_path(server.accounts_path), home.root() or Path.cwd(),
+                                           home.root())
+            document["checked_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            server.safety_cache = (time.monotonic(), document)
+            return document
+
     def _api(self, route: str, query: dict) -> None:
         server = self.server
         if route == "next":  # the same read-only guidance as the `start` command
@@ -242,5 +262,14 @@ class Handler(BaseHTTPRequestHandler):
             elif route == "accounts":
                 accounts, error = self._accounts()
                 self._json(200, ui_data.accounts_view(accounts, error))
+            elif route == "journal":
+                self._json(200, ui_data.journal_view(con, platform=self._filter(query, "platform"),
+                                                     account=self._filter(query, "account")))
+            elif route == "schedule":
+                self._json(200, ui_data.schedule_view(con))
+            elif route == "safety":
+                self._json(200, self._safety(con))
+            elif route == "suggest":
+                self._json(200, ui_data.suggestions_view(con))
             else:
                 self._error(404, "not found")

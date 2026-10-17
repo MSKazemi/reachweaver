@@ -17,7 +17,8 @@ from reachweaver import ui_data
 from reachweaver.accounts import load_accounts
 from reachweaver.cli import main
 from reachweaver.policy import ValidationError
-from reachweaver.storage import add_post, claim_sending, connect, transition, uncertain_send
+from reachweaver.storage import (add_post, claim_sending, connect, finish_send, record_shared,
+                                 set_approval_max_age_hours, transition, uncertain_send)
 
 SECRET = "-".join(("very", "private", "app", "password", "value"))
 BSKY = {"id": "u-bluesky", "platform": "bluesky", "env_prefix": "REACHWEAVER_U_BSKY", "handle": "o.bsky.social"}
@@ -216,6 +217,149 @@ class SecretTests(DataBase):
         with ui_data.open_database(self.db) as con:
             summary = ui_data.overview(con, accounts, error)
         self.assertIn("overall", summary)
+
+
+class JournalTests(DataBase):
+    def setUp(self):
+        super().setUp()
+        with connect(str(self.db)) as con:  # a second account: the first is held by its needs_review post
+            self.sent = add_post(con, "u-bluesky-2", "bluesky", "Sent text " + HOSTILE)
+            transition(con, self.sent, "approve", approver="owner")
+            self.assertTrue(claim_sending(con, self.sent, now=NOW))
+            finish_send(con, self.sent, "at://did:x/post/1", "https://bsky.app/profile/o.bsky.social/post/1")
+            self.by_hand = record_shared(con, platform="youtube", account_id=None, content="Shared by hand",
+                                         images=[], video=None, links=[], posted_at=NOW,
+                                         url="https://youtube.com/watch?v=x", note="note " + SECRET)
+
+    def test_posted_and_hand_shared_entries_newest_first_without_secrets(self):
+        with ui_data.open_database(self.db) as con:
+            view = ui_data.journal_view(con)
+        ids = [e["id"] for e in view["entries"]]
+        # posted or possibly posted (needs_review), plus by hand; drafts and approved posts are not in the journal
+        self.assertEqual(set(ids), {self.sent, self.review, self.by_hand})
+        self.assertEqual(ids[0], self.sent)  # sent now, after the hand-shared post dated NOW
+        sent = view["entries"][0]
+        self.assertIn(HOSTILE, sent["excerpt"])  # returned as data; the page inserts it as text
+        self.assertEqual((sent["source"], sent["approved_by"], sent["status"]), ("reachweaver", "owner", "published"))
+        self.assertNotIn("text", sent)
+        by_id = {e["id"]: e for e in view["entries"]}
+        self.assertEqual(by_id[self.by_hand]["source"], "by_hand")
+        self.assertEqual(by_id[self.review]["status"], "needs_review")
+        self.assertNotIn(SECRET, json.dumps(view))
+        self.assertFalse(view["truncated"])
+        self.assertIn("Local record", view["note"])
+
+    def test_account_filter_keeps_hand_shared_entries_without_an_account(self):
+        with ui_data.open_database(self.db) as con:
+            self.assertEqual(len(ui_data.journal_view(con, account="u-bluesky-2")["entries"]), 2)
+            self.assertEqual(len(ui_data.journal_view(con, account="u-bluesky")["entries"]), 2)  # needs_review + by hand
+            self.assertEqual(len(ui_data.journal_view(con, platform="youtube")["entries"]), 1)
+
+
+class ScheduleTests(DataBase):
+    def schedule(self, text, at):
+        with connect(str(self.db)) as con:
+            pid = add_post(con, "u-bluesky", "bluesky", text)
+            transition(con, pid, "approve", approver="owner")
+            transition(con, pid, "schedule", scheduled_at=at)
+        return pid
+
+    def test_overdue_upcoming_later_and_unscheduled_groups(self):
+        overdue = self.schedule("Missed", "2026-10-08T09:59:00+00:00")
+        soon = self.schedule("Soon", "2026-10-08T23:30:00-02:00")  # 01:30 UTC on the 9th: a day-boundary case
+        edge = self.schedule("Day 13", "2026-10-21T09:00:00+00:00")
+        far = self.schedule("Day 15", "2026-10-23T10:00:00+00:00")
+        with ui_data.open_database(self.db) as con:
+            view = ui_data.schedule_view(con, now=NOW)
+        self.assertEqual([p["id"] for p in view["overdue"]], [overdue])
+        self.assertEqual([p["id"] for p in view["upcoming"]], [soon, edge])
+        self.assertEqual(view["upcoming"][0]["scheduled_at"], "2026-10-09T01:30:00+00:00")  # normalised to UTC
+        self.assertEqual(view["later"], 1)
+        self.assertNotIn(far, json.dumps(view))
+        self.assertEqual([p["id"] for p in view["unscheduled"]], [self.approved])
+        self.assertEqual(view["sending"], [])  # needs_review is the Queue's business, not the schedule's
+        self.assertIsNone(view["approval_max_age_hours"])
+
+    def test_an_approval_that_expires_before_its_time_is_flagged(self):
+        pid = self.schedule("Late", "2026-10-30T10:00:00+00:00")
+        with connect(str(self.db)) as con:
+            set_approval_max_age_hours(con, 24)
+        with ui_data.open_database(self.db) as con:
+            view = ui_data.schedule_view(con, now=NOW, days=30)
+            expired = ui_data.schedule_view(con, now="2030-01-01T00:00:00+00:00")
+        item = next(p for p in view["upcoming"] if p["id"] == pid)
+        self.assertTrue(item["expires_before_due"])
+        self.assertTrue(item["approval_expires_at"])
+        self.assertEqual(view["approval_max_age_hours"], 24)
+        self.assertTrue(all(p["approval_expired"] for p in expired["overdue"] + expired["unscheduled"]))
+
+    def test_errors_are_redacted_and_text_is_flagged_not_changed(self):
+        with ui_data.open_database(self.db) as con:
+            self.assertNotIn(SECRET, json.dumps(ui_data.schedule_view(con, now=NOW)))
+
+
+class SafetyTests(DataBase):
+    def view(self, root=None):
+        with ui_data.open_database(self.db) as con:
+            return ui_data.safety_view(con, self.db, self.accounts, self.config, self.base, root)
+
+    def test_plain_language_ledger_state_and_no_marker_is_only_a_note(self):
+        view = self.view()
+        self.assertIn(view["ledger"]["status"], ui_data.LEDGER_SENTENCE)
+        self.assertEqual(view["ledger"]["sentence"], ui_data.LEDGER_SENTENCE[view["ledger"]["status"]])
+        self.assertEqual(view["integrity"], "ok")
+        marker = next(c for c in view["checks"] if c["code"] == "not_a_marked_workspace")
+        self.assertEqual(marker["level"], "info")
+        self.assertNotIn(SECRET, json.dumps(view))
+
+    def test_ledger_problems_name_the_post_and_say_what_to_do(self):
+        audit = {"status": "broken", "problems": [{"post_id": self.review, "reason": "approval_ledger_broken"},
+                                                  {"post_id": self.approved,
+                                                   "reason": "approval_replay_reapproval_required"}]}
+        with patch("reachweaver.ui_data.ledger.audit", return_value=audit):
+            view = self.view()
+        self.assertEqual(view["ledger"]["status"], "broken")
+        self.assertEqual([p["post_id"] for p in view["ledger"]["problems"]], [self.review, self.approved])
+        self.assertIn("Approve it again", view["ledger"]["problems"][1]["sentence"])
+        self.assertFalse(any(c["code"].startswith("approval_ledger_") for c in view["checks"]))
+
+    def test_every_ledger_state_has_a_sentence(self):
+        for state in ("ok", "absent", "not_checked", "broken", "unavailable"):
+            self.assertTrue(ui_data.LEDGER_SENTENCE[state])
+
+    def test_a_missing_attachment_of_an_unsent_post_is_reported(self):
+        image = self.base / "pic.png"
+        image.write_bytes(b"\x89PNG\r\n\x1a\n" + b"0" * 64)
+        with connect(str(self.db)) as con:
+            con.execute("UPDATE posts SET media_json=? WHERE id=?", (json.dumps(
+                [{"source": "local", "path": str(image), "sha256": "0" * 64, "mime": "image/png", "bytes": 72,
+                  "width": 1, "height": 1, "alt": "x", "focus": None}]), self.draft))
+        image.unlink()
+        codes = [c["code"] for c in self.view()["checks"]]
+        self.assertIn("attachment_missing", codes)
+
+
+class SuggestionTests(DataBase):
+    def test_suggestions_leave_out_what_the_overview_already_lists(self):
+        with ui_data.open_database(self.db) as con:
+            view = ui_data.suggestions_view(con)
+        self.assertTrue(all(a["kind"] != "publishing_safety" for a in view["actions"]))
+        self.assertLessEqual(len(view["actions"]), ui_data.SUGGESTION_LIMIT)
+        self.assertTrue(view["limitations"])
+        self.assertNotIn(SECRET, json.dumps(view))
+
+
+class NewViewsReadOnlyTests(JournalTests):
+    def test_new_views_leave_the_database_and_folder_unchanged(self):
+        before = digest(self.db)
+        siblings = sorted(p.name for p in self.db.parent.iterdir())
+        with ui_data.open_database(self.db) as con:
+            ui_data.journal_view(con)
+            ui_data.schedule_view(con, now=NOW)
+            ui_data.safety_view(con, self.db, self.accounts, self.config, self.base, None)
+            ui_data.suggestions_view(con)
+        self.assertEqual(digest(self.db), before)
+        self.assertEqual(sorted(p.name for p in self.db.parent.iterdir()), siblings)
 
 
 FORBIDDEN_NAMES = frozenset({

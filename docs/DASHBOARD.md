@@ -1,6 +1,6 @@
 # Local dashboard and friendlier terminal output
 
-> Status: **experimental**. Read-only. Verified in desktop Chrome (light and dark, keyboard shortcuts, a 400 px-wide frame for the narrow layout) and by offline tests; it has not been tried on a real phone or in other browsers.
+> Status: **experimental**. Read-only. Verified in desktop Chrome (light and dark, keyboard shortcuts, the narrow layout at 375, 400 and 414 px in a frame, printing a post page to PDF) and by offline tests; it has not been tried on a real phone or in other browsers.
 
 ReachWeaver is a command-line tool. `reachweaver ui` adds an optional **read-only dashboard** that shows what is in your local database in a browser. It exists to make review easier: see what needs a human, read the exact text of a post next to its approval state, and find the command to run next. It does not replace the terminal for any action.
 
@@ -9,6 +9,7 @@ ReachWeaver is a command-line tool. `reachweaver ui` adds an optional **read-onl
 | It can | It cannot (by design) |
 | --- | --- |
 | Show the queue, newest first, with posts that need a human at the top | Approve, unapprove, cancel or schedule a post |
+| Show what is scheduled, day by day, and what was already posted | Move a post to another time |
 | Show one post's exact text, offline platform preview, approval binding, media/video/reply state and event timeline | Publish, send, retry or reconcile anything |
 | Show readiness, the emergency-stop state, per-account budgets and dead letters | Pause or resume the emergency stop |
 | List configured accounts and the **names** of missing credential variables | Show, accept or store a credential value |
@@ -33,8 +34,14 @@ Keep the address private. It is the only thing that lets a browser read your que
 
 ## Pages
 
-- **Overview**: a banner for the emergency stop or overall readiness (`ok`, `attention`, `blocked`), a **What to do next** card (the same guidance as `reachweaver start`, with copyable commands), counts per status that link into the queue, the reasons behind the status in plain language, per-account state and dead letters. The browser tab title shows how many sends need review, e.g. `(1) ReachWeaver Dashboard`.
+- **Overview**: a banner for the emergency stop or overall readiness (`ok`, `attention`, `blocked`), a **What to do next** card (the same guidance as `reachweaver start`, with copyable commands), counts per status that link into the queue (the "scheduled" count opens the Schedule), the reasons behind the status in plain language, then two checks that load after the page:
+  - **Files and approvals**: the approval ledger's state in a sentence (`ok`, `absent`, `broken` ...), with a link to each affected post and what to do, the database integrity check, and the same folder check as `reachweaver workspace`: a missing or changed attachment of an unsent post, a database or ledger that is readable by other users, a run in progress. Informational notes are folded away. Because the check hashes the files of unsent posts, the dashboard reuses its result for up to a minute.
+  - **Suggestions**: up to five offline rules from `reachweaver suggest --include-db`, such as published posts with no first-party metric snapshot yet. They are rules over your local database, not a reach prediction, and each needs a human. Safety items are left out here because the status reasons already list them. The card is hidden when there is nothing to suggest.
+
+  The page ends with per-account state and dead letters. The browser tab title shows how many sends need review, e.g. `(1) ReachWeaver Dashboard`.
 - **Queue**: status chips and an account menu filter the list, and a search box narrows the posts shown. Posts in `needs_review` come first because a send ended in an unknown state and a human must check the native platform. Empty states say what to do next.
+- **Schedule**: approved posts by due time, shown in your local time (the UTC time on hover). Posts past their time come first, then sends in progress, then the next 14 days grouped by day ("Today", "Tomorrow", then the date), then approved posts with no time set. When you have set an approval time limit (`approval-mode --max-age-hours`), a post whose approval has expired, or will expire before its due time, is flagged. Only a worker you run sends anything, and `reachweaver pause` stops every send.
+- **Posted**: the record from `reachweaver journal`, newest first: what ReachWeaver sent (with the approver and a link to the remote post), sends that ended in an unknown state ("possibly posted: check the platform"), and what you recorded as shared by hand with `mark-shared`. Search and an account menu narrow the list; it shows the newest 100. Files are listed by kind and count only; the dashboard does not open them.
 - **Post**: a status card that says in plain language what the state means and offers the next command to run; the exact text with a **length meter** against the platform's own limit (Bluesky, Mastodon, LinkedIn) and a Copy text button; the approval binding, offline platform preview and attachments in collapsible sections; previous/next post links; and the event timeline with relative times ("2 hours ago", exact time on hover).
 
 The exact text is shown **as stored**, not redacted, because you are reviewing what would be sent. A warning appears when it looks like it contains a password, token or key. Errors, events and previews are redacted.
@@ -45,11 +52,15 @@ A value that is not recorded is shown as "unknown", never as zero.
 
 ## Keyboard shortcuts
 
-Press `?` for the list. `g` then `o`/`q`/`a`/`c` jumps to Overview, Queue, Accounts or Channels; `j`/`k` move through the queue and `Enter` opens the selected post; `[` and `]` go to the previous or next post; `/` searches the queue; `r` refreshes; `t` cycles the theme; `Esc` leaves a field. Shortcuts are ignored while you type in a field.
+Press `?` for the list. `g` then `o`/`q`/`s`/`p`/`a`/`c` jumps to Overview, Queue, Schedule, Posted, Accounts or Channels; `j`/`k` move through the queue or the posted list and `Enter` opens the selected post; `[` and `]` go to the previous or next post; `/` searches the queue or the posted list; `r` refreshes; `t` cycles the theme; `Esc` leaves a field. Shortcuts are ignored while you type in a field.
 
 ## Narrow screens
 
-Under 640 pixels wide, tables become stacked labelled cards, the filter chips and navigation wrap, and the header scrolls away instead of staying fixed. I checked this in a 400 px-wide frame in desktop Chrome; I have not tried a real phone.
+Under 640 pixels wide, tables become stacked labelled cards, the filter chips and navigation wrap, and the header scrolls away instead of staying fixed. Every page was checked in 375, 400 and 414 px-wide frames in desktop Chrome, with no sideways scrolling; it has not been tried on a real phone.
+
+## Printing a post
+
+Print a post page, or save it as PDF from the browser's print dialog, to keep a copy of what you reviewed. The printout leaves out the navigation and buttons, and opens the collapsed sections, so it includes the approval details (payload hash, approver, channel) and the offline preview next to the exact text.
 
 ## Theme and refresh
 

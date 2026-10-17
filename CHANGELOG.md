@@ -6,6 +6,10 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Added
+
+- **Dashboard: Schedule and Posted pages, plus two Overview checks.** `reachweaver ui` now answers "what goes out this week" and "what did I post" without the terminal. **Schedule** lists approved posts by due time in your local time: posts past their time, sends in progress, the next 14 days grouped by day, and approved posts with no time set. It flags an approval that has expired, or that expires before its due time, when `approval-mode --max-age-hours` is set. **Posted** shows the `journal` record: what ReachWeaver sent, possibly-posted sends that need review, and what you recorded with `mark-shared`, with search and an account filter. The Overview gains **Files and approvals**, which reports the approval-ledger state in plain language, with links to affected posts, plus the `workspace` folder check (missing attachments of unsent posts, private permissions, a run in progress). It also gains **Suggestions**, the offline `suggest --include-db` rules, safety items excluded because the status reasons already list them. New shortcuts: `g s` and `g p`. Printing a post page (or saving it as PDF) leaves out the controls and includes the approval details. Everything stays read-only: GET only, `mode=ro`, no new write, send or credential path. The folder check hashes the files of unsent posts, so the server reuses its result for up to a minute. Checked in desktop Chrome in light and dark themes, and at 375 and 414 px with a DOM snapshot in a narrow frame; not yet on a real phone.
+
 ## [0.5.3] - 2026-10-17
 
 A patch release for people who install with `pipx install reachweaver`: `reachweaver workspace --init` now creates `config/accounts.json` from the pip package, so the first `doctor` works. Plus two install guides. No change to approval, dry-run, emergency-stop or credential rules.

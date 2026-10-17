@@ -270,6 +270,49 @@ class ApiTests(ServerBase):
         self.assertEqual(hashlib.sha256(self.db.read_bytes()).hexdigest(), before)
         self.assertEqual(sorted(p.name for p in self.db.parent.iterdir()), names)
 
+    def test_schedule_posted_safety_and_suggest_endpoints(self):
+        status, schedule = self.api("schedule")
+        self.assertEqual(status, 200)
+        self.assertLessEqual({"overdue", "upcoming", "unscheduled", "sending", "later"}, set(schedule))
+        status, journal = self.api("journal")
+        self.assertEqual(status, 200)
+        self.assertEqual([e["id"] for e in journal["entries"]], [self.review])  # possibly posted, so it is listed
+        self.assertEqual(self.api("journal?account=nobody")[1]["entries"], [])
+        self.assertEqual(self.api("journal?platform=%3Cx%3E")[0], 400)
+        status, safety = self.api("safety")
+        self.assertEqual(status, 200)
+        self.assertIn(safety["ledger"]["status"], ("ok", "absent", "not_checked", "broken", "unavailable"))
+        self.assertTrue(safety["checked_at"])
+        status, suggest = self.api("suggest")
+        self.assertEqual(status, 200)
+        self.assertIn("actions", suggest)
+
+    def test_new_routes_are_get_only(self):
+        for rest in ("api/schedule", "api/journal", "api/safety", "api/suggest"):
+            status, headers, _ = self.request("POST", f"/{self.token}/{rest}", body=b"x")
+            self.assertEqual(status, 405, rest)
+
+    def test_the_folder_check_is_reused_for_a_minute_then_rechecked(self):
+        with patch("reachweaver.ui_server.ui_data.safety_view", wraps=ui_server.ui_data.safety_view) as view:
+            self.api("safety")
+            self.api("safety")
+            self.assertEqual(view.call_count, 1)
+            self.server.safety_cache = (self.server.safety_cache[0] - ui_server.SAFETY_TTL - 1, self.server.safety_cache[1])
+            self.api("safety")
+            self.assertEqual(view.call_count, 2)
+
+    def test_new_endpoints_carry_no_secret_and_leave_the_database_unchanged(self):
+        before = hashlib.sha256(self.db.read_bytes()).hexdigest()
+        names = sorted(p.name for p in self.db.parent.iterdir())
+        blobs = []
+        for rest in ("api/schedule", "api/journal", "api/safety", "api/suggest"):
+            status, _, body = self.get(rest)
+            self.assertEqual(status, 200, rest)
+            blobs.append(body.decode("utf-8", "replace"))
+        self.assertNotIn(SECRET, "".join(blobs))
+        self.assertEqual(hashlib.sha256(self.db.read_bytes()).hexdigest(), before)
+        self.assertEqual(sorted(p.name for p in self.db.parent.iterdir()), names)
+
     def test_database_removed_while_running_is_an_error_not_a_creation(self):
         self.db.unlink()
         for suffix in ("-wal", "-shm"):
@@ -375,6 +418,33 @@ class AssetTests(unittest.TestCase):
         self.assertIn('store("rw-auto") === "1"', js)
         self.assertIn("typing()", js)
         self.assertIn('visibilityState === "visible"', js)
+
+    def test_schedule_and_posted_pages_are_routed_and_reachable_by_keyboard(self):
+        html, js = ui_assets.INDEX_HTML, ui_assets.APP_JS
+        for route in ("schedule", "posted"):
+            self.assertIn(f'href="#/{route}" data-route="{route}"', html)
+        self.assertIn('schedule: ["schedule", viewSchedule], posted: ["posted", viewPosted]', js)
+        self.assertIn('s: "#/schedule", p: "#/posted"', js)
+        self.assertIn("g then o / q / s / p", js)
+
+    def test_enter_only_follows_in_page_links_and_rows_reset_per_page(self):
+        js = ui_assets.APP_JS
+        self.assertIn("""row.querySelector('a[href^="#/"]')""", js)  # a hand-shared row's first link may be remote
+        self.assertIn("queueRows = []; queueSel = -1;", js)
+
+    def test_overview_checks_load_late_and_cannot_break_the_page(self):
+        js = ui_assets.APP_JS
+        self.assertIn('lateCard("Files and approvals", safetyNodes)', js)
+        self.assertIn("Could not load this check", js)
+        self.assertIn("not a reach prediction", js)
+
+    def test_print_stylesheet_hides_controls(self):
+        css = ui_assets.APP_CSS
+        self.assertIn("@media print", css)
+        self.assertRegex(css, r"@media print \{[^@]*\.top, footer, \.pager")
+        js = ui_assets.APP_JS  # closed <details> never print, so the approval binding is opened for printing
+        self.assertIn('addEventListener("beforeprint"', js)
+        self.assertIn('addEventListener("afterprint"', js)
 
     def test_script_has_no_write_requests(self):
         js = ui_assets.APP_JS

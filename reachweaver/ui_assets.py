@@ -25,6 +25,8 @@ INDEX_HTML = r"""<!doctype html>
   <nav aria-label="Sections" id="nav">
     <a href="#/" data-route="overview">Overview</a>
     <a href="#/queue" data-route="queue">Queue</a>
+    <a href="#/schedule" data-route="schedule">Schedule</a>
+    <a href="#/posted" data-route="posted">Posted</a>
     <a href="#/accounts" data-route="accounts">Accounts</a>
     <a href="#/distribution" data-route="distribution">Channels</a>
   </nav>
@@ -167,6 +169,13 @@ dialog::backdrop { background: rgba(0, 0, 0, .45); }
 dialog h2 { margin-top: 0; }
 dialog table td { border: 0; padding: 3px 10px 3px 0; }
 kbd { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; }
+.agenda table { table-layout: fixed; }  /* the same columns line up from one day to the next */
+.agenda th:nth-child(1) { width: 140px; } .agenda th:nth-child(2) { width: 120px; } .agenda th:nth-child(4) { width: 180px; }
+.day { margin: 18px 0 6px; font-size: 15px; } .day small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+.flag { display: block; font-size: 13px; color: var(--warn); } .flag.bad { color: var(--bad); font-weight: 600; }
+.src { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.suggest ol { margin: 6px 0 0; padding-left: 20px; } .suggest li { margin: 0 0 10px; }
+.late > strong { display: block; margin-bottom: 4px; }
 @media (max-width: 640px) {
   main { padding-top: 14px; }
   .top { position: static; }  /* a three-row sticky header would cover a third of a phone screen */
@@ -179,6 +188,14 @@ kbd { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var
   td { border: 0; padding: 4px 14px; }
   td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
   td.num { text-align: left; }
+}
+@media print {
+  /* A post sheet printed or saved as PDF: the exact text and the approval binding, no controls. */
+  :root, :root[data-theme="dark"] { --bg: #fff; --panel: #fff; --ink: #000; --muted: #444; --line: #bbb; --code-bg: #fff; }
+  .top, footer, .pager, #toast, .skip, button { display: none !important; }
+  main { max-width: none; padding: 0; }
+  .card, .exact, pre.json, .tablewrap { break-inside: avoid; }
+  a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 11px; }
 }
 @media (prefers-reduced-motion: no-preference) { .tile, button, nav a { transition: border-color .12s, background .12s; } #toast { transition: opacity .18s; } }
 """
@@ -316,7 +333,7 @@ async function viewOverview() {
       ? h("small", null, "Only credentials are missing: drafting, review and dry runs still work. They are needed for live sends only.") : null));
   out.push(nextCard(guide));
   out.push(h("div", { class: "tiles" }, STATUS_ORDER.map(k =>
-    h("a", { class: "tile", href: "#/queue?status=" + k }, h("b", null, counts[k] || 0), h("span", null, STATUS_LABEL[k])))));
+    h("a", { class: "tile", href: k === "scheduled" ? "#/schedule" : "#/queue?status=" + k }, h("b", null, counts[k] || 0), h("span", null, STATUS_LABEL[k])))));
   out.push(h("h2", null, "Why this status"));
   const groups = new Map();  // one row per (level, code); the accounts it affects are listed together
   for (const r of s.reasons) { const key = r.level + "/" + r.code; if (!groups.has(key)) groups.set(key, { r, accounts: [] }); if (r.account_id) groups.get(key).accounts.push(r.account_id); }
@@ -325,6 +342,7 @@ async function viewOverview() {
     h("code", null, r.code), accounts.length ? " (" + accounts.join(", ") + ")" : "",
     h("div", { class: "muted" }, REASON_HELP[r.code] || "See docs/TROUBLESHOOTING.md for this code.")))) :
     h("div", { class: "card muted" }, "Nothing needs attention."));
+  out.push(lateCard("Files and approvals", safetyNodes), lateCard("Suggestions", suggestionNodes, "suggest"));
   out.push(h("h2", null, "Accounts"));
   out.push(s.accounts.length ? table(["Account", "Platform", "Adapter", "Status", "Sent / 24h", "Needs review", "Missing credentials"],
     s.accounts.map(a => h("tr", null,
@@ -338,6 +356,121 @@ async function viewOverview() {
   out.push(h("div", { class: "card" }, s.dead_letter.total ? kv(s.dead_letter.by_code) : "None."));
   out.push(h("p", { class: "muted" }, s.note));
   return out;
+}
+
+// Cards filled after the page is shown, so a slow or failing check never blocks the Overview.
+function lateCard(title, loader, extra) {
+  const box = h("div", { class: "card late" + (extra ? " " + extra : "") }, h("strong", null, title), h("p", { class: "muted" }, "Checking…"));
+  loader().then(nodes => { const kids = nodes.flat().filter(Boolean); if (!kids.length) { box.hidden = true; return; } box.replaceChildren(h("strong", null, title), ...kids); })
+    .catch(err => { box.replaceChildren(h("strong", null, title), h("p", { class: "muted" }, "Could not load this check: " + err.message)); });
+  return box;
+}
+const LEDGER_CLASS = { ok: "ok", absent: "ok", not_checked: "attention", broken: "blocked", unavailable: "blocked" };
+const CHECK_LEVEL = { blocking: ["blocked", "Problem"], warning: ["attention", "Attention"], info: ["", "Note"] };
+async function safetyNodes() {
+  const d = await api("safety");
+  const out = [h("div", { class: "reason" }, h("span", { class: "chip " + (LEDGER_CLASS[d.ledger.status] || "attention") }, "approval ledger: " + d.ledger.status.replace(/_/g, " ")), " ", d.ledger.sentence)];
+  for (const p of d.ledger.problems) out.push(h("div", { class: "reason" },
+    p.post_id ? h("a", { href: "#/post/" + encodeURIComponent(p.post_id) }, "Post " + p.post_id) : "The ledger", ": ", p.sentence));
+  out.push(h("div", { class: "reason" }, h("span", { class: "chip " + (d.integrity === "ok" ? "ok" : "blocked") }, "database: " + (d.integrity || "unknown")),
+    " ", d.workspace ? "Workspace folder: " + d.workspace : "Not a marked workspace folder."));
+  const check = c => { const [cls, label] = CHECK_LEVEL[c.level] || ["", c.level];
+    return h("div", { class: "reason" }, h("span", { class: "lvl " + cls }, label), h("code", null, c.code), h("div", null, c.detail), h("div", { class: "muted" }, c.advice)); };
+  const notes = d.checks.filter(c => c.level === "info");
+  out.push(d.checks.filter(c => c.level !== "info").map(check));
+  if (notes.length) out.push(h("details", null, h("summary", null, notes.length + (notes.length === 1 ? " note" : " notes")), notes.map(check)));
+  out.push(h("p", { class: "note" }, "Checked ", when(d.checked_at), "; rechecked at most once a minute. The same check as ", h("code", null, "reachweaver workspace"), "."));
+  return out;
+}
+async function suggestionNodes() {
+  const d = await api("suggest");
+  if (!d.actions.length) return [];
+  return [h("p", { class: "muted" }, "Offline rules over your local database, not a reach prediction. Each needs a human; nothing here changes anything."),
+    h("ol", null, d.actions.map(a => h("li", null, h("span", { class: "src" }, a.priority), " ", h("b", null, a.title), a.platform ? " (" + a.platform + ")" : "",
+      h("div", null, a.next_step), h("div", { class: "note" }, "Evidence: " + a.evidence_source.replace(/_/g, " ") + " · " + a.confidence.replace(/_/g, " "))))),
+    d.more ? h("p", { class: "note" }, d.more + " more: ", h("code", null, "reachweaver suggest --include-db")) : null];
+}
+
+// ---- Schedule (agenda by your local day; the UTC time on hover)
+function localDay(iso) { const d = new Date(iso); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function dayTitle(iso) {
+  const key = localDay(iso), today = localDay(new Date().toISOString()), tomorrow = localDay(new Date(Date.now() + 86400000).toISOString());
+  let label = key;
+  try { label = new Date(iso).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }); } catch (e) { /* keep the ISO date */ }
+  const near = key === today ? "Today" : key === tomorrow ? "Tomorrow" : null;
+  return h("h3", { class: "day" }, near || label, near ? h("small", null, label) : null);
+}
+function clock(iso) {
+  let text = iso;
+  try { text = new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); } catch (e) { /* keep the ISO time */ }
+  return h("time", { datetime: iso, title: iso + " (UTC)" }, text);
+}
+function agendaRows(items, timeCell) {
+  return items.map(p => h("tr", null, h("td", null, timeCell(p)), h("td", null, chip(p.status)),
+    h("td", null, h("a", { class: "row-link", href: "#/post/" + encodeURIComponent(p.id) }, p.excerpt || "(empty)"),
+      p.looks_like_secret ? h("span", { class: "warnbadge" }, "looks like a secret") : null,
+      p.approval_expired ? h("span", { class: "flag bad" }, "Approval expired: approve it again before it can be sent.") :
+        p.expires_before_due ? h("span", { class: "flag" }, "Approval expires before this time (", when(p.approval_expires_at), ").") : null,
+      p.last_error ? h("div", { class: "muted" }, "Last error: " + p.last_error) : null),
+    h("td", null, p.account_id, h("div", { class: "muted" }, p.platform))));
+}
+async function viewSchedule() {
+  const d = await api("schedule");
+  const head = ["When", "Status", "Text", "Account"];
+  const out = [h("h1", null, "Schedule"),
+    h("p", { class: "lede" }, "Approved posts by due time, in your local time (UTC on hover). A post is only sent by a worker you run; ", h("code", null, "reachweaver pause"), " stops every send.")];
+  if (d.overdue.length) out.push(h("h2", null, "Past their time (" + d.overdue.length + ")"),
+    h("div", { class: "warn" }, "These were due and have not been sent. Check whether each still makes sense before a worker runs."),
+    table(head, agendaRows(d.overdue, p => when(p.scheduled_at))));
+  if (d.sending.length) out.push(h("h2", null, "Sending now (" + d.sending.length + ")"),
+    h("p", { class: "muted" }, "If one stays here, treat it as uncertain: check the platform before anything else."),
+    table(head, agendaRows(d.sending, () => h("span", { class: "muted" }, "in progress"))));
+  out.push(h("h2", null, "Next " + d.days + " days"));
+  if (d.upcoming.length) {
+    const days = new Map();
+    for (const p of d.upcoming) { const k = localDay(p.scheduled_at); if (!days.has(k)) days.set(k, []); days.get(k).push(p); }
+    for (const items of days.values()) out.push(dayTitle(items[0].scheduled_at), table(head, agendaRows(items, p => clock(p.scheduled_at))));
+  } else out.push(empty("Nothing scheduled in the next " + d.days + " days", h("span", null, "Give an approved post a time in your terminal: ", h("code", null, "reachweaver schedule POST_ID --at 2026-10-20T09:00:00+02:00"))));
+  if (d.later) out.push(h("p", { class: "muted" }, d.later + " more scheduled after that. The Queue lists them all."));
+  out.push(h("h2", null, "Approved, no time set (" + d.unscheduled.length + ")"));
+  out.push(d.unscheduled.length ? table(["Approved", "Status", "Text", "Account"], agendaRows(d.unscheduled, p => when(p.approved_at)))
+    : h("p", { class: "muted" }, "None."));
+  if (d.approval_max_age_hours != null) out.push(h("p", { class: "note" }, "Approvals expire after " + d.approval_max_age_hours + " hours (approval-mode)."));
+  return [h("div", { class: "agenda" }, out.flat().filter(Boolean))];
+}
+
+// ---- Posted (the journal: what was sent, and what you recorded as shared by hand)
+async function viewPosted(params) {
+  const account = params.get("account") || "";
+  const [d, accounts] = await Promise.all([api("journal" + (account ? "?account=" + encodeURIComponent(account) : "")), api("accounts")]);
+  const ids = accounts.accounts.map(a => a.id);
+  if (account && !ids.includes(account)) ids.push(account);
+  const acc = h("select", { "aria-label": "Account filter" }, h("option", { value: "" }, "All accounts"), ids.map(id => h("option", { value: id, selected: id === account }, id)));
+  acc.addEventListener("change", () => { location.hash = "#/posted" + (acc.value ? "?account=" + encodeURIComponent(acc.value) : ""); });
+  const search = h("input", { type: "text", id: "search", placeholder: "Search what was posted ( / )", "aria-label": "Search the listed posts" });
+  const rows = d.entries.map(e => { const link = safeLink(e.remote_url), files = Object.entries(e.files || {}), byHand = e.source === "by_hand";
+    return h("tr", { "data-text": (e.excerpt + " " + e.id + " " + (e.account || "") + " " + e.platform + " " + (e.campaign || "") + " " + (e.note || "")).toLowerCase() },
+      h("td", null, when(e.when)),
+      h("td", null, byHand ? [h("span", { class: "src" }, "shared by hand"), h("div", null, e.excerpt || h("span", { class: "muted" }, "(no text recorded)"))]
+        : [e.status !== "published" ? h("div", null, chip(e.status), " ", h("span", { class: "note" }, "possibly posted: check the platform")) : null,
+          h("a", { class: "row-link", href: "#/post/" + encodeURIComponent(e.id) }, e.excerpt || "(empty)")],
+        e.looks_like_secret ? h("span", { class: "warnbadge" }, "looks like a secret") : null,
+        e.note ? h("div", { class: "muted" }, "Note: " + e.note) : null,
+        files.length ? h("div", { class: "note" }, files.map(([k, n]) => n + " " + k).join(", ")) : null),
+      h("td", null, e.account || h("span", { class: "muted" }, "unknown"), h("div", { class: "muted" }, e.platform)),
+      h("td", null, byHand ? h("span", { class: "muted" }, "by you") : unknown(e.approved_by)),
+      h("td", null, link ? h("a", { href: link, rel: "noopener noreferrer", target: "_blank" }, "Open") : h("span", { class: "muted" }, "no link"))); });
+  queueRows = rows; queueSel = -1;
+  const shown = h("span", { class: "muted", role: "status", "aria-live": "polite" });
+  const count = () => { shown.textContent = rows.filter(r => !r.hidden).length + " of " + d.shown + (d.truncated ? " (newest " + d.shown + " only)" : "") + " shown"; };
+  search.addEventListener("input", () => { const t = search.value.trim().toLowerCase(); rows.forEach(r => { r.hidden = t !== "" && !r.dataset.text.includes(t); r.classList.remove("sel"); }); queueSel = -1; count(); });
+  count();
+  return [h("h1", null, "Posted"), h("p", { class: "lede" }, "What ReachWeaver sent, plus what you recorded as shared by hand, newest first."),
+    h("div", { class: "filters" }, acc, search, shown),
+    rows.length ? table(["When", "Text", "Account", "Approved by", "Remote"], rows) :
+      empty(account ? "Nothing posted from this account yet" : "Nothing posted yet", h("span", null, "Posted it yourself? Record it with ",
+        h("code", null, "reachweaver mark-shared --platform PLATFORM --url URL"), ". Export the record with ", h("code", null, "reachweaver journal --format markdown"), ".")),
+    h("p", { class: "note" }, d.note)];
 }
 
 // ---- Queue (keyboard: j/k move, Enter opens, / searches)
@@ -480,6 +613,7 @@ async function viewDistribution(params) {
 
 // ---- router (own-property lookup only: '#/constructor' must not reach Object.prototype)
 const ROUTES = Object.assign(Object.create(null), { "": ["overview", viewOverview], queue: ["queue", viewQueue],
+  schedule: ["schedule", viewSchedule], posted: ["posted", viewPosted],
   accounts: ["accounts", viewAccounts], distribution: ["distribution", viewDistribution] });
 let rendering = 0, lastPath = null;
 function parseHash() {
@@ -494,6 +628,7 @@ function parseHash() {
 }
 async function render() {
   const mine = ++rendering, route = parseHash();
+  queueRows = []; queueSel = -1;  // j/k only move through rows of the page being shown
   for (const a of document.querySelectorAll("#nav a")) {
     if (a.dataset.route === (route.name || "overview")) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   }
@@ -539,9 +674,9 @@ auto.checked = store("rw-auto") === "1"; setAuto(auto.checked);
 auto.addEventListener("change", () => { store("rw-auto", auto.checked ? "1" : "0"); setAuto(auto.checked); });
 
 // ---- keyboard shortcuts
-const SHORTCUTS = [["?", "Show this help"], ["g then o / q / a / c", "Go to Overview / Queue / Accounts / Channels"],
-  ["j / k", "Move down / up in the queue"], ["Enter", "Open the selected post"], ["[ / ]", "Previous / next post"],
-  ["/", "Search the queue"], ["r", "Refresh"], ["t", "Cycle the theme"], ["Esc", "Close help, leave a field"]];
+const SHORTCUTS = [["?", "Show this help"], ["g then o / q / s / p", "Go to Overview / Queue / Schedule / Posted"],
+  ["g then a / c", "Go to Accounts / Channels"], ["j / k", "Move down / up in the queue or the posted list"],
+  ["Enter", "Open the selected post"], ["[ / ]", "Previous / next post"], ["/", "Search the queue or the posted list"], ["r", "Refresh"], ["t", "Cycle the theme"], ["Esc", "Close help, leave a field"]];
 let helpDialog = null, pendingG = false, gTimer = null;
 function showHelp() {
   if (!helpDialog) {
@@ -553,7 +688,7 @@ function showHelp() {
   }
   if (typeof helpDialog.showModal === "function" && !helpDialog.open) helpDialog.showModal();
 }
-const GO = Object.assign(Object.create(null), { o: "#/", q: "#/queue", a: "#/accounts", c: "#/distribution" });
+const GO = Object.assign(Object.create(null), { o: "#/", q: "#/queue", s: "#/schedule", p: "#/posted", a: "#/accounts", c: "#/distribution" });
 document.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (helpDialog && helpDialog.open) return;
@@ -566,7 +701,7 @@ document.addEventListener("keydown", e => {
     case "g": pendingG = true; gTimer = setTimeout(() => { pendingG = false; }, 1200); break;
     case "j": select(1); break;
     case "k": select(-1); break;
-    case "Enter": { const row = queueRows[queueSel]; if (row && !row.hidden && (el === document.body || el === main)) { const a = row.querySelector("a"); if (a) location.hash = a.getAttribute("href"); } break; }
+    case "Enter": { const row = queueRows[queueSel]; if (row && !row.hidden && (el === document.body || el === main)) { const a = row.querySelector('a[href^="#/"]'); if (a) location.hash = a.getAttribute("href"); } break; }
     case "/": { const s = document.getElementById("search"); if (s) { e.preventDefault(); s.focus(); } break; }
     case "r": render(); toast("Refreshed"); break;
     case "t": cycleTheme(); break;
@@ -575,6 +710,10 @@ document.addEventListener("keydown", e => {
     default: break;
   }
 });
+// Printing a post sheet shows every section, including the approval binding; closed ones close again after.
+let printOpened = [];
+window.addEventListener("beforeprint", () => { printOpened = [...document.querySelectorAll("details:not([open])")]; printOpened.forEach(d => { d.open = true; }); });
+window.addEventListener("afterprint", () => { printOpened.forEach(d => { d.open = false; }); printOpened = []; });
 document.getElementById("keys").addEventListener("click", showHelp);
 document.getElementById("skip").addEventListener("click", e => { e.preventDefault(); main.focus(); });
 window.addEventListener("hashchange", () => { const path = parseHash().path; render(); if (path !== lastPath) main.focus(); lastPath = path; });
