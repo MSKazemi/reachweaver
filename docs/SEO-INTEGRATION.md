@@ -58,6 +58,24 @@ reachweaver seo-destinations --briefs examples/seo-briefs.example.json --type pa
 - `destination_conflicts` / `all_conflicts`: competing messages. These are `duplicate_canonical_url_across_briefs`, plus `same_canonical_url` and `same_primary_keyword` for two non-`ended` campaigns whose windows overlap (the `overlap` field gives the shared dates). Any conflict involving the destination sets `status` to `review_conflicts`, and the CLI then exits with code 2.
 - `utm_link` (when both `--platform` and `--campaign` are given): the canonical tagged link. See [ATTRIBUTION.md](ATTRIBUTION.md).
 
+### Per-platform suggestions (`--suggest-for`)
+
+```bash
+reachweaver seo-destinations --briefs examples/seo-briefs.example.json --type release --project reachweaver \
+  --suggest-for instagram --suggest-for threads --suggest-for mastodon --campaign reachweaver-v0-3-release
+```
+
+`platform_suggestions.platforms[]` gives, for each platform in the order asked, the link to use (UTM-tagged when `--campaign` is given) and a list of suggestions on the link, length, keyword, tags and alt text. Each carries a `basis`:
+
+| Basis | Meaning |
+|---|---|
+| `official` | A provider's documented limit or behaviour, with `source` and the date it was `checked` (the same sourced facts as `manual-export`), e.g. Threads allows at most 5 links and one topic tag per post; YouTube description links are clickable only for eligible channels |
+| `unverified` | No official statement was found; `source` is the page that was checked. Instagram and TikTok caption links fall here, so the advice is to use the profile link |
+| `repo_policy` | ReachWeaver's own conservative limit or rule (text limits, human-written-text platforms, Reddit community rules) |
+| `hypothesis` | Editorial advice: lead with the page's keyword in your own words, one or two relevant hashtags, alt text for images |
+
+No suggestion claims that a keyword, hashtag or link placement changes reach or search ranking; a test fails if one uses such wording. The command reads only the briefs file: no network, account or database. Without `--suggest-for` the output is unchanged.
+
 ## Testing campaign tracking
 
 1. Validate the export with `seo-destinations` and resolve any conflicts.

@@ -739,7 +739,11 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--type", choices=CAMPAIGN_TYPES, required=True)
     p.add_argument("--project", help="Restrict to briefs for this project")
     p.add_argument("--platform", help="With --campaign: also emit a UTM link for the destination")
-    p.add_argument("--campaign", help="With --platform: utm_campaign for the destination link")
+    p.add_argument("--campaign", help="With --platform or --suggest-for: utm_campaign for the destination link")
+    p.add_argument("--suggest-for", action="append", metavar="PLATFORM",
+                   help="Also suggest, per platform, how a post points at the destination: link and where to put "
+                   "it, length, keyword, tags, alt text; each with its basis (official/unverified/repo_policy/"
+                   "hypothesis). Repeat for several platforms")
     p = sub.add_parser("seo-content-check", help="Discoverability checks on owner-supplied post texts (length, alt text, hashtags, "
                        "UTM links, name spelling, cross-platform duplicates); offline unless --online link previews; read-only, never publishes")
     p.add_argument("file", type=Path, help="Local JSON: {\"items\": [{id, platform, text, alt_text?, media_count?, link?, keywords?}], \"names\"?: [...]}")
@@ -1954,6 +1958,9 @@ def execute(args) -> int:
     if args.command == "seo-destinations":
         result = campaign_destinations(load_seo_briefs(args.briefs), args.type, args.project,
                                        platform=args.platform, campaign=args.campaign)
+        if args.suggest_for:
+            from .seo_platforms import platform_suggestions
+            result["platform_suggestions"] = platform_suggestions(result["destination"], args.suggest_for, args.campaign)
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return 0 if result["status"] == "ok" else 2
     if args.command == "seo-content-check":
