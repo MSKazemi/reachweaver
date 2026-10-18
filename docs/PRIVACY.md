@@ -20,6 +20,7 @@ Depending on the commands and data supplied by the operator, ReachWeaver can pro
 | Imported third-party data | Operator-provided exports for optional analysis/engagement triage and resulting draft files; files may contain personal data about other people even if the raw input is not imported into SQLite |
 | Contact preferences | Locally maintained opt-out handles/domains; those identifiers can be personal data |
 | Software cache | Release-check results, timestamps and an opt-out marker under `~/.cache/reachweaver/` |
+| Profile file (optional) | `config/profile.json`, created only if you run `profile --init`: your name, e-mail, phone, birth date, country, timezone, languages, persona bios and usernames, written by you for the wrong-account check and the account kit. Local only (mode 600, ignored by git); no command reads it over a network, and it is not in SQLite or `data-export`. `account-kit --out` copies the values a platform's sign-up form may ask for into a folder you name; delete both when done. It refuses passwords, tokens, one-time codes and identity-document numbers |
 | Credentials | Normally read at the point of an authorized online operation from user-set environment variables or the configured systemd credentials directory; **not intentionally stored in SQLite** |
 
 Some content can identify individuals. Operators should minimize private or third-party information, protect local files, avoid adding secrets to prompts and exports, and use data only where they have an appropriate legal basis.

@@ -66,6 +66,8 @@ Two rules that apply to every route:
 
 For a new creator/brand, run `run.py account-advisor --region global --goal awareness --format short_video --weekly-hours 5` (adjust to the user). It ranks the distribution registry; no predicted reach, no verified accounts. `--setup PLATFORM_ID` prints an official start URL, the human's steps and a coaching prompt for this chat. Coach only from what the user describes: never open, read or operate the platform's site, point to its official help pages, and suggest no browser agent. The human alone registers, accepts terms, enters secrets and completes CAPTCHA, MFA and verification; never ask for a secret or assume a handle is free. Human-only platforms (`human_only` in the registry, e.g. Reddit; Hacker News has no handoff) get no drafted post, comment or reply. See `docs/ACCOUNT-ADVISOR.md`.
 
+Several identities on one network (work/family), the wrong account, or sign-up details for a new account: load `references/personas-account-kit.md`.
+
 ## The loop
 
 Evidence inventory (real deliverable, source, exact claim, verification date) → position and voice → one or two high-fit channels plus one bounded experiment → quality gate (facts, rights, disclosure, alt text, duplicates) → offline campaign JSON validated with a brand card → **the owner approves the exact text and destination** → dry run, and an owner-run live send only where an adapter, credentials and approval exist → measure at comparable ages and adjust one variable. Never auto-retry an ambiguous send: `needs_review` requires inspecting the real account. Details for each step are in `references/workflows.md`.

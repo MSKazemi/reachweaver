@@ -44,6 +44,8 @@ cp config/accounts.example.json config/accounts.json
 reachweaver doctor            # offline: lists each account and the env variable NAMES it is missing
 ```
 
+An account may carry an optional `"persona": "work"` (a lowercase id) so `draft`, `check` and `approve --persona work` can refuse a post aimed at another persona's account; it is public metadata like `handle` ([personas and the account kit](PERSONAS-AND-ACCOUNT-KIT.md)).
+
 `doctor` prints, for each account, the platform, whether a text adapter exists, and the missing variable names. Its last line points to `credentials-audit`.
 
 | Platform | Variables read (`<P>` = `env_prefix`) | Credential to create |

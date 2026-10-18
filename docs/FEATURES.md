@@ -101,6 +101,8 @@ Read [global strategy](GLOBAL-DISTRIBUTION-2026-10-08.md), [operating/governance
 | Worldwide region/goal channel planner | Offline tested registry, explicit native/API/ReachWeaver status, optional IANA-zone experimental slots; NO posting |
 | Distinct content drafts across 12 platforms | Skill instructions + conservative text lint |
 | Account inventory / missing-credential check | Local config only; no interactive OAuth UI |
+| Personas (work, family), a username per network, wrong-account refusal | `profile`, `account-route` and `--persona` on `draft`/`check`/`approve`; offline, mock-tested ([guide](PERSONAS-AND-ACCOUNT-KIT.md)) |
+| Sign-up details for accounts you create yourself, in the platform's language | `account-kit`: one plan, one approval, local packets; creates no account, fills no form, sees no password or code ([guide](PERSONAS-AND-ACCOUNT-KIT.md)) |
 | Authenticated account identity preflight | Explicit online check for Bluesky, Mastodon, Telegram and LinkedIn (`/v2/userinfo` `sub`); mock-tested, no account linked. Checks for Instagram, TikTok, YouTube, Threads and Facebook exist but are refused before any credential read while those adapters are disabled |
 | One-post supervised pilot isolation | `show POST_ID`, `publish --post-id POST_ID`, remote identity check before send |
 | Approval, scheduling, dry-run | Functional local CLI |

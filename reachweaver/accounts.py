@@ -20,6 +20,7 @@ from .policy import (MASTODON_MEDIA_DEFAULTS, MASTODON_VISIBILITIES, PLATFORMS, 
 
 ENV_PREFIX = re.compile(r"^REACHWEAVER_[A-Z0-9_]+$")
 ACCOUNT_ID = re.compile(r"^[a-z][a-z0-9-]{1,62}$")
+PERSONA_ID = re.compile(r"^[a-z][a-z0-9-]{1,30}$")  # optional "persona" metadata, e.g. work or family (persona_guard)
 SECRET_FIELD = re.compile(r"(token|password|secret|cookie|session|api.?key|private.?key)", re.I)
 DEFAULT_BLUESKY_SERVICE = "https://bsky.social"
 LANGUAGE = re.compile(r"^[a-z]{2}$")  # ISO 639-1 shape; the code list itself is not bundled
@@ -319,6 +320,9 @@ def load_accounts(path: str | Path | None = None) -> dict[str, dict]:
             raise ValidationError(f"Duplicate account id: {account_id}")
         if platform not in PLATFORMS:
             raise ValidationError(f"Unknown platform for account {account_id}")
+        if "persona" in raw and not (isinstance(raw["persona"], str) and PERSONA_ID.fullmatch(raw["persona"])):
+            raise ValidationError(f"Account {account_id}: persona must be a lowercase id such as work or family "
+                                  "(2-31 characters)")
         if not isinstance(env_prefix, str) or not ENV_PREFIX.fullmatch(env_prefix):
             raise ValidationError(f"Invalid credential env_prefix for account {account_id}")
         if "postiz_workspace" in raw and "backend" not in raw:  # #11 shared cooldown group

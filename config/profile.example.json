@@ -1,0 +1,60 @@
+{
+  "schema": "reachweaver.profile/1",
+  "person": {
+    "given_name": "Alex",
+    "family_name": "Example",
+    "email": "alex@example.org",
+    "phone": "+390000000000",
+    "birth_date": "1990-02-03",
+    "country": "IT",
+    "timezone": "Europe/Rome",
+    "languages": [
+      "en",
+      "zh-Hans"
+    ]
+  },
+  "personas": {
+    "work": {
+      "display_name": {
+        "en": "Alex Example",
+        "zh-Hans": "亚历克斯"
+      },
+      "bio": {
+        "en": "I build open-source tools for people who share their work online."
+      },
+      "username_stems": [
+        "alexexample"
+      ],
+      "website": "https://example.org"
+    },
+    "family": {
+      "display_name": "Alex",
+      "username_stems": [
+        "alex.fam"
+      ]
+    }
+  },
+  "handles": [
+    {
+      "platform": "instagram",
+      "persona": "work",
+      "username": "alex.work",
+      "status": "claimed"
+    },
+    {
+      "platform": "instagram",
+      "persona": "family",
+      "username": "alex.fam",
+      "status": "claimed"
+    },
+    {
+      "platform": "weibo",
+      "persona": "work",
+      "username": "亚历克斯",
+      "status": "planned"
+    }
+  ],
+  "preferences": {
+    "default_persona": "work"
+  }
+}

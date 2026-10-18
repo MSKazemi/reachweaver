@@ -51,6 +51,7 @@ draft I just wrote repeats it.
 | Runs the offline checks: `doctor`, `check`, `repeat-check`, previews, dry runs | Runs `reachweaver connect --guide` to connect accounts one by one |
 | Prepares manual-export packages for platforms ReachWeaver cannot send to | Reads the exact text with `show`, then runs `approve` |
 | Reads your imported numbers and suggests the next experiment | Runs the live send, only where an adapter exists and you chose to |
+| Asks the missing profile questions, checks which account a persona should use, builds the sign-up plan | Runs the one `account-kit --approve-plan` command, creates each account and completes every code and identity check |
 
 The skill tells Claude never to run `approve` or `publish --live`, and this repository's own Claude Code settings block both commands outright. A plugin install does not carry those settings, so for a hard guarantee turn on the terminal check once: `reachweaver approval-mode --confirmation tty_hash_prefix`. After that, `approve` and `publish --live` only work in a real terminal where you type the first characters of the post's hash, which an AI session cannot do. Approval is yours, for each post.
 

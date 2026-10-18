@@ -36,6 +36,8 @@ from .campaigns import OBJECTIVES, read_json, stage_campaign, validate_campaign
 from .claims import DEFAULT_DUPLICATE_THRESHOLD, check_claims
 from . import confirmation
 from .account_advisor import FORMATS as ADVISOR_FORMATS
+from . import account_kit, persona_guard
+from . import profile as profile_store
 from .distribution import GOALS, build_distribution_plan
 from .engagement import triage_files
 from .health import (build_health, dead_letter, exit_code as health_exit_code, render_dead_letter, render_health,
@@ -129,6 +131,8 @@ def make_parser() -> argparse.ArgumentParser:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--db", help="Local persistent SQLite database path (defaults to state/reachweaver.sqlite)")
     parser.add_argument("--accounts", help="Accounts config path (defaults to config/accounts.json)")
+    parser.add_argument("--profile", help="Profile knowledge base path (defaults to config/profile.json in the workspace); "
+                                          "personas, usernames and sign-up details, local only")
     parser.add_argument("--home", type=Path, metavar="DIR", help="Use this workspace folder (one that carries a "
                                                                ".reachweaver-workspace file; create it with workspace --init). "
                                                                "Default: the nearest one at or above the current folder")
@@ -250,6 +254,9 @@ def make_parser() -> argparse.ArgumentParser:
     body.add_argument("--file", type=Path)
     p.add_argument("--campaign", default="")
     p.add_argument("--source-url", default="")
+    p.add_argument("--persona", metavar="ID",
+                   help="Which of your personas this post is for (for example work or family). Refuses an account that belongs "
+                        "to another persona and names the one to switch to; default: preferences.default_persona in the profile")
     p.add_argument("--optout", type=Path, help=optout_help + "; a mention refuses the draft (and, with "
                                                              "--reply-to, a listed parent author)")
     p.add_argument("--reply-to", metavar="ITEM",
@@ -268,11 +275,17 @@ def make_parser() -> argparse.ArgumentParser:
                    help="sources-scan config (#9): refuse when the text (a reply's too) or --source-url links into any visibility:private repository of that config (private repository URLs are never public links)")
     p = sub.add_parser("check", help="Validate a draft before approval")
     p.add_argument("post_id")
+    p.add_argument("--persona", metavar="ID",
+                   help="Which of your personas this post is for (for example work or family). Refuses an account that belongs "
+                        "to another persona and names the one to switch to; default: preferences.default_persona in the profile")
     p.add_argument("--optout", type=Path, help=optout_help + "; a mention is BLOCKED")
     p.add_argument("--sources", type=Path, metavar="CONFIG",
                    help="sources-scan config (#9): refuse when any published text (post, alt texts, video title/tags), a hosted image URL or the source URL links into any visibility:private repository of that config (private repository URLs are never public links)")
     p = sub.add_parser("approve", help="Approve the exact current text; binds an immutable payload hash (#7)")
     p.add_argument("post_id")
+    p.add_argument("--persona", metavar="ID",
+                   help="Which of your personas this post is for (for example work or family). Refuses an account that belongs "
+                        "to another persona and names the one to switch to; default: preferences.default_persona in the profile")
     p.add_argument("--approver", help="Who approved (attribution, not authentication); defaults to $USER/$LOGNAME")
     p.add_argument("--verify-identity", action="store_true",
                    help="Wave 9 item 2: run the read-only connect-check identity check once and bind a "
@@ -781,6 +794,36 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--setup", metavar="PLATFORM_ID", help="Print the official starting link, the steps you do yourself and a "
                    "coaching prompt for a normal Claude chat that never opens or operates the site")
     p.add_argument("--json", action="store_true", help="Machine-readable recommendations and optional setup steps")
+    p = sub.add_parser("profile", help="Your private profile: personas (work, family...), a username per network and the "
+                       "details sign-up forms ask for; local file, no network",
+                       description="Create, show (e-mail, phone and birth date partly hidden), check and edit "
+                       "config/profile.json. It never holds passwords, tokens, codes or identity documents "
+                       "(docs/PERSONAS-AND-ACCOUNT-KIT.md).")
+    p.add_argument("--init", action="store_true", help="Create a new private profile (mode 600); refuses to overwrite")
+    p.add_argument("--persona", action="append", default=[], metavar="ID", help="With --init: a persona to create; repeat (default: work)")
+    p.add_argument("--show", action="store_true", help="Print the profile as JSON with e-mail, phone and birth date partly hidden")
+    p.add_argument("--check", action="store_true", help="Validate the file, its permissions and its agreement with accounts.json; exit 1 on a finding")
+    p.add_argument("--set", action="append", default=[], metavar="PATH=VALUE", help="Set person.FIELD, personas.ID.FIELD, personas.ID.bio.LANG or preferences.default_persona; empty VALUE clears it; repeat")
+    p.add_argument("--handle", action="append", default=[], metavar="PLATFORM:PERSONA=NAME[:STATUS]", help="Record the username of a persona on a network (status planned, claimed or unavailable; default claimed); your statement, never verified; repeat")
+    p = sub.add_parser("account-route", help="Which account and username to use for a persona on a network; says which account to switch to",
+                       description="Read-only and offline: looks up accounts.json and the profile. Exit 0 when a username is known, "
+                       "1 when it is missing or the two files disagree.")
+    p.add_argument("--platform", required=True, help="Network, for example instagram or weibo")
+    p.add_argument("--persona", metavar="ID", help="Persona id (default: preferences.default_persona in the profile)")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
+    p = sub.add_parser("account-kit", help="Prepare sign-up details for accounts you create yourself: one plan, one approval; "
+                       "creates no account",
+                       description="Offline. Builds one plan for the named platforms and one persona from your profile "
+                       "(only the details each form may ask for, in the platform's interface language) and prints it with "
+                       "personal values partly hidden. One approval of the plan hash writes the packets to a NEW private "
+                       "folder. It opens no site, fills no form and never sees a password, CAPTCHA or code "
+                       "(docs/PERSONAS-AND-ACCOUNT-KIT.md).")
+    p.add_argument("--platform", action="append", default=[], metavar="ID", help="Network to prepare; repeat (see account-advisor for the ids)")
+    p.add_argument("--persona", metavar="ID", help="Persona id (default: preferences.default_persona in the profile)")
+    p.add_argument("--questions", action="store_true", help="Print only what is still missing from the profile")
+    p.add_argument("--out", type=Path, metavar="NEW_DIR", help="Write the packets here (a folder that does not exist yet); needs --approve-plan")
+    p.add_argument("--approve-plan", metavar="SHA256", help="The first 12+ characters of the plan sha256 you reviewed: your single approval for every platform in the plan")
+    p.add_argument("--json", action="store_true", help="Machine-readable plan (personal values partly hidden)")
     p = sub.add_parser("discovery-plan", help="Offline platform discovery and topic/hashtag recommendations; not a reach forecast or publisher")
     p.add_argument("--file", type=Path, required=True, help="Owner-reviewed JSON with post text, topics and optional dated trend evidence")
     p.add_argument("--json", action="store_true", help="Evidence, selected/skipped tags and creative checklist")
@@ -969,6 +1012,36 @@ def _campaign_history(args, campaign: dict) -> dict | None:
                         else args.history_window_days,
                         max_posts=DEFAULT_FREQUENCY_MAX_POSTS if args.history_max_posts is None
                         else args.history_max_posts)
+
+
+def _persona_gate(args, subjects: list[dict | None], accounts: dict, ids: list[str]) -> list[str]:
+    """Wrong-account refusals for the persona a post is for (``--persona``, else the profile's default).
+
+    Empty when no persona is asserted. An invalid profile file raises (fail closed). ``subjects`` is parallel to
+    ``ids``; a None subject is an account that could not be read, which cannot be verified and is refused.
+    """
+    profile = profile_store.load_optional(args.profile)
+    persona = getattr(args, "persona", None) or ((profile or {}).get("preferences") or {}).get("default_persona")
+    if not persona:
+        return []
+    problems = []
+    for account_id, account in zip(ids, subjects):
+        if account is None:
+            problems.append(f"cannot verify persona '{persona}': account {account_id} is not in the accounts file")
+            continue
+        refusal = persona_guard.check_account(account, persona, accounts, profile)
+        if refusal:
+            problems.append(refusal)
+    return problems
+
+
+def _optional_accounts_map(args) -> dict:
+    try:
+        return _accounts(args)
+    except ValidationError as exc:
+        if str(exc).startswith("Missing "):
+            return {}
+        raise
 
 
 def _optional_account(args, account_id: str, platform: str) -> dict | None:
@@ -1694,7 +1767,7 @@ def _draft_many(db, args, accounts) -> int:
     if private:
         raise ValidationError(f"Draft refused, nothing created: {private}")
     optout = load_optout(args.optout)
-    problems = []
+    problems = _persona_gate(args, [accounts[name] for name in names], accounts, names)
     for name in names:
         account = accounts[name]
         hits = optout_mentions(content, optout, account["platform"])
@@ -1892,6 +1965,117 @@ def _run_ui(args) -> int:
     finally:
         server.server_close()
     return 0
+
+
+def _profile_check_report(args) -> tuple[list[str], list[str]]:
+    """(findings, ok lines) for ``profile --check``: the file, its permissions and its agreement with accounts.json."""
+    path = profile_store.profile_path(args.profile)
+    findings: list[str] = []
+    if not path.is_file():
+        raise ValidationError(f"Missing {path}. Create it with `reachweaver profile --init`")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        raise ValidationError(f"Profile is unreadable or not JSON: {path}") from None
+    errors = profile_store.validate_profile(data)
+    findings += errors
+    if errors:
+        return findings, []
+    permissions = profile_store.permissions_finding(args.profile)
+    if permissions:
+        findings.append(permissions)
+    accounts = _optional_accounts_map(args)
+    personas = set(data.get("personas", {}))
+    for account in accounts.values():
+        if account.get("persona") and account["persona"] not in personas:
+            findings.append(f"account {account['id']} has persona '{account['persona']}', which is not in the profile")
+    for handle in data.get("handles", []):
+        if handle["status"] != "claimed":
+            continue
+        route = persona_guard.route(handle["platform"], handle["persona"], accounts, data)
+        if route["status"] == "conflict":
+            findings.append(route["advice"])
+    ok = [f"OK profile valid: {len(personas)} persona(s), {len(data.get('handles', []))} username(s)"]
+    return findings, ok
+
+
+def _run_identity_command(args) -> int:
+    """profile, account-route and account-kit: offline, local files only, no database."""
+    if args.command == "profile":
+        modes = [args.init, args.show, args.check, bool(args.set or args.handle)]
+        if sum(bool(m) for m in modes) != 1:
+            raise ValidationError("Choose one: --init, --show, --check, or --set / --handle")
+        if args.persona and not args.init:
+            raise ValidationError("--persona is only for --init; create personas by setting personas.ID.FIELD")
+        path = profile_store.profile_path(args.profile)
+        if args.init:
+            if path.exists():
+                raise ValidationError(f"{path} already exists; nothing changed. Edit it with --set / --handle")
+            profile_store.save_profile(profile_store.template(args.persona or ["work"]), path)
+            print(f"Created {path} (private, mode 600, ignored by git). Next: reachweaver profile --set "
+                  "person.given_name=... --set personas.work.display_name=...")
+            return 0
+        if args.show:
+            print(json.dumps(profile_store.masked_view(profile_store.load_profile(args.profile)), indent=2,
+                             ensure_ascii=False))
+            return 0
+        if args.check:
+            findings, ok = _profile_check_report(args)
+            print("\n".join(ok + [f"FINDING {item}" for item in findings]))
+            return 1 if findings else 0
+        data = profile_store.load_profile(args.profile)
+        for item in args.set:
+            key, sep, value = item.partition("=")
+            if not sep:
+                raise ValidationError("--set takes PATH=VALUE (an empty VALUE clears the field)")
+            profile_store.set_value(data, key.strip(), value)
+        for spec in args.handle:
+            profile_store.set_handle(data, *profile_store.parse_handle_spec(spec))
+        profile_store.save_profile(data, args.profile)
+        print(f"Saved {len(args.set) + len(args.handle)} change(s) to {path}. Values are not echoed.")
+        return 0
+    profile = profile_store.load_optional(args.profile)
+    persona = args.persona or ((profile or {}).get("preferences") or {}).get("default_persona")
+    if args.command == "account-route":
+        if not persona:
+            raise ValidationError("Name the persona with --persona (or set preferences.default_persona in the profile)")
+        route = persona_guard.route(args.platform, persona, _optional_accounts_map(args), profile)
+        if args.json:
+            print(json.dumps(route, indent=2, ensure_ascii=False))
+        else:
+            print(f"{route['persona']} on {route['platform']}: {route['status']}. {route['advice']}")
+        return 0 if route["status"] == "ok" else 1
+    # account-kit
+    if profile is None:
+        raise ValidationError(f"Missing {profile_store.profile_path(args.profile)}. Create it with "
+                              "`reachweaver profile --init`, then answer the questions it lists")
+    if not persona:
+        raise ValidationError("Name the persona with --persona (or set preferences.default_persona in the profile)")
+    if not args.platform:
+        raise ValidationError("Name at least one network with --platform (`reachweaver account-advisor` lists them)")
+    if args.approve_plan and args.out is None:
+        raise ValidationError("--approve-plan only goes with --out NEW_DIR")
+    plan = account_kit.plan(profile, persona, args.platform)
+    if args.out is not None:
+        if not args.approve_plan:
+            raise ValidationError("--out needs --approve-plan SHA256: review the plan first (run without --out), "
+                                  "then pass the first 12+ characters of its sha256")
+        files = account_kit.write_plan(plan, args.out, args.approve_plan)
+        print(f"Wrote {len(files)} private file(s) to {args.out}. ReachWeaver created no account and sent nothing: "
+              "follow each SIGNUP.md yourself, then record the username with reachweaver profile --handle.")
+        return 0
+    if args.questions:
+        rows = plan["questions"]
+        if args.json:
+            print(json.dumps({"persona": persona, "questions": rows, "optional_questions": plan["optional_questions"]},
+                             indent=2, ensure_ascii=False))
+        else:
+            print("\n".join(f"{q['key']}: {q['question']} [{', '.join(q['platforms'])}]" for q in rows)
+                  or "Nothing required is missing.")
+        return 0
+    print(json.dumps(account_kit.masked_plan(plan), indent=2, ensure_ascii=False) if args.json
+          else account_kit.render_plan(plan), end="")
+    return 0 if plan["ready"] else 1
 
 
 def execute(args) -> int:
@@ -2116,6 +2300,8 @@ def execute(args) -> int:
                                brand=args.brand, audience=args.audience, language=args.language, setup=args.setup)
         print(json.dumps(plan, indent=2, ensure_ascii=False) if args.json else advisor_render(plan))
         return 0
+    if args.command in ("profile", "account-route", "account-kit"):
+        return _run_identity_command(args)
     if args.command == "discovery-plan":
         from .discovery import check_file as discovery_check_file, render_text as discovery_render
         plan = discovery_check_file(args.file)
@@ -2788,6 +2974,9 @@ def execute(args) -> int:
             account = accounts.get(args.account)
             if not account:
                 raise ValidationError("Unknown account. Run 'doctor' to list configured accounts")
+            wrong = _persona_gate(args, [account], accounts, [args.account])
+            if wrong:
+                raise ValidationError(f"Draft refused, nothing created: {wrong[0]}")
             content = args.file.read_text(encoding="utf-8") if args.file else args.text
             optout = load_optout(args.optout)
             hits = optout_mentions(content, optout, account["platform"])
@@ -2964,6 +3153,7 @@ def execute(args) -> int:
             post = get_post(db,args.post_id)
             account = _optional_account(args, post["account_id"], post["platform"])
             issues = validate_post(post["platform"],post["content"], account)
+            issues.extend(_persona_gate(args, [account], _optional_accounts_map(args), [post["account_id"]]))
             issues.extend(_media_issues(post, account))
             issues.extend(_video_issues(post))
             optout = load_optout(args.optout)
@@ -2990,6 +3180,10 @@ def execute(args) -> int:
             return 1 if issues else 0
         elif args.command == "approve":
             post = get_post(db,args.post_id)
+            wrong = _persona_gate(args, [_optional_account(args, post["account_id"], post["platform"])],
+                                  _optional_accounts_map(args), [post["account_id"]])
+            if wrong:
+                raise ValidationError(f"Refusing to approve {args.post_id}: {wrong[0]} Nothing changed")
             optout = load_optout(args.optout)
             hits = optout_mentions(published_text(post), optout, post["platform"])
             if hits:

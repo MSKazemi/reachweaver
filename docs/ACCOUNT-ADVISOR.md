@@ -50,7 +50,7 @@ ReachWeaver does not recommend Claude in Chrome or any browser agent on social p
 
 ## After the account exists
 
-Only you can confirm that the account exists; `account-advisor` never reads account state. Then add its non-secret identifier to your private `config/accounts.json` and follow [account onboarding](ACCOUNT-ONBOARDING.md) (`reachweaver connect --guide`) for a supported API, or use [manual export](MANUAL-EXPORT.md) and post by hand. Adapters that are switched off stay switched off; setting up an account does not grant permission to post automatically.
+To prepare your name, username candidates, e-mail and bio for the sign-up form (in the form's language, behind one approval), use the [account kit](PERSONAS-AND-ACCOUNT-KIT.md); it still creates nothing. Only you can confirm that the account exists; `account-advisor` never reads account state. Then add its non-secret identifier to your private `config/accounts.json` and follow [account onboarding](ACCOUNT-ONBOARDING.md) (`reachweaver connect --guide`) for a supported API, or use [manual export](MANUAL-EXPORT.md) and post by hand. Adapters that are switched off stay switched off; setting up an account does not grant permission to post automatically.
 
 ## Limitations and privacy
 

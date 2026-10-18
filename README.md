@@ -132,6 +132,8 @@ reachweaver connect --guide            # you at the terminal: walks through the 
 
 `connect --guide` shows, for each account, the official page to sign in on and the steps to create a limited credential. You sign in, solve any verification or robot check yourself, and keep the credential in your own environment. It never asks for a password, never drives a browser, never posts, and contacts a platform only after you type `y` for that one account. Publishing still needs your approval of every post.
 
+Running more than one identity on a network (a work and a family Instagram), or missing an account on a network? Keep a private [profile](docs/PERSONAS-AND-ACCOUNT-KIT.md): `reachweaver profile --init`, then `--persona work` on `draft` refuses the wrong account and names the one to switch to, and `reachweaver account-kit --platform weibo --persona work` prepares your sign-up details in the platform's language behind one approval. You still create each account and complete every verification yourself.
+
 Credentials are set privately in your own environment, never typed into Claude, a chat or an issue. [Account onboarding](docs/ACCOUNT-ONBOARDING.md) explains how, one platform at a time. Then follow the [security checklist](docs/SECURITY-CHECKLIST.md) and the [first live pilot](docs/FIRST-LIVE-PILOT.md) (for Bluesky: the copy-and-paste [one-post pilot](docs/BLUESKY-PILOT.md)). The safest first real send is one text post on a throwaway account.
 
 ## The five commands you will use most
@@ -331,6 +333,10 @@ reachweaver signal-brief --scan SCAN.json --signal-id ID --brand B --out CAMPAIG
 reachweaver capabilities [--platform P] [--json] [--max-age-days 120]  offline capability/API-approval registry (docs/PLATFORMS.md)
 reachweaver distribution-plan --region R --goal G [--limit N] [--date D --timezone TZ] [--json]  offline worldwide channel hypotheses; never schedules or posts
 reachweaver account-advisor [--region R] [--goal G] [--format F] [--weekly-hours N] [--limit N] [--existing ID]... [--setup ID [--brand B] [--audience A] [--language L]] [--json]  offline shortlist of platforms to start, from the distribution registry; --setup prints the official start page, the steps you do yourself and a coaching prompt for a normal Claude chat that never opens the site; creates and connects no account (docs/ACCOUNT-ADVISOR.md)
+reachweaver profile [--init [--persona ID]...] [--show] [--check] [--set PATH=VALUE]... [--handle PLATFORM:PERSONA=NAME[:STATUS]]...  your private profile (personas, a username per network, sign-up details); local file, never holds passwords (docs/PERSONAS-AND-ACCOUNT-KIT.md)
+reachweaver account-route --platform P [--persona ID] [--json]  which account and username to use for a persona on a network, and which account to switch to; offline
+reachweaver account-kit --platform P... [--persona ID] [--questions] [--out NEW_DIR --approve-plan SHA256] [--json]  offline: one plan and one approval write sign-up details (in the platform's language) for accounts you create yourself; creates no account
+reachweaver draft|check|approve ... --persona ID  refuse an account that belongs to another persona and name the one to switch to (default: preferences.default_persona)
 reachweaver postiz-check --account ID --online [--post-id ID]  read-only Postiz integration listing / job lookup; never posts (docs/POSTIZ.md)
 ```
 

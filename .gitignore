@@ -13,6 +13,7 @@ dist/
 .env.*
 !.env.example
 config/accounts.json
+config/profile.json
 config/brands.json
 config/optout.json
 config/caps.json

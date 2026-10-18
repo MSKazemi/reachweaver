@@ -58,6 +58,8 @@ Short, plain explanations, in alphabetical order. For the bigger picture read th
 
 **Payload hash** — A fingerprint of the exact post. Approval is tied to it, which is how ReachWeaver notices if the text changed after you approved.
 
+**Persona** — One of your identities on social networks, such as `work` or `family`. Each persona has its own display name, bio and usernames in your private `config/profile.json`. Saying which persona a post is for lets ReachWeaver refuse the account of another persona ([guide](PERSONAS-AND-ACCOUNT-KIT.md)).
+
 **Plugin / skill** — How ReachWeaver is added to Claude Code. A *skill* is a folder of instructions and tools Claude can use; the *plugin* is the packaged form installed with `/plugin install`.
 
 **Preview** — A rendering of how the platform will show your post (length, links, mentions), produced offline by `show`.

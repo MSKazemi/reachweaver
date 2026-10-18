@@ -13,9 +13,9 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MUST_BE_IGNORED = (".env", ".env.local", ".env.production", "state/reachweaver.sqlite", "config/accounts.json",
+MUST_BE_IGNORED = (".env", ".env.local", ".env.production", "state/reachweaver.sqlite", "config/accounts.json", "config/profile.json",
                    "settings.local", "notes.local")
-MUST_NOT_BE_IGNORED = ("config/accounts.example.json", ".env.example", "README.md", "reachweaver/storage.py")
+MUST_NOT_BE_IGNORED = ("config/accounts.example.json", "config/profile.example.json", ".env.example", "README.md", "reachweaver/storage.py")
 
 
 class GitignoreProtectionTests(unittest.TestCase):

@@ -16,6 +16,8 @@ None of these platforms has an open posting API that ReachWeaver may use for you
 
 Browser automation of these sites is out of scope ([browser-assist decision](BROWSER-ASSIST-DECISION.md)).
 
+No account yet, or the sign-up form is in a language you do not read? `reachweaver account-kit --platform weibo --persona work` prepares your nickname, e-mail, phone and bio in Simplified Chinese and lists the form labels (注册, 手机号, 验证码, 实名认证 and more) with their English meaning. You create the account and complete every code and identity check yourself ([account kit](PERSONAS-AND-ACCOUNT-KIT.md)).
+
 ## Prepare a post
 
 ```bash

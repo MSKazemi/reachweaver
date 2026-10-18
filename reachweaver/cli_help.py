@@ -13,7 +13,7 @@ import textwrap
 
 # (title, command names in the order a person meets them)
 GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Get started and look around", ("start", "connect", "account-advisor", "version", "init", "doctor", "health", "workspace", "ui", "list", "show", "journal", "capabilities", "completion")),
+    ("Get started and look around", ("start", "connect", "account-advisor", "profile", "account-route", "account-kit", "version", "init", "doctor", "health", "workspace", "ui", "list", "show", "journal", "capabilities", "completion")),
     ("Draft and approve (nothing is sent)", (
         "draft", "check", "repeat-check", "mark-shared", "approve", "unapprove", "cancel", "schedule", "media-attach", "media-detach",
         "video-attach", "video-detach", "youtube-attach", "youtube-detach", "campaign-check", "campaign-preview",
