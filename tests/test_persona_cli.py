@@ -300,19 +300,23 @@ class NoNetworkTests(CliCase):
         self.assertEqual(guard.attempts, [])
 
 
+SETTINGS = Path(__file__).resolve().parents[1] / ".claude/settings.json"
+
+
+@unittest.skipUnless(SETTINGS.is_file(), ".claude/settings.json is private-only and absent from the public checkout")
 class ApprovalStaysHumanTests(unittest.TestCase):
     """The single plan approval is the person's: the project's Claude Code deny rule for `approve` covers it."""
 
     def test_the_plan_approval_flag_matches_the_agent_deny_rule(self):
         import fnmatch
-        settings = json.loads((Path(__file__).resolve().parents[1] / ".claude/settings.json").read_text("utf-8"))
+        settings = json.loads(SETTINGS.read_text("utf-8"))
         rules = [r[len("Bash("):-1] for r in settings["permissions"]["deny"] if r.startswith("Bash(")]
         command = "reachweaver account-kit --persona work --platform weibo --out kit --approve-plan 0123456789ab"
         self.assertTrue(any(fnmatch.fnmatchcase(command, rule) for rule in rules))
 
     def test_plan_without_the_approval_flag_does_not_match_it(self):
         import fnmatch
-        settings = json.loads((Path(__file__).resolve().parents[1] / ".claude/settings.json").read_text("utf-8"))
+        settings = json.loads(SETTINGS.read_text("utf-8"))
         rules = [r[len("Bash("):-1] for r in settings["permissions"]["deny"] if r.startswith("Bash(")]
         command = "reachweaver account-kit --persona work --platform weibo"
         self.assertFalse(any(fnmatch.fnmatchcase(command, rule) for rule in rules))
