@@ -6,7 +6,11 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
-Two additions, both offline and local. No change to approval, dry-run, emergency-stop, credential or reconciliation rules, and no new live adapter. 3 new commands (`profile`, `account-route`, `account-kit`) and a `--persona` option on `draft`, `check` and `approve`.
+## [0.10.0] - 2026-10-18
+
+Run a work and a family account on one network without posting to the wrong one, and get sign-up details ready for networks you are not on yet, all offline and local. 3 new commands (104 in all, none removed): `profile`, `account-route` and `account-kit`, plus a `--persona` option on `draft`, `check` and `approve`. No change to approval, dry-run, emergency-stop, credential or reconciliation rules, and no new live adapter.
+
+**Upgrade notes.** Nothing changes for existing users: `--persona`, the profile file and the optional `"persona"` field in `accounts.json` are all opt-in, and without them every command behaves as in 0.9.0. Update the package with `pipx upgrade reachweaver` and the plugin through `/plugin`.
 
 ### Added
 
