@@ -135,10 +135,13 @@ def download_image(url: str, *, max_bytes: int = MAX_IMAGE_BYTES) -> bytes:
                 raise ImageFetchError(f"image_too_large: more than {max_bytes} bytes")
             data = response.read(max_bytes + 1)
     except HTTPError as exc:
-        if 300 <= exc.code < 400:
-            raise ImageFetchError(f"image_url_redirect_refused: http_{exc.code}; give the final URL "
-                                  "(Meta fetches it directly)") from None
-        raise ImageFetchError(f"image_url_http_{exc.code}") from None
+        try:
+            if 300 <= exc.code < 400:
+                raise ImageFetchError(f"image_url_redirect_refused: http_{exc.code}; give the final URL "
+                                      "(Meta fetches it directly)") from None
+            raise ImageFetchError(f"image_url_http_{exc.code}") from None
+        finally:
+            publishers.close_http_error(exc)
     except publishers.PublishError:
         raise ImageFetchError("image_url_invalid_request") from None
     except (URLError, TimeoutError, OSError, http.client.HTTPException):

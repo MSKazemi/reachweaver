@@ -29,7 +29,11 @@ from test_profile import sample
 from test_share_browser import request, running_server
 
 ROOT = Path(__file__).resolve().parents[1]
-DEEP = "[" * 50000 + "]" * 50000
+# Valid JSON nested 120 000 deep (240 000 bytes, under the smallest input-size cap, discovery's 250 000).
+# Python 3.14 bounds the C JSON decoder by the real stack instead of a fixed depth: 50 000 levels parse there
+# (about 65 000 do not, with the usual 8 MiB stack), so the old fixture no longer reached RecursionError.
+# test_helpers fails loudly, not silently, on an interpreter whose stack lets this depth parse.
+DEEP = "[" * 120_000 + "]" * 120_000
 
 
 class CliCase(unittest.TestCase):
@@ -278,8 +282,10 @@ class CsvLineTests(CliCase):  # B8
 class BrokenPipeTests(unittest.TestCase):  # B10
     def test_reader_closing_early_is_quiet_exit_141(self):
         env = dict(os.environ, PYTHONPATH=str(ROOT))
+        # bufsize=0: an unbuffered pipe, so read(10) takes 10 bytes. Python 3.14 raised the default buffer to
+        # 128 KiB, and a buffered read(10) could drain the whole ~80 KB output and let the child exit 0.
         proc = subprocess.Popen([sys.executable, "-m", "reachweaver", "delivery-options", "--json"], cwd=ROOT,
-                                env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
         proc.stdout.read(10)  # the output is far larger than a pipe buffer
         proc.stdout.close()
         err = proc.stderr.read().decode()

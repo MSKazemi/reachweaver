@@ -202,7 +202,10 @@ def _fetch_response(url: str, *, max_bytes: int, headers: dict | None = None) ->
             raw = response.read(max_bytes + 1)
             selected = _selected_headers(getattr(response, "headers", None))
     except HTTPError as exc:
-        raise SourceError(f"http_{int(exc.code)}") from None
+        try:
+            raise SourceError(f"http_{int(exc.code)}") from None
+        finally:
+            publishers.close_http_error(exc)
     except (URLError, TimeoutError, OSError, ValueError):
         raise SourceError("network_or_timeout") from None
     if not isinstance(raw, bytes):

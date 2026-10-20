@@ -42,7 +42,7 @@ For every new/changed factual claim:
 3. Record market-priority changes as **editorial hypotheses**; explain target persona, actual problem, language and first-party experiment that could falsify the selection. No invented ranking weights, growth guarantees or universal optimal times.
 4. Country and language are separate: localized user documentation or captions do **not** establish speech recognition, hardware or OS language support. Obtain human local-language QA, use correct character sets, and label unsupported features transparently. Check local account-creation requirements and legal/regional availability; do not bypass platform verification.
 5. Every modified market must reference defined platform IDs, all four supported goals, an IANA timezone for country-level time proposals, and no duplicated priority IDs. Update both portable and canonical registries with `python3 scripts/sync_skill.py`.
-6. Run `python3 -m unittest discover -s tests -v`, inspect the PR diff, and let GitHub CI verify Python 3.11, 3.12 and 3.13. Changes to writing/publishing permissions require security review and a separately approved live pilot.
+6. Run `python3 -m unittest discover -s tests -v`, inspect the PR diff, and let GitHub CI verify Python 3.11, 3.12, 3.13 and 3.14. Changes to writing/publishing permissions require security review and a separately approved live pilot.
 7. Recheck policies before each campaign; dates in a versioned file indicate the last **document review**, not a guarantee that every cited product feature still exists.
 
 ## Community-specific rules

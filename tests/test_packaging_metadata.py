@@ -57,7 +57,7 @@ class Metadata(unittest.TestCase):
         self.assertEqual(set(urls), {"Homepage", "Documentation", "Source", "Issues", "Changelog"})
         for url in urls.values():
             self.assertTrue(url.startswith("https://github.com/MSKazemi/reachweaver"), url)
-        for version in ("3.11", "3.12", "3.13"):
+        for version in ("3.11", "3.12", "3.13", "3.14"):
             self.assertIn(f"Programming Language :: Python :: {version}", PROJECT["classifiers"])
         self.assertEqual(PROJECT["readme"], "README.md")
         self.assertTrue((ROOT / "README.md").is_file())

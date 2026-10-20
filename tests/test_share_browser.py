@@ -261,8 +261,11 @@ class BrowserComposerTests(unittest.TestCase):
             self.assertEqual(code, 403)
 
     def test_deeply_nested_json_is_a_422_not_a_dropped_connection(self):
+        # As deep as the body limit allows. Python 3.14 bounds the C JSON decoder by the real thread stack
+        # instead of a fixed depth: 50 000 levels no longer raise RecursionError there (about 65 000 do with
+        # the usual 8 MiB stack), so a shallower body would test the "not JSON" path, not the nesting one.
         with running_server() as srv:
-            code, _, body = request(srv, "POST", "/api/preview", b"[" * 50000, token=srv.token,
+            code, _, body = request(srv, "POST", "/api/preview", b"[" * MAX_REQUEST_BYTES, token=srv.token,
                                     origin=srv.origin, content_type="application/json")
             self.assertEqual(code, 422, body.decode())
             self.assertIn("nested too deeply", body.decode())

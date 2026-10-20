@@ -7,7 +7,7 @@ PRs focused. Completed work belongs on `main`, not in indefinitely retained feat
 
 1. Record the exact source/head and current target SHA. Review the diff, ownership,
    private/public boundary, dependencies, release rights and impact on existing code.
-2. Run the current GitHub Actions hygiene and offline Python 3.11/3.12/3.13 matrix.
+2. Run the current GitHub Actions hygiene and offline Python 3.11/3.12/3.13/3.14 matrix.
    A cancelled job, job without an allocated runner, or success for an old commit is
    **not** a passing gate. Rebase/reconcile conflicting changes without force-pushing
    over someone else's work. Require new checks on the resolved head.

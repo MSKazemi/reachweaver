@@ -67,6 +67,19 @@ def http_error(exc: HTTPError, *, telegram_body: bool = False) -> PublishError:
                         retry_hint=hint_from_http_error(exc, telegram_body=telegram_body))
 
 
+def close_http_error(exc: HTTPError) -> None:
+    """Release an ``HTTPError``'s response once its status, headers and any bounded body are handled.
+
+    Never reads anything and never raises. Python 3.14 warns (``ResourceWarning``) when an unclosed
+    ``HTTPError`` is garbage-collected, and the warning text is the error's repr, which quotes the
+    provider's reason phrase; under ``-W``, ``-X dev`` or ``PYTHONWARNINGS`` that reached stderr.
+    """
+    try:
+        exc.close()
+    except Exception:  # noqa: BLE001 - closing is best effort; it never replaces the sanitized error
+        pass
+
+
 class _NoRedirects(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         # Never forward Authorization headers or a Telegram bot token path to a redirect.
@@ -117,7 +130,10 @@ def _decode_response(req: Request, *, telegram_body: bool = False) -> dict:
                 raise PublishError("unexpected_response_type")
             return data
     except HTTPError as exc:
-        raise http_error(exc, telegram_body=telegram_body) from None
+        try:
+            raise http_error(exc, telegram_body=telegram_body) from None
+        finally:
+            close_http_error(exc)
     except (URLError, TimeoutError, OSError):
         raise PublishError("network_or_timeout_uncertain") from None
     except (json.JSONDecodeError, UnicodeError, http.client.HTTPException):
@@ -161,7 +177,10 @@ def request_json_with_headers(url: str, payload: dict, headers: dict | None = No
             names = {str(k).lower(): str(v) for k, v in response.headers.items()}
             raw = response.read(1_000_001)
     except HTTPError as exc:
-        raise http_error(exc) from None
+        try:
+            raise http_error(exc) from None
+        finally:
+            close_http_error(exc)
     except (URLError, TimeoutError, OSError):
         raise PublishError("network_or_timeout_uncertain") from None
     except http.client.HTTPException:  # e.g. IncompleteRead after the request was sent
@@ -190,7 +209,10 @@ def _status_and_json(req: Request) -> tuple[int, dict]:
             status = int(getattr(response, "status", None) or response.getcode())
             raw = response.read(1_000_001)
     except HTTPError as exc:
-        raise http_error(exc) from None
+        try:
+            raise http_error(exc) from None
+        finally:
+            close_http_error(exc)
     except (URLError, TimeoutError, OSError):
         raise PublishError("network_or_timeout_uncertain") from None
     except http.client.HTTPException:
@@ -246,7 +268,10 @@ def request_put_bytes(url: str, data: bytes, headers: dict) -> int:
             status = int(getattr(response, "status", None) or response.getcode())
             response.read(1_000_001)
     except HTTPError as exc:
-        raise http_error(exc) from None
+        try:
+            raise http_error(exc) from None
+        finally:
+            close_http_error(exc)
     except (URLError, TimeoutError, OSError):
         raise PublishError("network_or_timeout_uncertain") from None
     except http.client.HTTPException:
