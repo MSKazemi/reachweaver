@@ -157,6 +157,7 @@ COMMANDS: dict[str, dict] = {
     "engagement-fetch": _c(NW, note="network only with --online"),
     "engagement-triage": _c(W, note="writes draft files only with --out/--issues-dir"),
     "engagement-queue": _c(R),
+    "followup-suggest": _c(W, note="database mode=ro; suggestions only (never likes, replies or drafts); only --record writes its --state file"),
     # Data, privacy and schemas
     "archive": _c(W),
     "media-relink": _c(W, note="dry run unless --apply"),

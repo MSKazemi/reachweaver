@@ -61,6 +61,7 @@ reachweaver data-purge --apply                   # applies the plan to local row
 | --- | --- |
 | `engagement-triage` | A listed author gets action `optout_listed_no_contact`: no reply draft and no issue draft |
 | `campaign-check`, `claims-check`, `campaign-preview`, `campaign-stage`, `campaign-export` | An @-mention of a listed handle or domain is an `optout_mention` **error**, so the variant cannot be staged or exported |
+| `followup-suggest` | A listed handle that the original post mentions is never named in a follow-up suggestion; only a count is shown |
 | `draft` | A draft that @-mentions a listed handle or domain is **refused**; no post row is created |
 | `check POST_ID` | The mention is reported as `BLOCKED: ... optout_mention ...` (exit 1) |
 | `approve POST_ID` | Approval is **refused** with the mention named; the post stays `draft` |

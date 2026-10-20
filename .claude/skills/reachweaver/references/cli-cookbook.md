@@ -171,6 +171,7 @@ Then the owner, in their own terminal: `approve POST_ID`, and only on the produc
 | `engagement-fetch` | Plan only; **online** read-only public replies/quotes; never replies | `--online`, `--out F`, `--account`, `--post-id`, `--quotes` |
 | `engagement-triage` | Comment triage + reply/issue DRAFTS; no send path | `INPUT`, `--docs-map`, `--out`, `--issues-dir`, `--json` |
 | `engagement-queue` | Aging/SLA review queue over an engagement export | `INPUT`, `--docs-map`, `--sla`, `--json` |
+| `followup-suggest` | Owner-set metric thresholds -> follow-up briefs + next commands for review; never likes, replies, DMs or drafts | `--rules F`, `--account ID`, `--since DATE`, `--state F`, `--record`, `--optout F`, `--json` |
 
 ## Data, privacy and schemas
 
