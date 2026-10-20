@@ -90,7 +90,7 @@ COMMANDS: dict[str, dict] = {
     "campaign-stage": _c(W, note="stages drafts only; never approves"),
     "campaign-export": _c(W),
     "claims-check": _c(R),
-    "review-packet": _c(W, note="draft, pending security review: database read-only; one NEW private folder per run; never approves"),
+    "review-packet": _c(W, note="database read-only; one NEW private folder per run; never approves"),
     "review-comment": _c(("owner_only", "writes"), note="records another person's words in the packet's comments.json only; never approval"),
     "review-status": _c(R, note="comments per post, STALE after a text change; database read-only; never approval"),
     # Publish and recover

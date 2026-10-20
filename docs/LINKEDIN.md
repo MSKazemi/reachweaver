@@ -142,6 +142,16 @@ Content-Type: application/json
 
 On HTTP 201 the `x-restli-id` header holds the post URN (`urn:li:share:…` or `urn:li:ugcPost:…`). ReachWeaver stores it as `remote_id`, plus `https://www.linkedin.com/feed/update/{urn}/` as `remote_url`. Any other outcome, including a missing header, a 403 for a missing `w_member_social` (the message names `w_member_social` and the Share on LinkedIn product and ends with `verify the profile before reconciling`), a 426 for an inactive version, a 429 or a timeout, becomes `needs_review`. It is never retried, because the Posts API documents no idempotency key. Open your profile, then run `reconcile`. A 429 (on `userinfo` or on the post) also records an account cooldown until the next 00:00 UTC, LinkedIn's documented daily reset, unless a `Retry-After` header says otherwise; the account's other posts wait until then. A post-claim LinkedIn 429 is classified `ambiguous`, because LinkedIn does not say whether a rate-limited create was applied ([worker operations](WORKER-OPERATIONS.md#provider-rate-limits-and-cooldowns-issue-11)).
 
+## LinkedIn's rule on automated posting
+
+LinkedIn's [API Terms of Use](https://www.linkedin.com/legal/l/api-terms-of-use), section 3.1, list among the things an API user must not do: "Use the Content or the APIs to automate posting on the LinkedIn Services" (checked 2026-10-20). This is LinkedIn's rule, not a ReachWeaver setting, so ReachWeaver respects it:
+
+- A LinkedIn post is sent only when you name that one post yourself: `reachweaver publish --live --post-id POST_ID` in your own terminal, after you approved its exact text.
+- A scheduled or bulk run (`publish --live --scheduled-only`, or `publish --live` without `--post-id`) holds every LinkedIn post before any claim, credential read or request and prints `HELD ... linkedin` (worker log reason `owner_triggered_only`). The post stays approved.
+- `schedule` refuses a LinkedIn post. Use LinkedIn's own scheduler in the LinkedIn app if you want a post to go out later.
+
+This is a conservative reading, not legal advice: it removes automation (timers, workers, bulk runs) and keeps a human-initiated, per-post action. If LinkedIn's terms or your agreement with LinkedIn say otherwise, follow them. The rule lives in `policy.OWNER_TRIGGERED_ONLY` and is tested in `tests/test_owner_triggered_only.py`.
+
 ## Text formatting
 
 `commentary` uses LinkedIn's [`little` text format](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/little-text-format). Reserved characters must be backslash-escaped even when they are not part of an element. ReachWeaver escapes `| { } @ [ ] ( ) < > # \ * _ ~` so the approved text appears literally. It never creates `@[Name](urn)` mentions. A `#` at the start of a word, followed by a letter or digit, is left as a hashtag. The conservative local length cap is 2,800 code points. LinkedIn returns `FIELD_LENGTH_TOO_LONG` above its own limit, which ReachWeaver has not independently verified. Because escaping adds a backslash per reserved character, `validate_post` also refuses a draft whose ESCAPED commentary exceeds 3,000 characters, before any approval or send.

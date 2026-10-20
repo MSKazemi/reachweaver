@@ -1,4 +1,4 @@
-# Local MCP server (`mcp-serve`) — draft, pending security review
+# Local MCP server (`mcp-serve`) — experimental (owner-reviewed 2026-10-20)
 
 > **Status: draft.** This command is on a review branch and is not part of a release. It exists so the owner can review it; it may change or be removed.
 

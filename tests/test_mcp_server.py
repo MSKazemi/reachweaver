@@ -1,4 +1,4 @@
-"""`mcp-serve` (draft, pending security review): the stdio MCP server exposes only allowlisted read-only tools.
+"""`mcp-serve` (experimental): the stdio MCP server exposes only allowlisted read-only tools.
 
 Offline and synthetic. Protocol facts come from https://modelcontextprotocol.io/specification/2026-07-28 and
 /specification/2025-11-25/basic/lifecycle (fetched 2026-10-20); see docs/MCP-SERVER.md.

@@ -60,7 +60,8 @@ from .timing_analysis import analyze_posting_times
 from .worker_log import claim_refusal_reason, error_code as worker_error_code, open_worker_log
 from .schema_export import EXPORT_TYPES, export_documents, render_jsonl
 from .schemas import TYPES as SCHEMA_TYPES, validate as validate_schema
-from .policy import (CONSERVATIVE_TEXT_LIMITS, LINKEDIN_ESCAPED_MAX, PLATFORMS, SUPPORTED_LIVE,
+from .policy import (CONSERVATIVE_TEXT_LIMITS, LINKEDIN_ESCAPED_MAX, OWNER_TRIGGERED_ONLY, OWNER_TRIGGERED_REASON,
+                     PLATFORMS, SUPPORTED_LIVE,
                      SUPPORTED_LIVE_VIDEO, ValidationError, live_opt_in, mastodon_text_limit,
                      require_live_gate, runtime_environment, validate_post)
 from .attachments import MEDIA_PLATFORMS, UNSUPPORTED_PLATFORM
@@ -380,6 +381,17 @@ def _publish(db, args, wlog) -> int:
     if args.post_id and not due:
         wlog.skipped_id(args.post_id, "not_due")
         raise ValidationError("Selected post is not approved and due, or does not exist. No send attempted.")
+    # Platform terms forbid automated posting (policy.OWNER_TRIGGERED_ONLY, e.g. LinkedIn API Terms 3.1): such a
+    # post leaves only through the owner's own `publish --live --post-id ID`; scheduled and bulk runs hold it
+    # here, before any claim, request or credential read. Tighten-only.
+    if args.scheduled_only or not args.post_id:
+        held = [post for post in due if post["platform"] in OWNER_TRIGGERED_ONLY]
+        if held:
+            held_ids = {post["id"] for post in held}
+            due = [post for post in due if post["id"] not in held_ids]
+            for post in held:
+                wlog.skipped(post, "owner_triggered_only")
+                print(f"  HELD {post['id']} {post['platform']}: {OWNER_TRIGGERED_REASON}")
     # Optional per-account caps file: tighten-only, min/max with the CLI values (caps.py).
     caps, caps_path = load_caps()
     # Opt-out list: loaded ONCE per run, before any claim; a malformed file aborts here.
@@ -2161,7 +2173,7 @@ def execute(args) -> int:
         from .release_brief import run_cli as run_release_brief
         return run_release_brief(args)
     if args.command in ("review-packet", "review-comment", "review-status"):  # database only via connect_readonly
-        from .review_packet import run_cli as run_review  # draft, pending security review; comments never approve
+        from .review_packet import run_cli as run_review  # comments never approve
         return run_review(args, check_report=_check_report, optional_account=_optional_account)
     if args.command == "sources-scan":
         from .sources import render_scan, scan_config_file
@@ -2578,6 +2590,9 @@ def execute(args) -> int:
                   else f"Post {args.post_id} -> {new_status}")
         elif args.command == "schedule":
             when = parse_utc(args.at)
+            platform = get_post(db, args.post_id)["platform"]
+            if platform in OWNER_TRIGGERED_ONLY:
+                raise ValidationError(f"{platform} cannot be scheduled: {OWNER_TRIGGERED_REASON}. Nothing changed")
             new_status = transition(db,args.post_id,'schedule',when)
             print(json.dumps({"post_id": args.post_id, "status": new_status, "scheduled_at": when}) if args.json
                   else f"Post {args.post_id} -> {new_status} for {when}")

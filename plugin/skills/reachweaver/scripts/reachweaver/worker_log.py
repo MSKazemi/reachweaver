@@ -65,6 +65,7 @@ SKIP_REASONS = (
     "not_eligible",               # claim found the post no longer due/approved
     "backend_refused",            # the Postiz backend path returned without a claim
     "reply_refused",              # reply target invalid or not valid for the account now (issue #17)
+    "owner_triggered_only",       # platform terms forbid automated posting: held from scheduled/bulk runs
 )
 OUTCOMES = ("completed", "error")
 SEND_CLASSES = ("certain_not_sent", "likely_not_created", "ambiguous", "unknown")

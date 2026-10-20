@@ -1,6 +1,6 @@
 # Review packets: ask a co-reviewer before you approve
 
-> **Draft, pending security review.** These three commands are new and have not been through the owner's security review. Their behaviour may change before a release.
+> **New in 0.11.0, owner-reviewed 2026-10-20.** Behaviour may still change in a later release.
 
 A teammate, an editor or a co-founder can read the **exact text** of a post before you approve it, and leave a comment. ReachWeaver writes a folder you send to them however you like (email, chat, a shared drive). It sends nothing itself.
 

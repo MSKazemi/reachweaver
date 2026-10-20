@@ -608,7 +608,7 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, default=0, help="Loopback port (default: a free one)")
     p.add_argument("--open", action="store_true", help="Open the tokenised URL in your default browser")
     p.add_argument("--optout", type=Path, help=optout_help + "; queued posts mentioning it are counted, never named")
-    p = sub.add_parser("mcp-serve", help="Draft, pending security review: a local MCP server on stdin/stdout for MCP "
+    p = sub.add_parser("mcp-serve", help="Experimental: a local MCP server on stdin/stdout for MCP "
                        "clients other than Claude Code (Claude Desktop...); only read-only tools, no approve or "
                        "publish tool; runs until its input closes (docs/MCP-SERVER.md)")
     p.add_argument("--allow-drafts", action="store_true",

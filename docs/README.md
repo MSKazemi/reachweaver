@@ -31,7 +31,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 | Avoid posting the same video, image or wording twice | [Repeat guard](REPEAT-GUARD.md) |
 | See what you posted, when and with which files; keep a folder of it | [Posting journal and archive](JOURNAL.md) |
 | Review the queue and a post's exact text in a browser (read-only) | [Local dashboard](DASHBOARD.md) |
-| Read your local state from Claude Desktop or another MCP client (read-only; draft, pending review) | [Local MCP server](MCP-SERVER.md) |
+| Read your local state from Claude Desktop or another MCP client (read-only, experimental) | [Local MCP server](MCP-SERVER.md) |
 | Decide what to make this week for which audience, within your time | [Editorial planning](EDITORIAL-SYSTEM.md) |
 | Describe a campaign with its sources | [Schemas](SCHEMAS.md), [campaign preview](CAMPAIGN-PREVIEW.md), [claim grounding](CLAIM-GROUNDING.md) |
 | Post to a network ReachWeaver cannot send to | [Manual export](MANUAL-EXPORT.md) |
@@ -48,7 +48,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 | Grow an open-source project | [Open-source developer growth playbook](OPEN-SOURCE-DEVELOPER-GROWTH-PLAYBOOK.md), [DEV authority playbook](DEV-AUTHORITY-PLAYBOOK-2026-10-08.md), [GitHub discovery](GITHUB-DISCOVERY.md) |
 | Find topics from your own sources | [Sources](SOURCES.md), [SEO integration](SEO-INTEGRATION.md) |
 | Turn each release into a campaign package to review | [Release to draft](RELEASE-TO-DRAFT.md) |
-| Ask a teammate or editor to comment on the exact text before you approve | [Review packets (draft)](REVIEW-PACKET.md) |
+| Ask a teammate or editor to comment on the exact text before you approve | [Review packets](REVIEW-PACKET.md) |
 
 ## 4. I want to measure results
 

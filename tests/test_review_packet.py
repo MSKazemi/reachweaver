@@ -1,4 +1,4 @@
-"""Review packets and reviewer comments (draft, pending the owner's security review). Offline.
+"""Review packets and reviewer comments. Offline.
 
 Invariants under test: the database is only opened read-only (posts and event_log never change, total_changes
 stays 0), a comment, including ``looks_good``, is never approval, and the approve path never reads this module

@@ -1,6 +1,6 @@
-"""``reachweaver mcp-serve``: a local MCP server on stdio, for MCP clients other than Claude Code (draft).
+"""``reachweaver mcp-serve``: a local MCP server on stdio, for MCP clients other than Claude Code (experimental).
 
-Status: **draft, pending the owner's security review.** An MCP client (Claude Desktop, another agent) can
+Status: **experimental, owner-reviewed 2026-10-20.** An MCP client (Claude Desktop, another agent) can
 call a server's tools without asking a person before each call, so this server is read-only by construction:
 
 * **Allowlist.** A tool exists only for a subcommand whose ``catalog.COMMANDS`` entry is tagged ``read_only``,

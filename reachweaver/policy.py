@@ -8,6 +8,14 @@ from urllib.parse import urlparse
 from .richtext import BLUESKY_MAX_GRAPHEMES, BLUESKY_MAX_UTF8_BYTES, grapheme_count, mastodon_length, utf8_len
 
 SUPPORTED_LIVE = frozenset({"bluesky", "mastodon", "telegram", "linkedin"})
+# Platforms whose own terms forbid automated posting through their API. ReachWeaver never sends to them from
+# a scheduled or bulk run: a live send happens only when the owner names that one post themselves
+# (`publish --live --post-id ID` without --scheduled-only), and `schedule` refuses them. LinkedIn API Terms of
+# Use 3.1 lists, among things you must not do, "Use the Content or the APIs to automate posting on the
+# LinkedIn Services" (https://www.linkedin.com/legal/l/api-terms-of-use, checked 2026-10-20). Tighten-only.
+OWNER_TRIGGERED_ONLY = frozenset({"linkedin"})
+OWNER_TRIGGERED_REASON = ("its terms forbid automated posting through the API; the owner sends this one post "
+                          "with 'publish --live --post-id ID' (no --scheduled-only)")
 # Platforms whose video adapter may run (#22 YouTube, #23 TikTok; owner-approved 2026-10-09,
 # disabled until a live receipt). Empty: every video adapter is unreachable. Enabling one takes
 # this code change AND the platform's registry video switch (``capabilities.VIDEO_MODES``) set to

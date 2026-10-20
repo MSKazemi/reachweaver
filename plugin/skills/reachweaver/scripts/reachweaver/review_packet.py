@@ -1,6 +1,6 @@
 """Review packets and reviewer comments (``review-packet``, ``review-comment``, ``review-status``).
 
-DRAFT, pending the owner's security review. A co-reviewer (teammate, editor, co-founder) reads the EXACT
+Owner-reviewed 2026-10-20. A co-reviewer (teammate, editor, co-founder) reads the EXACT
 text of one or more stored posts before the owner decides, and leaves a comment. This module:
 
 * writes a NEW private folder (0700, files 0600) with one Markdown and one JSON file per post: the exact
