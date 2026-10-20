@@ -1,7 +1,7 @@
 # Platform capability and API-approval registry
 
 <!-- Mirrors reachweaver/platform_registry.json (schema_version 1, reviewed_on 2026-10-08).
-     Regenerate the table from: python -m reachweaver.cli capabilities -->
+     Regenerate the table from: python3 -m reachweaver capabilities -->
 
 **Snapshot:** 2026-10-08. The machine-readable source of truth is [`reachweaver/platform_registry.json`](../reachweaver/platform_registry.json), validated by `reachweaver/capabilities.py` and `tests/test_capabilities.py`. Run `reachweaver capabilities [--platform P] [--json] [--max-age-days N]` to print it offline. It exits nonzero when the registry is incomplete or invalid.
 
@@ -186,5 +186,5 @@ Before any work starts, confirm the owner has a **Pinterest business account**, 
 1. **Cadence:** re-verify every entry at least every 120 days, and immediately before building an adapter or running a pilot. `reachweaver capabilities` warns when an entry's `verified_date` is older than `--max-age-days` (default 120).
 2. **Sources:** use official provider pages only (developer docs, terms, pricing, help centre). Third-party blogs may suggest what to check, but a registry value never rests on them. If a fact cannot be confirmed, set it to `unknown`, which fails closed.
 3. **Edit:** update `reachweaver/platform_registry.json`, including `verified_date`, `verification_basis` and `sources`. A stated rate limit needs an HTTPS `source`; exact numbers go in `rate_limits.facts` with an `accessed` date, and anything the official page does not state goes in `rate_limits.not_published`. Then mirror the table and notes here.
-4. **Gate:** run `python scripts/sync_skill.py` and then `python -m unittest discover -s tests -v`. CI re-validates the registry, checks the bundle is byte-identical and fails on any missing platform, field, enum, date or HTTPS source.
+4. **Gate:** run `python3 scripts/sync_skill.py` and then `python3 -m unittest discover -s tests -v`. CI re-validates the registry, checks the bundle is byte-identical and fails on any missing platform, field, enum, date or HTTPS source.
 5. **Changing an adapter** (`live_text`/`live_media`) also requires changing `policy.SUPPORTED_LIVE`, and a video switch requires `policy.SUPPORTED_LIVE_VIDEO`, plus a security review (see CLAUDE.md). The tests reject any mismatch. `live_media_formats` and `reachweaver_reply_adapter` need no code change for Mastodon and Bluesky, so treat them as security-reviewed changes too.

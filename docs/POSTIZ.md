@@ -132,7 +132,7 @@ The fallback is to inspect the post offline and publish it yourself. Nothing is 
 
 **Scope.** One harmless text post to one account the owner controls, sent through one Postiz integration. Prefer Bluesky: text-only, and with a public read API for the receipt. You may use a Postiz Cloud workspace or your own self-hosted instance, and a dedicated test account or your real one. Record which ones you used.
 
-1. **Offline readiness (safe).** `python -m unittest discover -s tests -q` passes, and `reachweaver doctor` shows `backend=postiz` and the variable name `{env_prefix}_POSTIZ_API_KEY`, never a value.
+1. **Offline readiness (safe).** `python3 -m unittest discover -s tests -q` passes, and `reachweaver doctor` shows `backend=postiz` and the variable name `{env_prefix}_POSTIZ_API_KEY`, never a value.
 2. **Owner, in Postiz.** Connect the channel in Postiz yourself, accepting the platform's OAuth consent there. Then create an API key. Store it outside Claude, in the environment of your own terminal or as a systemd `LoadCredential=` file (see [Configuration](#configuration)), and use a separate `env_prefix` for each ReachWeaver account.
 3. **Identity (read-only).** `reachweaver postiz-check --account ID --online` must show `identity: verified`, the expected `provider` and `write_permission: unverified`. Write down the integration `id`, `identifier`, `profile` and `disabled` fields actually returned (the [scope checklist](POSTIZ-SCOPE-DETECTION.md#live-verification-checklist-owner-supervised-none-done)).
 4. **One post.** `draft`, then `show POST_ID` (check the `platform_preview` target), `check POST_ID`, `approve POST_ID` after reading the exact text, and `publish --post-id POST_ID` (a dry run, no network).

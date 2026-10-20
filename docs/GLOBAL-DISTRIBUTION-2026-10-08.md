@@ -4,7 +4,7 @@
 
 ## Living data and current implementation
 
-This narrative guide is complemented by the **[tested market/channel registry](../reachweaver/distribution_registry.json)**, the [operating change-control standard](DISTRIBUTION-GOVERNANCE.md), and [research on platform algorithms and timing](PLATFORM-ALGORITHMS-SCHEDULING-2026-10-08.md). Generate a read-only country-specific proposal with `python -m reachweaver.cli distribution-plan --region china --goal adoption --json`. It is NOT a publishing queue. New primary-source corrections belong in the registry and mirrored skill; verified native scheduling does not imply ReachWeaver API integration.
+This narrative guide is complemented by the **[tested market/channel registry](../reachweaver/distribution_registry.json)**, the [operating change-control standard](DISTRIBUTION-GOVERNANCE.md), and [research on platform algorithms and timing](PLATFORM-ALGORITHMS-SCHEDULING-2026-10-08.md). Generate a read-only country-specific proposal with `python3 -m reachweaver distribution-plan --region china --goal adoption --json`. It is NOT a publishing queue. New primary-source corrections belong in the registry and mirrored skill; verified native scheduling does not imply ReachWeaver API integration.
 
 ## India expansion (2026-10-15)
 

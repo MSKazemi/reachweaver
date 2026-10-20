@@ -30,7 +30,7 @@ Optional fields that support claim grounding:
 When an error appears, quote the exact excerpt into the evidence, cite the right evidence ID, or remove the claim. Never invent an excerpt to clear an error.
 
 ```bash
-python -m reachweaver.cli claims-check examples/campaign.reachweaver.json --brand examples/brand.reachweaver.json --json
+RW claims-check examples/campaign.reachweaver.json --brand examples/brand.reachweaver.json --json
 ```
 
 This is **lexical matching, not truth verification**. It never opens a source and trusts each excerpt as typed. A clean report is not proof.
@@ -38,7 +38,7 @@ This is **lexical matching, not truth verification**. It never opens a source an
 ## Channel preview
 
 ```bash
-python -m reachweaver.cli campaign-preview --file examples/campaign-preview.reachweaver.json --brand examples/brand-preview.reachweaver.json [--accounts A] [--utm] [--json|--markdown]
+RW campaign-preview --file examples/campaign-preview.reachweaver.json --brand examples/brand-preview.reachweaver.json [--accounts A] [--utm] [--json|--markdown]
 ```
 
 (standalone: `assets/campaign-preview.reachweaver.json` and `assets/brand-preview.reachweaver.json`.) For every variant the preview shows:
@@ -54,11 +54,11 @@ python -m reachweaver.cli campaign-preview --file examples/campaign-preview.reac
 
 ```bash
 # No account access; no database needed
-python -m reachweaver.cli campaign-check --file examples/campaign.reachweaver.json --brand examples/brand.reachweaver.json --json
+RW campaign-check --file examples/campaign.reachweaver.json --brand examples/brand.reachweaver.json --json
 # Export human-postable drafts without touching any social network
-python -m reachweaver.cli campaign-export --file examples/campaign.reachweaver.json --brand examples/brand.reachweaver.json --out /tmp/reachweaver-manual-pack
+RW campaign-export --file examples/campaign.reachweaver.json --brand examples/brand.reachweaver.json --out /tmp/reachweaver-manual-pack
 # Requires a private local config/accounts.json; DOES NOT approve, schedule or send
-python -m reachweaver.cli campaign-stage --file examples/campaign.reachweaver.json --brand examples/brand.reachweaver.json
+RW campaign-stage --file examples/campaign.reachweaver.json --brand examples/brand.reachweaver.json
 ```
 
 Stage is all-or-nothing and idempotent by `(campaign_id, variant_id)`; a changed campaign must receive a new ID/version instead of silently changing a staged post. The database saves a snapshot of referenced evidence for audit. Stage creates text drafts only. A staged Mastodon draft can take an image afterwards (`media-attach`, bound at approval), but live media sending stays disabled until the owner records a live receipt, so for media make a manual publishing package and obtain explicit review.

@@ -13,7 +13,7 @@ Use this when the user asks about best hooks, posting times, formats, growth, wh
 7. Run a second independent test or consider an actual randomized first-party experiment before treating any finding as a rule. Don't assign statistical significance or causality to sequential organic comparisons.
 
 ```bash
-python -m reachweaver.cli experiment-evaluate --file examples/experiment.example.json
+RW experiment-evaluate --file examples/experiment.example.json
 ```
 
 Replace every example post ID with a **real** ReachWeaver published post ID. Both posts in each pair need a send timestamp and snapshots around the target age. Cross-account/platform comparisons, missing denominators, incomplete pairs, changed data sources and publications predating the declared plan are excluded. The CLI readout does not call social APIs or claim to know their ranking weights.
@@ -23,8 +23,8 @@ Replace every example post ID with a **real** ReachWeaver published post ID. Bot
 Before any arm is published, write a growth plan (start from `assets/growth-plan.example.json` or `examples/growth-plan.example.json`), then run:
 
 ```bash
-python -m reachweaver.cli experiment-preregister examples/growth-plan.example.json --out private/plan.prereg.json
-python -m reachweaver.cli experiment-verify examples/growth-plan.example.json --hash sha256:<plan_hash>
+RW experiment-preregister examples/growth-plan.example.json --out private/plan.prereg.json
+RW experiment-verify examples/growth-plan.example.json --hash sha256:<plan_hash>
 ```
 
 - **Variants:** 2–3 arms, exactly one control. Each arm declares the ONE dimension it changes (`hook`, `framing`, `format`, `cta` or `timing`), and the other labels and the CTA link stay identical. More than 3 arms, near-duplicate respins, or a different CTA URL in a hook test are rejected.

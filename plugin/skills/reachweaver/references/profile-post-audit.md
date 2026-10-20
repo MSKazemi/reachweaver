@@ -12,8 +12,8 @@ Do not give one generic "algorithm score" to all networks. In a complete ReachWe
 4. **Run the deterministic offline profile check** on a user-created JSON snapshot (or a profile `.csv`, see `docs/PROFILE-AND-POST-AUDITS.md`). The output also carries an advisory cross-platform name/handle/link/bio consistency block. Do not pass a GitHub URL instead of a local snapshot; this command has **no network capability**.
    
    ```bash
-   reachweaver profile-audit --file state/owned-profiles.json --platform linkedin --json
-   # A copied global skill: python ~/.claude/skills/reachweaver/scripts/run.py profile-audit --file state/owned-profiles.json --json
+   RW profile-audit --file state/owned-profiles.json --platform linkedin --json
+   # RW is the command prefix from SKILL.md (python3 <skill-dir>/scripts/run.py); in a checkout, reachweaver profile-audit is the same
    ```
 
    An observed completeness heuristic is reported only with >=60% of the platform's requested fields actually checked. It is **not** a 0–100 score from LinkedIn, Instagram, Google or another social algorithm. Read `fixes` and `alerts`, not just the score.

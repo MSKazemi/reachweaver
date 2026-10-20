@@ -6,17 +6,17 @@
 
 ```bash
 # Offline (default): reads only the local fixture files named in the config.
-python -m reachweaver.cli sources-scan --config examples/sources.reachweaver.json --top 5
-python -m reachweaver.cli sources-scan --config examples/sources.reachweaver.json --json
+python3 -m reachweaver sources-scan --config examples/sources.reachweaver.json --top 5
+python3 -m reachweaver sources-scan --config examples/sources.reachweaver.json --json
 
 # Novelty memory: record the candidates shown into a local state file, so a later scan marks them previously_seen.
-python -m reachweaver.cli sources-scan --config my-sources.json --state state/sources-seen.json --mark-seen
+python3 -m reachweaver sources-scan --config my-sources.json --state state/sources-seen.json --mark-seen
 
 # Explicit network access: GET only. Public GitHub repos (paginated), https feeds and changelogs
 # (robots.txt checked first), and the Crossref API for DOI sources.
 # An optional token raises the GitHub rate limit. It is read from the environment and never printed.
 # export REACHWEAVER_GITHUB_TOKEN=...   # set this privately; never put it in the config
-python -m reachweaver.cli sources-scan --config my-sources.json --online --top 10
+python3 -m reachweaver sources-scan --config my-sources.json --online --top 10
 ```
 
 Exit codes: `0` means a clean scan. `1` means some sources failed: the output still includes the other sources, and `errors` lists sanitized codes. `2` means the config, state or arguments are invalid.

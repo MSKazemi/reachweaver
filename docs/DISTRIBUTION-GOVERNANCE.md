@@ -22,14 +22,14 @@ The [regional channel expansion](REGIONAL-CHANNELS-2026-10-14.md) adds 27 manual
 
 ```bash
 # All commands below are local/read-only, require no social login, and do not schedule any post.
-python -m reachweaver.cli distribution-plan --region india --goal adoption --limit 5
-python -m reachweaver.cli distribution-plan --region china --goal contributors --limit 6 --json
-python -m reachweaver.cli distribution-plan --region nigeria --goal collaboration --date 2026-10-14 --json
+python3 -m reachweaver distribution-plan --region india --goal adoption --limit 5
+python3 -m reachweaver distribution-plan --region china --goal contributors --limit 6 --json
+python3 -m reachweaver distribution-plan --region nigeria --goal collaboration --date 2026-10-14 --json
 # Worldwide has no single audience timezone: supply a specific one for any time experiment.
-python -m reachweaver.cli distribution-plan --region global --goal awareness --date 2026-10-14 --timezone Europe/Rome --json
+python3 -m reachweaver distribution-plan --region global --goal awareness --date 2026-10-14 --timezone Europe/Rome --json
 ```
 
-From a copied Claude Code skill, use `python ~/.claude/skills/reachweaver/scripts/run.py distribution-plan ...` while working in the target project.
+From a copied Claude Code skill, use `python3 ~/.claude/skills/reachweaver/scripts/run.py distribution-plan ...` while working in the target project.
 
 The result explicitly says `OFFLINE_RESEARCH_PROPOSAL_NOT_SCHEDULED`. The **native_schedule** field describes a *platform* or account role; **reachweaver_delivery** says what our code has. The `illustrative_time_tests` field is an untested local-time hypothesis, with its IANA zone converted to an offset-aware UTC instant. Neither field schedules a remote platform post, confirms an account, recommends a guaranteed good hour or grants publishing consent.
 
@@ -41,8 +41,8 @@ For every new/changed factual claim:
 2. Separate **(a) platform-native scheduling**, **(b) permitted external API/client scheduling**, **(c) currently mock-tested ReachWeaver adapters**, **(d) live verified owner account and real remote receipts**. A provider announcement never proves (d).
 3. Record market-priority changes as **editorial hypotheses**; explain target persona, actual problem, language and first-party experiment that could falsify the selection. No invented ranking weights, growth guarantees or universal optimal times.
 4. Country and language are separate: localized user documentation or captions do **not** establish speech recognition, hardware or OS language support. Obtain human local-language QA, use correct character sets, and label unsupported features transparently. Check local account-creation requirements and legal/regional availability; do not bypass platform verification.
-5. Every modified market must reference defined platform IDs, all four supported goals, an IANA timezone for country-level time proposals, and no duplicated priority IDs. Update both portable and canonical registries with `python scripts/sync_skill.py`.
-6. Run `python -m unittest discover -s tests -v`, inspect the PR diff, and let GitHub CI verify Python 3.11, 3.12 and 3.13. Changes to writing/publishing permissions require security review and a separately approved live pilot.
+5. Every modified market must reference defined platform IDs, all four supported goals, an IANA timezone for country-level time proposals, and no duplicated priority IDs. Update both portable and canonical registries with `python3 scripts/sync_skill.py`.
+6. Run `python3 -m unittest discover -s tests -v`, inspect the PR diff, and let GitHub CI verify Python 3.11, 3.12 and 3.13. Changes to writing/publishing permissions require security review and a separately approved live pilot.
 7. Recheck policies before each campaign; dates in a versioned file indicate the last **document review**, not a guarantee that every cited product feature still exists.
 
 ## Community-specific rules

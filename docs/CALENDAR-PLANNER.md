@@ -21,11 +21,11 @@ Do not mistake `calendar-plan --apply` for sending content. It cannot approve dr
 Create or reuse `config/accounts.json` from the ignored local template. All identifiers must refer to accounts the operator controls.
 
 ```bash
-python -m reachweaver.cli doctor
-python -m reachweaver.cli draft --account my-bluesky --text 'A useful release note and real evidence.'
-python -m reachweaver.cli show POST_ID
-python -m reachweaver.cli check POST_ID
-python -m reachweaver.cli approve POST_ID
+python3 -m reachweaver doctor
+python3 -m reachweaver draft --account my-bluesky --text 'A useful release note and real evidence.'
+python3 -m reachweaver show POST_ID
+python3 -m reachweaver check POST_ID
+python3 -m reachweaver approve POST_ID
 ```
 
 Repeat for each distinct, platform-adapted post. A different exact message or account needs its own approval. Use `calendar-plan --include-drafts` only to preview unapproved work.
@@ -34,7 +34,7 @@ Repeat for each distinct, platform-adapted post. A different exact message or ac
 
 ```bash
 # Replace the dates with a future window; this is a worked example.
-python -m reachweaver.cli calendar-plan \
+python3 -m reachweaver calendar-plan \
   --account my-bluesky --timezone Europe/Rome \
   --start 2026-10-15 --days 14
 ```
@@ -44,7 +44,7 @@ The output is JSON with the post ID, account, platform, proposed local timestamp
 Optionally select exact posts, blackout dates and account-supplied viewing windows:
 
 ```bash
-python -m reachweaver.cli calendar-plan \
+python3 -m reachweaver calendar-plan \
   --account my-bluesky --timezone America/New_York \
   --start 2026-10-15 --days 21 --spacing-hours 24 \
   --post-id POST_ID_A --post-id POST_ID_B \
@@ -61,7 +61,7 @@ The planner prevents collisions with other locally scheduled posts for the same 
 If a native analytics dashboard shows you hour-of-week audience activity (for example "followers online" or "most active times"), copy those numbers into a CSV and let the planner take its candidate slots from your top activity hours:
 
 ```bash
-python -m reachweaver.cli calendar-plan \
+python3 -m reachweaver calendar-plan \
   --account my-bluesky --timezone Europe/Rome \
   --start 2026-10-15 --days 14 \
   --audience-activity private/audience-activity.csv \
@@ -97,7 +97,7 @@ Activity measures when your audience is present. It does not measure outcomes, s
 Planning only on the slots that look best so far never tests anything else. `--explore-share` sets aside a fixed share of the batch for times you want to try, and labels every entry so you can evaluate the two groups later:
 
 ```bash
-python -m reachweaver.cli calendar-plan \
+python3 -m reachweaver calendar-plan \
   --account my-bluesky --timezone Europe/Rome \
   --start 2026-10-15 --days 14 \
   --explore-share 0.25 --explore-slot 'Sat@11:00' [--explore-slot 'Sun@10:00']
@@ -116,11 +116,11 @@ For TikTok, a native scheduling eligibility hint flags proposals beyond the docu
 Once every selected post is individually approved **and the proposal has been reviewed**:
 
 ```bash
-python -m reachweaver.cli calendar-plan \
+python3 -m reachweaver calendar-plan \
   --account my-bluesky --timezone Europe/Rome \
   --start 2026-10-15 --days 14 --apply
-python -m reachweaver.cli list --status scheduled
-python -m reachweaver.cli publish       # DRY RUN ONLY: shows posts that are due
+python3 -m reachweaver list --status scheduled
+python3 -m reachweaver publish       # DRY RUN ONLY: shows posts that are due
 ```
 
 `--apply` atomically revalidates approval/account/platform and each post's approval payload hash (a post changed after approval, or approved before the hash binding existed, is refused and nothing is scheduled; re-approve it with `unapprove`, `show`, `approve`), ensures every UTC time remains at least five minutes in the future, checks emergency pause and newly created collisions, then schedules all proposed posts together or **none**. It never starts a worker, enables `REACHWEAVER_ALLOW_LIVE`, approves unsent content or bypasses the publishing gates. Running a cron on an *authorized trusted machine* is a separate operational decision documented in [architecture](ARCHITECTURE.md).
@@ -140,8 +140,8 @@ Existing publishing safety remains unchanged: dry-run default, no automated unkn
 ## 4b. Find gaps in what is already queued: `calendar-gaps`
 
 ```bash
-python -m reachweaver.cli calendar-gaps --account my-bluesky --timezone Europe/Rome --days 14
-python -m reachweaver.cli calendar-gaps --account my-bluesky --timezone Europe/Rome --start 2026-10-15 --days 14 --json \
+python3 -m reachweaver calendar-gaps --account my-bluesky --timezone Europe/Rome --days 14
+python3 -m reachweaver calendar-gaps --account my-bluesky --timezone Europe/Rome --start 2026-10-15 --days 14 --json \
   --timing-source native-export --timing-metric clicks --timing-denominator impressions
 ```
 
@@ -159,4 +159,4 @@ It uses a read-only database connection (a missing database is an error, nothing
 
 ## Verification
 
-Regression suite: `python -m unittest discover -s tests -v`. Critical cases cover audience-local/UTC conversion, DST gap/fold, audience-activity CSV validation, injection, staleness, provenance and the no-flag golden output (`tests/test_audience.py`), blackout dates, account mismatch, manual-only apply rejection, draft approval enforcement, insufficient slots, queue collision, stale plan and atomic rollback, and emergency stop. The portable skill mirror is synchronized with `python scripts/sync_skill.py` and checked in CI.
+Regression suite: `python3 -m unittest discover -s tests -v`. Critical cases cover audience-local/UTC conversion, DST gap/fold, audience-activity CSV validation, injection, staleness, provenance and the no-flag golden output (`tests/test_audience.py`), blackout dates, account mismatch, manual-only apply rejection, draft approval enforcement, insufficient slots, queue collision, stale plan and atomic rollback, and emergency stop. The portable skill mirror is synchronized with `python3 scripts/sync_skill.py` and checked in CI.

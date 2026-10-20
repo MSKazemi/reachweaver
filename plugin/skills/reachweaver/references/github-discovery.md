@@ -14,7 +14,7 @@ Use this reference when the user asks to **grow a GitHub repository's search vis
 ## ReachWeaver's own brand
 
 - Product name stays **ReachWeaver**; describe it as a **Claude Code social media skill** for evidence-backed content planning, approval-first scheduling, publishing workflows and analytics.
-- Its versioned GitHub About proposal is `.github/repository-about.json`; CLI `python scripts/repository_about.py` previews offline and **does not edit GitHub**. The exact owner-only `--apply --confirm MSKazemi/reachweaver` mode needs an authenticated local `gh` CLI with administration permission. It never changes visibility and never collects credentials in chat.
+- Its versioned GitHub About proposal is `.github/repository-about.json`; CLI `python3 scripts/repository_about.py` previews offline and **does not edit GitHub**. The exact owner-only `--apply --confirm MSKazemi/reachweaver` mode needs an authenticated local `gh` CLI with administration permission. It never changes visibility and never collects credentials in chat.
 - Unverified homepage must remain blank. Source-code merges do not automatically set repository topics/About metadata. The owner must apply them through GitHub About or the explicit local helper.
 - The repository documents guarded adapters and local planning; **real social account connections/receipts are not established solely by tests**. Do not promise automatic posting everywhere.
 

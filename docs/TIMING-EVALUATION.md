@@ -103,9 +103,9 @@ Limits: small-sample percentile bootstrap intervals tend to be too narrow, and m
 ## Regression and bundled skill checks
 
 ```bash
-python -m unittest discover -s tests -v
-python scripts/sync_skill.py
-python -m unittest discover -s tests -v
+python3 -m unittest discover -s tests -v
+python3 scripts/sync_skill.py
+python3 -m unittest discover -s tests -v
 ```
 
 CI tests the full suite on Python 3.11–3.13 and checks that the portable Claude Code skill's runtime matches canonical code. No tests use live social APIs.
