@@ -108,4 +108,4 @@ python3 scripts/sync_skill.py
 python3 -m unittest discover -s tests -v
 ```
 
-CI tests the full suite on Python 3.11–3.13 and checks that the portable Claude Code skill's runtime matches canonical code. No tests use live social APIs.
+CI tests the full suite on Python 3.11–3.14 and checks that the portable Claude Code skill's runtime matches canonical code. No tests use live social APIs.

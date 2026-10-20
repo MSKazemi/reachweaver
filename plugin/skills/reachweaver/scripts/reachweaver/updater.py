@@ -19,6 +19,7 @@ import tempfile
 import time
 import zipfile
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
@@ -99,9 +100,18 @@ def http_get(url: str, timeout: float = 10.0) -> bytes:
     _check_url(url)
     request = Request(url, headers={"User-Agent": f"reachweaver/{__version__}",
                                     "Accept": "application/vnd.github+json, application/octet-stream"})
-    with urlopen(request, timeout=timeout) as response:  # noqa: S310 - scheme and host checked above
-        _check_url(response.geturl())
-        data = response.read(MAX_BYTES + 1)
+    try:
+        with urlopen(request, timeout=timeout) as response:  # noqa: S310 - scheme and host checked above
+            _check_url(response.geturl())
+            data = response.read(MAX_BYTES + 1)
+    except HTTPError as exc:
+        # Re-raised unchanged for the callers; only its response is released first (Python 3.14 warns
+        # about an unclosed HTTPError, quoting its reason phrase). Same pattern as publishers.close_http_error.
+        try:
+            exc.close()
+        except Exception:  # noqa: BLE001 - closing is best effort; it never replaces the error
+            pass
+        raise
     if len(data) > MAX_BYTES:
         raise ValidationError("Update download is larger than the 20 MB limit")
     return data

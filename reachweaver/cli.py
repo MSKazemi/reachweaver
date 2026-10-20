@@ -67,7 +67,8 @@ from .attachments import MEDIA_PLATFORMS, UNSUPPORTED_PLATFORM
 from .tiktok import COMMERCIAL_CHOICES as TIKTOK_COMMERCIAL
 from .tiktok import MODES as TIKTOK_MODES
 from .tiktok import PRIVACY_LEVELS as TIKTOK_PRIVACY_LEVELS
-from .publishers import MEDIA_ONLY_PLATFORMS, PublishError, publish, publish_video, reset_write_marker, write_started
+from .publishers import (MEDIA_ONLY_PLATFORMS, PublishError, close_http_error, publish, publish_video, reset_write_marker,
+                         write_started)
 from .video import mode as video_mode
 from .ratelimit import (
     AMBIGUOUS, SESSIONS_PER_PUBLISH, classify_send_failure, cooldown_scopes, is_rate_limited,
@@ -1934,6 +1935,8 @@ def execute(args) -> int:
                         reserve_bluesky_sessions(db, account, needed=1, stage="connect_check")
                 check_connection(account)
             except (ValidationError, PublishError, HTTPError, URLError, OSError) as exc:
+                if isinstance(exc, HTTPError):
+                    close_http_error(exc)
                 return sanitize_error_code(str(exc))
             return None
 
@@ -2030,7 +2033,9 @@ def execute(args) -> int:
             return 0
         try:
             result = updater.check(include_changes=True, platforms=platforms)
-        except (HTTPError, URLError):
+        except (HTTPError, URLError) as exc:
+            if isinstance(exc, HTTPError):
+                close_http_error(exc)
             print("No release found or GitHub unreachable (offline, no release yet, or private repo). "
                   "Use `scripts/install_skill.py --from-checkout`; see docs/TROUBLESHOOTING.md.", file=sys.stderr)
             return 1

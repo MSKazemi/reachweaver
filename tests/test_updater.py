@@ -239,6 +239,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual((code, out), (1, ""))
         self.assertIn("No release found", e.getvalue())
         self.assertNotIn("HTTP Error", e.getvalue())
+        self.assertTrue(err.fp.closed)  # no Python 3.14 ResourceWarning quoting the reason phrase (audit B5)
 
     def test_apply_refuses_symlink_and_git_checkout(self):
         with tempfile.TemporaryDirectory() as tmp:

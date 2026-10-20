@@ -210,8 +210,11 @@ def _call(account: dict, method: str, path: str, payload: dict | None = None):
     except HTTPError as exc:
         label = {401: "unauthorized", 403: "forbidden", 404: "not_found", 429: "rate_limited"}.get(exc.code)
         # Status and a bounded Retry-After hint only (issue #11, D15); the body is never read.
-        raise publishers.http_error(exc).with_code(
-            f"postiz_http_{exc.code}" + (f"_{label}" if label else "")) from None
+        try:
+            raise publishers.http_error(exc).with_code(
+                f"postiz_http_{exc.code}" + (f"_{label}" if label else "")) from None
+        finally:
+            publishers.close_http_error(exc)
     except (URLError, TimeoutError, OSError, http.client.HTTPException):
         raise PublishError("postiz_network_or_timeout_uncertain") from None
     except ValueError:
