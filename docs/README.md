@@ -42,6 +42,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 | Check images and video | [Media assets](MEDIA-ASSETS.md) |
 | Improve profiles and posts | [Profile and post audits](PROFILE-AND-POST-AUDITS.md), [profile metrics CSV](PROFILE-METRICS-CSV.md), [peer benchmark](PEER-BENCHMARK.md) |
 | Check draft posts against an editorial checklist before review | [Creative preflight (offline)](CREATIVE-PREFLIGHT.md) |
+| Make drafts sound like you, not like generic AI text | [Voice check (offline, advisory)](VOICE-CHECK.md) |
 | Help relevant creators cover, critique, remix or cite your content | [Creator amplification (offline)](CREATOR-AMPLIFICATION.md) |
 | Grow an open-source project | [Open-source developer growth playbook](OPEN-SOURCE-DEVELOPER-GROWTH-PLAYBOOK.md), [DEV authority playbook](DEV-AUTHORITY-PLAYBOOK-2026-10-08.md), [GitHub discovery](GITHUB-DISCOVERY.md) |
 | Find topics from your own sources | [Sources](SOURCES.md), [SEO integration](SEO-INTEGRATION.md) |

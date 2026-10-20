@@ -826,7 +826,35 @@ def make_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("creative-preflight", help="Offline editorial checklist for 1-6 draft posts; not a reach prediction, "
                        "never publishes (docs/CREATIVE-PREFLIGHT.md)")
     p.add_argument("--file", type=Path, required=True, help="Owner-controlled JSON brief (reachweaver.creative-preflight.v1), at most 256 KB")
+    p.add_argument("--voice-profile", type=Path, metavar="PROFILE", help="Also add advisory voice-check findings per draft "
+                   "from a voice-profile file (docs/VOICE-CHECK.md)")
     p.add_argument("--json", action="store_true", help="Machine-readable checklist, findings and limitations")
+    p = sub.add_parser("voice-profile", help="Statistics of how you write, from your own past posts; writes one NEW "
+                       "private file, stores no post text (docs/VOICE-CHECK.md)",
+                       description="Offline. Reads posts you supply (--from FILE: .json, .csv, or text with posts "
+                       "separated by a line holding only ---) or your published posts in the local database "
+                       "(--from-db, opened read-only) and writes a NEW 0600 JSON profile of plain statistics. Needs "
+                       "at least 10 posts; with fewer it reports insufficient_sample, writes nothing and exits 1.")
+    source = p.add_mutually_exclusive_group(required=True)
+    source.add_argument("--from", dest="from_file", type=Path, metavar="FILE", help="Local file of your own posts")
+    source.add_argument("--from-db", action="store_true", help="Your published posts in the local database (read-only)")
+    p.add_argument("--account", help="With --from-db: only this account's posts")
+    p.add_argument("--platform", help="Only posts for this platform (unlabelled file posts count as this platform)")
+    p.add_argument("--out", type=Path, required=True, metavar="NEW_FILE", help="NEW profile file (mode 600); refused if it exists")
+    p.add_argument("--json", action="store_true", help="Print the profile as JSON")
+    p = sub.add_parser("voice-check", help="Advisory: compare a draft with your voice profile and a heuristic list of "
+                       "stock AI-style phrases; never blocks (docs/VOICE-CHECK.md)",
+                       description="Offline and advisory. Flags features of a draft outside the usual range of your "
+                       "own posts and phrases or patterns from a heuristic style list (not an AI detector). Findings "
+                       "are info or warn; it never blocks approval or publishing and exits 0 after a check. Without "
+                       "--profile only the tell list and generic checks run.")
+    p.add_argument("--profile", type=Path, help="Profile written by voice-profile (optional)")
+    draft_source = p.add_mutually_exclusive_group(required=True)
+    draft_source.add_argument("--text", help="Draft text")
+    draft_source.add_argument("--post-id", help="A stored post (read-only database access)")
+    draft_source.add_argument("--file", type=Path, help="UTF-8 text file with the draft")
+    p.add_argument("--platform", help="Compare with this platform's length statistics (default: the stored post's platform)")
+    p.add_argument("--json", action="store_true", help="Machine-readable findings")
     p = sub.add_parser("account-advisor", help="Offline channel shortlist and setup coaching; creates no account",
                        description="Offline shortlist of social channels for a region, goal, format and weekly time, "
                        "plus optional account-setup steps you do yourself and a coaching prompt for a normal Claude "
@@ -2342,9 +2370,12 @@ def execute(args) -> int:
         return 0
     if args.command == "creative-preflight":
         from .creative_preflight import check_file as preflight_check_file, render_text as preflight_render
-        preflight = preflight_check_file(args.file)
+        preflight = preflight_check_file(args.file, voice_profile=args.voice_profile)
         print(json.dumps(preflight, indent=2, ensure_ascii=False) if args.json else preflight_render(preflight))
         return 0
+    if args.command in ("voice-profile", "voice-check"):  # database only through connect_readonly; never written
+        from .voice import run_command as run_voice
+        return run_voice(args)
     if args.command == "account-advisor":
         from .account_advisor import advise as advise_accounts, render_text as advisor_render
         plan = advise_accounts(region=args.region, goal=args.goal, content_format=args.format,

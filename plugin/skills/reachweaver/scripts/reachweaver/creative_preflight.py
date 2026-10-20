@@ -255,8 +255,11 @@ def assess(candidate: dict, data: dict, accepted: set[str]) -> dict:
             "note": "Editorial checklist only; not comparable across platforms or predictive of views."}
 
 
-def analyze(value: object) -> dict:
-    """Evaluate at most six user-provided alternatives, without platform connections."""
+def analyze(value: object, voice_profile: dict | None = None) -> dict:
+    """Evaluate at most six user-provided alternatives, without platform connections.
+
+    With ``voice_profile`` (a loaded ``voice-profile`` file) each draft also gets advisory ``voice_findings``.
+    """
     data = validate(value)
     formats = {p["id"]: set(p["post_strategy"]["formats"]) for p in load_registry()["platforms"]}
     human_only = human_only_platforms()
@@ -272,6 +275,11 @@ def analyze(value: object) -> dict:
         row["additional_findings"] = findings[row["id"]]
         row["next_actions"].extend(item["message"] for item in findings[row["id"]]
                                    if item["severity"] in ("error", "warn"))
+    if voice_profile is not None:
+        from .voice import check_text, load_tells
+        tells = load_tells()
+        for row, candidate in zip(results, data["candidates"]):
+            row["voice_findings"] = check_text(candidate["text"], voice_profile, candidate["platform"], tells)["findings"]
     topic = data["topic"]
     any_human_only = any(row["human_only"] for row in results)
     prompts = [] if any_human_only else [
@@ -279,17 +287,24 @@ def analyze(value: object) -> dict:
         f"Which trade-offs matter most for {topic}?",
         f"What is one useful example of {topic}?",
     ]
-    return {"schema_version": SCHEMA, "status": "read_only_no_publish", "goal": data["goal"],
-            "candidate_count": len(results), "candidates": results,
-            "hook_brainstorm_prompts": prompts,
-            "hook_note": ("No prompts: a human-only destination is in this brief." if any_human_only else
-                          "Prompts require original source-supported human writing, not automatic publication."),
-            "limitations": NOTE, "network_access": False, "database_access": False,
-            "publishes": False, "schedules": False, "model_calls": False}
+    report = {"schema_version": SCHEMA, "status": "read_only_no_publish", "goal": data["goal"],
+              "candidate_count": len(results), "candidates": results,
+              "hook_brainstorm_prompts": prompts,
+              "hook_note": ("No prompts: a human-only destination is in this brief." if any_human_only else
+                            "Prompts require original source-supported human writing, not automatic publication."),
+              "limitations": NOTE, "network_access": False, "database_access": False,
+              "publishes": False, "schedules": False, "model_calls": False}
+    if voice_profile is not None:
+        from .voice import NOTE as VOICE_NOTE
+        report["voice_note"] = VOICE_NOTE
+    return report
 
 
-def check_file(path: Path) -> dict:
-    """Read one regular local JSON file of at most MAX_BYTES (no symlinks) and analyze it."""
+def check_file(path: Path, voice_profile: Path | None = None) -> dict:
+    """Read one regular local JSON file of at most MAX_BYTES (no symlinks) and analyze it.
+
+    ``voice_profile`` is an optional path to a ``voice-profile`` file; its findings are advisory only.
+    """
     path = Path(path)
     if path.is_symlink() or not path.is_file():
         raise _fail(f"--file must be an existing regular file, not a symlink: {path}")
@@ -304,6 +319,9 @@ def check_file(path: Path) -> dict:
         raise _fail(f"invalid JSON at line {exc.lineno} column {exc.colno}: {exc.msg}") from None
     except RecursionError:
         raise _fail("JSON nesting is too deep") from None
+    if voice_profile is not None:
+        from .voice import load_profile
+        return analyze(data, load_profile(voice_profile))
     return analyze(data)
 
 
@@ -320,4 +338,7 @@ def render_text(report: dict) -> str:
         for item in row["additional_findings"]:
             if item["severity"] in ("error", "warn"):
                 lines.append(f"    {item['severity']}: {item['code']}: {item['message']}")
+        for item in row.get("voice_findings", []):
+            if item["severity"] == "warn":
+                lines.append(f"    voice {item['severity']}: {item['code']}: {item['message']}")
     return "\n".join([*lines, "", report["limitations"]])

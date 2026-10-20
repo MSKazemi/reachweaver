@@ -148,7 +148,9 @@ Then the owner, in their own terminal: `approve POST_ID`, and only on the produc
 | `seo-content-check` | Discoverability of post texts: length, alt text, hashtags, UTM, duplicates | `FILE`, `--name`, `--online` (**online** link previews), `--json` |
 | `landing-check` | SEO brief + campaign CTA landing-page checks | `--briefs F`, `--campaign`, `--online` (**online**), `--allow-origin`, `--json` |
 | `utm-link` | Canonical UTM-tagged URL | `URL`, `--platform`, `--campaign`, `--content`, `--term` |
-| `creative-preflight` | Editorial checklist for 1-6 drafts; not a reach prediction | `--file F`, `--json` |
+| `creative-preflight` | Editorial checklist for 1-6 drafts; not a reach prediction | `--file F`, `--voice-profile F`, `--json` |
+| `voice-profile` | Statistics of how the owner writes, from their own past posts; writes one NEW private file, stores no post text | `--from F` or `--from-db`, `--account ID`, `--platform P`, `--out NEW`, `--json` |
+| `voice-check` | Advisory: draft vs the owner's voice profile and a heuristic stock-AI-phrase list; never blocks, rewrite flagged lines yourself | `--profile F`, `--text T`/`--file F`/`--post-id ID`, `--platform P`, `--json` |
 | `media-check` | Media manifest: headers, limits, alt text, captions, rights | `MANIFEST`, `--json` |
 | `media-storyboard` | Brief -> vertical-video storyboard, SRT, manifest; generates no media | `--campaign F`, `--out DIR`, `--check`, `--duration`, `--aspect`, `--json` |
 | `media-cutlist` | One master video -> per-platform cut list + suggested ffmpeg | `PLAN`, `--json` |
