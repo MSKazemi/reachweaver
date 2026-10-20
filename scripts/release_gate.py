@@ -175,9 +175,16 @@ def check_changelog(root: Path, version: str | None, *, tagging: bool = False) -
     return _result("changelog", errors, {"version": version, "warnings": warnings})
 
 
+CLI_PARSER_FILES = ("reachweaver/cli_parser.py", "reachweaver/cli.py")  # the parser moved to cli_parser.py
+
+
 def cli_subcommands(root: Path) -> list[str]:
-    path = root / "reachweaver/cli.py"
-    return sorted(set(SUBCOMMAND.findall(path.read_text(encoding="utf-8")))) if path.is_file() else []
+    found: set[str] = set()
+    for name in CLI_PARSER_FILES:
+        path = root / name
+        if path.is_file():
+            found.update(SUBCOMMAND.findall(path.read_text(encoding="utf-8")))
+    return sorted(found)
 
 
 def _markdown_files(root: Path) -> list[Path]:
@@ -216,7 +223,7 @@ def check_docs(root: Path) -> dict:
             errors.append(f"README.md does not link {target}")
     commands = cli_subcommands(root)
     if not commands:
-        errors.append("no CLI subcommands found in reachweaver/cli.py")
+        errors.append("no CLI subcommands found in reachweaver/cli_parser.py or cli.py")
     undocumented = [c for c in commands if not re.search(rf"(?<![\w-]){re.escape(c)}(?![\w-])", readme)]
     errors.extend(f"README.md does not mention CLI subcommand {c!r}" for c in undocumented)
     links = broken_links(root)
