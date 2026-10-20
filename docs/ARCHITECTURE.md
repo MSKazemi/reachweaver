@@ -720,6 +720,22 @@ Invariants:
 
 Not implemented: any write action in the browser, authentication beyond the URL token, TLS (loopback only), push updates (the page polls only when the opt-in Auto-refresh is on), and a phone-tested layout (the narrow layout was checked in a 400 px frame in desktop Chrome only). The page keeps two preferences (theme, auto-refresh) in `localStorage`, always inside try/catch.
 
+### Agent interface (`context`, `describe`, error codes)
+
+```text
+context  -> context.build_context: accounts file + profile (names, persona) + connect_guide.account_rows (offline readiness)
+            + ui_data.open_database (mode=ro; skipped when the file is missing, never created) for pause, approval
+            safeguards (storage.offline_key_mode: the key is never read), status counts, posts waiting for the owner,
+            approval_rebind_required, ui_data.suggestions_view; start.build_guide for next steps; policy.live_opt_in /
+            runtime_environment reduced to booleans; catalog.owner_only_commands; privacy.redact_value last
+describe -> catalog.describe(make_parser()): flags, choices, defaults, groups, JSON option from argparse itself
+            + catalog.COMMANDS (hand-kept tags: owner_only, network, writes, read_only, interactive; owner-only flags)
+main()   -> on an error: "ERROR: ..." on stderr as before; with --json also {"error": {code, message}} on stdout
+            (error_codes.error_code: exception class, refined for common ValidationError messages)
+```
+
+`publish --json` (dry run only) runs the unchanged `_run_publish` with stdout captured and structures its lines (`publish_preview.py`); `--json` with `--live` is refused before anything runs, so the live path is neither wrapped nor changed. `approval-mode --json` only displays; combined with a setting change it is refused before any change. `tests/test_agent_interface.py` checks that every subcommand is classified, that `context` creates no database on an empty folder, that every new JSON output parses and that text output without `--json` is unchanged.
+
 ## Browser Share composer (`share --web`)
 
 `reachweaver share --web [--open]` starts `share_browser.py`, a small local server separate from the read-only dashboard, for people who prefer a page to the terminal. User guide: [BROWSER-SHARE-COMPOSER.md](BROWSER-SHARE-COMPOSER.md).

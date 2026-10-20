@@ -273,6 +273,9 @@ reachweaver ops-metrics [--format json|prometheus] [--since 24h] [--optout F] [-
 reachweaver ops-summary [--json] [--since 24h] [--stale-minutes 30] [--optout F] [--now T]  one redacted read-only report: overall readiness, per-account adapter/budget/queue, dead letters, ops-metrics totals; exit 1 when blocked (docs/WORKER-OPERATIONS.md#one-page-operations-summary-issue-26)
 reachweaver                              no command: the same guidance as start, plus a pointer to --help
 reachweaver start [--json]               experimental, read-only: look at your accounts file, database and queue and print the exact next command to run; runs nothing and never creates the database
+reachweaver context [--json]             read-only session start for Claude Code in one call: version, paths, account readiness, pause, live gate, approval mode, post counts, posts waiting for you, next steps and the owner-only commands; never creates the database (docs/CLAUDE-CODE.md)
+reachweaver describe [COMMAND] [--json]  machine-readable command catalog generated from the parser: flags, choices, defaults, JSON support and owner_only/network/writes/read_only tags
+                                          --json also on draft, list, check, doctor, schedule, cancel, unapprove, import-metrics, campaign-stage, approval-mode (display only) and the dry-run publish; with --json an error also prints {"error": {"code", "message"}} on stdout
 reachweaver ui [--port N] [--open] [--optout F]  experimental, read-only local dashboard on 127.0.0.1 (overview, queue, post review sheets, accounts, channel research); cannot approve, schedule, pause or publish; the URL carries a per-run token (docs/DASHBOARD.md)
 reachweaver completion {bash,zsh}        experimental: print a Tab-completion script for commands, options and fixed choices; reads no database and runs nothing
 reachweaver privacy-status [--policy F]   offline DB perms/size/row counts/oldest records/retention config

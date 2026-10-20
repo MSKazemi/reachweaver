@@ -126,7 +126,9 @@ class OptInTests(unittest.TestCase):
         code, out, err = self.cli(config(source(sensitivity="public")), no_network, "--allow-private")
         self.assertEqual(code, 2)
         self.assertIn("visibility private requires sensitivity private", err)
-        self.assertEqual(out, "")
+        # With --json the only stdout is the stable error document (error_codes.py): no scan result.
+        self.assertEqual(json.loads(out)["error"]["code"], "validation_error")
+        self.assertEqual(set(json.loads(out)), {"error"})
 
     def test_without_allow_private_flag_nothing_is_read(self):
         web = FakeGitHub()

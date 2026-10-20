@@ -34,6 +34,8 @@ Then the owner, in their own terminal: `approve POST_ID`, and only on the produc
 | `profile` | Private `config/profile.json`: personas, usernames, sign-up details | `--init`, `--persona ID`, `--show`, `--check`, `--set PATH=VALUE`, `--handle PLATFORM:PERSONA=NAME` |
 | `account-route` | Which account/username to use for a persona on a network | `--platform P`, `--persona ID`, `--json` |
 | `account-kit` | Plan sign-up packets for accounts the user creates; creates none | `--platform P` (repeat), `--persona ID`, `--questions`, `--out NEW_DIR`, `--json`; **OWNER** `--approve-plan SHA` |
+| `context` | Start every session here: one compact read-only summary (accounts, pause, live gate, approval mode, posts waiting for the owner, next steps, owner-only commands); creates nothing | `--json` |
+| `describe` | Machine-readable command catalog from the parser: flags, `--json` support, `owner_only`/`network`/`writes`/`read_only` tags; ask for one command to keep it small | `COMMAND`, `--json` |
 | `version` | Installed version and install kind | `--json` |
 | `update` | **online** (one GET to github.com): newer skill bundle? | `--check` (default), `--notice`, `--json`; `--apply --yes` only after the user agrees |
 | `init` | Create the local database (0600); connects nothing | none |

@@ -193,7 +193,8 @@ def make_parser() -> argparse.ArgumentParser:
                       help="Download, verify SHA-256 and replace this installed skill; needs --yes")
     p.add_argument("--yes", action="store_true", help="Confirm --apply (the user must have agreed to the update)")
     p.add_argument("--json", action="store_true", help="Machine-readable result")
-    sub.add_parser("doctor", help="Inspect account configuration and missing credentials without calling APIs")
+    p = sub.add_parser("doctor", help="Inspect account configuration and missing credentials without calling APIs")
+    p.add_argument("--json", action="store_true", help="Machine-readable checks (credential variable names only)")
     p = sub.add_parser("connect-check", help="Explicit online, non-publishing account identity check")
     p.add_argument("--account", required=True, help="One account id from local ignored config")
     p.add_argument("--online", action="store_true", help="Required: allow authentication/read-only remote API requests")
@@ -282,8 +283,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--history", action="append", default=[], type=Path, metavar="FILE",
                    help="Also scan this shell history file for literal REACHWEAVER_* secrets (line numbers only); repeatable")
     p.add_argument("--json", action="store_true", help="Machine-readable names-only report")
-    sub.add_parser("list", help="List posts and statuses").add_argument("--status", choices=POST_STATUSES,
-                                                                       help="Filter by status")
+    p = sub.add_parser("list", help="List posts and statuses")
+    p.add_argument("--status", choices=POST_STATUSES, help="Filter by status")
+    p.add_argument("--json", action="store_true", help="Machine-readable array of rows")
     sub.add_parser("show", help="Show exact post text and account metadata for human review; offline").add_argument("post_id")
     p = sub.add_parser("draft", help="Queue a platform-native text draft for an account (repeat --account for one "
                        "draft per account; each still needs its own approval)")
@@ -313,8 +315,10 @@ def make_parser() -> argparse.ArgumentParser:
                         "opt-out signals are never overridable")
     p.add_argument("--sources", type=Path, metavar="CONFIG",
                    help="sources-scan config (#9): refuse when the text (a reply's too) or --source-url links into any visibility:private repository of that config (private repository URLs are never public links)")
+    p.add_argument("--json", action="store_true", help="Machine-readable result: the created post id(s); not with --reply-to")
     p = sub.add_parser("check", help="Validate a draft before approval")
     p.add_argument("post_id")
+    p.add_argument("--json", action="store_true", help="Machine-readable result: ok and the findings")
     p.add_argument("--persona", metavar="ID",
                    help="Which of your personas this post is for (for example work or family). Refuses an account that belongs "
                         "to another persona and names the one to switch to; default: preferences.default_persona in the profile")
@@ -352,14 +356,17 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--sources", type=Path, metavar="CONFIG",
                    help="sources-scan config (#9): refuse when the title or a tag links into any visibility:private repository of that config (private repository URLs are never public links)")
     sub.add_parser("youtube-detach", help="#22: remove the video from a YouTube draft; offline").add_argument("post_id")
-    sub.add_parser("unapprove", help="Withdraw approval: an approved or scheduled post goes back to draft and its "
-                                     "payload binding is cleared; local only").add_argument("post_id")
-    sub.add_parser("cancel", help="Cancel a draft, approved or scheduled post so it is never sent; local only"
-                   ).add_argument("post_id")
+    for name, text in (("unapprove", "Withdraw approval: an approved or scheduled post goes back to draft and its "
+                                     "payload binding is cleared; local only"),
+                       ("cancel", "Cancel a draft, approved or scheduled post so it is never sent; local only")):
+        p = sub.add_parser(name, help=text)
+        p.add_argument("post_id")
+        p.add_argument("--json", action="store_true", help="Machine-readable result")
     p = sub.add_parser("schedule", help="Give an approved post a due time (explicit timezone offset); a worker "
                                         "you run still has to publish it")
     p.add_argument("post_id")
     p.add_argument("--at", required=True, help="Explicit ISO 8601 timezone offset, e.g. 2026-10-15T09:00:00+02:00")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
     p = sub.add_parser("media-attach", help="Add one image with required alt text to a DRAFT: a local PNG/JPEG/WebP "
                                             "file for Mastodon (--file, offline) or an owner-hosted HTTPS JPEG URL for "
                                             "Instagram (--url with --online: one read-only GET to hash it). Its SHA-256 "
@@ -484,6 +491,8 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--log-file", type=Path, metavar="PATH",
                    help="With --log-json: append the JSON lines to PATH instead (created 0600, owner-only); "
                         "an unwritable PATH refuses the run before any account or claim")
+    p.add_argument("--json", action="store_true",
+                   help="Dry run only: the preview as JSON (due posts and what --live would skip); refused with --live")
     p = sub.add_parser("reconcile", help="Human-confirm outcome of an uncertain send; do not blindly retry")
     p.add_argument("post_id")
     group = p.add_mutually_exclusive_group(required=True)
@@ -509,6 +518,8 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-age-hours", type=int, metavar="N",
                    help="Approval time-to-live (#39): an approval older than N hours (1..8760) is expired and the post "
                         "must be re-approved before any send; tighten-only, only a lower value is accepted later")
+    p.add_argument("--json", action="store_true",
+                   help="Display the current mode as JSON; only without the options above, which stay text-only")
     sub.add_parser("resume", help="Explicitly lift the emergency stop")
     p = sub.add_parser("metrics", help="Record one snapshot from a native platform export")
     p.add_argument("post_id")
@@ -523,6 +534,7 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--csv", required=True, type=Path,
                    help="Columns post_id, observed_at, source, metric columns; optional window_start, window_end. "
                         "A metric cell is a count, empty/unknown, suppressed, not_available, delayed or estimated:N")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
     p = sub.add_parser("metrics-fetch", help="Explicit online, READ-ONLY poll of public Bluesky/Mastodon post "
                        "counters into metric snapshots; not private analytics, never posts")
     p.add_argument("--online", action="store_true", help="Required (unless --dry-run): allow read-only GET requests")
@@ -594,6 +606,14 @@ def make_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("start", help="Read-only guide: look at your accounts file, database and queue and print the "
                                      "exact next command to run; runs nothing and never creates the database")
     p.add_argument("--json", action="store_true", help="Machine-readable guide")
+    p = sub.add_parser("context", help="Read-only session start for an agent: version, paths, account readiness, pause, "
+                                       "live gate, approval mode, post counts, posts waiting for the owner, next steps "
+                                       "and owner-only commands, in one call; never creates the database")
+    p.add_argument("--json", action="store_true", help="Compact machine-readable summary")
+    p = sub.add_parser("describe", help="Machine-readable command catalog generated from the parser: flags, choices, "
+                                        "defaults, JSON support and owner-only/network/writes/read-only tags")
+    p.add_argument("name", nargs="?", metavar="COMMAND", help="Describe one command, with the help of each flag")
+    p.add_argument("--json", action="store_true", help="Machine-readable catalog")
     p = sub.add_parser("ui", help="Serve a read-only dashboard of your local state on 127.0.0.1 (queue, post review "
                                   "sheets, readiness, accounts, channel research); cannot approve, schedule, pause "
                                   "or publish, and never creates the database")
@@ -622,6 +642,7 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--file", type=Path, required=True)
     p.add_argument("--brand", type=Path, required=True, help="Required explicit brand-account allowlist")
     p.add_argument("--optout", type=Path, help=optout_help)
+    p.add_argument("--json", action="store_true", help="Accepted for consistency: the result is always JSON")
     p = sub.add_parser("campaign-export", help="Export validated draft pack for manual publishing; no network")
     p.add_argument("--file", type=Path, required=True)
     p.add_argument("--brand", type=Path, required=True)
@@ -1863,12 +1884,35 @@ def _draft_many(db, args, accounts) -> int:
     with _atomic(db):  # one transaction: a locked database or Ctrl-C leaves no partial set behind
         created = [(add_post(db, name, accounts[name]["platform"], content, args.campaign, args.source_url,
                              account=accounts[name]), name) for name in names]
+    if args.json:
+        print(json.dumps(_drafts_document(created, accounts), indent=2))
+        return 0
     print(f"Created {len(created)} drafts, one per account; none is approved or published:")
     for post_id, name in created:
         print(f"  {post_id}  {name} ({accounts[name]['platform']})")
     print("Review and approve each one on its own: reachweaver show POST_ID, then reachweaver approve POST_ID "
           "--approver YOUR_NAME")
     return 0
+
+
+def _approval_mode_document(db) -> dict:
+    """``approval-mode --json``: the same facts the text display prints; changes nothing."""
+    mode = approval_key_mode(db)
+    ttl = approval_max_age_hours(db)
+    return {"identity_bound_approval": "required" if identity_mode_required(db) else "off",
+            "confirmation": confirmation.confirmation_mode(db) or "off",
+            "approval_max_age_hours": ttl, "approval_max_age_invalid": ttl == 0,
+            "keyed_binding": {"required": bool(mode.required), "latched": bool(mode.latched),
+                              "key": "available" if mode.key is not None else (mode.key_error or "not provided")},
+            "rebind_required": len(approval_rebind_required(db)),
+            "note": "Display only. Tightening a safeguard is the owner's decision, in their own terminal."}
+
+
+def _drafts_document(created: list[tuple[str, str]], accounts: dict) -> dict:
+    """``draft --json``: the created post ids; each still needs its own approval by the owner."""
+    return {"created": [{"post_id": post_id, "account": name, "platform": accounts[name]["platform"],
+                         "status": "draft"} for post_id, name in created],
+            "note": "Drafts only: nothing is approved or published. The owner reviews (show) and approves each one."}
 
 
 # Commands that only read the state database: opened with connect_readonly, so a missing
@@ -2991,6 +3035,14 @@ def execute(args) -> int:
                     "Credential hygiene: run 'reachweaver credentials-audit [--history FILE]' (offline; names only, never values)",
                     "Metrics polling: 'metrics-fetch --online' reads PUBLIC Bluesky/Mastodon post counters only "
                     "(read-only GET; not private analytics; views/impressions/clicks stay unknown)"]
+        if args.json:  # names only, as the text; the same findings
+            print(json.dumps({"checks": findings, "ready": sum(1 for f in findings if not f["missing"]),
+                              "accounts": len(findings),
+                              "settings": {"live_opt_in": live_opt_in(), "runtime_environment": runtime_environment(),
+                                           "credential_source": credential_source()},
+                              "note": "Offline. Credential variable NAMES only; values are never read into this "
+                                      "output and no API was called."}, indent=2, ensure_ascii=False))
+            return 0
         from . import term
         if term.enabled(sys.stdout):
             print(health_view.render_doctor(findings, settings, sys.stdout))
@@ -3047,6 +3099,16 @@ def execute(args) -> int:
         from .completion import render as render_completion
         print(render_completion(args.shell, make_parser()), end="")
         return 0
+    if args.command == "context":  # accounts file, profile and (if present) the database mode=ro; never creates it
+        from .context import build_context, render_text as render_context
+        context = build_context(args.db, args.accounts, args.profile)
+        print(json.dumps(context, ensure_ascii=False, separators=(",", ":")) if args.json else render_context(context))
+        return 0
+    if args.command == "describe":  # generated from the parser; no database, no account, no network
+        from .catalog import describe, render_text as render_catalog
+        document = describe(make_parser(), args.name)
+        print(json.dumps(document, ensure_ascii=False, separators=(",", ":")) if args.json else render_catalog(document))
+        return 0
     if args.command == "start":  # reads the accounts file and (if present) the database mode=ro; prints text
         from .start import build_guide, render as render_guide
         guide = build_guide(args.db, args.accounts)
@@ -3060,6 +3122,8 @@ def execute(args) -> int:
         if args.command == "init":
             print("Initialized local database. No accounts were accessed.")
         elif args.command == "draft":
+            if args.json and args.reply_to is not None:
+                raise ValidationError("draft --json is not available with --reply-to; nothing created")
             accounts = _accounts(args)
             if len(args.account) > 1:
                 return _draft_many(db, args, accounts)
@@ -3082,7 +3146,10 @@ def execute(args) -> int:
                 if args.online or args.override_flagged is not None:
                     raise ValidationError("--online and --override-flagged apply only with --reply-to")
                 post_id = add_post(db,args.account,account["platform"],content,args.campaign,args.source_url,account=account)
-                print(f"Created draft {post_id} for {args.account}; not published")
+                if args.json:
+                    print(json.dumps(_drafts_document([(post_id, args.account)], accounts), indent=2))
+                else:
+                    print(f"Created draft {post_id} for {args.account}; not published")
             else:
                 return _draft_reply(db, args, account, content, optout)
         elif args.command == "media-attach":
@@ -3249,7 +3316,9 @@ def execute(args) -> int:
                 params = (args.status,)
             rows = db.execute(query + " ORDER BY created_at DESC",params).fetchall()
             from . import term
-            if term.enabled(sys.stdout):  # a terminal gets an aligned, coloured table; pipes keep the plain format
+            if args.json:
+                print(json.dumps([dict(row) for row in rows], indent=2, ensure_ascii=False))
+            elif term.enabled(sys.stdout):  # a terminal gets an aligned, coloured table; pipes keep the plain format
                 if rows:
                     print(term.table(["ID", "ACCOUNT", "PLATFORM", "STATUS", "SCHEDULED", "REMOTE URL"],
                                      [[str(row[k] or "") for k in row.keys()] for row in rows], sys.stdout,
@@ -3293,6 +3362,12 @@ def execute(args) -> int:
             repeats = _repeat_findings(db, post)
             blocking_repeats = repeat_guard.blocking(repeats)
             issues.extend(f"repeat: {repeat_guard.describe(hit)}" for hit in blocking_repeats[:3])
+            if args.json:  # the same findings and exit code as the text
+                print(json.dumps({"post_id": args.post_id, "ok": not issues, "findings": issues,
+                                  "warnings": [repeat_guard.describe(hit) for hit in repeats if hit not in blocking_repeats],
+                                  "blocking_repeat": bool(blocking_repeats),
+                                  "manual_only": post["platform"] not in SUPPORTED_LIVE}, indent=2, ensure_ascii=False))
+                return 1 if issues else 0
             from . import term
             print(term.style("OK", "green", sys.stdout) if not issues
                   else term.style("BLOCKED", "red", sys.stdout) + ": " + "; ".join(issues))
@@ -3433,11 +3508,21 @@ def execute(args) -> int:
             set_post_video(db, args.post_id, None)
             print(f"Post {args.post_id}: video removed (draft)")
         elif args.command in ("unapprove","cancel"):
-            print(f"Post {args.post_id} -> {transition(db,args.post_id,args.command)}")
+            new_status = transition(db,args.post_id,args.command)
+            print(json.dumps({"post_id": args.post_id, "status": new_status}) if args.json
+                  else f"Post {args.post_id} -> {new_status}")
         elif args.command == "schedule":
             when = parse_utc(args.at)
-            print(f"Post {args.post_id} -> {transition(db,args.post_id,'schedule',when)} for {when}")
+            new_status = transition(db,args.post_id,'schedule',when)
+            print(json.dumps({"post_id": args.post_id, "status": new_status, "scheduled_at": when}) if args.json
+                  else f"Post {args.post_id} -> {new_status} for {when}")
         elif args.command == "approval-mode":
+            if args.json:  # display only: a setting change keeps its text-only path, untouched
+                if args.confirmation or args.require_key or args.require_identity or args.max_age_hours is not None:
+                    raise ValidationError("approval-mode --json only displays the current mode; run a change "
+                                          "without --json. Nothing changed")
+                print(json.dumps(_approval_mode_document(db), indent=2))
+                return 0
             if args.confirmation == confirmation.TTY_HASH_PREFIX:
                 confirmation.enable(db)
             elif args.confirmation == "off":
@@ -3501,6 +3586,14 @@ def execute(args) -> int:
                 proposal = apply_calendar(db, proposal)
             print(json.dumps(proposal, indent=2))
         elif args.command == "publish":
+            if args.json:  # dry run only; the live path is never wrapped or changed
+                if args.live:
+                    raise ValidationError("publish --json is for the dry run only; --live keeps its text output. "
+                                          "Nothing was sent")
+                from .publish_preview import capture_dry_run
+                document = capture_dry_run(lambda: _run_publish(db, args))
+                print(json.dumps(document, indent=2, ensure_ascii=False))
+                return document["exit_code"]
             return _run_publish(db, args)
         elif args.command == "reconcile":
             reconcile(db,args.post_id,args.published,args.remote_id,args.remote_url,force=args.force)
@@ -3534,8 +3627,12 @@ def execute(args) -> int:
                 except BaseException:
                     db.execute("ROLLBACK")
                     raise
-            print(f"Imported {count} snapshots; platform data not fetched automatically. "
-                  "Non-numeric statuses are kept as statuses, never as 0")
+            if args.json:
+                print(json.dumps({"imported": count, "note": "Platform data was not fetched. Non-numeric statuses "
+                                                              "are kept as statuses, never as 0"}))
+            else:
+                print(f"Imported {count} snapshots; platform data not fetched automatically. "
+                      "Non-numeric statuses are kept as statuses, never as 0")
         elif args.command == "metrics-fetch":
             if not args.online and not args.dry_run:
                 raise ValidationError("metrics-fetch requires explicit --online (or --dry-run for a no-network plan)")
@@ -3616,11 +3713,19 @@ def execute(args) -> int:
         return 0
 
 
+def _json_error(parsed, exc: BaseException | None, message: str) -> None:
+    """With --json, also print {"error": {"code", "message"}} on stdout; stderr keeps its ERROR: line."""
+    from .error_codes import error_code, json_error, wants_json
+    if wants_json(parsed):
+        print(json_error(error_code(exc) if exc is not None else "invalid_input", message))
+
+
 def main(argv=None) -> int:
     argv_list = sys.argv[1:] if argv is None else list(argv)
     if argv_list[:1] == ["statusline"]:  # status bar fast path: skip building ~100 subparsers
         from .statusline import main as statusline_main
         return statusline_main(argv_list[1:])
+    parsed = None
     try:
         parsed = make_parser().parse_args(argv)
         home.activate(parsed.home if parsed.command != "workspace" or parsed.init is None else None, Path.cwd())
@@ -3654,6 +3759,7 @@ def main(argv=None) -> int:
             return 141
         from .privacy import redact  # last line of defence: a library message may quote a secret
         print(f"ERROR: {redact(str(exc))}",file=sys.stderr)
+        _json_error(parsed, exc, redact(str(exc)))
         from . import term
         if term.interactive(sys.stderr):  # a person at a terminal gets the next step; scripts see only ERROR:
             from .cli_help import error_hint
@@ -3665,6 +3771,7 @@ def main(argv=None) -> int:
         # Safety net: user-supplied JSON of an unexpected shape (e.g. a list where an object
         # is expected). Never echo the exception text, which may quote input values.
         print("ERROR: invalid input structure",file=sys.stderr)
+        _json_error(parsed, None, "invalid input structure")
         return 2
     except KeyboardInterrupt:
         print("Interrupted. If a live send was in progress, reconcile manually before trying again.",file=sys.stderr)
