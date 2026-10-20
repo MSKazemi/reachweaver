@@ -57,6 +57,9 @@ COMMANDS: dict[str, dict] = {
     "health": _c(W, note=DB_NOTE),
     "workspace": _c(W, note="read-only report unless --init, or --gather/--repair with --apply"),
     "ui": _c(("read_only", "interactive"), note="serves a loopback dashboard until interrupted; the owner opens it"),
+    "mcp-serve": _c(("writes", "interactive"),
+                    note="draft: stdio MCP server the owner registers in an MCP client; read-only tools, plus draft "
+                         "only with --allow-drafts; runs until its input closes"),
     "list": _c(W, note=DB_NOTE),
     "show": _c(W, note=DB_NOTE),
     "journal": _c(W, note="read-only unless --out FILE"),
