@@ -34,6 +34,7 @@ from .growth import (
 )
 from .policy import ValidationError
 from .storage import METRIC_FIELDS, get_post, parse_utc
+from .inputs import read_json_file
 
 POST_MAP_KIND = "reachweaver.growth-post-map"
 SIMULATION_KIND = "reachweaver.simulated-readout"
@@ -353,7 +354,7 @@ def render_readout(result: dict[str, Any]) -> str:
 def load_results(path: str | Path) -> Any:
     """Read the JSON list of prior classified results for ``next_hypotheses`` (validated there)."""
     try:
-        return json.loads(Path(path).read_text(encoding="utf-8"))
+        return read_json_file(Path(path))
     except json.JSONDecodeError as exc:
         raise ValidationError(f"Invalid results JSON: {exc.msg}") from exc
 

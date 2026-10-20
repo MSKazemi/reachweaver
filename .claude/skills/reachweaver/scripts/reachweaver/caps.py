@@ -34,6 +34,7 @@ from typing import Any
 
 from . import home
 from .policy import ValidationError
+from .inputs import read_json_file
 
 CAPS_SCHEMA_VERSIONS = (1, 2)
 CAPS_SCHEMA_VERSION = 2  # newest accepted; version 1 files remain valid
@@ -121,7 +122,7 @@ def load_caps(path: str | Path | None = None) -> tuple[dict | None, Path | None]
     if not source.is_file():
         raise ValidationError(f"Caps file not found: {source}")
     try:
-        raw = json.loads(source.read_text(encoding="utf-8"))
+        raw = read_json_file(source)
     except (OSError, ValueError) as exc:
         raise ValidationError(f"Caps file is unreadable or not JSON: {source} ({exc.__class__.__name__})") from None
     return validate_caps(raw), source

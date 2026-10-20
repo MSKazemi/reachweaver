@@ -14,6 +14,7 @@ import unicodedata
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from .inputs import loads_text
 from .policy import ValidationError
 from .profile_audit import _reject_sensitive, load_registry
 from .seo_content import HUMAN_AUTHORED_ONLY, check_items
@@ -297,7 +298,7 @@ def check_file(path: Path) -> dict:
     if len(raw) > MAX_BYTES:
         raise _fail(f"--file is larger than {MAX_BYTES // 1000} KB")
     try:
-        data = json.loads(raw.decode("utf-8"))
+        data = loads_text(raw.decode("utf-8-sig"), "--file")
     except UnicodeDecodeError:
         raise _fail("--file is not UTF-8 text") from None
     except json.JSONDecodeError as exc:

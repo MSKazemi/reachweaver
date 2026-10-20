@@ -24,6 +24,7 @@ from urllib.request import Request, urlopen
 
 from . import __version__, home
 from .policy import PLATFORMS, ValidationError
+from .inputs import read_json_file
 
 REPO = "MSKazemi/reachweaver"
 LATEST_API = f"https://api.github.com/repos/{REPO}/releases/latest"
@@ -122,7 +123,7 @@ def fetch_latest(get=None) -> dict:
 
 def _read_cache(path: Path) -> dict | None:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = read_json_file(path)
         return data if isinstance(data, dict) and isinstance(data.get("checked_at"), (int, float)) else None
     except (OSError, ValueError):
         return None
@@ -161,7 +162,7 @@ def configured_platforms(path: str | Path | None) -> list[str]:
         file = Path(path or home.default_path("config/accounts.json"))
         if not file.is_file() or file.stat().st_size > MAX_ACCOUNTS_BYTES:
             return []
-        data = json.loads(file.read_text(encoding="utf-8"))
+        data = read_json_file(file)
     except (OSError, ValueError):
         return []
     accounts = data.get("accounts") if isinstance(data, dict) else None

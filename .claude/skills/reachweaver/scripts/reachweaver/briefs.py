@@ -30,6 +30,7 @@ from pathlib import Path
 from .campaigns import OBJECTIVES, SLUG, public_url, validate_brand, validate_campaign
 from .capabilities import load_registry
 from .manual_export import MANUAL_PLATFORMS
+from .inputs import loads_text
 from .policy import ValidationError
 from .preview import capability, measure
 from .private_sources import is_private_signal
@@ -87,7 +88,7 @@ def load_scan(path: str | Path) -> dict:
     if len(raw) > MAX_SCAN_BYTES:
         raise ValidationError(f"Scan file is larger than {MAX_SCAN_BYTES} bytes")
     try:
-        data = json.loads(raw.decode("utf-8"))
+        data = loads_text(raw.decode("utf-8-sig"), "Scan file")
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValidationError("Scan file is not UTF-8 JSON from 'sources-scan --json'") from exc
     if not isinstance(data, dict) or data.get("status") != "RESEARCH_ONLY" or not isinstance(data.get("signals"), list):

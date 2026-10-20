@@ -38,7 +38,10 @@ def _iso_aware(value: str, label: str) -> str:
         raise ValidationError(f"Invalid {label}: expected offset-aware ISO 8601 datetime") from exc
     if dt.tzinfo is None or dt.utcoffset() is None:
         raise ValidationError(f"Invalid {label}: explicit timezone offset required")
-    return dt.astimezone(timezone.utc).isoformat(timespec="seconds")
+    try:
+        return dt.astimezone(timezone.utc).isoformat(timespec="seconds")
+    except OverflowError:  # e.g. 0001-01-01T00:00:00+01:00 is before datetime.min in UTC
+        raise ValidationError(f"Invalid {label}: date is out of range") from None
 
 
 def _numeric(value: str, field: str) -> int | float:

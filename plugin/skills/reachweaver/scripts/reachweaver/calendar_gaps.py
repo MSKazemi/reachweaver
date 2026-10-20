@@ -74,7 +74,12 @@ def find_calendar_gaps(
         raise ValidationError("Current time must include a timezone")
     current = current.astimezone(timezone.utc)
     first = _date(start) if start else current.astimezone(zone).date()
-    last = first + timedelta(days=days - 1)
+    try:  # the whole window, both ends in UTC, must exist: 0001-01-01 or 9999-12-31 may not
+        last = first + timedelta(days=days - 1)
+        datetime.combine(first, datetime.min.time(), tzinfo=zone).astimezone(timezone.utc)
+        datetime.combine(last + timedelta(days=1), datetime.min.time(), tzinfo=zone).astimezone(timezone.utc)
+    except OverflowError:
+        raise ValidationError("--start is out of range for the calendar window") from None
     blocked = {_date(value) for value in (blackout or [])}
 
     provenance: dict[tuple[int, time], dict] = {}

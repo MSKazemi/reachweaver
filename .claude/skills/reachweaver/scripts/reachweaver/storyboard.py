@@ -39,6 +39,7 @@ from typing import Any
 from .briefs import _fence
 from .campaigns import SLUG, _sensitive_keys, public_url, read_json
 from .media import BCP47, CONSTRAINTS, validate_media_manifest, validate_subtitle_text
+from .inputs import loads_text
 from .policy import PLACEHOLDER, ValidationError
 from .privacy import write_private_file
 from .report_format import markdown_cell as _cell
@@ -606,7 +607,7 @@ def check_storyboard(path: str | Path, zones: dict[str, dict[str, Any]] | None =
     if len(raw) > MAX_STORYBOARD_BYTES:
         raise ValidationError(f"Storyboard is larger than {MAX_STORYBOARD_BYTES} bytes")
     try:
-        data = json.loads(raw.decode("utf-8"))
+        data = loads_text(raw.decode("utf-8-sig"), "Storyboard")
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValidationError("Storyboard must be UTF-8 JSON written by media-storyboard") from exc
     if not isinstance(data, dict) or data.get("type") != "VerticalVideoStoryboard" or not isinstance(data.get("scenes"), list):

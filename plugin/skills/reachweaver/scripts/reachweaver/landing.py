@@ -46,6 +46,7 @@ from .campaigns import _sensitive_keys, read_json
 from .claims import _URL, _normalize, _phrase_regex, check_claims, variant_body
 from .policy import ValidationError
 from .sources import USER_AGENT, RobotsCache, clean_text
+from .inputs import read_json_file
 
 REPORT = "landing_check"
 MAX_PAGES = 50
@@ -141,7 +142,7 @@ def canonical_url_findings(url: object, label: str = "canonical_url") -> list[di
 def _load_briefs(path: Path) -> tuple[dict, list[dict], list[dict]]:
     """Return (raw document, page entries, document-level findings). Raises on unreadable input."""
     try:
-        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        raw = read_json_file(Path(path))
     except json.JSONDecodeError as exc:
         raise ValidationError(f"Invalid SEO briefs JSON: {exc.msg}") from exc
     if not isinstance(raw, dict) or not isinstance(raw.get("briefs"), list) or not raw["briefs"]:

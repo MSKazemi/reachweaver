@@ -138,9 +138,13 @@ def _datetime(value, name: str) -> datetime:
         _err(name + " must be an ISO 8601 date and time with a timezone" + example)
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         _err(name + " needs a timezone such as Z or +02:00" + example)
-    if parsed.astimezone(timezone.utc) > datetime.now(timezone.utc):
+    try:
+        utc = parsed.astimezone(timezone.utc)
+    except OverflowError:  # e.g. 0001-01-01T00:00:00+01:00 is before datetime.min in UTC
+        _err(name + " is out of range" + example)
+    if utc > datetime.now(timezone.utc):
         _err(name + " cannot be in the future")
-    return parsed.astimezone(timezone.utc)
+    return utc
 
 
 def _label(text: str) -> str:
@@ -189,7 +193,7 @@ def load_input(path: str | Path) -> dict:
     if len(raw) > MAX_BYTES:
         _err(f"input is larger than {MAX_BYTES // 1000} KB")
     try:
-        result = json.loads(raw.decode("utf-8"), object_pairs_hook=_no_duplicate_keys)
+        result = json.loads(raw.decode("utf-8-sig"), object_pairs_hook=_no_duplicate_keys)
     except UnicodeDecodeError:
         _err("input is not UTF-8 text")
     except json.JSONDecodeError as exc:

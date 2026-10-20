@@ -70,16 +70,22 @@ def route(platform: str, persona: str, accounts: Mapping[str, Mapping], profile:
                    for h in _profile_handles(profile, canonical) if h.get("persona") == persona), None)
     usable = handle if handle and handle.get("status") == "claimed" else None
     kit = f"reachweaver account-kit --platform {canonical} --persona {persona}"
-    if usable and matches and not any(m["username"] and normalize_username(m["username"]) ==
-                                      normalize_username(usable["username"]) for m in matches):
+    # An account with no username in accounts.json (LinkedIn often has none) matched through its explicit
+    # "persona" field: its username is unknown, which is not evidence of a different one.
+    named = [m for m in matches if m["username"]]
+    if usable and named and not any(normalize_username(m["username"] or "") == normalize_username(usable["username"])
+                                    for m in named):
         status = "conflict"
         advice = (f"Your profile says the {persona} username on {canonical} is @{usable['username']}, but "
-                  f"accounts.json connects @{matches[0]['username']} as {matches[0]['id']}. One of them is wrong: "
+                  f"accounts.json connects @{named[0]['username']} as {named[0]['id']}. One of them is wrong: "
                   "fix the profile (`reachweaver profile --handle ...`) or the account entry.")
     elif matches:
         status = "ok"
         first = matches[0]
         advice = f"Use account {first['id']}" + (f" (@{first['username']})" if first["username"] else "") + "."
+        if usable and not named:
+            advice += (f" accounts.json gives it no username, so it was matched by its \"persona\" field and not "
+                       f"compared with @{usable['username']} in your profile.")
     elif usable:
         status = "ok"
         advice = (f"Use @{usable['username']} on {canonical} ({persona}). It is not connected to ReachWeaver: add it "

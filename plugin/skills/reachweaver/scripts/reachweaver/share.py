@@ -13,6 +13,7 @@ from typing import Any
 
 from . import home
 from .manual_export import MANUAL_PLATFORMS, build_export, write_export
+from .inputs import split_list_args
 from .manual_package import build_package, generic_platforms, write_package
 from .policy import SUPPORTED_LIVE, ValidationError
 from .privacy import write_private_file
@@ -39,25 +40,22 @@ def available() -> tuple[str, ...]:
 def destinations(raw: list[str]) -> list[str]:
     allowed = set(available())
     chosen: list[str] = []
-    for group in raw:
-        for token in group.split(","):
-            key = token.strip().casefold()
-            if not key:
-                continue
-            key = ALIASES.get(key, key)
-            if key not in allowed:
-                if key in SUPPORTED_LIVE:
-                    raise ValidationError(
-                        key + " uses the separate draft, check, approve, publish flow. "
-                        "Share creates offline manual handoffs only."
-                    )
+    for token in split_list_args(raw):
+        key = token.casefold()
+        key = ALIASES.get(key, key)
+        if key not in allowed:
+            if key in SUPPORTED_LIVE:
                 raise ValidationError(
-                    f"Unknown manual destination {key!r}; try 'reachweaver share --list' "
-                    "or 'reachweaver delivery-options'."
+                    key + " uses the separate draft, check, approve, publish flow. "
+                    "Share creates offline manual handoffs only."
                 )
-            if key in chosen:
-                raise ValidationError(f"Duplicate destination {key!r}")
-            chosen.append(key)
+            raise ValidationError(
+                f"Unknown manual destination {key!r}; try 'reachweaver share --list' "
+                "or 'reachweaver delivery-options'."
+            )
+        if key in chosen:
+            raise ValidationError(f"Duplicate destination {key!r}")
+        chosen.append(key)
     if not chosen:
         raise ValidationError("Choose a network with --platform instagram,threads or --guide")
     if len(chosen) > MAX_DESTINATIONS:

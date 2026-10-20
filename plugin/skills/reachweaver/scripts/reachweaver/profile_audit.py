@@ -17,6 +17,7 @@ from pathlib import Path
 from statistics import median
 from urllib.parse import parse_qsl, urlsplit
 
+from .inputs import loads_text
 from .policy import ValidationError
 
 REGISTRY = Path(__file__).with_name("profile_audit_registry.json")
@@ -274,8 +275,8 @@ def load_snapshot(path: Path) -> dict:
     try:
         if path.stat().st_size > 2_000_000:
             raise ValidationError("Audit input must be <=2 MB; keep sensitive exports local")
-        raw = path.read_text(encoding="utf-8")
-        data = snapshot_from_csv(raw) if path.suffix.casefold() == ".csv" else json.loads(raw)
+        raw = path.read_text(encoding="utf-8-sig")
+        data = snapshot_from_csv(raw) if path.suffix.casefold() == ".csv" else loads_text(raw, "Audit snapshot")
     except (OSError, json.JSONDecodeError, UnicodeError) as exc:
         raise ValidationError("Could not read the audit snapshot as JSON or profile CSV (no network requests were made)") from exc
     _reject_sensitive(data)
@@ -529,7 +530,7 @@ def _at(value: str | None) -> datetime | None:
         if dt.tzinfo is None or dt.utcoffset() is None:
             return None
         return dt.astimezone(timezone.utc)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):  # out of range in UTC counts as an unknown date
         return None
 
 
