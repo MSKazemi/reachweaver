@@ -12,6 +12,7 @@ my-workspace/
   state/                      # private (0700)
     reachweaver.sqlite        # every draft, approval, post, link, metric and audit event
     approval-ledger.jsonl     # the approval replay ledger; travels WITH the database
+    ideas.json                # your ideas inbox (`reachweaver idea`), when you have one
     archive/                  # made by `archive`: text, metadata and copies of posted files
   media/                      # keep the images and videos you attach here
   logs/                       # worker logs: publish --log-file logs/worker.jsonl
@@ -62,7 +63,7 @@ reachweaver list                         # your drafts and posts are all there
 reachweaver workspace
 ```
 
-Read-only. It shows where everything is, whether the database is intact and not in use (a `-journal` or `-wal` file means a run is in progress), whether the approval ledger still matches it, which credential names are missing here, which attachments of unsent posts are missing, changed or outside the folder, and whether a secrets file is sitting in it. It exits 1 when something would break the copy.
+Read-only. It shows where everything is (the database, approval ledger, ideas inbox and archive, each with a warning when others can read it), whether the database is intact and not in use (a `-journal` or `-wal` file means a run is in progress), whether the approval ledger still matches it, which credential names are missing here, which attachments of unsent posts are missing, changed or outside the folder, and whether a secrets file is sitting in it. It exits 1 when something would break the copy.
 
 ## If you moved files by hand instead
 

@@ -16,12 +16,14 @@ The SQLite state database (default `state/reachweaver.sqlite`, mode 0600 in a 07
 | `metric_snapshots` | per-post aggregate counts from native exports | Aggregates, normally not about an identifiable person |
 | `settings` | emergency pause flag | None |
 
+The **ideas inbox** (`state/ideas.json`, next to the database, mode 0600; see `reachweaver idea`) is a separate file: each idea's text (up to 2000 characters), an optional public source URL, tags, status (`open`, `dropped`, `promoted`), timestamps and, for a promoted idea, the scaffold folder it was written to. Notes may name people or unannounced plans, so it is covered by `data-export`, `data-purge` and `privacy-status` like the database.
+
 ReachWeaver does not currently maintain a database of fetched incoming comments, follower lists or third-party profiles. **Outgoing replies authored or approved by the operator can be stored as posts**, including reply targets. `engagement-triage` reads an operator-provided export and writes draft files outside the database; imported and exported files may include other people's data. The [opt-out list](#opt-out-list) is a separate local file. Apply appropriate access and retention controls to imported data and draft files.
 
 ## Commands
 
 ```bash
-reachweaver privacy-status                       # perms, size, row counts, oldest records, policy
+reachweaver privacy-status                       # perms, size, row counts, oldest records, policy, ideas inbox
 reachweaver data-export --out state/export.json  # NEW 0600 file in the ignored private dir; refuses to overwrite
 reachweaver data-export                          # same JSON on stdout
 cp config/retention.example.json config/retention.json   # edit the days
@@ -34,8 +36,10 @@ reachweaver data-purge --apply                   # applies the plan to local row
 ```json
 {"version": 1, "retention_days": {
   "metric_snapshots_days": 400, "event_log_days": 365, "cancelled_drafts_days": 30,
-  "published_content_days": 180, "campaign_evidence_days": 365}}
+  "published_content_days": 180, "campaign_evidence_days": 365, "closed_ideas_days": 180}}
 ```
+
+`closed_ideas_days` applies to the ideas inbox: a `dropped` or `promoted` idea whose last change (`updated_at`, else `created_at`) is older than that many days is listed in the dry run under `actions.closed_ideas_delete` and removed from `ideas.json` by `--apply`. A policy without the key keeps every idea, and the key changes nothing else the purge does. `privacy-status` reports the inbox's path, mode, size, counts per status and oldest idea, never its text; `ideas_inbox.state` is `absent`, `present` or `unreadable` (damaged or a symlink: reported and left alone).
 
 ### Hard rules a policy cannot override
 
@@ -43,11 +47,12 @@ reachweaver data-purge --apply                   # applies the plan to local row
 - `send_claimed` audit events newer than 48 hours (the rolling send budget window plus margin) and all events of `sending`/`needs_review` posts are kept. So are `provider_cooldown` events newer than 48 hours (a cooldown after a provider 429 lasts at most 24 hours, issue #11); they hold an account id, a UTC deadline and fixed codes only.
 - Published posts keep id, account, platform, `remote_id`, `remote_url`, status and timestamps, so a duplicate send stays detectable; only `content` becomes `[purged]`.
 - `campaign_variants` rows and fingerprints are never deleted (they make staging idempotent); only `evidence_json` is minimized to evidence ids. Cancelled posts that a variant references, or that had a send attempt, are content-minimized instead of deleted.
+- An `open` idea in the ideas inbox is never deleted; `--apply` re-checks each idea's status under the inbox's lock, so an edited plan cannot remove one. The inbox is rewritten through a new 0600 file and an atomic rename; unlike SQLite's `secure_delete`, the old file's blocks are not overwritten, so use full-disk encryption.
 - Apply re-checks these rules in SQL inside one transaction, so an edited or stale plan cannot widen the purge. One `privacy_purge` event with counts only (no content) is logged.
 
 ### Export format
 
-`export_data` returns `{"format": "reachweaver-local-export", "schema_version": 1, "exported_at", "counts", "tables": {posts, events, campaign_variants, metric_snapshots, settings}}`. Secret-looking substrings (tokens, app passwords, `password=…`, values of secret env vars) are replaced with `[REDACTED…]`. The export still contains private drafts: store it like the database.
+`export_data` returns `{"format": "reachweaver-local-export", "schema_version": 1, "exported_at", "counts", "tables": {posts, events, campaign_variants, metric_snapshots, settings}, "ideas_inbox": {path, state, error, count, ideas}}`. The ideas are copied in full from `ideas.json` next to the database, with the same redaction as the tables. Secret-looking substrings (tokens, app passwords, `password=…`, values of secret env vars) are replaced with `[REDACTED…]`. The export still contains private drafts: store it like the database.
 
 ### Redacted structured logs
 
@@ -115,7 +120,7 @@ These are engineering notes, not compliance determinations.
 
 ## Backup, recovery and disconnect
 
-- **Backup:** stop any worker, `reachweaver pause`, then copy **both** the DB file and `approval-ledger.jsonl` from the same directory, taken together, with their permissions preserved (`cp -p`), or use `sqlite3 state/reachweaver.sqlite ".backup state/backup.sqlite"` plus a copy of the ledger. The ledger records which approvals were already used; a database restored without its matching ledger either refuses to send or forgets a consumed approval (see Recovery). Backups hold the same private data (post text, handles, opt-out entries); apply the same retention by hand.
+- **Backup:** stop any worker, `reachweaver pause`, then copy **both** the DB file and `approval-ledger.jsonl` from the same directory, taken together, with their permissions preserved (`cp -p`), or use `sqlite3 state/reachweaver.sqlite ".backup state/backup.sqlite"` plus a copy of the ledger. The ledger records which approvals were already used; a database restored without its matching ledger either refuses to send or forgets a consumed approval (see Recovery). Copy `ideas.json` from the same directory too if you keep ideas there; sending never needs it. Backups hold the same private data (post text, ideas, handles, opt-out entries); apply the same retention by hand.
 - **Recovery:** restore the database and its ledger **together** into a 0700 directory, both mode 0600, then run `privacy-status` and `queue-health`. Reconcile every `sending`/`needs_review` post against the platform before resuming. If the ledger is missing, unreadable, symlinked, wrongly permissioned or chain-broken, nothing is claimed or approved and the error is `approval_ledger_unavailable`: restore the file from the backup taken with the database. A database restored from an older backup than the ledger makes an approval that was already sent look unused: it is refused with `approval_replay_reapproval_required`. Check the account for the native post first, then `unapprove` and `approve` again if you really want a second send. Never create an empty ledger by hand before checking the account for duplicates: it forgets every earlier consumption ([details](WORKER-OPERATIONS.md#upgrade-note-approval-nonce-and-replay-ledger-wave-9-item-1)).
 - **Permission revoked or API version sunset:** the operational steps (pause, reconcile `needs_review` posts first, re-authorize or update the pinned version) are in the [runbook](WORKER-OPERATIONS.md#runbook-revoked-permissions-and-api-version-sunsets). A revoked token does not delete local data or remote posts; if you will not reconnect, follow the disconnect step below and then export or purge.
 - **Disconnect an account:** `reachweaver pause`, `reachweaver disconnect --account ID` (draft: stops this installation publishing to it; `reconnect` is terminal-only), revoke the app password or token at the provider, unset the env vars, remove the account from `config/accounts.json`, then export or purge as policy requires.

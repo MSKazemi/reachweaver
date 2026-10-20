@@ -335,5 +335,46 @@ class TemplateTests(unittest.TestCase):
         self.assertIn(ZWNJ, load_templates(persian)["fa"]["praise"])  # ZWNJ is legitimate Persian
 
 
+class LazyPackTests(unittest.TestCase):
+    """The packs compile on first use (CLI startup); what compiles must equal the eager build exactly."""
+
+    def test_import_compiles_no_pack_and_first_use_does(self):
+        import subprocess
+        import sys
+        code = ("import reachweaver.engagement as e; a = (e.rule_packs.cache_info().currsize, "
+                "e.opt_out_packs.cache_info().currsize); e.analyze('hola, gracias'); "
+                "print(a, (e.rule_packs.cache_info().currsize, e.opt_out_packs.cache_info().currsize))")
+        done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=ROOT, timeout=60)
+        self.assertEqual((done.returncode, done.stdout.strip()), (0, "(0, 0) (1, 1)"), done.stderr)
+
+    def test_lazy_packs_equal_an_eager_compile_of_the_sources(self):
+        import re
+        packs = engagement.rule_packs()
+        self.assertIs(packs, engagement.rule_packs())  # compiled once
+        self.assertIs(engagement.RULE_PACKS, packs)  # the module attribute still works
+        self.assertEqual(list(packs), list(LANGUAGES))
+        self.assertIs(packs["en"], engagement.RULES)
+        for lang in LANGUAGES[1:]:
+            sources = engagement._PACK_SOURCES[lang]
+            self.assertEqual([rule_id for rule_id, *_ in packs[lang]], [f"{lang}_{name}" for name in sources])
+            for (rule_id, label, pattern, reason), (name, source) in zip(packs[lang], sources.items()):
+                with self.subTest(rule=rule_id):
+                    eager = engagement._lx(source)
+                    self.assertIsInstance(pattern, re.Pattern)
+                    self.assertEqual((pattern.pattern, pattern.flags), (eager.pattern, eager.flags))
+                    self.assertEqual(label, engagement._RULE_META[name][0])
+                    self.assertEqual(reason, f"{engagement._RULE_META[name][1]} ({engagement.LANGUAGE_NAMES[lang]} pack)")
+        opt_outs = engagement.opt_out_packs()
+        self.assertIs(engagement.OPT_OUT_PACKS, opt_outs)
+        self.assertIs(opt_outs["en"], engagement.OPT_OUT)
+        for lang, source in engagement._OPT_OUT_SOURCES.items():
+            eager = engagement._lx(source)
+            self.assertEqual((opt_outs[lang].pattern, opt_outs[lang].flags), (eager.pattern, eager.flags))
+        self.assertEqual(list(engagement.RULE_INDEX.items()),
+                         [(rule_id, (label, reason)) for pack in packs.values() for rule_id, label, _, reason in pack])
+        with self.assertRaises(AttributeError):
+            engagement.NOT_A_PACK  # noqa: B018
+
+
 if __name__ == "__main__":
     unittest.main()

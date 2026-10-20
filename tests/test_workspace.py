@@ -158,6 +158,38 @@ class WorkspaceReport(Folder):
         self.assertIn("no_database_yet", out)
         self.assertFalse((self.old / "state").exists())
 
+    def test_the_report_lists_the_ideas_inbox_next_to_the_database(self):
+        from reachweaver import ideas
+        self.seed()
+        entry = lambda report: next(p for p in report["paths"] if p["name"] == "ideas inbox")  # noqa: E731
+        code, out, err = self.cli(self.old, "workspace", "--json")
+        self.assertIn(code, (0, 1), err)
+        absent = entry(json.loads(out))
+        self.assertEqual((absent["exists"], absent["path"]), (False, "state/ideas.json"))
+        ideas.add(self.old / "state/ideas.json", "Write about moving a workspace")
+        code, out, err = self.cli(self.old, "workspace", "--json")
+        present = entry(json.loads(out))
+        self.assertEqual((present["exists"], present["private"]), (True, True if os.name == "posix" else None))
+        self.assertGreater(present["bytes"], 0)
+        code, text, _ = self.cli(self.old, "workspace")
+        self.assertRegex(text, r"found\s+ideas inbox\s+state/ideas\.json")
+        self.assertNotIn("Write about moving", out + text)  # names and sizes, never the idea text
+        if os.name == "posix":
+            os.chmod(self.old / "state/ideas.json", 0o644)
+            _, text, _ = self.cli(self.old, "workspace")
+            self.assertRegex(text, r"ideas inbox\s+state/ideas\.json\s+\(readable by others")
+
+    def test_no_database_yet_still_lists_an_ideas_inbox(self):
+        from reachweaver import ideas
+        (self.old / "state").mkdir(mode=0o700)
+        ideas.add(self.old / "state/ideas.json", "An idea before any post")
+        code, out, _ = self.cli(self.old, "workspace", "--json")
+        self.assertEqual(code, 0)
+        report = json.loads(out)
+        inbox = next(p for p in report["paths"] if p["name"] == "ideas inbox")
+        self.assertTrue(inbox["exists"])
+        self.assertFalse((self.old / "state/reachweaver.sqlite").exists())
+
     def test_the_report_is_read_only(self):
         self.seed()
         db = self.old / "state/reachweaver.sqlite"

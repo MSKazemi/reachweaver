@@ -1,8 +1,8 @@
 """Your workspace: what lives in the folder you run ReachWeaver from, what does not, and whether a copy will work.
 
 A ReachWeaver workspace is a folder holding ``config/`` (public account metadata, the opt-out list, optional caps and
-retention policy) and ``state/`` (the private database, the approval ledger next to it, and the archive made by
-``archive``). Credentials are NOT in it: they live in the environment, a password manager or systemd credentials, so a
+retention policy) and ``state/`` (the private database, the approval ledger and the ideas inbox next to it, and the
+archive made by ``archive``). Credentials are NOT in it: they live in the environment, a password manager or systemd credentials, so a
 copied folder carries no secret and the new computer needs them set again.
 
 ``workspace`` is read-only. It reports the layout, whether the database is healthy and safe to copy right now, whether
@@ -29,6 +29,7 @@ from typing import Mapping
 from . import ledger
 from .accounts import missing_credentials
 from .attachments import decode_media, encode_media
+from .ideas import FILENAME as IDEAS_FILENAME
 from .policy import ValidationError
 from .repeat_guard import sha256_file
 from .storage import RELINK_STATUSES, rewrite_attachment_paths, schema_gaps, utc_now
@@ -90,6 +91,7 @@ def inspect(con, db_path: Path, accounts: Mapping[str, dict] | None, accounts_pa
     paths = [_entry("accounts", accounts_path), *[_entry(label, base / rel) for label, rel in OPTIONAL_FILES],
              _entry("database", db_path, must_be_private=True),
              _entry("approval ledger", db_path.parent / ledger.LEDGER_FILENAME, must_be_private=True),
+             _entry("ideas inbox", db_path.parent / IDEAS_FILENAME, must_be_private=True),
              _entry("archive", db_path.parent / "archive", must_be_private=True)]
     problems: list[dict] = []
 
@@ -257,7 +259,7 @@ README_TEXT = """\
 This folder is a ReachWeaver workspace: everything that is yours, in one place.
 
   config/   your accounts (handles and servers only, never a secret), opt-out list, caps
-  state/    the private database, the approval ledger, the archive of what you posted
+  state/    the private database, the approval ledger, your ideas inbox, the archive of what you posted
   media/    keep the images and videos you attach here
   logs/     use `reachweaver publish --log-file logs/worker.jsonl` for worker logs
 

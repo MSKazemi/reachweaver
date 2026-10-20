@@ -59,7 +59,8 @@ def _add_idea_and_statusline_parsers(sub) -> None:
     q.add_argument("--status", choices=("open", "promoted", "dropped"), help="Only ideas in this state")
     q.add_argument("--tag", help="Only ideas with this tag")
     q.add_argument("--json", action="store_true", help="Machine-readable result")
-    q = actions.add_parser("drop", help="Mark an open idea dropped (kept in the file, never deleted)")
+    q = actions.add_parser("drop", help="Mark an open idea dropped (kept in the file; only data-purge with "
+                           "closed_ideas_days removes it)")
     q.add_argument("id", help="The idea id, e.g. idea-1a2b3c4d")
     q.add_argument("--json", action="store_true", help="Machine-readable result")
     q = actions.add_parser("promote", help="Write a NEW campaign scaffold folder from an open idea; it stays BLOCKED "

@@ -33,7 +33,6 @@ from .capabilities import (
     DEFAULT_MAX_AGE_DAYS, FORMATS, load_registry as load_capabilities,
     require_capability, stale_entries, summarize,
 )
-from .briefs import build_brief, load_scan, write_brief
 from .campaigns import OBJECTIVES, read_json, stage_campaign, validate_campaign
 from .claims import DEFAULT_DUPLICATE_THRESHOLD, check_claims
 from . import confirmation
@@ -41,7 +40,6 @@ from .account_advisor import FORMATS as ADVISOR_FORMATS
 from . import account_kit, persona_guard
 from . import profile as profile_store
 from .distribution import GOALS, build_distribution_plan
-from .engagement import triage_files
 from .health import (build_health, dead_letter, exit_code as health_exit_code, render_dead_letter, render_health,
                      sanitize_error_code)
 from .experiments import evaluate_experiment
@@ -62,7 +60,6 @@ from .timing_analysis import analyze_posting_times
 from .worker_log import claim_refusal_reason, error_code as worker_error_code, open_worker_log
 from .schema_export import EXPORT_TYPES, export_documents, render_jsonl
 from .schemas import TYPES as SCHEMA_TYPES, validate as validate_schema
-from .sources import load_config as load_sources_config, render_scan, scan_config_file
 from .policy import (CONSERVATIVE_TEXT_LIMITS, LINKEDIN_ESCAPED_MAX, PLATFORMS, SUPPORTED_LIVE,
                      SUPPORTED_LIVE_VIDEO, ValidationError, live_opt_in, mastodon_text_limit,
                      require_live_gate, runtime_environment, validate_post)
@@ -1292,6 +1289,7 @@ def execute(args) -> int:
         print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else render_pilot_report(result))
         return 1 if result["malformed_rows"] else 0
     if args.command == "engagement-triage":
+        from .engagement import triage_files  # imported here: the triage rules are not needed at CLI startup
         triage, written = triage_files(args.input, args.docs_map, args.out, args.issues_dir,
                                        optout_path=args.optout)
         print(json.dumps(triage, indent=2, ensure_ascii=False) if args.json else
@@ -1413,6 +1411,7 @@ def execute(args) -> int:
         return 0
     if args.command == "utm-link":
         from .private_sources import private_repos_from_config
+        from .sources import load_config as load_sources_config
         private_repos = private_repos_from_config(load_sources_config(args.sources)[0]) if args.sources else ()
         print(build_utm_link(args.url, platform=args.platform, campaign=args.campaign,
                              content=args.content, term=args.term, allow_origins=args.allow_origin,
@@ -1733,7 +1732,9 @@ def execute(args) -> int:
             known = None
         if not db_file.is_file():
             workspace_report: dict = {"workspace": str(home.root()) if home.root() else None,
-                                "paths": [ws_report._entry("accounts", accounts_file), ws_report._entry("database", db_file)],
+                                "paths": [ws_report._entry("accounts", accounts_file), ws_report._entry("database", db_file),
+                                          ws_report._entry("ideas inbox", db_file.parent / ws_report.IDEAS_FILENAME,
+                                                           must_be_private=True)],
                       "database": {"counts": {}}, "ledger": "absent", "files": [],
                       "credentials_missing": {n: missing_credentials(a) for n, a in (known or {}).items() if missing_credentials(a)},
                       "not_in_the_folder": list(ws_report.NOT_IN_THE_FOLDER),
@@ -2084,6 +2085,7 @@ def execute(args) -> int:
         print(json.dumps(audit, indent=2) if args.json else render_audit(audit))
         return 1 if audit["findings"] else 0
     if args.command == "signal-brief":
+        from .briefs import build_brief, load_scan, write_brief
         accounts_path = args.brief_accounts or args.accounts
         brief = build_brief(load_scan(args.scan), args.signal_id, read_json(args.brand),
                             load_accounts(accounts_path) if accounts_path else None,
@@ -2116,6 +2118,7 @@ def execute(args) -> int:
             print("No copy was generated; nothing was staged, approved, scheduled or published.")
         return 0
     if args.command == "sources-scan":
+        from .sources import render_scan, scan_config_file
         result = scan_config_file(args.config, online=args.online, state_path=args.state,
                                   top=args.top, mark_seen=args.mark_seen, allow_private=args.allow_private)
         print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else render_scan(result))

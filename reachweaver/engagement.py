@@ -19,6 +19,7 @@ import hashlib
 import json
 import re
 import unicodedata
+from functools import lru_cache
 from pathlib import Path
 from typing import cast
 
@@ -639,9 +640,34 @@ def _build_pack(lang: str) -> tuple[Rule, ...]:
     return tuple(pack)
 
 
-RULE_PACKS: dict[str, tuple[Rule, ...]] = {"en": RULES, **{lang: _build_pack(lang) for lang in LANGUAGES[1:]}}
-OPT_OUT_PACKS: dict[str, re.Pattern] = {"en": OPT_OUT, **{lang: _lx(src) for lang, src in _OPT_OUT_SOURCES.items()}}
-RULE_INDEX = {rule_id: (label, reason) for pack in RULE_PACKS.values() for rule_id, label, _, reason in pack}
+# The non-English packs (about 100 patterns) are compiled on first use, not at import: compiling them cost
+# about 50 ms of every CLI start, including commands that never triage a comment. Patterns, flags and order
+# are exactly what the former eager build produced (tests/test_engagement_multilingual.py checks it).
+@lru_cache(maxsize=None)
+def rule_packs() -> dict[str, tuple[Rule, ...]]:
+    """Every language's rules, compiled once on first call: ``{"en": RULES, "de": (...), ...}``."""
+    return {"en": RULES, **{lang: _build_pack(lang) for lang in LANGUAGES[1:]}}
+
+
+@lru_cache(maxsize=None)
+def opt_out_packs() -> dict[str, re.Pattern]:
+    """Every language's opt-out pattern, compiled once on first call."""
+    return {"en": OPT_OUT, **{lang: _lx(src) for lang, src in _OPT_OUT_SOURCES.items()}}
+
+
+# Built from the sources, so it needs no compiled pattern; same ids, order and reasons as the packs.
+RULE_INDEX = {rule_id: (label, reason) for rule_id, label, _, reason in RULES}
+RULE_INDEX.update({f"{lang}_{name}": (_RULE_META[name][0], f"{_RULE_META[name][1]} ({LANGUAGE_NAMES[lang]} pack)")
+                   for lang in LANGUAGES[1:] for name in _PACK_SOURCES[lang]})
+
+
+def __getattr__(name: str):
+    """``RULE_PACKS`` and ``OPT_OUT_PACKS`` stay readable as module attributes; they compile on first access."""
+    if name == "RULE_PACKS":
+        return rule_packs()
+    if name == "OPT_OUT_PACKS":
+        return opt_out_packs()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 # Function words used only for the language guess. Words shared by several of
 # these languages ("de", "la", "que", "no", "in", "a", "e") are left out on
@@ -785,8 +811,9 @@ def analyze(text: str, flags: dict | None = None) -> dict:
     guess = guess_language(text)
     content_packs = set(guess["packs_applied"])
     matched = []
+    packs = rule_packs()
     for lang in LANGUAGES:
-        for rule_id, label, pattern, reason in RULE_PACKS[lang]:
+        for rule_id, label, pattern, reason in packs[lang]:
             if label not in SAFETY_LABELS and lang not in content_packs:
                 continue
             if rule_id == "hidden_unicode_controls":
@@ -797,7 +824,8 @@ def analyze(text: str, flags: dict | None = None) -> dict:
                 hit = bool(cast(re.Pattern, pattern).search(folded))
             if hit:
                 matched.append({"rule": rule_id, "label": label, "why": reason})
-    opt_out_languages = [lang for lang in LANGUAGES if OPT_OUT_PACKS[lang].search(folded)]
+    opt_outs = opt_out_packs()
+    opt_out_languages = [lang for lang in LANGUAGES if opt_outs[lang].search(folded)]
     labels = {m["label"] for m in matched}
     chosen = next((label for label in PRECEDENCE if label in labels), None)
     if chosen is None:
