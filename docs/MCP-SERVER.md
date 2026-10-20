@@ -56,7 +56,7 @@ The server runs until its input closes. It writes only protocol messages to stdo
 
 ## Protocol
 
-JSON-RPC 2.0 over stdio, one message per line, UTF-8, no batches. The server is "dual-era" in the specification's terms:
+JSON-RPC 2.0 over stdio, one message per line (at most 1 MiB and 64 levels of nesting), UTF-8, no batches. The server is "dual-era" in the specification's terms:
 
 - **Current revision `2026-07-28`.** There is no handshake. Every request carries `io.modelcontextprotocol/protocolVersion` and `io.modelcontextprotocol/clientCapabilities` in `params._meta`. The server implements `server/discover`, `tools/list` and `tools/call`, adds `resultType: "complete"` and its `serverInfo` to every result, and answers an unknown version with error `-32022` and the list of supported versions.
 - **Earlier revisions `2025-11-25`, `2025-06-18`, `2025-03-26` and `2024-11-05`.** These use the `initialize` handshake. The server answers with the requested version, or with `2025-11-25` when it does not know the requested one. It then serves `ping`, `tools/list` and `tools/call`.

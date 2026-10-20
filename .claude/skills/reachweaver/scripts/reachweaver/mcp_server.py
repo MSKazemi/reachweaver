@@ -73,6 +73,9 @@ PATH_METAVARS = frozenset({"FILE", "DIR", "PATH"})
 DEFAULT_MAX_OUTPUT_BYTES = 256 * 1024
 DEFAULT_CALLS_PER_MINUTE = 60
 MAX_LINE_BYTES = 1024 * 1024
+# Real MCP messages nest a few levels; deeper input is refused before json.loads instead of relying on the
+# interpreter's recursion limit (Python 3.14 parses 100,000 levels without a RecursionError).
+MAX_JSON_DEPTH = 64
 MAX_STRING = 20_000
 MAX_ITEMS = 50
 SAFE_INT = 2 ** 53 - 1
@@ -319,6 +322,28 @@ def network_blocked():
          socket.getaddrinfo) = saved
 
 
+def _nesting_depth(text: str) -> int:
+    """Deepest ``[``/``{`` nesting outside JSON strings; a linear scan that never recurses."""
+    depth = deepest = 0
+    in_string = escaped = False
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            deepest = max(deepest, depth)
+        elif char in "]}":
+            depth -= 1
+    return deepest
+
+
 def _error(message_id, code: int, message: str, data=None) -> dict:
     error: dict = {"code": code, "message": message}
     if data is not None:
@@ -349,7 +374,10 @@ class McpServer:
     # -- protocol ------------------------------------------------------------------------------------------
     def handle_line(self, raw: bytes) -> dict | None:
         try:
-            message = json.loads(raw.decode("utf-8"))
+            text = raw.decode("utf-8")
+            if _nesting_depth(text) > MAX_JSON_DEPTH:
+                return _error(None, PARSE_ERROR, f"Parse error: JSON nested deeper than {MAX_JSON_DEPTH} levels")
+            message = json.loads(text)
         except (UnicodeDecodeError, ValueError, RecursionError):
             return _error(None, PARSE_ERROR, "Parse error: not a UTF-8 JSON message")
         if isinstance(message, list):

@@ -415,6 +415,10 @@ class MalformedTests(Base):
         reply = handle_line(b'{"jsonrpc":"2.0","id":"m","method":"resources/list"}')
         self.assertEqual((reply["id"], reply["error"]["code"]), ("m", -32601))
         self.assertEqual(handle_line(b"[" * 100000 + b"]" * 100000)["error"]["code"], -32700)
+        too_deep = b'{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"x":' + b"[" * 64 + b"]" * 64 + b"}}"
+        self.assertIn("deeper than 64", handle_line(too_deep)["error"]["message"])
+        self.assertEqual(mcp_server._nesting_depth('{"a":"[[[{{{"}'), 1)  # brackets inside strings do not count
+        self.assertEqual(mcp_server._nesting_depth('{"a":"\\"[["}'), 1)
 
 
 class StdioTests(Base):
