@@ -43,6 +43,7 @@ Then the owner, in their own terminal: `approve POST_ID`, and only on the produc
 | `health` | Per-account readiness `ok`/`attention`/`blocked`; exit 1 when blocked | `--json`, `--stale-minutes N` |
 | `workspace` | Folder report: config, database, ledger; will a copy work elsewhere | `--json`, `--init DIR`, `--gather`, `--repair` (dry runs); `--apply` is the owner's decision |
 | `ui` | **OWNER**: read-only dashboard on 127.0.0.1 with a per-run URL token; Claude never starts it or reads its URL | `--port N`, `--open` |
+| `mcp-serve` | **OWNER** (draft, pending security review): stdio MCP server for other MCP clients such as Claude Desktop; read-only tools only, no approve or publish tool; the owner registers it in the client's config; Claude Code never starts it | `--allow-drafts`, `--root DIR`, `--max-output-bytes N`, `--max-calls-per-minute N` |
 | `statusline` | One short read-only line for Claude Code's status line (version, drafts, queued, needs review, ideas, PAUSED); creates no database, no network | none |
 | `idea` | Ideas inbox: `add TEXT`, `list`, `drop ID`, `promote ID` to a NEW blocked campaign scaffold; never a draft, approval or send | `--source URL`, `--tag T`, `--status`, `--json`, `--campaign SLUG`, `--out DIR`, `--brand`, `--accounts` |
 | `list` | Posts and statuses | `--status S` |

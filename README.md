@@ -277,6 +277,7 @@ reachweaver context [--json]             read-only session start for Claude Code
 reachweaver describe [COMMAND] [--json]  machine-readable command catalog generated from the parser: flags, choices, defaults, JSON support and owner_only/network/writes/read_only tags
                                           --json also on draft, list, check, doctor, schedule, cancel, unapprove, import-metrics, campaign-stage, approval-mode (display only) and the dry-run publish; with --json an error also prints {"error": {"code", "message"}} on stdout
 reachweaver ui [--port N] [--open] [--optout F]  experimental, read-only local dashboard on 127.0.0.1 (overview, queue, post review sheets, accounts, channel research); cannot approve, schedule, pause or publish; the URL carries a per-run token (docs/DASHBOARD.md)
+reachweaver mcp-serve [--allow-drafts] [--root DIR]  draft, pending security review: local MCP server on stdin/stdout for MCP clients other than Claude Code (Claude Desktop); read-only tools generated from the catalog, no approve or publish tool; --allow-drafts adds draft only (docs/MCP-SERVER.md)
 reachweaver completion {bash,zsh}        experimental: print a Tab-completion script for commands, options and fixed choices; reads no database and runs nothing
 reachweaver privacy-status [--policy F]   offline DB perms/size/row counts/oldest records/retention config
 reachweaver data-export [--out FILE]      redacted JSON export of local DB (new 0600 file)

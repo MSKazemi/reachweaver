@@ -742,6 +742,21 @@ main()   -> on an error: "ERROR: ..." on stderr as before; with --json also {"er
 
 `publish --json` (dry run only) runs the unchanged `_run_publish` with stdout captured and structures its lines (`publish_preview.py`); `--json` with `--live` is refused before anything runs, so the live path is neither wrapped nor changed. `approval-mode --json` only displays; combined with a setting change it is refused before any change. `tests/test_agent_interface.py` checks that every subcommand is classified, that `context` creates no database on an empty folder, that every new JSON output parses and that text output without `--json` is unchanged.
 
+### Local MCP server (`mcp-serve`, draft pending security review)
+
+```text
+MCP client --stdin line--> mcp_server.serve -> McpServer.handle_line (JSON-RPC 2.0; 2026-07-28 per-request _meta,
+            or legacy initialize 2025-11-25..2024-11-05)
+  tools/list -> Tool per exposed_commands(make_parser()): catalog tag read_only, not interactive/owner_only/network,
+                no owner_only_flags, JSON output, not WITHHELD_COMMANDS (+ draft with --allow-drafts);
+                NEVER_EXPOSED backstop raises at start-up; inputSchema from the argparse actions, WITHHELD_FLAGS dropped
+  tools/call -> Tool.argv: schema check, file arguments confined to --root (resolved) -> [command, --opt=value..., --json]
+             -> cli.main(fixed global options + argv) with stdout/stderr captured, stdin empty, sockets blocked
+             -> privacy.redact_value -> {exit_code, result, messages} (cap: refused, never cut) --stdout line--> client
+```
+
+Invariants: a client never supplies a command name, a global option or raw argv; there is no approve, publish, resume, reconcile, reconnect, connect, pause or approval-mode tool; stdout carries only protocol messages (anything else printed goes to stderr); one stderr log line per call without arguments or output. `tests/test_mcp_server.py` checks the allowlist against the catalog, the backstop, argument validation, path confinement, the output cap, that no read-only tool creates the database, and stdio framing. User guide and threat notes: [MCP-SERVER.md](MCP-SERVER.md).
+
 ## Browser Share composer (`share --web`)
 
 `reachweaver share --web [--open]` starts `share_browser.py`, a small local server separate from the read-only dashboard, for people who prefer a page to the terminal. User guide: [BROWSER-SHARE-COMPOSER.md](BROWSER-SHARE-COMPOSER.md).

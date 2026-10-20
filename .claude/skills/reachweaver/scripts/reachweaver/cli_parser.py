@@ -565,6 +565,17 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, default=0, help="Loopback port (default: a free one)")
     p.add_argument("--open", action="store_true", help="Open the tokenised URL in your default browser")
     p.add_argument("--optout", type=Path, help=optout_help + "; queued posts mentioning it are counted, never named")
+    p = sub.add_parser("mcp-serve", help="Draft, pending security review: a local MCP server on stdin/stdout for MCP "
+                       "clients other than Claude Code (Claude Desktop...); only read-only tools, no approve or "
+                       "publish tool; runs until its input closes (docs/MCP-SERVER.md)")
+    p.add_argument("--allow-drafts", action="store_true",
+                   help="Also offer a draft tool (writes local drafts only; each still needs your own approval)")
+    p.add_argument("--root", type=Path, metavar="DIR",
+                   help="File arguments must resolve inside this folder (default: the workspace, else the current folder)")
+    p.add_argument("--max-output-bytes", type=int, default=262144, metavar="N",
+                   help="Refuse a tool result larger than N bytes (default 262144)")
+    p.add_argument("--max-calls-per-minute", type=int, default=60, metavar="N",
+                   help="Rate limit for tool calls (default 60)")
     p = sub.add_parser("campaign-check", help="Offline evidence/brand/variant checks; does not assert source truth")
     p.add_argument("--file", type=Path, required=True)
     p.add_argument("--brand", type=Path, help="Brand file; omitting skips account/voice checking")

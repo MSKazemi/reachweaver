@@ -2155,6 +2155,9 @@ def execute(args) -> int:
         return 1 if guide["state"] in ("accounts_invalid", "database_unreadable") else 0
     if args.command == "ui":  # read-only server on loopback; opens the database mode=ro, never creates it
         return _run_ui(args)
+    if args.command == "mcp-serve":  # draft: stdio MCP server, allowlisted read-only tools (docs/MCP-SERVER.md)
+        from .mcp_server import serve as serve_mcp
+        return serve_mcp(args)
     if args.command in READ_ONLY_DB_COMMANDS:
         return _execute_read_only(args)
     with connect(args.db) as db:
