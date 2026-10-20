@@ -235,6 +235,38 @@ def _post_private_link_refusal(args, post) -> str | None:
     return _private_link_refusal(args, [published_text(post), *hosted], [post["source_url"]])
 
 
+def _check_findings(args, db, post) -> tuple[list[str], list[dict], list[dict]]:
+    """``check``'s offline findings for one stored post: (blocking issues, repeat hits, blocking repeat hits).
+
+    Reads only (``db`` may be a read-only connection); the review packet shows the same findings."""
+    account = _optional_account(args, post["account_id"], post["platform"])
+    issues = validate_post(post["platform"],post["content"], account)
+    issues.extend(_persona_gate(args, [account], _optional_accounts_map(args), [post["account_id"]]))
+    issues.extend(_media_issues(post, account))
+    issues.extend(_video_issues(post))
+    optout = load_optout(args.optout)
+    hits = optout_mentions(published_text(post), optout, post["platform"])
+    if hits:
+        issues.append(describe_mentions(hits))
+    issues.extend(_reply_problems(post, account, optout))
+    private = _post_private_link_refusal(args, post)  # #9 over post text, alt texts, video title/tags
+    if private:
+        issues.append(private)
+    repeats = _repeat_findings(db, post)
+    blocking_repeats = repeat_guard.blocking(repeats)
+    issues.extend(f"repeat: {repeat_guard.describe(hit)}" for hit in blocking_repeats[:3])
+    return issues, repeats, blocking_repeats
+
+
+def _check_report(args, db, post, found=None) -> dict:
+    """The ``check --json`` document (also each review packet post's check section)."""
+    issues, repeats, blocking_repeats = found if found is not None else _check_findings(args, db, post)
+    return {"post_id": post["id"], "ok": not issues, "findings": issues,
+            "warnings": [repeat_guard.describe(hit) for hit in repeats if hit not in blocking_repeats],
+            "blocking_repeat": bool(blocking_repeats),
+            "manual_only": post["platform"] not in SUPPORTED_LIVE}
+
+
 def _draft_reply(db, args, account: dict, content: str, optout: list[dict]) -> int:
     """``draft --reply-to`` (issue #17): verify the parent read-only, then add an ordinary
     draft row carrying the canonical target. Never approves, schedules or sends."""
@@ -2128,6 +2160,9 @@ def execute(args) -> int:
     if args.command == "release-brief":  # offline; NEW scaffold folder only; no database, no network
         from .release_brief import run_cli as run_release_brief
         return run_release_brief(args)
+    if args.command in ("review-packet", "review-comment", "review-status"):  # database only via connect_readonly
+        from .review_packet import run_cli as run_review  # draft, pending security review; comments never approve
+        return run_review(args, check_report=_check_report, optional_account=_optional_account)
     if args.command == "sources-scan":
         from .sources import render_scan, scan_config_file
         result = scan_config_file(args.config, online=args.online, state_path=args.state,
@@ -2390,27 +2425,10 @@ def execute(args) -> int:
                 print(json.dumps(shown,indent=2,ensure_ascii=False))
         elif args.command == "check":
             post = get_post(db,args.post_id)
-            account = _optional_account(args, post["account_id"], post["platform"])
-            issues = validate_post(post["platform"],post["content"], account)
-            issues.extend(_persona_gate(args, [account], _optional_accounts_map(args), [post["account_id"]]))
-            issues.extend(_media_issues(post, account))
-            issues.extend(_video_issues(post))
-            optout = load_optout(args.optout)
-            hits = optout_mentions(published_text(post), optout, post["platform"])
-            if hits:
-                issues.append(describe_mentions(hits))
-            issues.extend(_reply_problems(post, account, optout))
-            private = _post_private_link_refusal(args, post)  # #9 over post text, alt texts, video title/tags
-            if private:
-                issues.append(private)
-            repeats = _repeat_findings(db, post)
-            blocking_repeats = repeat_guard.blocking(repeats)
-            issues.extend(f"repeat: {repeat_guard.describe(hit)}" for hit in blocking_repeats[:3])
+            issues, repeats, blocking_repeats = _check_findings(args, db, post)
             if args.json:  # the same findings and exit code as the text
-                print(json.dumps({"post_id": args.post_id, "ok": not issues, "findings": issues,
-                                  "warnings": [repeat_guard.describe(hit) for hit in repeats if hit not in blocking_repeats],
-                                  "blocking_repeat": bool(blocking_repeats),
-                                  "manual_only": post["platform"] not in SUPPORTED_LIVE}, indent=2, ensure_ascii=False))
+                print(json.dumps(_check_report(args, db, post, (issues, repeats, blocking_repeats)),
+                                 indent=2, ensure_ascii=False))
                 return 1 if issues else 0
             from . import term
             print(term.style("OK", "green", sys.stdout) if not issues

@@ -158,7 +158,7 @@ Stuck or unsure? `reachweaver pause` stops all publishing until you run `reachwe
 | Connect a real account | [Account onboarding](docs/ACCOUNT-ONBOARDING.md), [security checklist](docs/SECURITY-CHECKLIST.md), [first live pilot](docs/FIRST-LIVE-PILOT.md) |
 | See what each platform supports | [Platform matrix](docs/PLATFORM-MATRIX.md), [platform guides](docs/PLATFORMS.md) |
 | Post to a network ReachWeaver cannot send to | [Manual export](docs/MANUAL-EXPORT.md) |
-| Plan a campaign from evidence | [Schemas](docs/SCHEMAS.md), [campaign preview](docs/CAMPAIGN-PREVIEW.md), [claim grounding](docs/CLAIM-GROUNDING.md), [release to draft](docs/RELEASE-TO-DRAFT.md) |
+| Plan a campaign from evidence | [Schemas](docs/SCHEMAS.md), [campaign preview](docs/CAMPAIGN-PREVIEW.md), [claim grounding](docs/CLAIM-GROUNDING.md), [release to draft](docs/RELEASE-TO-DRAFT.md), [review packets](docs/REVIEW-PACKET.md) |
 | Pick channels for a region or goal | `reachweaver distribution-plan`, [global strategy](docs/GLOBAL-DISTRIBUTION-2026-10-08.md) |
 | Measure what worked | [Attribution](docs/ATTRIBUTION.md), [growth experiments](docs/GROWTH-EXPERIMENTS.md), [weekly report example](docs/WEEKLY-REPORT-EXAMPLE.md) |
 | Run it unattended on a server | [Worker operations](docs/WORKER-OPERATIONS.md) |
@@ -250,6 +250,9 @@ reachweaver draft --account X --file F --reply-to ITEM [--online] [--override-fl
                                           #17 (owner-approved 2026-10-09; gated off): reply draft under your own published Bluesky/Mastodon post; plan only without --online; sending blocked by the capability registry (`reachweaver_reply_adapter: none`)
 reachweaver list [--status STATUS]        display post statuses
 reachweaver check POST_ID [--optout F]    draft lint, including opt-out mentions
+reachweaver review-packet (--post-id ID ... | --campaign-staged NAME) --out NEW_DIR [--json]  (draft, pending security review) NEW private folder for a co-reviewer: exact text, destination, alt text, content digest, check findings; database read-only; never approval (docs/REVIEW-PACKET.md)
+reachweaver review-comment --packet DIR --post-id ID --reviewer NAME --verdict looks_good|change_requested|question --note TEXT  owner records a reviewer's comment in the packet's comments.json, bound to the digest; looks_good is not approval
+reachweaver review-status [--packet DIR] [--json]  comments per post; STALE when the post changed after the comment; read-only
 reachweaver approve POST_ID [--approver NAME] [--optout F]  approve one post; binds its payload hash and a fresh per-approval nonce (wave 9 item 1: the first send consumes it in an append-only, hash-chained approval-ledger.jsonl next to the database, so a restored older approval of the same post is refused with approval_replay_reapproval_required before any request; approvals made before the upgrade must be re-approved once); refused on an opt-out mention
 reachweaver approve POST_ID --verify-identity --online  opt-in (wave 9 item 2): one read-only connect-check identity request, then bind a fingerprint of the verified account entry (account id, platform, handle/server/ids; no token or response stored) under tag approval/id-1; a failed check approves nothing; a later send whose account entry no longer matches is BLOCKED before any request (approval_identity_mismatch_reapproval_required). Binds WHICH account, not WHO approved
 reachweaver unapprove POST_ID            revoke approval (not published)
