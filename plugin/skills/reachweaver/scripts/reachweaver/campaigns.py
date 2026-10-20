@@ -20,6 +20,7 @@ from .policy import PLACEHOLDER, ValidationError, validate_post
 from .private_sources import (VISIBILITIES, is_private_evidence, links_in, private_evidence_repos,
                               redact_private_evidence, url_in_private_repo)
 from .storage import add_post, event, parse_utc, utc_now
+from .inputs import read_json_file
 
 SLUG = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
 OBJECTIVES = frozenset({"qualified_visits", "contributors", "signups", "discussion", "awareness"})
@@ -35,7 +36,7 @@ MAX_RATIONALE_CHARS = 1000
 
 def read_json(path: str | Path) -> dict:
     try:
-        obj = json.loads(Path(path).read_text(encoding="utf-8"))
+        obj = read_json_file(Path(path))
     except json.JSONDecodeError as exc:
         raise ValidationError(f"Invalid campaign/brand JSON: {exc.msg}") from exc
     if not isinstance(obj, dict):

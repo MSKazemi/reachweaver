@@ -161,7 +161,7 @@ class PeerBenchmarkTests(unittest.TestCase):
             elif isinstance(node, ast.ImportFrom):
                 imported.add(("." * node.level) + (node.module or ""))
         self.assertEqual(imported, {"__future__", "json", "re", "collections", "datetime", "pathlib", "statistics",
-                                    "urllib.parse", ".policy", ".profile_audit"})
+                                    "urllib.parse", ".inputs", ".policy", ".profile_audit"})
 
 
 if __name__ == "__main__":

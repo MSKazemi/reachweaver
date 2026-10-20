@@ -41,6 +41,7 @@ from .growth import MIN_RECOMMENDED_PAIRS, is_windowed_snapshot
 from .growth_readout import describe_design
 from .policy import PLATFORMS, ValidationError
 from .storage import METRIC_FIELDS, get_post, parse_utc, published_posts, snapshots_for
+from .inputs import read_json_file
 
 KIND = "reachweaver.baseline-evaluation"
 READOUT_KIND = "reachweaver.growth-readout"
@@ -255,7 +256,7 @@ def load_readouts(paths: list[Path] | list[str]) -> list[Any]:
     loaded = []
     for path in paths:
         try:
-            loaded.append(json.loads(Path(path).read_text(encoding="utf-8")))
+            loaded.append(read_json_file(Path(path)))
         except json.JSONDecodeError as exc:
             raise ValidationError(f"Invalid readout JSON in {path}: {exc.msg}") from exc
     return loaded

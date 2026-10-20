@@ -96,6 +96,8 @@ from .storage import (
     connect_readonly as storage_connect_readonly, database_path as storage_database_path, event as record_event,
     record_shared,
 )
+from .inputs import read_json_file
+from .storage import POST_STATUSES
 
 
 def _add_history_args(p: argparse.ArgumentParser) -> None:
@@ -280,7 +282,8 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--history", action="append", default=[], type=Path, metavar="FILE",
                    help="Also scan this shell history file for literal REACHWEAVER_* secrets (line numbers only); repeatable")
     p.add_argument("--json", action="store_true", help="Machine-readable names-only report")
-    sub.add_parser("list", help="List posts and statuses").add_argument("--status", help="Filter by status")
+    sub.add_parser("list", help="List posts and statuses").add_argument("--status", choices=POST_STATUSES,
+                                                                       help="Filter by status")
     sub.add_parser("show", help="Show exact post text and account metadata for human review; offline").add_argument("post_id")
     p = sub.add_parser("draft", help="Queue a platform-native text draft for an account (repeat --account for one "
                        "draft per account; each still needs its own approval)")
@@ -896,7 +899,7 @@ def make_parser() -> argparse.ArgumentParser:
                        "personal values partly hidden. One approval of the plan hash writes the packets to a NEW private "
                        "folder. It opens no site, fills no form and never sees a password, CAPTCHA or code "
                        "(docs/PERSONAS-AND-ACCOUNT-KIT.md).")
-    p.add_argument("--platform", action="append", default=[], metavar="ID", help="Network to prepare; repeat (see account-advisor for the ids)")
+    p.add_argument("--platform", action="append", default=[], metavar="ID", help="Network to prepare; repeat or comma-separate (see account-advisor for the ids)")
     p.add_argument("--persona", metavar="ID", help="Persona id (default: preferences.default_persona in the profile)")
     p.add_argument("--questions", action="store_true", help="Print only what is still missing from the profile")
     p.add_argument("--out", type=Path, metavar="NEW_DIR", help="Write the packets here (a folder that does not exist yet); needs --approve-plan")
@@ -2052,7 +2055,7 @@ def _profile_check_report(args) -> tuple[list[str], list[str]]:
     if not path.is_file():
         raise ValidationError(f"Missing {path}. Create it with `reachweaver profile --init`")
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = read_json_file(path)
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         raise ValidationError(f"Profile is unreadable or not JSON: {path}") from None
     errors = profile_store.validate_profile(data)
@@ -2163,7 +2166,7 @@ def execute(args) -> int:
         raise ValidationError("attribution-report needs at least one of --analytics, --ga4-csv or --gsc-csv")
     if args.command == "schema-validate":
         try:
-            document = json.loads(args.file.read_text(encoding="utf-8"))
+            document = read_json_file(args.file)
         except json.JSONDecodeError as exc:
             raise ValidationError(f"Invalid JSON: {exc.msg}") from exc
         errors = validate_schema(args.schema_type, document)
@@ -2261,7 +2264,7 @@ def execute(args) -> int:
                 raise ValidationError("--metrics-csv requires --snapshot to bind metrics to existing authorized accounts")
             snapshot, csv_info = merge_authorized_csv(snapshot, _bounded(args.metrics_csv),
                                                       owner_authorized=args.owner_authorized)
-        engagement = json.loads(_bounded(args.engagement_export).read_text(encoding="utf-8")) if args.engagement_export else None
+        engagement = read_json_file(_bounded(args.engagement_export)) if args.engagement_export else None
         seo = load_seo_briefs(_bounded(args.seo_briefs)) if args.seo_briefs else None
         experiments = load_results(_bounded(args.experiments)) if args.experiments else None
         digest_report = None
@@ -3253,11 +3256,15 @@ def execute(args) -> int:
                                      paint=lambda col, text: term.STATUS_COLOUR.get(text) if col == 3 else None,
                                      fixed=(0,)))
                     print(f"\n{len(rows)} post(s). Review one: reachweaver show POST_ID")
+                elif args.status:
+                    print(f"No {args.status} posts. See them all: reachweaver list")
                 else:
                     print("No posts yet. Create a draft: reachweaver draft --account ACCOUNT --text 'Your text'")
             else:
                 for row in rows:
                     print(" | ".join(str(row[k] or "") for k in row.keys()))
+                if not rows:  # stdout stays empty for parsers; the note goes to stderr
+                    print("No posts" + (f" with status {args.status}" if args.status else ""), file=sys.stderr)
         elif args.command == "show":
             post = get_post(db,args.post_id)
             shown = build_post_view(db, post, _optional_account(args, post["account_id"], post["platform"]))
@@ -3623,8 +3630,28 @@ def main(argv=None) -> int:
             print(render_guide(guide))
             print("\nEvery command, grouped by task: reachweaver --help")
             return 1 if guide["state"] in ("accounts_invalid", "database_unreadable") else 0
-        return execute(parsed)
-    except (ValidationError, PublishError, OSError, ValueError, csv.Error) as exc:
+        status = execute(parsed)
+        sys.stdout.flush()  # a reader that left early (`| head`) surfaces here, inside the handlers below
+        return status
+    except sqlite3.Error as exc:
+        # Last resort only: the send loop handles its own post-send database errors (_bookkeep) first.
+        detail = str(exc).casefold()
+        if "locked" in detail or "busy" in detail:
+            print("ERROR: the state database is locked (busy). Check for another running reachweaver process "
+                  "(a publish worker or the dashboard), then try again", file=sys.stderr)
+        else:
+            print(f"ERROR: the state database is unreadable or corrupt ({type(exc).__name__}). Check the --db path "
+                  "and for another running reachweaver process; restore from a backup if the file is damaged",
+                  file=sys.stderr)
+        if write_started():
+            print("A live send was in progress: reconcile manually before trying again.", file=sys.stderr)
+        return 2
+    except RecursionError:
+        print("ERROR: an input file is nested too deeply to read; nothing was changed", file=sys.stderr)
+        return 2
+    except (ValidationError, PublishError, OSError, ValueError, OverflowError, csv.Error) as exc:
+        if isinstance(exc, BrokenPipeError) and _stdout_closed():  # `reachweaver ... | head`: the reader left
+            return 141
         from .privacy import redact  # last line of defence: a library message may quote a secret
         print(f"ERROR: {redact(str(exc))}",file=sys.stderr)
         from . import term
@@ -3642,6 +3669,36 @@ def main(argv=None) -> int:
     except KeyboardInterrupt:
         print("Interrupted. If a live send was in progress, reconcile manually before trying again.",file=sys.stderr)
         return 130
+
+
+def _stdout_closed() -> bool:
+    """True when stdout's reader has gone away; stdout then points at devnull so the exit flush stays quiet.
+
+    The caller exits 141 (128 + SIGPIPE), what a shell reports for a tool stopped by a closed pipe: not 0
+    (the output was cut short) and not 1 (this CLI's "findings"). See "Note on SIGPIPE" in the Python
+    ``signal`` docs. A BrokenPipeError from anything else, such as a network socket, stays an ordinary error.
+    """
+    try:
+        sys.stdout.flush()
+        fd = sys.stdout.fileno()
+    except BrokenPipeError:
+        fd = None
+    except (OSError, ValueError, AttributeError):  # flushed fine, but no file descriptor: not a pipe
+        return False
+    if fd is not None:
+        import select
+        if not hasattr(select, "poll"):  # Windows: no way to tell, keep the ordinary error
+            return False
+        poller = select.poll()
+        poller.register(fd, select.POLLOUT)
+        if not any(events & (select.POLLERR | select.POLLHUP) for _, events in poller.poll(0)):
+            return False  # stdout is fine: the broken pipe was something else
+    try:
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
+    except (OSError, ValueError, AttributeError):  # a replaced stdout without a real file descriptor
+        pass
+    return True
 
 
 if __name__ == "__main__":

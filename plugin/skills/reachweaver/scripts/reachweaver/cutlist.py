@@ -23,6 +23,7 @@ from pathlib import Path, PurePath
 from .media import CONSTRAINTS
 from .policy import ValidationError
 from .storyboard import parse_aspect
+from .inputs import read_json_file
 
 SCHEMA = "reachweaver.cut-list.v1"
 MAX_BYTES = 256 * 1024
@@ -67,7 +68,7 @@ def load_plan(path: str | Path) -> dict:
     if target.stat().st_size > MAX_BYTES:
         raise ValidationError(f"{target} is larger than {MAX_BYTES // 1024} KiB")
     try:
-        data = json.loads(target.read_text(encoding="utf-8"))
+        data = read_json_file(target)
     except (UnicodeDecodeError, ValueError) as exc:
         raise ValidationError(f"{target} is not valid JSON: {exc}") from None
     return validate_plan(data)

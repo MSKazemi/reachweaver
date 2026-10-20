@@ -17,6 +17,7 @@ from typing import Iterable, Mapping
 from . import home
 from .policy import (MASTODON_MEDIA_DEFAULTS, MASTODON_VISIBILITIES, PLATFORMS, ValidationError,
                      require_https_public_server)
+from .inputs import read_json_file
 
 ENV_PREFIX = re.compile(r"^REACHWEAVER_[A-Z0-9_]+$")
 ACCOUNT_ID = re.compile(r"^[a-z][a-z0-9-]{1,62}$")
@@ -302,7 +303,7 @@ def load_accounts(path: str | Path | None = None) -> dict[str, dict]:
     if not path.is_file():
         raise ValidationError(f"Missing {path}. Copy config/accounts.example.json and customize it (no secrets).")
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = read_json_file(path)
     except (OSError, json.JSONDecodeError) as exc:
         raise ValidationError(f"Accounts config is unreadable or not JSON: {path}") from exc
     if not isinstance(data, dict) or not isinstance(data.get("accounts"), list):

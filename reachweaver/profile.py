@@ -26,6 +26,7 @@ from . import home
 from .account_advisor import CHANNELS
 from .accounts import PERSONA_ID
 from .policy import PLATFORMS, ValidationError
+from .inputs import read_json_file
 
 SEND_PATH = None  # Asserted in tests: this module can never send, upload or contact anything.
 SCHEMA = "reachweaver.profile/1"
@@ -250,7 +251,7 @@ def load_profile(path: str | Path | None = None) -> dict:
     try:
         if target.stat().st_size > MAX_BYTES:
             raise ValidationError(f"Profile is larger than {MAX_BYTES} bytes: {target}")
-        data = json.loads(target.read_text(encoding="utf-8"))
+        data = read_json_file(target)
     except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise ValidationError(f"Profile is unreadable or not JSON: {target}") from exc
     errors = validate_profile(data)

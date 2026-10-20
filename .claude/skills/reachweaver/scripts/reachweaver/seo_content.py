@@ -24,6 +24,7 @@ from pathlib import Path
 from .attribution import validate_utm_link
 from .instagram import content_problems as instagram_caption_problems
 from .policy import CONSERVATIVE_TEXT_LIMITS, ValidationError
+from .inputs import read_json_file
 
 SCHEMA = "reachweaver.seo-content-check.v1"
 MAX_ITEMS = 500
@@ -256,7 +257,7 @@ def check_file(path: Path, *, names: list[str] | None = None, online: bool = Fal
     if path.is_symlink() or not path.is_file() or path.stat().st_size > 2_000_000:
         raise ValidationError("seo-content-check input must be an existing regular file <=2 MB (no symlinks)")
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = read_json_file(path)
     except json.JSONDecodeError as exc:
         raise ValidationError(f"Invalid JSON in {path}: {exc.msg}") from exc
     return check_items(load_items(data), names=load_names(data, names), online=online, allow_origins=allow_origins)

@@ -101,8 +101,10 @@ class MultiDraftTests(unittest.TestCase):
             if len(calls) == 2:
                 raise storage.sqlite3.OperationalError("database is locked")
             return real(*a, **k)
-        with patch("reachweaver.cli.add_post", side_effect=flaky), self.assertRaises(storage.sqlite3.OperationalError):
-            self.run_cli("draft", "--account", "my-bluesky", "--account", "my-mastodon", "--text", "Hi")
+        with patch("reachweaver.cli.add_post", side_effect=flaky):
+            code, _, err = self.run_cli("draft", "--account", "my-bluesky", "--account", "my-mastodon", "--text", "Hi")
+        self.assertEqual(code, 2)  # main() reports the locked database cleanly instead of a traceback
+        self.assertIn("locked", err)
         self.assertEqual(self.rows(), [])  # review: the first draft is rolled back too
 
     def test_approval_is_still_one_post_at_a_time(self):

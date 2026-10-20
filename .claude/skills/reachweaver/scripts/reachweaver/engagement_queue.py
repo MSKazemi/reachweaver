@@ -20,6 +20,7 @@ from .engagement import LABELS, PRIORITY, triage_engagement
 from .optout import load_optout
 from .policy import ValidationError
 from .storage import parse_utc
+from .inputs import read_json_file
 
 QUEUE_SCHEMA = "reachweaver.engagement-queue.v1"
 # Hours until an open item is overdue. Owner-adjustable defaults (hypothesis, not sourced).
@@ -118,7 +119,7 @@ def queue_files(input_path: Path, *, docs_map: Path | None = None, optout_path: 
     """Read local JSON files and return the queue; writes nothing."""
     def read(path: Path) -> object:
         try:
-            return json.loads(Path(path).read_text(encoding="utf-8"))
+            return read_json_file(Path(path))
         except json.JSONDecodeError as exc:
             raise ValidationError(f"Invalid JSON in {path}: {exc.msg}") from exc
     report = triage_engagement(read(input_path), read(docs_map) if docs_map else None, load_optout(optout_path))

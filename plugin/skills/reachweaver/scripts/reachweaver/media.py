@@ -24,6 +24,7 @@ from typing import Any, BinaryIO
 
 from .campaigns import _sensitive_keys, public_url
 from .policy import PLACEHOLDER, ValidationError
+from .inputs import read_json_file
 
 UNKNOWN = "unknown"
 VERIFIED_DATE = "2026-10-08"
@@ -1107,7 +1108,7 @@ def _check_translated_subtitles(label: str, subtitles: list[dict], source_locale
 
 def read_manifest(path: str | Path) -> dict:
     try:
-        obj = json.loads(Path(path).read_text(encoding="utf-8"))
+        obj = read_json_file(Path(path))
     except json.JSONDecodeError as exc:
         raise ValidationError(f"Invalid media manifest JSON: {exc.msg}") from exc
     if not isinstance(obj, dict):

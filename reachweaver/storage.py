@@ -36,6 +36,9 @@ def parse_utc(value: str) -> str:
         raise ValidationError("Date is out of range") from None
 
 
+# Every value the posts.status CHECK constraint below allows (a test keeps the two equal).
+POST_STATUSES = ("draft", "approved", "scheduled", "sending", "published", "needs_review", "cancelled")
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS posts (
   id TEXT PRIMARY KEY,

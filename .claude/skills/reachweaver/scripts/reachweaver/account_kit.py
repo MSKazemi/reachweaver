@@ -25,6 +25,7 @@ from pathlib import Path
 
 from . import distribution
 from .account_advisor import CHANNELS
+from .inputs import split_list_args
 from .policy import ValidationError
 from .profile import (canonical_platform, mask_date, mask_email, mask_phone, normalize_username)
 
@@ -255,7 +256,11 @@ def _merge_questions(packets: list[dict], bucket: str) -> list[dict]:
 
 
 def plan(profile: dict, persona: str, platforms: list[str]) -> dict:
-    """One plan for all named platforms: the packets, the open questions and the sha256 you approve."""
+    """One plan for all named platforms: the packets, the open questions and the sha256 you approve.
+
+    ``platforms`` may repeat and may hold comma lists (``["instagram,threads", "x"]``), like ``share``.
+    """
+    platforms = split_list_args(platforms)
     if not platforms or len(platforms) > MAX_PLATFORMS:
         raise ValidationError(f"Name 1-{MAX_PLATFORMS} platforms with --platform")
     packets: list[dict] = []

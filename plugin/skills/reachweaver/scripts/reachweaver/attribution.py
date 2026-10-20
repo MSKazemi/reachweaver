@@ -20,6 +20,7 @@ from .policy import PLATFORMS, ValidationError
 from .private_sources import refuse_private_link
 from .privacy import redact
 from .storage import list_posts
+from .inputs import read_json_file
 
 # ---------------------------------------------------------------------------
 # 1. Canonical UTM link builder
@@ -500,7 +501,7 @@ def _nonneg(value, label):
 
 def load_github_traffic(path) -> dict:
     """Parse a saved ``traffic/views`` object or ``traffic/popular/referrers`` list."""
-    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    data = read_json_file(Path(path))
     if isinstance(data, list):
         referrers = []
         for item in data:
@@ -908,7 +909,7 @@ def load_attribution_outcomes(path, source: str = "analytics") -> dict:
     try:
         if file.stat().st_size > ATTRIBUTION_MAX_BYTES:
             raise ValidationError("--attribution file is larger than 8 MiB")
-        data = json.loads(file.read_text(encoding="utf-8"))
+        data = read_json_file(file)
     except (OSError, UnicodeDecodeError) as exc:
         raise ValidationError("--attribution file cannot be read") from exc
     except json.JSONDecodeError as exc:
@@ -1032,7 +1033,7 @@ def _day(value, label):
 
 def load_seo_briefs(path) -> dict:
     """Load and validate a local SEO export (no network, no SEO-repo import)."""
-    doc = json.loads(Path(path).read_text(encoding="utf-8"))
+    doc = read_json_file(Path(path))
     if not isinstance(doc, dict) or doc.get("schema_version") != SEO_SCHEMA_VERSION:
         raise ValidationError("SEO briefs must be a schema_version 1 JSON object")
     _reject_secrets(doc)

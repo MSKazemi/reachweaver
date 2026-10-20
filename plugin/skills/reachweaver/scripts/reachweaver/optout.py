@@ -26,6 +26,7 @@ from pathlib import Path
 
 from . import home
 from .policy import PLATFORMS, ValidationError
+from .inputs import read_json_file
 
 OPTOUT_SCHEMA_VERSION = 1
 OPTOUT_ENV = "REACHWEAVER_OPTOUT"
@@ -123,7 +124,7 @@ def load_optout(path: str | Path | None = None) -> list[dict]:
     if not source.is_file():
         raise ValidationError(f"Opt-out file not found: {source}")
     try:
-        raw = json.loads(source.read_text(encoding="utf-8"))
+        raw = read_json_file(source)
     except (OSError, ValueError) as exc:
         raise ValidationError(f"Opt-out file is unreadable or not JSON: {source} ({exc.__class__.__name__})") from None
     return validate_optout(raw)

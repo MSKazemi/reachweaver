@@ -134,6 +134,15 @@ def _read_export(path, label: str) -> str:
         raise ValidationError(f"{label} cannot be read") from None
 
 
+def _lines(text: str) -> list[str]:
+    """Physical CSV lines, ends kept: split only at \\n, \\r\\n or \\r, the way the csv module reads them.
+
+    ``str.splitlines`` also splits at form feed, vertical tab, U+2028 and other separators that are
+    ordinary characters inside a CSV cell, which shifted line numbers and could end a table early.
+    """
+    return io.StringIO(text, newline="").readlines()
+
+
 def _check_header(header: list[str], label: str) -> None:
     if len(header) == 1 and ";" in header[0]:
         raise ValidationError(f"{label} looks semicolon-separated; download it again as comma-separated CSV")
@@ -267,7 +276,7 @@ def load_ga4_csv(path) -> dict:
     """
     label = "GA4 CSV"
     text = _read_export(path, label)
-    lines = text.splitlines(keepends=True)
+    lines = _lines(text)
     meta: dict[str, str] = {}
     index = 0
     while index < len(lines) and (not lines[index].strip() or lines[index].lstrip().startswith("#")):
@@ -278,8 +287,11 @@ def load_ga4_csv(path) -> dict:
     if index >= len(lines):
         raise ValidationError(f"{label} has no table header after its # comment lines")
     header_line = index + 1
-    end = index + 1
-    while end < len(lines) and lines[end].strip() and not lines[end].lstrip().startswith("#"):
+    end, quoted = index + 1, False
+    while end < len(lines):  # a blank or # line ends the table, unless it is inside a quoted multi-line cell
+        if not quoted and (not lines[end].strip() or lines[end].lstrip().startswith("#")):
+            break
+        quoted ^= lines[end].count('"') % 2 == 1  # "" escapes keep the parity, so odd means a cell is still open
         end += 1
     trailing = sum(1 for item in lines[end:] if item.strip() and not item.lstrip().startswith("#"))
     header = next(csv.reader([lines[index]]))
@@ -393,7 +405,7 @@ def load_gsc_csv(path) -> dict:
     """
     label = "Search Console CSV"
     text = _read_export(path, label)
-    lines = text.splitlines(keepends=True)
+    lines = _lines(text)
     index = next((i for i, item in enumerate(lines) if item.strip()), None)
     if index is None:
         raise ValidationError(f"{label} has no header")

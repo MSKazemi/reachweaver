@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 
 from .policy import ValidationError
 from .profile_audit import SECRET_KEY, SECRET_VALUE, load_registry
+from .inputs import read_json_file
 
 SCHEMA = "reachweaver.peer-benchmark.v1"
 COUNTERS = frozenset({"followers", "following", "posts", "likes", "reposts", "replies", "views"})
@@ -42,7 +43,10 @@ def _when(value: object) -> datetime:
         parsed = None
     if parsed is None or parsed.tzinfo is None:
         raise ValidationError("observed_at must be an ISO 8601 timestamp with a time zone")
-    return parsed.astimezone(timezone.utc)
+    try:
+        return parsed.astimezone(timezone.utc)
+    except OverflowError:  # e.g. 0001-01-01T00:00:00+01:00 is before datetime.min in UTC
+        raise ValidationError("observed_at is out of range") from None
 
 
 def _public_url(value: object) -> str:
@@ -58,7 +62,7 @@ def load_peers(path: Path, *, include_individuals: bool = False) -> dict:
     try:
         if path.stat().st_size > MAX_BYTES:
             raise ValidationError("Peer benchmark input must be <=1 MB")
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = read_json_file(path)
     except (OSError, json.JSONDecodeError, UnicodeError) as exc:
         raise ValidationError("Could not read the peer benchmark file as JSON (no network requests were made)") from exc
     _no_secrets(data)

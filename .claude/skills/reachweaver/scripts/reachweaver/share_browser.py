@@ -81,8 +81,12 @@ def _incoming(obj: Any) -> list[tuple[str, dict]]:
     title = obj.get("title")
     if title is not None and (not isinstance(title, str) or len(title) > 200):
         raise ValidationError("YouTube title must be plain text, at most 200 characters.")
-    note = obj.get("note", "")
-    if not isinstance(note, str) or len(note) > MAX_TALKING_POINT_CHARS:
+    note = obj.get("note")
+    if note is None:  # null means no note, like a missing field
+        note = ""
+    if not isinstance(note, str):
+        raise ValidationError("Community note must be plain text.")
+    if len(note) > MAX_TALKING_POINT_CHARS:
         raise ValidationError(
             f"Community note must be at most {MAX_TALKING_POINT_CHARS} characters."
         )
@@ -174,7 +178,19 @@ def _write_private(packages: list[tuple[str, dict]]) -> Path:
 
 
 def _json(data: Any) -> bytes:
-    return json.dumps(data, ensure_ascii=False).encode("utf-8")
+    try:
+        return json.dumps(data, ensure_ascii=False).encode("utf-8")
+    except UnicodeEncodeError:  # a lone surrogate cannot be UTF-8; ASCII escapes keep the response valid JSON
+        return json.dumps(data).encode("ascii")
+
+
+def _lone_surrogate(obj: Any) -> bool:
+    """True when the parsed request holds a lone UTF-16 surrogate (JSON allows "\\ud800"; UTF-8 does not)."""
+    try:
+        json.dumps(obj, ensure_ascii=False).encode("utf-8")
+    except UnicodeEncodeError:
+        return True
+    return False
 
 
 class ShareServer(ThreadingHTTPServer):
@@ -320,6 +336,9 @@ class ShareHandler(BaseHTTPRequestHandler):
             return
         try:
             obj = json.loads(body.decode("utf-8"))
+            if _lone_surrogate(obj):  # refuse before any message could quote it back
+                self._json_response(400, {"errors": ["The request contains invalid Unicode (a lone surrogate)."]})
+                return
             packages = _incoming(obj)
             if path == "/api/preview":
                 self._json_response(200, {

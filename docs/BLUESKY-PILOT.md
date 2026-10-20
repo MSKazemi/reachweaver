@@ -23,6 +23,7 @@ All commands use `python3 -m reachweaver` from the repository root. `POST_ID` is
 | `2` | Blocked before sending (a `BLOCKED`/`SKIPPED` line, a refused gate, or any `ERROR:` on stderr). Nothing was claimed or sent. |
 | `3` | The remote outcome is uncertain: the post is `needs_review` (`REVIEW POST_ID: ...`). **Do not retry.** Go to [Unknown outcome](#unknown-outcome-exit-3). |
 | `130` | Interrupted. If a live send was in progress, reconcile before trying again. |
+| `141` | Output cut short because the reading program stopped (for example output piped into `head`); nothing else is wrong. |
 
 `credentials-audit` is the one command that uses exit `1` (findings).
 

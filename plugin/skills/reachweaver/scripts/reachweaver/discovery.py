@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 from .campaigns import _sensitive_keys, public_url
 from .distribution import load_registry as load_distribution
 from .policy import ValidationError
+from .inputs import read_json_file
 
 REGISTRY = Path(__file__).with_name("discovery_registry.json")
 STATUS = "offline_discovery_proposal_not_published"
@@ -44,7 +45,7 @@ def load_discovery_registry(path: Path | None = None) -> dict:
     """Return independently authored, dated signal-family guidance."""
     source = path or REGISTRY
     try:
-        data = json.loads(source.read_text(encoding="utf-8"))
+        data = read_json_file(source)
     except (OSError, json.JSONDecodeError) as exc:
         raise ValidationError("Discovery guidance registry cannot be read") from exc
     if data.get("schema_version") != 1 or not isinstance(data.get("platforms"), dict):
@@ -319,7 +320,7 @@ def check_file(path: Path) -> dict:
     if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_INPUT_BYTES:
         raise ValidationError("discovery-plan input must be a regular JSON file <=250 KB; no symlinks")
     try:
-        obj = json.loads(path.read_text(encoding="utf-8"))
+        obj = read_json_file(path)
     except (OSError, json.JSONDecodeError) as exc:
         raise ValidationError("discovery-plan file must contain valid JSON") from exc
     return build_discovery_plan(obj)

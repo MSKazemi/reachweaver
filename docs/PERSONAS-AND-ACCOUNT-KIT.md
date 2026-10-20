@@ -54,6 +54,8 @@ How an account's persona is known:
 1. its `"persona": "work"` field in `config/accounts.json` (public metadata, like `handle`), or
 2. its username matched against the usernames in your profile.
 
+An account with no username in `accounts.json` (LinkedIn entries usually have none) can only be known by its `"persona"` field; `account-route` then uses it and says the username was not compared with your profile, rather than reporting a conflict.
+
 If neither tells, the guard **refuses** and tells you which line to add. You asked for a check, so "unknown" is not a pass. The guard only ever adds a refusal. It does not change the approval hash, the dry-run gate, the emergency stop or credential handling.
 
 Not sure which account to use?
@@ -74,6 +76,8 @@ For posts you make by hand in an app (`share`, `manual-export`), the risk is the
 ```bash
 reachweaver account-kit --persona work --platform instagram --platform weibo
 ```
+
+`--platform instagram,weibo` works too, as in `share`.
 
 This prints one plan for all the networks you name and writes nothing. For each network it shows the official page (you open it yourself), the language of its form, and the details it may ask for. E-mail, phone and birth date appear partly hidden. If something required is missing you get a list of questions, and `--questions` prints just that list:
 

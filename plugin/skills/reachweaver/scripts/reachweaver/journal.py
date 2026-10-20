@@ -29,6 +29,7 @@ from .privacy import write_private_file
 from .repeat_guard import sha256_file
 from .report_format import csv_cell, markdown_cell
 from .storage import journal_posts, parse_utc, post_media, post_timelines, post_video, shared_entries, utc_now
+from .inputs import read_json_file
 
 POSTED_STATUSES = ("published", "sending", "needs_review")  # posted, or possibly posted
 ALL_STATUSES = ("draft", "approved", "scheduled", "sending", "published", "needs_review", "cancelled")
@@ -301,7 +302,7 @@ def _write_index(out: Path) -> None:
     entries = []
     for meta in sorted(out.glob("*/meta.json")):
         try:
-            entries.append(json.loads(meta.read_text(encoding="utf-8")) | {"folder": meta.parent.name})
+            entries.append(read_json_file(meta) | {"folder": meta.parent.name})
         except (OSError, ValueError):
             continue
     entries.sort(key=lambda e: (e.get("when") or "", e.get("id", "")), reverse=True)

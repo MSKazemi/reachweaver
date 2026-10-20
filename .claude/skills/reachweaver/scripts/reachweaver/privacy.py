@@ -21,6 +21,7 @@ from .policy import ValidationError
 from .private_sources import (REDACTED_PRIVATE, is_private_evidence, redact_private_evidence, repo_of_url,
                               url_in_private_repo)
 from .storage import event, has_reply_column, parse_utc, utc_now
+from .inputs import read_json_file
 
 EXPORT_SCHEMA_VERSION = 1
 PURGED = "[purged]"
@@ -207,7 +208,7 @@ def load_policy(path: str | Path | None = None) -> tuple[dict, Path]:
         raise ValidationError(f"No retention policy configured. Pass --policy FILE, set {POLICY_ENV} "
                               f"or create {DEFAULT_POLICY_PATH} (see config/retention.example.json)")
     try:
-        raw = json.loads(source.read_text(encoding="utf-8"))
+        raw = read_json_file(source)
     except (OSError, json.JSONDecodeError) as exc:
         raise ValidationError(f"Retention policy is unreadable or not JSON: {source}") from exc
     return validate_policy(raw), source

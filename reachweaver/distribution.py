@@ -196,10 +196,14 @@ def build_distribution_plan(
         for window in data["time_slot_policy"]["local_windows"]:
             clock = time.fromisoformat(window["local_time"])
             stamp = datetime.combine(day, clock, tzinfo=zone)
+            try:
+                utc = stamp.astimezone(timezone.utc)
+            except OverflowError as exc:  # e.g. 0001-01-01 in a zone ahead of UTC falls before datetime.min
+                raise ValueError("date is out of range in that timezone") from exc
             slots.append({
                 "label": window["id"],
                 "local": stamp.isoformat(),
-                "utc": stamp.astimezone(timezone.utc).isoformat(),
+                "utc": utc.isoformat(),
                 "evidence": "untested_time_hypothesis",
                 "scheduled": False,
             })

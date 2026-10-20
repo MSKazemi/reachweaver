@@ -28,6 +28,7 @@ from .optout import listed_entry, load_optout, validate_optout
 from .policy import CONSERVATIVE_TEXT_LIMITS, PLATFORMS, ValidationError
 from .privacy import redact as redact_secrets
 from .storage import parse_utc
+from .inputs import read_json_file
 
 EXPORT_SCHEMA = "reachweaver.engagement-export.v1"
 DOCS_MAP_SCHEMA = "reachweaver.docs-map.v1"
@@ -1338,7 +1339,7 @@ def triage_files(input_path: Path, docs_map: Path | None = None, out: Path | Non
     """Read local JSON files, triage, and write NEW local draft files (never overwrite)."""
     def read(path: Path) -> object:
         try:
-            return json.loads(Path(path).read_text(encoding="utf-8"))
+            return read_json_file(Path(path))
         except json.JSONDecodeError as exc:
             raise ValidationError(f"Invalid JSON in {path}: {exc.msg}") from exc
     report = triage_engagement(read(input_path), read(docs_map) if docs_map else None,
