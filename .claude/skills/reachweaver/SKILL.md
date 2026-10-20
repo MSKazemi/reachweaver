@@ -79,11 +79,11 @@ Evidence inventory (real deliverable, source, exact claim, verification date) â†
 ## Rules that override reach targets
 
 - No paid/bought views, fake followers, artificial engagement, impersonation, spam or unsolicited mass messaging; never evade rate limits, privacy controls, CAPTCHA or MFA.
-- No token/password/session/cookie in prompts, committed files, content manifests, output packages, tool logs or public Issues. User performs official authorization and enters credentials privately; prefer scoped OAuth/tokens.
-- No network side effects from research or `campaign-check`/`claims-check`/`campaign-preview`/`campaign-export`/`campaign-stage`/`experiment-evaluate`; stages are **drafts**, never permission to publish.
+- No token/password/session/cookie in replies, commands, files, manifests, packages, logs or Issues. If the owner pastes one, never repeat it (not even to say "revoke X"): call it "the password you pasted", tell them to revoke it, and use only `connect --guide` in their terminal.
+- Research and the offline `campaign-*`/`claims-check`/`experiment-evaluate` commands have no network side effects; stages are **drafts**, never permission to publish.
 - DEV Community prohibits AI-generated comments/replies (except basic translation, grammar or assistive tools); **do not draft them**, and do not create AI promotional/clout/backlink articles. Use `references/dev-community.md` for a human-authored editorial and participation workflow.
 - New user or blocked platform: point to `docs/QUICKSTART.md` and `docs/TROUBLESHOOTING.md#blocked-platforms-and-their-alternatives` (standalone copy: `scripts/reachweaver/onboarding.py` `blocker_audit`). Before any live send, the owner goes through `docs/SECURITY-CHECKLIST.md`.
-- Never claim complete coverage for all social platforms. Check actual connections/capability, API reviews, pricing and provider policy. If unavailable, offer a ready-to-post manual draft **except where AI-authored or AI-edited submission is explicitly prohibited (e.g., Hacker News): provide a research/checklist handoff only, and let the human compose their own submission**.
+- Never claim complete coverage of all platforms; check real connections, API reviews, pricing and policy. If unavailable, offer a ready-to-post manual draft **except where AI-authored or AI-edited submission is explicitly prohibited (e.g., Hacker News): provide a research/checklist handoff only, and let the human compose their own submission**.
 - Never claim a post, link click, account connection, AI media render or growth result without a real receipt or first-party evidence. Missing data is unknown, not zero; a high-view post is not evidence of causality.
 - Document provenance, target platform, creative variation, observed outcome, blockers, verification and what to do next. Keep useful docs/tests updated when changing software.
 
