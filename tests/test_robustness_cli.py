@@ -22,18 +22,17 @@ from reachweaver import persona_guard, storage
 from reachweaver import profile as profile_store
 from reachweaver.calendar_gaps import find_calendar_gaps
 from reachweaver.cli import main
-from reachweaver.inputs import loads_text, read_json_file, split_list_args
+from reachweaver.inputs import MAX_JSON_DEPTH, loads_text, nesting_depth, read_json_file, split_list_args
 from reachweaver.policy import ValidationError
 from reachweaver.web_analytics import load_ga4_csv, load_gsc_csv
 from test_profile import sample
 from test_share_browser import request, running_server
 
 ROOT = Path(__file__).resolve().parents[1]
-# Valid JSON nested 120 000 deep (240 000 bytes, under the smallest input-size cap, discovery's 250 000).
-# Python 3.14 bounds the C JSON decoder by the real stack instead of a fixed depth: 50 000 levels parse there
-# (about 65 000 do not, with the usual 8 MiB stack), so the old fixture no longer reached RecursionError.
-# test_helpers fails loudly, not silently, on an interpreter whose stack lets this depth parse.
-DEEP = "[" * 120_000 + "]" * 120_000
+# Valid JSON nested deeper than inputs.MAX_JSON_DEPTH. The explicit limit is checked before parsing, so the
+# result no longer depends on the interpreter: Python 3.14 bounds its C decoder by the thread stack, and CI's
+# runner parsed depths that raised RecursionError on a laptop.
+DEEP = "[" * (MAX_JSON_DEPTH + 1) + "]" * (MAX_JSON_DEPTH + 1)
 
 
 class CliCase(unittest.TestCase):
@@ -118,6 +117,13 @@ class DeepJsonTests(CliCase):  # B2
             loads_text(DEEP, "Snapshot")
         with self.assertRaises(json.JSONDecodeError):  # callers keep their own "not JSON" message
             loads_text("{nope")
+        at_limit = "[" * MAX_JSON_DEPTH + "]" * MAX_JSON_DEPTH
+        self.assertEqual(nesting_depth(at_limit), MAX_JSON_DEPTH)
+        self.assertIsInstance(loads_text(at_limit), list)  # the limit itself still parses
+        self.assertEqual(nesting_depth('{"a": "[[[{{{", "b": "\\"[["}'), 1)  # brackets in strings do not count
+        with patch("reachweaver.inputs.json.loads", side_effect=RecursionError):  # decoder's own limit
+            with self.assertRaisesRegex(ValidationError, "nested too deeply"):
+                loads_text("[1]")
 
 
 class DateRangeTests(CliCase):  # B3

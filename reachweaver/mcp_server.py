@@ -41,6 +41,7 @@ from collections import deque
 from pathlib import Path
 
 from . import catalog
+from .inputs import nesting_depth
 from .policy import ValidationError
 from .privacy import redact, redact_value
 
@@ -322,28 +323,6 @@ def network_blocked():
          socket.getaddrinfo) = saved
 
 
-def _nesting_depth(text: str) -> int:
-    """Deepest ``[``/``{`` nesting outside JSON strings; a linear scan that never recurses."""
-    depth = deepest = 0
-    in_string = escaped = False
-    for char in text:
-        if in_string:
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == '"':
-                in_string = False
-        elif char == '"':
-            in_string = True
-        elif char in "[{":
-            depth += 1
-            deepest = max(deepest, depth)
-        elif char in "]}":
-            depth -= 1
-    return deepest
-
-
 def _error(message_id, code: int, message: str, data=None) -> dict:
     error: dict = {"code": code, "message": message}
     if data is not None:
@@ -375,7 +354,7 @@ class McpServer:
     def handle_line(self, raw: bytes) -> dict | None:
         try:
             text = raw.decode("utf-8")
-            if _nesting_depth(text) > MAX_JSON_DEPTH:
+            if nesting_depth(text) > MAX_JSON_DEPTH:
                 return _error(None, PARSE_ERROR, f"Parse error: JSON nested deeper than {MAX_JSON_DEPTH} levels")
             message = json.loads(text)
         except (UnicodeDecodeError, ValueError, RecursionError):

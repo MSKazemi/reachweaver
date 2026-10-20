@@ -24,6 +24,7 @@ import webbrowser
 
 from . import home
 from .distribution import load_registry as load_distribution_registry
+from .inputs import nesting_depth
 from .manual_export import LABELS, MANUAL_PLATFORMS, write_export
 from .manual_package import MAX_TALKING_POINT_CHARS, write_package
 from .policy import ValidationError
@@ -34,6 +35,7 @@ from .share_browser_ui import HTML
 SEND_PATH = None
 BIND_ADDRESS = "127.0.0.1"
 MAX_REQUEST_BYTES = 96 * 1024
+MAX_BODY_DEPTH = 32  # a composer request nests 3-4 levels; deeper JSON is refused before parsing
 REQUEST_TIMEOUT_SECONDS = 10  # per socket read, and the whole-body deadline for a POST
 _ALLOWED_FIELDS = frozenset({"platforms", "text", "title", "note", "overrides"})
 
@@ -335,7 +337,10 @@ class ShareHandler(BaseHTTPRequestHandler):
             self._json_response(408, {"errors": ["The request body was incomplete or too slow."]})
             return
         try:
-            obj = json.loads(body.decode("utf-8"))
+            text = body.decode("utf-8")
+            if nesting_depth(text) > MAX_BODY_DEPTH:  # explicit, so it no longer depends on the interpreter
+                raise RecursionError("nested too deeply")
+            obj = json.loads(text)
             if _lone_surrogate(obj):  # refuse before any message could quote it back
                 self._json_response(400, {"errors": ["The request contains invalid Unicode (a lone surrogate)."]})
                 return

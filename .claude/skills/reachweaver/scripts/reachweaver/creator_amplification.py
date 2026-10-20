@@ -19,6 +19,7 @@ from typing import NoReturn
 import unicodedata
 from urllib.parse import urlsplit, urlunsplit
 
+from .inputs import MAX_JSON_DEPTH, nesting_depth
 from .policy import ValidationError
 from .privacy import write_private_file
 
@@ -193,7 +194,10 @@ def load_input(path: str | Path) -> dict:
     if len(raw) > MAX_BYTES:
         _err(f"input is larger than {MAX_BYTES // 1000} KB")
     try:
-        result = json.loads(raw.decode("utf-8-sig"), object_pairs_hook=_no_duplicate_keys)
+        text = raw.decode("utf-8-sig")
+        if nesting_depth(text) > MAX_JSON_DEPTH:  # explicit: independent of the interpreter's decoder limit
+            _err("JSON nesting is too deep")
+        result = json.loads(text, object_pairs_hook=_no_duplicate_keys)
     except UnicodeDecodeError:
         _err("input is not UTF-8 text")
     except json.JSONDecodeError as exc:

@@ -18,12 +18,45 @@ from typing import Any
 from .policy import ValidationError
 
 BOM = "﻿"
+# Deepest [ / { nesting accepted in an owner's JSON file. Real files nest a handful of levels; the explicit
+# limit makes "nested too deeply" independent of the interpreter (Python 3.14 bounds its C decoder by the
+# thread stack, so the depth at which RecursionError appears differs between machines).
+MAX_JSON_DEPTH = 512
+
+
+def nesting_depth(text: str) -> int:
+    """Deepest ``[``/``{`` nesting outside JSON strings; a linear scan that never recurses."""
+    depth = deepest = 0
+    in_string = escaped = False
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            if depth > deepest:
+                deepest = depth
+        elif char in "]}":
+            depth -= 1
+    return deepest
 
 
 def loads_text(text: str, what: str = "JSON input", **kwargs: Any) -> Any:
-    """``json.loads`` that ignores one leading BOM and turns a ``RecursionError`` into a ``ValidationError``."""
+    """``json.loads`` that ignores one leading BOM and refuses JSON nested deeper than ``MAX_JSON_DEPTH``.
+
+    The depth check runs before parsing; a ``RecursionError`` from the decoder itself is still turned into
+    the same ``ValidationError``.
+    """
     if text.startswith(BOM):
         text = text[1:]
+    if nesting_depth(text) > MAX_JSON_DEPTH:
+        raise ValidationError(f"{what} is nested too deeply to read; nothing was changed")
     try:
         return json.loads(text, **kwargs)
     except RecursionError:
