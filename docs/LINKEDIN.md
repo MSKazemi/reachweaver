@@ -13,7 +13,7 @@ ReachWeaver can publish **one approved, text-only post to your own LinkedIn prof
 | **Sign In with LinkedIn using OpenID Connect** product, which grants `openid` and `profile` | App, Products tab. ReachWeaver uses it only to confirm whose token it holds |
 | A member access token with `openid profile w_member_social` | The OAuth authorization code flow, or the portal's token generator ([authorization code flow](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow)) |
 | Your member ID (`person_id`) | The `sub` value from `GET https://api.linkedin.com/v2/userinfo` ([OpenID Connect](https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2)) |
-| A pinned API version (`linkedin_version`, `YYYYMM`) | The "Latest Version" table on [Marketing API versioning](https://learn.microsoft.com/en-us/linkedin/marketing/versioning). It was `202609` on 2026-10-08 |
+| A pinned API version (`linkedin_version`, `YYYYMM`) | The "Latest Version" table on [Marketing API versioning](https://learn.microsoft.com/en-us/linkedin/marketing/versioning). It was `202610` on 2026-10-20 |
 
 Organization posting needs `w_organization_social` and a page role (ADMINISTRATOR, DIRECT_SPONSORED_CONTENT_POSTER or CONTENT_ADMIN) according to the [Posts API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api) page. ReachWeaver refuses any `urn:li:organization` author and any organization, company, page or author field in the account config. Being able to post as a member never implies permission to post for a page.
 
@@ -45,7 +45,7 @@ Add to your ignored `config/accounts.json`:
   "platform": "linkedin",
   "env_prefix": "REACHWEAVER_LINKEDIN",
   "person_id": "examplePersonId",
-  "linkedin_version": "202609",
+  "linkedin_version": "202610",
   "authorization_expires_at": "2026-12-07T09:00:00+00:00"
 }
 ```
@@ -131,7 +131,7 @@ Then it sends exactly one request:
 ```http
 POST https://api.linkedin.com/rest/posts
 Authorization: Bearer <token>
-Linkedin-Version: 202609
+Linkedin-Version: 202610
 X-Restli-Protocol-Version: 2.0.0
 Content-Type: application/json
 
@@ -148,7 +148,7 @@ On HTTP 201 the `x-restli-id` header holds the post URN (`urn:li:share:…` or `
 
 ## API version lifecycle
 
-LinkedIn ships a version every month and supports each one for **a minimum of one year**. Calls without a version, or with an inactive one, are refused (400 `VERSION_MISSING`, 426 `NONEXISTENT_VERSION`) ([versioning](https://learn.microsoft.com/en-us/linkedin/marketing/versioning), [error responses](https://learn.microsoft.com/en-us/linkedin/marketing/error-responses)). On 2026-10-08 the docs announced that version 202510 sunsets on 2026-10-15.
+LinkedIn ships a version every month and supports each one for **a minimum of one year**. Calls without a version, or with an inactive one, are refused (400 `VERSION_MISSING`, 426 `NONEXISTENT_VERSION`) ([versioning](https://learn.microsoft.com/en-us/linkedin/marketing/versioning), [error responses](https://learn.microsoft.com/en-us/linkedin/marketing/error-responses)). On 2026-10-20 the docs announced that version 202511 sunsets on 2026-11-16 (version 202510 was announced on 2026-10-08 to sunset on 2026-10-15).
 
 ReachWeaver's local policy:
 

@@ -15,11 +15,11 @@
 From a trusted Linux/macOS shell in the checked-out private repository:
 
 ```bash
-python -m unittest discover -s tests -q
+python3 -m unittest discover -s tests -q
 cp config/accounts.example.json config/accounts.json
 # Edit only IDs/handles/server/chat identifiers in the ignored file.
-python -m reachweaver.cli doctor
-python -m reachweaver.cli init
+python3 -m reachweaver doctor
+python3 -m reachweaver init
 ```
 
 If an earlier state directory was created with broad permissions, correct it **locally** with `chmod 700 state` and `chmod 600 state/reachweaver.sqlite` (only after validating ownership/contents); the CLI now refuses a permissive POSIX directory or SQLite file. The default `state/` is ignored by Git.
@@ -39,28 +39,28 @@ A condensed, step-by-step runbook with OWNER-ONLY and SAFE-OFFLINE tags, exit co
    ```
 
    Do not run the password entry through an AI-operated terminal session or terminal logs. Shell environment storage remains process-accessible; prefer a keyring/secret manager for persistent deployment.
-3. With the owner present, run `python -m reachweaver.cli connect-check --account my-bluesky --online`. It should report the expected account ID, platform, `identity: verified`, and `write_permission: unverified` (because an identity check is not a write test). Any mismatch blocks publishing; fix the local account mapping before proceeding.
+3. With the owner present, run `python3 -m reachweaver connect-check --account my-bluesky --online`. It should report the expected account ID, platform, `identity: verified`, and `write_permission: unverified` (because an identity check is not a write test). Any mismatch blocks publishing; fix the local account mapping before proceeding.
 4. Prepare **one real, harmless and verified** text post (never the bundled placeholder/sample) and record its ID:
 
    ```bash
-   python -m reachweaver.cli draft --account my-bluesky --text 'A genuine project update backed by my public release notes.'
-   python -m reachweaver.cli show POST_ID     # displays exact full content and destination
-   python -m reachweaver.cli check POST_ID
-   python -m reachweaver.cli approve POST_ID  # only after the owner reviews the exact text
-   python -m reachweaver.cli publish --post-id POST_ID   # DRY RUN; no network
+   python3 -m reachweaver draft --account my-bluesky --text 'A genuine project update backed by my public release notes.'
+   python3 -m reachweaver show POST_ID     # displays exact full content and destination
+   python3 -m reachweaver check POST_ID
+   python3 -m reachweaver approve POST_ID  # only after the owner reviews the exact text
+   python3 -m reachweaver publish --post-id POST_ID   # DRY RUN; no network
    ```
 
    Recommended for the pilot, both optional (#7, owner-approved 2026-10-09, proposal). Turn them on in your own terminal **before** `approve`:
 
-   - **D6 human confirmation:** `python -m reachweaver.cli approval-mode --confirmation tty_hash_prefix`. `approve` of a draft and `publish --live` then print the exact payload and its `payload sha256`, need a real terminal on stdin and stdout, and accept only the first 8 characters of that hash typed on `/dev/tty`. A script or agent subprocess is refused. This is friction, not a security boundary.
-   - **D7 owner approval key:** provide `REACHWEAVER_APPROVAL_SECRET` (at least 32 characters) in your own terminal, only to the commands that need it, and run `python -m reachweaver.cli approval-mode --require-key` once. From then on `approve`, `schedule` and `publish --live` refuse without it (`approval_key_unavailable`). Every approval is then HMAC-signed, and an edited or forged database row is refused before any claim. It is a boundary only if the agent cannot read the key; no command removes the latch. Steps: [owner approval key](ACCOUNT-ONBOARDING.md#optional-the-owner-approval-key-7-d7).
+   - **D6 human confirmation:** `python3 -m reachweaver approval-mode --confirmation tty_hash_prefix`. `approve` of a draft and `publish --live` then print the exact payload and its `payload sha256`, need a real terminal on stdin and stdout, and accept only the first 8 characters of that hash typed on `/dev/tty`. A script or agent subprocess is refused. This is friction, not a security boundary.
+   - **D7 owner approval key:** provide `REACHWEAVER_APPROVAL_SECRET` (at least 32 characters) in your own terminal, only to the commands that need it, and run `python3 -m reachweaver approval-mode --require-key` once. From then on `approve`, `schedule` and `publish --live` refuse without it (`approval_key_unavailable`). Every approval is then HMAC-signed, and an edited or forged database row is refused before any claim. It is a boundary only if the agent cannot read the key; no command removes the latch. Steps: [owner approval key](ACCOUNT-ONBOARDING.md#optional-the-owner-approval-key-7-d7).
 
-   `python -m reachweaver.cli approval-mode` with no options shows both settings.
+   `python3 -m reachweaver approval-mode` with no options shows both settings.
 
 5. **Only if the owner explicitly authorizes sending this exact post to the verified account**, perform the single supervised send:
 
    ```bash
-   REACHWEAVER_ENV=prod REACHWEAVER_ALLOW_LIVE=1 python -m reachweaver.cli publish --live --post-id POST_ID
+   REACHWEAVER_ENV=prod REACHWEAVER_ALLOW_LIVE=1 python3 -m reachweaver publish --live --post-id POST_ID
    ```
 
 6. Confirm the actual post in the intended native account and archive the returned URL/ID in your private pilot notes. For an explicitly selected post the command returns exit code `0` on a confirmed send, `2` when blocked before sending, or `3` when the remote outcome requires review. If the CLI marks `needs_review`, **do not blindly retry**: inspect the native account first, then use `reconcile` with evidence of the real outcome. Rotate/revoke the app password after experiments as appropriate.
