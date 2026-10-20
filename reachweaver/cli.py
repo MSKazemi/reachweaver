@@ -18,6 +18,7 @@ from .attribution import (
     CAMPAIGN_TYPES, attribution_report, build_utm_link, campaign_destinations,
     load_analytics_csv, load_attribution_outcomes, load_github_traffic, load_seo_briefs,
 )
+from .web_analytics import combine_ga4, combine_gsc, load_ga4_csv, load_gsc_csv
 from .connections import check_connection, mastodon_instance_limits
 from .identity import IDENTITY_REQUIRED, current_fingerprint, refusal_text, verify_identity_online
 from .credential_hygiene import audit_environment, render_audit
@@ -746,9 +747,16 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--sources", type=Path, metavar="CONFIG",
                    help="sources-scan config; refuse a destination inside any visibility:private repository")
     p = sub.add_parser("attribution-report", help="Read-only UTM/referrer join of local analytics exports; NOT causal")
-    p.add_argument("--analytics", type=Path, required=True, help="Website-analytics CSV export")
+    p.add_argument("--analytics", type=Path,
+                   help="Website-analytics CSV export (one of --analytics, --ga4-csv or --gsc-csv is required)")
     p.add_argument("--github-traffic", type=Path, action="append",
                    help="Saved traffic/views or popular/referrers JSON; repeat for both")
+    p.add_argument("--ga4-csv", type=Path, action="append", metavar="CSV",
+                   help="GA4 report or exploration downloaded as CSV (Session source / medium, Session campaign, "
+                   "Session manual ad content, Sessions, ...); repeat for non-overlapping periods. Local file only")
+    p.add_argument("--gsc-csv", type=Path, action="append", metavar="CSV",
+                   help="Search Console Performance export table (Pages, Queries, Dates or Filters CSV); repeat, "
+                   "one per table. Search-side context only, never credited to a post. Local file only")
     p.add_argument("--json", action="store_true", help="Full machine-readable report")
     p = sub.add_parser("seo-destinations", help="Offline canonical landing page + competing-message check")
     p.add_argument("--briefs", type=Path, required=True, help="Local SEO briefs JSON (docs/SEO-INTEGRATION.md)")
@@ -2081,6 +2089,8 @@ def _run_identity_command(args) -> int:
 def execute(args) -> int:
     from . import term
     term.set_plain(getattr(args, "plain", False))
+    if args.command == "attribution-report" and not (args.analytics or args.ga4_csv or args.gsc_csv):
+        raise ValidationError("attribution-report needs at least one of --analytics, --ga4-csv or --gsc-csv")
     if args.command == "schema-validate":
         try:
             document = json.loads(args.file.read_text(encoding="utf-8"))
@@ -3091,8 +3101,11 @@ def execute(args) -> int:
             )
             print(json.dumps(result, indent=2))
         elif args.command == "attribution-report":
-            result = attribution_report(db, load_analytics_csv(args.analytics),
-                                        [load_github_traffic(f) for f in args.github_traffic or []])
+            ga4 = combine_ga4([load_ga4_csv(f) for f in args.ga4_csv or []])
+            gsc = combine_gsc([load_gsc_csv(f) for f in args.gsc_csv or []])
+            result = attribution_report(db, load_analytics_csv(args.analytics) if args.analytics else None,
+                                        [load_github_traffic(f) for f in args.github_traffic or []],
+                                        ga4=ga4 or None, gsc=gsc or None)
             result["generated_at"] = utc_now()
             if args.json:
                 print(json.dumps(result, indent=2, ensure_ascii=False))
@@ -3110,6 +3123,32 @@ def execute(args) -> int:
                       f"by_reason={result['unattributed']['by_reason']}")
                 for gap in result["coverage_gaps"]:
                     print("GAP:", gap["gap"])
+                section = result["ga4"]
+                if section:
+                    window = " to ".join(section["date_range"]) if section["date_range"] else "unknown dates"
+                    print(f"GA4 export (owner-supplied, {window}): rows={section['rows']}")
+                    for item in section["attributed"]["posts"]:
+                        print(f"GA4 ATTRIBUTED post {item['post_id']} {item['platform']}: sessions={item['sessions']} "
+                              f"engaged_sessions={item['engaged_sessions']} key_events={item['key_events']}")
+                    for item in section["attributed"]["campaigns"]:
+                        print(f"GA4 ATTRIBUTED campaign {item['campaign']} (no post id): sessions={item['sessions']}")
+                    for item in section["referrer_only"]:
+                        print(f"GA4 REFERRER-ONLY {item['platform']} (domain level): sessions={item['sessions']}")
+                    print(f"GA4 UNATTRIBUTED rows={section['unattributed']['rows']} "
+                          f"by_reason={section['unattributed']['by_reason']}")
+                    for gap in section["coverage_gaps"]:
+                        print("GA4 GAP:", gap["gap"])
+                section = result["search_console"]
+                if section:
+                    window = " to ".join(section["date_range"]) if section["date_range"] else (
+                        section["date_filter_label"] or "unknown dates")
+                    print(f"SEARCH CONSOLE export (owner-supplied, {window}): search-side context, never credited "
+                          "to a post")
+                    for item in section["pages_linked_from_posts"]:
+                        print(f"SEARCH page {item['page']} linked from {', '.join(item['linked_from_post_ids'])}: "
+                              f"clicks={item['clicks']} impressions={item['impressions']}")
+                    for gap in section["coverage_gaps"]:
+                        print("SEARCH CONSOLE GAP:", gap["gap"])
                 print("None = unknown, not zero. Tagging join only; no causal claim.")
         elif args.command == "experiment-evaluate":
             result = evaluate_experiment(db,read_json(args.file))

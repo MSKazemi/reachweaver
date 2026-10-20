@@ -526,13 +526,13 @@ def _sum_known(values) -> tuple[int | None, int]:
     return (sum(known) if known else None), len(known)
 
 
-def _bucket(rows: list[dict], **extra) -> dict:
-    sessions, s_known = _sum_known(r["sessions"] for r in rows)
-    conversions, c_known = _sum_known(r["conversions"] for r in rows)
-    return {**extra, "rows": len(rows), "sessions": sessions, "sessions_known_rows": s_known,
-            "conversions": conversions, "conversions_known_rows": c_known,
-            # Re-sanitized here too: callers may pass rows that did not come from load_analytics_csv.
-            "landing_pages": sorted({page for page in (report_landing_page(r.get("landing")) for r in rows) if page})}
+def _bucket(rows: list[dict], *, fields: tuple[str, ...] = ("sessions", "conversions"), **extra) -> dict:
+    bucket: dict[str, Any] = {**extra, "rows": len(rows)}
+    for field in fields:
+        bucket[field], bucket[f"{field}_known_rows"] = _sum_known(r.get(field) for r in rows)
+    # Re-sanitized here too: callers may pass rows that did not come from load_analytics_csv.
+    bucket["landing_pages"] = sorted({page for page in (report_landing_page(r.get("landing")) for r in rows) if page})
+    return bucket
 
 
 def _safe_slug(value) -> str | None:
@@ -542,8 +542,8 @@ def _safe_slug(value) -> str | None:
         return None
 
 
-def attribution_report(con, analytics_rows: list[dict], github: list[dict] | None = None) -> dict:
-    """Join tagged analytics rows to local posts (read-only); never claim causation."""
+def _join_context(con) -> dict:
+    """Posts, campaign variants and published campaigns, read with SELECT only."""
     posts = {row["id"]: row for row in list_posts(con)}
     variants = {}
     for row in con.execute("SELECT campaign_id,variant_id,post_id FROM campaign_variants"):
@@ -553,13 +553,19 @@ def attribution_report(con, analytics_rows: list[dict], github: list[dict] | Non
     for post in published.values():
         if _safe_slug(post["campaign"]):
             campaign_platforms.setdefault(cast(str, _safe_slug(post["campaign"])), set()).add(post["platform"])
+    return {"posts": posts, "variants": variants, "published": published, "campaign_platforms": campaign_platforms}
 
+
+def _classify(rows: list[dict], ctx: dict) -> tuple[dict, dict, dict, dict]:
+    """Split rows into post, campaign, referrer-only and unattributed groups (UTM join, not causal)."""
+    posts, variants = ctx["posts"], ctx["variants"]
+    campaign_platforms: dict[str, set] = ctx["campaign_platforms"]
     by_post: dict[Any, list[dict]]
     by_campaign: dict[str, list[dict]]
     by_referrer: dict[str, list[dict]]
     unattributed: dict[str, list[dict]]
     by_post, by_campaign, by_referrer, unattributed = {}, {}, {}, {}
-    for row in analytics_rows:
+    for row in rows:
         source, medium = row["utm_source"].lower(), row["utm_medium"].lower()
         camp, content = _safe_slug(row["utm_campaign"]), _safe_slug(row["utm_content"])
         if not any((source, medium, camp, content)):
@@ -593,18 +599,205 @@ def attribution_report(con, analytics_rows: list[dict], github: list[dict] | Non
                 unattributed.setdefault("utm_conflict:campaign_source_or_medium", []).append(row)
         else:
             unattributed.setdefault("unknown_utm", []).append(row)
+    return by_post, by_campaign, by_referrer, unattributed
 
-    attributed_posts = [_bucket(rows, post_id=pid, platform=posts[pid]["platform"],
-                                account_id=posts[pid]["account_id"], campaign=posts[pid]["campaign"])
-                        for pid, rows in sorted(by_post.items())]
-    attributed_campaigns = [_bucket(rows, campaign=c, level="campaign_only_no_post_id")
-                            for c, rows in sorted(by_campaign.items())]
-    referrer_rows = [_bucket(rows, platform=p, level="referrer_domain_not_post")
-                     for p, rows in sorted(by_referrer.items())]
+
+def _joined(ctx: dict, groups: tuple[dict, dict, dict, dict], fields: tuple[str, ...], referrer_level: str) -> dict:
+    by_post, by_campaign, by_referrer, unattributed = groups
+    posts = ctx["posts"]
     all_unattributed = [r for rows in unattributed.values() for r in rows]
-    unattributed_summary = {**_bucket(all_unattributed),
-                            "by_reason": {k: len(v) for k, v in sorted(unattributed.items())}}
-    unattributed_summary.pop("landing_pages")
+    summary = {**_bucket(all_unattributed, fields=fields),
+               "by_reason": {k: len(v) for k, v in sorted(unattributed.items())}}
+    summary.pop("landing_pages")
+    return {
+        "posts": [_bucket(rows, fields=fields, post_id=pid, platform=posts[pid]["platform"],
+                          account_id=posts[pid]["account_id"], campaign=posts[pid]["campaign"])
+                  for pid, rows in sorted(by_post.items())],
+        "campaigns": [_bucket(rows, fields=fields, campaign=c, level="campaign_only_no_post_id")
+                      for c, rows in sorted(by_campaign.items())],
+        "referrer": [_bucket(rows, fields=fields, platform=p, level=referrer_level)
+                     for p, rows in sorted(by_referrer.items())],
+        "unattributed": summary,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 3a. Owner-exported GA4 and Search Console files (parsed by web_analytics.py)
+# ---------------------------------------------------------------------------
+
+GA4_FIELDS = ("sessions", "engaged_sessions", "key_events")
+
+
+def _ga4_section(ctx: dict, exports: list[dict]) -> dict:
+    """GA4 export rows joined to posts exactly like analytics rows, kept in their own section."""
+    rows = [row for export in exports for row in export["rows"]]
+    groups = _classify(rows, ctx)
+    joined = _joined(ctx, groups, GA4_FIELDS, "session_source_domain_not_post")
+    ranges = [export["date_range"] for export in exports]
+    window = None
+    if ranges and all(ranges):
+        window = [min(r[0] for r in ranges if r), max(r[1] for r in ranges if r)]
+    published = ctx["published"]
+    gaps: list[dict] = []
+    no_rows = sorted(set(published) - set(groups[0]))
+    if no_rows:
+        gaps.append({"gap": "published_posts_without_matching_ga4_rows", "post_ids": no_rows,
+                     "meaning": "No GA4 row carried this post's id: unknown traffic, untagged link, a GA4 "
+                                "threshold or outside the export. NOT zero."})
+    if window is None:
+        gaps.append({"gap": "ga4_date_range_unknown",
+                     "meaning": "The export has no # Start/End date lines and no Date column; the period is unknown."})
+    else:
+        late = sorted(pid for pid, p in published.items()
+                      if p["send_started_at"] and p["send_started_at"][:10] > window[1])
+        if late:
+            gaps.append({"gap": "published_after_ga4_window", "post_ids": late, "ga4_last_date": window[1]})
+    dimensions = set.intersection(*(set(export["dimensions"]) for export in exports))
+    if "content" not in dimensions:
+        gaps.append({"gap": "ga4_manual_ad_content_column_missing",
+                     "meaning": "Without Session manual ad content (utm_content) no row can be credited to a post; "
+                                "campaign-level matches only."})
+    if "campaign" not in dimensions:
+        gaps.append({"gap": "ga4_campaign_column_missing"})
+    for field in GA4_FIELDS[1:]:
+        if any(field not in export["metrics"] for export in exports):
+            gaps.append({"gap": f"ga4_{field}_column_missing", "meaning": f"{field} is unknown, not zero."})
+    for field in GA4_FIELDS:
+        unknown = sum(1 for r in rows if r[field] is None)
+        if unknown:
+            gaps.append({"gap": f"ga4_{field}_unknown_rows", "rows": unknown})
+    return {
+        "source": "owner_supplied_ga4_csv_export",
+        "date_range": window,
+        "rows": len(rows),
+        "files": [{"date_range": list(export["date_range"]) if export["date_range"] else None,
+                   "date_range_source": export["date_range_source"], "rows": len(export["rows"]),
+                   "dimensions": export["dimensions"], "metrics": export["metrics"],
+                   "ignored_columns": export["ignored_columns"], "export_totals_row": export["totals_row"],
+                   "trailing_lines_ignored": export["trailing_lines_ignored"]} for export in exports],
+        "attributed": {"posts": joined["posts"], "campaigns": joined["campaigns"]},
+        "referrer_only": joined["referrer"],
+        "unattributed": joined["unattributed"],
+        "coverage_gaps": gaps,
+        "warnings": [
+            "Owner-supplied GA4 export data for the date range above; ReachWeaver did not fetch or verify it.",
+            "Attribution is a session source/medium/campaign/ad-content join, NOT causation, incrementality or reach.",
+            "GA4 sessions are not comparable with sessions from --analytics or another tool; never add them up.",
+            "Untagged GA4 rows such as t.co / referral are domain-level; they are never credited to a post.",
+            "Blank cells are unknown and excluded from sums, never zero. The export's totals row is never joined.",
+        ],
+    }
+
+
+_TRAILING = ".,;:!?"
+GSC_TOP_ROWS = 25
+
+
+def _page_key(url: str) -> tuple[str, str] | None:
+    """``(host, path)`` for matching a Search Console page to a linked destination; query dropped."""
+    try:
+        parts = urlsplit(url.strip().rstrip(_TRAILING))
+        host = (parts.hostname or "").lower().rstrip(".")
+    except ValueError:
+        return None
+    if parts.scheme.lower() not in ("http", "https") or not host:
+        return None
+    return host, (parts.path.rstrip("/") or "/")
+
+
+def _gsc_row(row: dict, name: str, value: str) -> dict:
+    return {name: value, "clicks": row["clicks"], "impressions": row["impressions"], "ctr": row["ctr"],
+            "position": row["position"]}
+
+
+def _by_clicks(rows: list[dict]) -> list[dict]:
+    return sorted(rows, key=lambda r: (-(r["clicks"] if r["clicks"] is not None else -1), r["key"]))
+
+
+def _gsc_section(ctx: dict, tables: dict) -> dict:
+    """Search-side context for the pages posts link to; never credited to a post."""
+    pages, queries = tables.get("pages"), tables.get("queries")
+    dates, filters = tables.get("dates"), tables.get("filters")
+    filter_values = {" ".join(r["filter"].lower().split()): r["value"] for r in (filters or {}).get("rows", [])}
+    days = sorted(r["key"] for r in (dates or {}).get("rows", []))
+    window = [days[0], days[-1]] if days else None
+    linked: dict[tuple[str, str], set] = {}
+    for pid, post in ctx["published"].items():
+        for url in _URL.findall(post["content"] or ""):
+            key = _page_key(url)
+            if key:
+                linked.setdefault(key, set()).add(pid)
+    matched, gsc_keys = [], set()
+    for row in (pages or {}).get("rows", []):
+        key = _page_key(row["key"])
+        if key is None:
+            continue
+        gsc_keys.add(key)
+        if key in linked:
+            matched.append({**_gsc_row(row, "page", report_landing_page(row["key"])),
+                            "linked_from_post_ids": sorted(linked[key]), "level": "page_search_context_not_post"})
+    gaps: list[dict] = []
+    if pages is None:
+        gaps.append({"gap": "gsc_pages_table_not_supplied"})
+    else:
+        hosts = {host for host, _ in gsc_keys}
+        missing = sorted((key, ids) for key, ids in linked.items() if key[0] in hosts and key not in gsc_keys)
+        if missing:
+            gaps.append({"gap": "post_destinations_not_in_gsc_pages",
+                         "pages": [{"page": f"{host}{path}", "post_ids": sorted(ids)} for (host, path), ids in missing],
+                         "meaning": "Not in the exported Pages rows (exports keep at most 1,000 rows): unknown, "
+                                    "NOT zero search clicks."})
+    if queries is None:
+        gaps.append({"gap": "gsc_queries_table_not_supplied"})
+    if window is None:
+        gaps.append({"gap": "gsc_date_range_unknown",
+                     "meaning": "No Dates table: the period is only the Filters date label, if one was supplied."})
+    dates_total = None
+    if dates is not None:
+        clicks, clicks_known = _sum_known(r["clicks"] for r in dates["rows"])
+        impressions, impressions_known = _sum_known(r["impressions"] for r in dates["rows"])
+        dates_total = {"clicks": clicks, "clicks_known_days": clicks_known, "impressions": impressions,
+                       "impressions_known_days": impressions_known, "days": len(dates["rows"]),
+                       "level": "property_by_date_not_post"}
+    top_pages = _by_clicks(pages["rows"])[:GSC_TOP_ROWS] if pages else []
+    top_queries = _by_clicks(queries["rows"])[:GSC_TOP_ROWS] if queries else []
+    return {
+        "source": "owner_supplied_search_console_performance_export",
+        "date_range": window, "date_range_source": "dates_table" if window else None,
+        "date_filter_label": filter_values.get("date"), "search_type": filter_values.get("search type"),
+        "tables": {kind: len(tables[kind]["rows"]) if kind in tables else None
+                   for kind in ("pages", "queries", "dates", "filters")},
+        "dates_total": dates_total,
+        "pages_linked_from_posts": sorted(matched, key=lambda r: r["page"]),
+        "top_pages": [_gsc_row(r, "page", report_landing_page(r["key"])) for r in top_pages],
+        "top_queries": [_gsc_row(r, "query", redact(r["key"], emails=True)[:200]) for r in top_queries],
+        "coverage_gaps": gaps,
+        "warnings": [
+            "Owner-supplied Search Console export data for the date range above; ReachWeaver did not fetch or "
+            "verify it.",
+            "Search clicks and impressions are Google Search activity, not social traffic: never credited to a "
+            "post and NOT evidence that a post caused search visits or ranking.",
+            "Exports keep at most 1,000 rows per table; a page or query missing from the export is unknown, not zero.",
+            "Search Console exports values shown as ~ or - as 0, so a 0 can mean not available; Position 0 is null.",
+            "Pages rows are aggregated by page and the Dates table by property; do not add page rows up to a "
+            "site total.",
+        ],
+    }
+
+
+def attribution_report(con, analytics_rows: list[dict] | None, github: list[dict] | None = None, *,
+                       ga4: list[dict] | None = None, gsc: dict | None = None) -> dict:
+    """Join tagged analytics rows to local posts (read-only); never claim causation.
+
+    ``analytics_rows`` is ``None`` when no generic analytics CSV was supplied. ``ga4`` is a
+    list of parsed GA4 exports and ``gsc`` the combined Search Console tables
+    (``web_analytics.combine_ga4`` / ``combine_gsc``); each gets its own section.
+    """
+    ctx = _join_context(con)
+    published = ctx["published"]
+    rows_in = analytics_rows or []
+    groups = _classify(rows_in, ctx)
+    joined = _joined(ctx, groups, ("sessions", "conversions"), "referrer_domain_not_post")
 
     social_gh: list[dict]
     other_gh: list[dict]
@@ -622,12 +815,14 @@ def attribution_report(con, analytics_rows: list[dict], github: list[dict] | Non
                 (social_gh if platform else other_gh).append({**ref, "platform": platform})
 
     gaps: list[dict] = []
-    dates = sorted(r["date"] for r in analytics_rows)
-    matched = set(by_post)
-    no_rows = sorted(set(published) - matched)
-    if no_rows:
-        gaps.append({"gap": "published_posts_without_matching_utm_rows", "post_ids": no_rows,
-                     "meaning": "No tagged rows found: unknown traffic, untagged link or outside window. NOT zero."})
+    dates = sorted(r["date"] for r in rows_in)
+    if analytics_rows is None:
+        gaps.append({"gap": "analytics_csv_not_supplied"})
+    else:
+        no_rows = sorted(set(published) - set(groups[0]))
+        if no_rows:
+            gaps.append({"gap": "published_posts_without_matching_utm_rows", "post_ids": no_rows,
+                         "meaning": "No tagged rows found: unknown traffic, untagged link or outside window. NOT zero."})
     untagged = sorted(pid for pid, p in published.items()
                       if any("utm_content" not in parse_utm(u) for u in _URL.findall(p["content"] or "")))
     if untagged:
@@ -638,10 +833,10 @@ def attribution_report(con, analytics_rows: list[dict], github: list[dict] | Non
         if late:
             gaps.append({"gap": "published_after_analytics_window", "post_ids": late,
                          "analytics_last_date": dates[-1]})
-    unknown_conv = sum(1 for r in analytics_rows if r["conversions"] is None)
+    unknown_conv = sum(1 for r in rows_in if r["conversions"] is None)
     if unknown_conv:
         gaps.append({"gap": "conversions_unknown_rows", "rows": unknown_conv})
-    unknown_sessions = sum(1 for r in analytics_rows if r["sessions"] is None)
+    unknown_sessions = sum(1 for r in rows_in if r["sessions"] is None)
     if unknown_sessions:
         gaps.append({"gap": "sessions_unknown_rows", "rows": unknown_sessions})
     if github_views is None:
@@ -649,14 +844,22 @@ def attribution_report(con, analytics_rows: list[dict], github: list[dict] | Non
     if github_referrers is None:
         gaps.append({"gap": "github_referrers_not_supplied"})
 
+    ga4_section = _ga4_section(ctx, ga4) if ga4 else None
+    gsc_section = _gsc_section(ctx, gsc) if gsc else None
     return {
-        "inputs": {"analytics_rows": len(analytics_rows),
+        "inputs": {"analytics_rows": len(rows_in),
                    "analytics_date_range": [dates[0], dates[-1]] if dates else None,
-                   "github_files": len(github or [])},
-        "attributed": {"posts": attributed_posts, "campaigns": attributed_campaigns},
-        "referrer_only": {"analytics": referrer_rows, "github": social_gh},
-        "unattributed": unattributed_summary,
+                   "github_files": len(github or []),
+                   "ga4_files": len(ga4 or []),
+                   "ga4_date_range": ga4_section["date_range"] if ga4_section else None,
+                   "gsc_files": len(gsc or {}),
+                   "gsc_date_range": gsc_section["date_range"] if gsc_section else None},
+        "attributed": {"posts": joined["posts"], "campaigns": joined["campaigns"]},
+        "referrer_only": {"analytics": joined["referrer"], "github": social_gh},
+        "unattributed": joined["unattributed"],
         "github": {"views": github_views, "non_social_referrers": other_gh},
+        "ga4": ga4_section,
+        "search_console": gsc_section,
         "coverage_gaps": gaps,
         "warnings": [
             "Attribution is a UTM/referrer join, NOT causation or incrementality.",

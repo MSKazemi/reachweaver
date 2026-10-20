@@ -40,6 +40,16 @@ class CliDispatchTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertFalse(db.exists())
 
+    def test_attribution_report_without_any_export_never_creates_a_database(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "state" / "never.sqlite"
+            err = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                code = main(["--db", str(db), "attribution-report", "--json"])
+            self.assertEqual(code, 2)
+            self.assertIn("--ga4-csv", err.getvalue())
+            self.assertFalse(db.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

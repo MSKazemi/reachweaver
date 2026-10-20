@@ -6,6 +6,10 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Added
+
+- **`attribution-report` reads GA4 and Search Console exports you download yourself (offline).** `--ga4-csv FILE` takes a GA4 report or exploration saved as CSV (Session source / medium, Session campaign, Session manual ad content, Sessions, and optionally Engaged sessions, Key events, Landing page and Date; UI labels or Data API names). The `#` lines at the top are skipped and their start and end dates kept, the totals row is shown but never joined, and files whose dates overlap are refused. Its rows are joined to posts like UTM rows, in a separate `ga4` section that is never added to `--analytics` sessions. `--gsc-csv FILE` takes the Pages, Queries, Dates and Filters tables of a Search Console Performance export; pages that your posts link to are listed as search context and are never credited to a post. Both sections are labelled as owner-supplied data with their date range, and list what is unknown (for example a post with no GA4 row, or a page missing from a 1,000-row export) instead of counting it as zero. Unknown or missing columns, oversized files (16 MiB, 100,000 rows) and malformed numbers are refused; `1,234`, `1.234`, `12,3` and `3.5%` are read. `--analytics` is no longer required when one of the new flags is given. No Google API, OAuth, credential or network request. New `reachweaver/web_analytics.py`, `tests/test_web_analytics.py`; see [attribution](docs/ATTRIBUTION.md#3a-google-search-console-and-ga4-exports-offline-import). No change to approval, dry-run, emergency-stop, credential or reconciliation rules.
+
 ## [0.10.0] - 2026-10-18
 
 Run a work and a family account on one network without posting to the wrong one, and get sign-up details ready for networks you are not on yet, all offline and local. 3 new commands (104 in all, none removed): `profile`, `account-route` and `account-kit`, plus a `--persona` option on `draft`, `check` and `approve`. No change to approval, dry-run, emergency-stop, credential or reconciliation rules, and no new live adapter.

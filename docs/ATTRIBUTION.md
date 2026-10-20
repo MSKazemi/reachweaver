@@ -160,7 +160,82 @@ reachweaver attribution-report --analytics private/ga-export.csv \
 
 **Landing pages in the output.** Each `attributed.posts`, `attributed.campaigns` and `referrer_only` bucket lists its `landing_pages`. They are cleaned before they are printed, because an analytics export can carry magic-link tokens, password-reset codes or subscriber e-mail addresses in a landing URL. Only `scheme://host[:port]/path` (or a bare `page` path) and the five canonical `utm_*` parameters are kept. User info, every other query parameter (`?token=`, `?email=`, `?coupon=`, `fbclid`, ...) and the fragment are dropped. A secret env value, a token shape or an e-mail address left in the path is replaced with a `[REDACTED...]` marker. So `https://example.org/welcome?token=...&email=...` is reported as `https://example.org/welcome`. Matching rows to posts uses the UTM columns, not the landing URL, so attribution results are unchanged.
 
-`coverage_gaps` lists published posts with no tagged rows (this means unknown, not zero), published posts whose links lack `utm_content`, posts published after the last analytics date, rows with unknown sessions or conversions, and missing GitHub inputs.
+`coverage_gaps` lists published posts with no tagged rows (this means unknown, not zero), published posts whose links lack `utm_content`, posts published after the last analytics date, rows with unknown sessions or conversions, and missing GitHub inputs. When no `--analytics` file is given (because you pass only the exports of section 3a), the report says `analytics_csv_not_supplied` instead of listing every post as unmatched.
+
+## 3a. Google Search Console and GA4 exports (offline import)
+
+`attribution-report` also reads two kinds of files that you download yourself from Google. ReachWeaver never connects to Google: there is no Google API call, no OAuth, no credential and no network request. It parses the local files and reads the local database, nothing else. You need at least one of `--analytics`, `--ga4-csv` or `--gsc-csv`.
+
+```bash
+reachweaver attribution-report --ga4-csv private/ga4-october.csv \
+  --gsc-csv private/gsc/Pages.csv --gsc-csv private/gsc/Queries.csv \
+  --gsc-csv private/gsc/Dates.csv --gsc-csv private/gsc/Filters.csv --json
+```
+
+Both sections are labelled `owner_supplied_*` with the export's `date_range` (`null` when the file does not say). They are numbers you exported, not numbers ReachWeaver checked. Neither section claims reach, and neither says that a post caused a visit.
+
+### GA4 (`--ga4-csv`, section `ga4`)
+
+**How to export.** In GA4 open **Reports > Acquisition > Traffic acquisition**, change the table's dimension to **Session source / medium**, add **Session campaign** and **Session manual ad content** as secondary dimensions (or build an exploration with the same dimensions), then **Share this report > Download File > Download CSV**. GA4 documents the CSV download and its limit of 100,000 rows. Repeat `--ga4-csv` for separate periods. Files whose dates overlap are refused, because their sessions would be counted twice.
+
+**Columns.** Each header is matched case-insensitively, by its GA4 UI label or its Data API name:
+
+| Meaning | GA4 UI label | API name | Required |
+|---|---|---|---|
+| source and medium | `Session source / medium` | `sessionSourceMedium` | yes, or the next two |
+| source | `Session source` | `sessionSource` | with `Session medium` |
+| medium | `Session medium` | `sessionMedium` | with `Session source` |
+| `utm_campaign` | `Session campaign` | `sessionCampaignName` | no, but needed for campaign matches |
+| `utm_content` (post id) | `Session manual ad content` | `sessionManualAdContent` | no, but needed to credit a post |
+| `utm_term` | `Session manual term` | `sessionManualTerm` | no (read, not joined) |
+| landing page | `Landing page`, `Landing page + query string` | `landingPage`, `landingPagePlusQueryString` | no (cleaned like `landing_pages` above) |
+| date | `Date` (`YYYYMMDD`) | `date` | no |
+| sessions | `Sessions` | `sessions` | **yes** |
+| engaged sessions | `Engaged sessions` | `engagedSessions` | no |
+| key events | `Key events` (legacy `Conversions`) | `keyEvents` | no |
+
+The other metrics of the default Traffic acquisition table (`Engagement rate`, `Average engagement time per session`, `Events per session`, `Event count`, `Session key event rate`, `Total revenue`, user counts, `Bounce rate`, `Views per session`, `Average session duration`) are accepted and ignored. Any other column is refused with the list above. A `First user ...` column is refused with a hint: those are user-scoped (User acquisition), not session-scoped.
+
+**File layout.** Lines that start with `#` before the header are skipped. A `# Start date: YYYYMMDD` and `# End date: YYYYMMDD` pair among them sets the export's date range; otherwise the range comes from a `Date` column, and otherwise it is unknown (gap `ga4_date_range_unknown`). Only the first table is read. It ends at the first blank or `#` line, and anything after it (for example chart data) is counted in `trailing_lines_ignored`. A row whose dimension cells are all blank or `Grand total`/`Total` is the export's totals row: it is shown as `export_totals_row` and never joined. A second totals row is refused.
+
+**Join.** GA4 values `(not set)`, `(none)`, `(direct)`, `(organic)`, `(referral)` and similar placeholders count as empty. A row is *tagged* when it has a campaign or ad content, or when its source is a ReachWeaver platform id with medium `social` (what `utm-link` writes). Tagged rows are joined exactly like the analytics CSV rows of section 3: `attributed.posts`, `attributed.campaigns` and `unattributed` by reason. An untagged row keeps only its session source as a referrer domain: `t.co / referral` becomes `referrer_only` for `x` at domain level, and `google / organic` is unattributed (`no_utm`). Every bucket sums `sessions`, `engaged_sessions` and `key_events`, each with a `*_known_rows` count; a blank cell is unknown, never 0. GA4 sessions are kept apart from `--analytics` sessions and are never added to them.
+
+**Gaps.** `published_posts_without_matching_ga4_rows` (unknown, not zero), `published_after_ga4_window`, `ga4_date_range_unknown`, `ga4_manual_ad_content_column_missing` (only campaign-level matches are possible), `ga4_campaign_column_missing`, `ga4_<metric>_column_missing` and `ga4_<metric>_unknown_rows`.
+
+`experiment-readout --attribution` and `baseline-eval --attribution` read only the top-level `attributed.posts` from `--analytics`. They do not read the `ga4` section.
+
+### Search Console (`--gsc-csv`, section `search_console`)
+
+**How to export.** In Search Console open **Performance > Search results**, set the date range and search type, click **Export** and choose **Download CSV**. The download holds one CSV per table. Pass the ones you want with `--gsc-csv`, at most one of each: `Pages.csv`, `Queries.csv`, `Dates.csv` and `Filters.csv`. The table is recognized by its first column (`Top pages`/`Page`, `Top queries`/`Query`, `Date`, `Filter`). The other columns must be `Clicks` and `Impressions` (required) and optionally `CTR` and `Position`/`Average position`. A Filters table must have exactly the columns `Filter` and `Value`. Countries, Devices and Search appearance tables are refused because the report does not use them.
+
+**What the report shows.**
+
+- `pages_linked_from_posts`: each exported page that a published post links to, matched by host and path (scheme, query and trailing slash ignored), with its clicks, impressions, CTR, position and `linked_from_post_ids`. The level is `page_search_context_not_post`. These are Google Search clicks on that page, not clicks from the post, and they are never credited to the post.
+- `dates_total`: the sums of the Dates table (property level), with known-day counts.
+- `top_pages` and `top_queries`: the 25 rows with the most clicks. Page URLs are cleaned like `landing_pages` above. Query text goes through the same e-mail and token redaction.
+- `date_range` from the Dates table, `date_filter_label` and `search_type` from the Filters table.
+- Gaps: `post_destinations_not_in_gsc_pages` (a linked page on a host the export covers but not in its rows: unknown, not zero), `gsc_pages_table_not_supplied`, `gsc_queries_table_not_supplied` and `gsc_date_range_unknown`.
+
+**Limits stated by Google.** Exports are cut to 1,000 rows of "representative examples", so a page or query missing from the file is unknown, not zero. Values shown as `~` or `-` in the report are written as zeros in the download, so a 0 can mean "not available". ReachWeaver reads a `Position` of 0 as `null`, but it cannot tell a real 0 click count from a missing one. The Pages table counts impressions by page and the chart by property, so page rows are never added up into a site total.
+
+### Parsing rules (both formats)
+
+- One file is at most 16 MiB and 100,000 data rows, a regular file (no symlinks) in UTF-8 (a byte-order mark is fine). At most 12 files per flag.
+- Strict CSV: comma separated (a semicolon-separated file gets a hint to download it again), consistent quoting, and every row as wide as the header. Duplicate columns, duplicate pages, queries or dates, a blank first cell and a CTR above 100% are refused.
+- Whole numbers accept `1234`, `1,234`, `1.234`, `1 234` and `1'234` (groups of three). Decimals accept `12.3`, `12,3`, `1,234.5` and `1.234,5`: with both marks the last one is the decimal mark, and a single `,` or `.` is the decimal mark (so `1,234` in a CTR or Position column reads as 1.234). `CTR` accepts `3.5%` (stored as the fraction 0.035) or a fraction without `%`. Dates accept `YYYY-MM-DD` and `YYYYMMDD`.
+- An error names the file kind, the line and the column, never a cell value.
+- Everything is computed in memory: no file is written and the database is only read.
+
+### Sources (checked 2026-10-20)
+
+- Search Console metrics (Clicks, Impressions, CTR, Average position) and dimensions (Queries, Pages, Countries, Devices, Search appearance, Dates): [Performance report (Search results)](https://support.google.com/webmasters/answer/7576553?hl=en).
+- Export formats (Google Sheets, Excel, CSV), the 1,000-row cut and `~`/`-` written as zeros: [Export data directly from a Search Console report](https://support.google.com/webmasters/answer/12919797?hl=en).
+- Aggregation by page versus by property: [What are impressions, position, and clicks?](https://support.google.com/webmasters/answer/7042828?hl=en).
+- GA4 CSV download and its 100,000-row limit: [Share & export reports](https://support.google.com/analytics/answer/9317657?hl=en).
+- GA4 UI labels (`Session source / medium`, `Session campaign`, `Session manual ad content` populated by `utm_content`, `Engaged sessions`, `Key events`, `(not set)`): [Dimensions and metrics](https://support.google.com/analytics/answer/9143382?hl=en).
+- GA4 API names (`sessionSourceMedium`, `sessionCampaignName`, `sessionManualAdContent`, `engagedSessions`, `keyEvents`, `landingPagePlusQueryString`, `date` as `YYYYMMDD`): [Data API schema](https://developers.google.com/analytics/devguides/reporting/data/v1/api-schema).
+
+**Not verified on an official page:** the exact header text inside a Search Console CSV (`Top pages`, `Top queries`, `Position`) and its date format; the `#` comment lines at the top of a GA4 CSV with their `Start date`/`End date` lines; the GA4 totals row; and the GA4 placeholders other than `(not set)`. The parser accepts these spellings without depending on them. If a real export uses another header, the error lists the accepted columns so you can rename it.
 
 ## Limitations
 
