@@ -28,11 +28,21 @@ BARE_PYTHON_MODULE = re.compile(r"(?<![\w./-])python -m reachweaver")
 BARE_PYTHON_COMMAND = re.compile(r"(?<![\w./-])python (?=[-<~\w])")
 
 
+def _options(parser) -> set[str]:
+    """A command's flags, including those of nested actions such as `idea add` / `idea promote`."""
+    found = {s for a in parser._actions for s in a.option_strings}
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for nested in action.choices.values():
+                found |= _options(nested)
+    return found
+
+
 def _parser_tables():
     parser = make_parser()
     sub = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
     helps = {choice.dest: choice.help or "" for choice in sub._choices_actions}
-    flags = {name: {s for a in sp._actions for s in a.option_strings} for name, sp in sub.choices.items()}
+    flags = {name: _options(sp) for name, sp in sub.choices.items()}
     global_flags = {s for a in parser._actions for s in a.option_strings}
     return flags, global_flags, helps
 

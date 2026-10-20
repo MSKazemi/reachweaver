@@ -55,6 +55,63 @@ draft I just wrote repeats it.
 
 The skill tells Claude never to run `approve` or `publish --live`, and this repository's own Claude Code settings block both commands outright. A plugin install does not carry those settings, so for a hard guarantee turn on the terminal check once: `reachweaver approval-mode --confirmation tty_hash_prefix`. After that, `approve` and `publish --live` only work in a real terminal where you type the first characters of the post's hash, which an AI session cannot do. Approval is yours, for each post.
 
+## Ideas inbox: "post about this later"
+
+Tell Claude "post about this later" and it saves the idea instead of drafting it:
+
+```text
+reachweaver idea add "Explain why approvals are bound to a payload hash" --source https://example.org/notes --tag security
+reachweaver idea list [--status open|promoted|dropped] [--tag T] [--json]
+reachweaver idea drop IDEA_ID
+reachweaver idea promote IDEA_ID --campaign approval-binding --out campaigns/approval-binding [--brand BRAND.json --accounts ACCOUNTS.json] [--objective O]
+```
+
+- **Where it lives.** A private file, `ideas.json`, next to your database (`state/ideas.json` in a workspace; folder `0700`, file `0600`). It is not part of the post queue, so adding an idea never creates the database and an idea can never be approved, scheduled or sent.
+- **Limits.** Text up to 2000 characters, at most 8 lowercase tags, a source must be a public `https` URL (no credentials, IP addresses or local hosts), and text that looks like a password or token is refused: the inbox is not a secret store. Nothing is fetched; the source is not opened.
+- **Promote.** Writes a NEW folder with `campaign.reachweaver.json` (the campaign contract format of `examples/campaign.reachweaver.json`, with your idea as the `brief` and `{{write: ...}}` placeholders for the audience, claims and post text) and `brief.md`. With `--brand` and `--accounts` it adds one placeholder variant per approved account. `campaign-check` reports the scaffold BLOCKED until you write the text and verify each source, the same as a `signal-brief` scaffold. It never creates a draft post, approval or send, and it does not open the database.
+
+## Fact-check subagent
+
+The plugin ships a read-only subagent, `fact-check` (listed as `reachweaver:fact-check`). Claude hands it a draft and the campaign file before showing you the draft. It splits the draft into factual claims (numbers, dates, versions, releases, features, comparisons, quotes, partnerships, customer counts), reads the cited evidence and opens public `https` sources with WebFetch, and labels each claim:
+
+| Label | Meaning |
+|---|---|
+| `verified` | A source it read says the same thing; the table shows the URL and a short quote |
+| `contradicted` | A source says something incompatible; the table shows the conflicting quote |
+| `unverified` | No source, the source is silent, the page could not be fetched, or only an unchecked excerpt supports it |
+
+Its tools are limited to `Read, Grep, Glob, WebFetch`: no shell, no file edits, and it never runs `reachweaver`, stages, approves or publishes. WebFetch returns a processed view of a page, so confirm any quote you rely on in the page itself before you approve. It complements `claims-check`, which is offline lexical matching against the evidence text in your campaign file and never opens a source.
+
+The agent file is `plugin/agents/fact-check.md`. Layout and fields follow the official docs, read 2026-10-20: plugin agents live in the plugin's `agents/` folder ([plugins reference](https://code.claude.com/docs/en/plugins-reference), "Standard layout"); "Only `name` and `description` are required", `tools` is "a comma-separated string such as `Read, Grep, Bash` or a YAML list", and "plugin subagents don't support the `hooks`, `mcpServers`, or `permissionMode` frontmatter fields" ([subagents](https://code.claude.com/docs/en/sub-agents)). `claude plugin validate plugin --strict` (Claude Code 2.1.304) passes with the agent in place. The agent ships with the plugin only; a repository checkout does not add it to `.claude/agents/`.
+
+## Status line
+
+`reachweaver statusline` prints one short, read-only line for Claude Code's status bar:
+
+```text
+RW 0.10.0 | drafts 3 | queued 1 | needs review 0 | ideas 2 | PAUSED
+```
+
+`drafts` are posts waiting for your approval, `queued` are approved or scheduled posts not sent yet, `needs review` are sends you must check on the platform (`reconcile`), `sending` appears only while a send is in flight, `ideas` counts open ideas, and `PAUSED` shows when the emergency stop is on. Without a database it prints `RW: no workspace` and creates nothing. It opens the database read-only with a 0.25 s busy timeout, prints counts only (never post text, account names, paths or credentials), uses no network and always exits 0.
+
+Claude Code runs the status line command with session JSON on stdin and shows what it prints ([status line docs](https://code.claude.com/docs/en/statusline), read 2026-10-20). ReachWeaver never reads that stdin. Updates are debounced at 300 ms, and "If a new update triggers while your script is still running, Claude Code cancels the in-flight script", so the command is kept fast: `python3 -m reachweaver.statusline` skips loading the full command line and took about 0.07 s on a laptop; the `reachweaver statusline` launcher (and `python3 -m reachweaver statusline`) took about 0.25 s.
+
+To turn it on, add this to your own `~/.claude/settings.json` (or a project's settings) yourself; ReachWeaver and Claude never change your settings:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "reachweaver statusline"
+  }
+}
+```
+
+- **Installed with pip into the `python3` on your path:** `"command": "python3 -m reachweaver.statusline"` is the fastest form.
+- **A repository checkout:** `"command": "PYTHONPATH=/path/to/reachweaver python3 -m reachweaver.statusline"`.
+- **Another folder than the one Claude Code runs in:** add `--home DIR` (a workspace) or `--db PATH`, for example `reachweaver statusline --home ~/reachweaver-work`.
+- **Plugin only:** a plugin cannot set your status line (the plugin `settings.json` honours only `agent` and `subagentStatusLine`, per the [plugins reference](https://code.claude.com/docs/en/plugins-reference)), and the plugin's folder changes with every update. Install the command line with `pipx install reachweaver` and use the first snippet.
+
 ## Keeping your usage low
 
 - **The skill loads on demand.** `SKILL.md` is a short router (about 12 KB, down from about 37 KB). Claude loads only the one or two reference files your request needs.

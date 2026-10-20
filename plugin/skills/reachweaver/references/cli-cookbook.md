@@ -41,6 +41,8 @@ Then the owner, in their own terminal: `approve POST_ID`, and only on the produc
 | `health` | Per-account readiness `ok`/`attention`/`blocked`; exit 1 when blocked | `--json`, `--stale-minutes N` |
 | `workspace` | Folder report: config, database, ledger; will a copy work elsewhere | `--json`, `--init DIR`, `--gather`, `--repair` (dry runs); `--apply` is the owner's decision |
 | `ui` | **OWNER**: read-only dashboard on 127.0.0.1 with a per-run URL token; Claude never starts it or reads its URL | `--port N`, `--open` |
+| `statusline` | One short read-only line for Claude Code's status line (version, drafts, queued, needs review, ideas, PAUSED); creates no database, no network | none |
+| `idea` | Ideas inbox: `add TEXT`, `list`, `drop ID`, `promote ID` to a NEW blocked campaign scaffold; never a draft, approval or send | `--source URL`, `--tag T`, `--status`, `--json`, `--campaign SLUG`, `--out DIR`, `--brand`, `--accounts` |
 | `list` | Posts and statuses | `--status S` |
 | `show` | Exact text, account and platform preview of `POST_ID` | `POST_ID` |
 | `journal` | What was posted, when, where, with files and hashes | `--post-id`, `--platform`, `--account`, `--since`, `--until`, `--all-statuses`, `--format table/json/markdown/csv`, `--out`, `--verify-files` |
