@@ -112,6 +112,40 @@ def _add_history_args(p: argparse.ArgumentParser) -> None:
                         "a ReachWeaver heuristic, not a platform limit)")
 
 
+def _add_idea_and_statusline_parsers(sub) -> None:
+    """``idea`` (ideas inbox, reachweaver/ideas.py) and ``statusline`` (reachweaver/statusline.py)."""
+    p = sub.add_parser("idea", help="Ideas inbox: capture 'post about this later' notes (add, list, drop) and promote "
+                       "one to a NEW blocked campaign scaffold; never creates a draft, approval or send")
+    actions = p.add_subparsers(dest="idea_action", required=True, metavar="ACTION")
+    q = actions.add_parser("add", help="Add an open idea (text up to 2000 characters)")
+    q.add_argument("text", help="The idea, in a sentence or two")
+    q.add_argument("--source", help="A public https URL the idea comes from (not opened or checked)")
+    q.add_argument("--tag", action="append", default=[], help="A lowercase tag; repeatable (at most 8)")
+    q.add_argument("--json", action="store_true", help="Machine-readable result")
+    q = actions.add_parser("list", help="List ideas, newest last")
+    q.add_argument("--status", choices=("open", "promoted", "dropped"), help="Only ideas in this state")
+    q.add_argument("--tag", help="Only ideas with this tag")
+    q.add_argument("--json", action="store_true", help="Machine-readable result")
+    q = actions.add_parser("drop", help="Mark an open idea dropped (kept in the file, never deleted)")
+    q.add_argument("id", help="The idea id, e.g. idea-1a2b3c4d")
+    q.add_argument("--json", action="store_true", help="Machine-readable result")
+    q = actions.add_parser("promote", help="Write a NEW campaign scaffold folder from an open idea; it stays BLOCKED "
+                           "until you write and verify it; nothing is staged, approved or sent")
+    q.add_argument("id", help="The idea id")
+    q.add_argument("--campaign", required=True, metavar="NAME", help="The new campaign_id (a lowercase slug)")
+    q.add_argument("--out", required=True, type=Path, metavar="NEW_DIR",
+                   help="A NEW folder (0700) for campaign.reachweaver.json and brief.md (0600); refuses an existing one")
+    q.add_argument("--brand", type=Path, help="Optional brand JSON: sets brand_id; with --accounts one placeholder "
+                                              "variant per approved account")
+    q.add_argument("--accounts", dest="idea_accounts", type=Path, metavar="A",
+                   help="Optional PUBLIC accounts config used with --brand")
+    q.add_argument("--objective", choices=sorted(OBJECTIVES), default="awareness",
+                   help="Campaign objective (default awareness)")
+    q.add_argument("--json", action="store_true", help="Machine-readable result")
+    sub.add_parser("statusline", help="One short read-only line for Claude Code's status line (version, drafts, "
+                   "queued, needs review, ideas, PAUSED); never creates a database, reads no stdin, no network")
+
+
 class _TopParser(argparse.ArgumentParser):
     """Top-level parser: a mistyped command gets a short 'Did you mean' instead of a list of ~85 names."""
 
@@ -146,6 +180,7 @@ def make_parser() -> argparse.ArgumentParser:
     sub.add_parser("init", help="Initialize local database (not an online account)")
     p = sub.add_parser("version", help="Print the installed ReachWeaver version and install kind; offline")
     p.add_argument("--json", action="store_true", help="Machine-readable result")
+    _add_idea_and_statusline_parsers(sub)
     p = sub.add_parser("update", help="Check GitHub Releases for a newer ReachWeaver skill bundle (--check, default), "
                        "print a one-line cached --notice, or --apply it; HTTPS GET to github.com only")
     mode = p.add_mutually_exclusive_group()
@@ -2846,6 +2881,13 @@ def execute(args) -> int:
                     "note": "Backend-reported only: open the native post, compare the exact text, then run 'reconcile'."}
         print(json.dumps(result, indent=2))
         return 0
+    if args.command == "idea":  # ideas inbox file next to the database; never opens the database
+        from .ideas import run_cli as run_ideas
+        return run_ideas(args)
+    if args.command == "statusline":  # read-only; home was activated by main()
+        from .statusline import render as render_statusline
+        print(render_statusline(args.db, None, activate=False))
+        return 0
     if args.command == "version":
         from . import __version__
         from .updater import install_kind, skill_root
@@ -3537,6 +3579,10 @@ def execute(args) -> int:
 
 
 def main(argv=None) -> int:
+    argv_list = sys.argv[1:] if argv is None else list(argv)
+    if argv_list[:1] == ["statusline"]:  # status bar fast path: skip building ~100 subparsers
+        from .statusline import main as statusline_main
+        return statusline_main(argv_list[1:])
     try:
         parsed = make_parser().parse_args(argv)
         home.activate(parsed.home if parsed.command != "workspace" or parsed.init is None else None, Path.cwd())

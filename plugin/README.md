@@ -1,6 +1,6 @@
 # ReachWeaver — Claude Code plugin
 
-ReachWeaver turns your real software, research and knowledge into planned, platform-native social posts and measured results, with a human approving every send. The plugin adds one skill, `/reachweaver:reachweaver`, plus a bundled offline command-line tool. Drafting, brand and campaign validation, calendars, manual-export packages, health checks and analytics imports run locally with no network access. Live publishing is off by default and is run by the account owner, never by Claude on its own.
+ReachWeaver turns your real software, research and knowledge into planned, platform-native social posts and measured results, with a human approving every send. The plugin adds one skill, `/reachweaver:reachweaver`, a read-only `fact-check` subagent that labels each factual claim in a draft verified, unverified or contradicted with its source, and a bundled offline command-line tool. Drafting, brand and campaign validation, calendars, manual-export packages, health checks and analytics imports run locally with no network access. Live publishing is off by default and is run by the account owner, never by Claude on its own.
 
 Status: v0.5 experimental. No personal social account is connected by default, and nothing here promises viral reach.
 
@@ -20,6 +20,7 @@ Then ask Claude about social media planning, or run `/reachweaver:reachweaver`. 
 - **On session start** one hook runs `update --notice`: a cached HTTPS check to api.github.com at most every 24 h to look for a newer release. It does not intentionally send private draft content or credentials, but GitHub receives connection metadata such as the device's IP address and version User-Agent. When a newer release exists it lists release-note titles with Security entries first and marks entries that name a platform in your local accounts config (only each account's `platform` field is read; nothing from it is sent). It is silent offline, never installs updates by itself, and is disabled by `touch ~/.cache/reachweaver/no-update-check`.
 - **Everything else is local and offline by default.** Planning, drafting, validation, `publish` without `--live` and `manual-export` never open a network connection. Local state stays in a `state/` folder in your project and in your own ignored account config.
 - **Credentials** come from operator-provided environment variables or a configured systemd credential directory, as applicable, for authorized online actions. They may be sent to the selected platform API or configured backend. Regression tests reduce the risk of disclosure in logs and exports but do not guarantee there are no defects. Live sending additionally needs `REACHWEAVER_ALLOW_LIVE=1`, `REACHWEAVER_ENV=prod`, an approved due post and an explicit `--live`.
+- **The `fact-check` subagent** can read files and open public https source pages through Claude Code's own WebFetch tool when Claude delegates a draft to it. It has no shell and cannot edit files, run ReachWeaver, approve or publish.
 - **Optional online checks** (identity preflight, `landing-check --online`) run only when you invoke them explicitly.
 
 ## Privacy
