@@ -45,6 +45,39 @@ def _add_history_args(p: argparse.ArgumentParser) -> None:
                         "a ReachWeaver heuristic, not a platform limit)")
 
 
+def _add_review_parsers(sub, optout_help: str) -> None:
+    """``review-packet``, ``review-comment``, ``review-status`` (reachweaver/review_packet.py; draft, pending
+    security review). The database is opened read-only; a comment is never approval."""
+    p = sub.add_parser("review-packet", help="Offline: write a NEW private folder with the exact text, destination, "
+                       "alt text, content digest and check findings of posts for a co-reviewer; never approves")
+    which = p.add_mutually_exclusive_group(required=True)
+    which.add_argument("--post-id", action="append", metavar="ID", help="A stored post to include (repeatable)")
+    which.add_argument("--campaign-staged", metavar="NAME",
+                       help="Every draft, approved or scheduled post staged for this campaign id")
+    p.add_argument("--out", type=Path, required=True, help="NEW folder (0700; files 0600); refuses an existing path. "
+                   "Under <state>/review-packets/ review-status finds it without --packet")
+    p.add_argument("--persona", metavar="ID", help="As for check: the persona these posts are for")
+    p.add_argument("--optout", type=Path, help=optout_help + "; a mention is a BLOCKED finding")
+    p.add_argument("--sources", type=Path, metavar="CONFIG",
+                   help="sources-scan config (#9): a post linking into a private repository is refused and a private "
+                        "source URL is redacted")
+    p.add_argument("--json", action="store_true", help="Machine-readable result (folder, files, digests)")
+    p = sub.add_parser("review-comment", help="Record a co-reviewer's comment in the packet's private comments.json, "
+                       "bound to the post's content digest; never approves or changes a post")
+    p.add_argument("--packet", type=Path, required=True, metavar="DIR", help="Folder written by review-packet")
+    p.add_argument("--post-id", required=True, metavar="ID", help="A post in that packet")
+    p.add_argument("--reviewer", required=True, metavar="NAME", help="Who commented (a label, not authentication)")
+    p.add_argument("--verdict", required=True, choices=("looks_good", "change_requested", "question"),
+                   help="looks_good is an opinion, not approval")
+    p.add_argument("--note", required=True, metavar="TEXT", help="The comment (at most 2000 characters)")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
+    p = sub.add_parser("review-status", help="Read-only: reviewer comments per post, STALE when the post changed "
+                       "after the comment; never approves")
+    p.add_argument("--packet", type=Path, metavar="DIR",
+                   help="One packet (default: every packet under <state>/review-packets/)")
+    p.add_argument("--json", action="store_true", help="Machine-readable result")
+
+
 def _add_idea_and_statusline_parsers(sub) -> None:
     """``idea`` (ideas inbox, reachweaver/ideas.py) and ``statusline`` (reachweaver/statusline.py)."""
     p = sub.add_parser("idea", help="Ideas inbox: capture 'post about this later' notes (add, list, drop) and promote "
@@ -1000,6 +1033,7 @@ def make_parser() -> argparse.ArgumentParser:
                    help="Campaign objective (default awareness)")
     p.add_argument("--campaign", metavar="ID", help="Campaign id (default release-REPO-TAG)")
     p.add_argument("--json", action="store_true", help="Machine-readable result (paths, validation, skipped accounts)")
+    _add_review_parsers(sub, optout_help)
     p = sub.add_parser("capabilities", help="Offline platform capability/API-approval registry; never grants permission")
     p.add_argument("--platform", help="Show one platform, e.g. x, reddit or pinterest")
     p.add_argument("--json", action="store_true", help="Machine-readable full registry entries")

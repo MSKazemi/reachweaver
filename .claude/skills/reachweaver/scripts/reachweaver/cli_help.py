@@ -17,7 +17,8 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Draft and approve (nothing is sent)", (
         "idea", "draft", "check", "repeat-check", "mark-shared", "approve", "unapprove", "cancel", "schedule", "media-attach", "media-detach",
         "video-attach", "video-detach", "youtube-attach", "youtube-detach", "campaign-check", "campaign-preview",
-        "campaign-stage", "campaign-export", "claims-check")),
+        "campaign-stage", "campaign-export", "claims-check", "review-packet", "review-comment",
+        "review-status")),
     ("Publish and recover (owner only; live sends are gated)", (
         "publish", "pause", "resume", "reconcile", "approval-mode", "calendar-plan", "calendar-gaps",
         "connect-check", "postiz-check", "disconnect", "reconnect")),
