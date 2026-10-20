@@ -250,7 +250,7 @@ reachweaver draft --account X --file F --reply-to ITEM [--online] [--override-fl
                                           #17 (owner-approved 2026-10-09; gated off): reply draft under your own published Bluesky/Mastodon post; plan only without --online; sending blocked by the capability registry (`reachweaver_reply_adapter: none`)
 reachweaver list [--status STATUS]        display post statuses
 reachweaver check POST_ID [--optout F]    draft lint, including opt-out mentions
-reachweaver review-packet (--post-id ID ... | --campaign-staged NAME) --out NEW_DIR [--json]  (draft, pending security review) NEW private folder for a co-reviewer: exact text, destination, alt text, content digest, check findings; database read-only; never approval (docs/REVIEW-PACKET.md)
+reachweaver review-packet (--post-id ID ... | --campaign-staged NAME) --out NEW_DIR [--json]  NEW private folder for a co-reviewer: exact text, destination, alt text, content digest, check findings; database read-only; never approval (docs/REVIEW-PACKET.md)
 reachweaver review-comment --packet DIR --post-id ID --reviewer NAME --verdict looks_good|change_requested|question --note TEXT  owner records a reviewer's comment in the packet's comments.json, bound to the digest; looks_good is not approval
 reachweaver review-status [--packet DIR] [--json]  comments per post; STALE when the post changed after the comment; read-only
 reachweaver approve POST_ID [--approver NAME] [--optout F]  approve one post; binds its payload hash and a fresh per-approval nonce (wave 9 item 1: the first send consumes it in an append-only, hash-chained approval-ledger.jsonl next to the database, so a restored older approval of the same post is refused with approval_replay_reapproval_required before any request; approvals made before the upgrade must be re-approved once); refused on an opt-out mention
@@ -280,7 +280,7 @@ reachweaver context [--json]             read-only session start for Claude Code
 reachweaver describe [COMMAND] [--json]  machine-readable command catalog generated from the parser: flags, choices, defaults, JSON support and owner_only/network/writes/read_only tags
                                           --json also on draft, list, check, doctor, schedule, cancel, unapprove, import-metrics, campaign-stage, approval-mode (display only) and the dry-run publish; with --json an error also prints {"error": {"code", "message"}} on stdout
 reachweaver ui [--port N] [--open] [--optout F]  experimental, read-only local dashboard on 127.0.0.1 (overview, queue, post review sheets, accounts, channel research); cannot approve, schedule, pause or publish; the URL carries a per-run token (docs/DASHBOARD.md)
-reachweaver mcp-serve [--allow-drafts] [--root DIR]  draft, pending security review: local MCP server on stdin/stdout for MCP clients other than Claude Code (Claude Desktop); read-only tools generated from the catalog, no approve or publish tool; --allow-drafts adds draft only (docs/MCP-SERVER.md)
+reachweaver mcp-serve [--allow-drafts] [--root DIR]  experimental: local MCP server on stdin/stdout for MCP clients other than Claude Code (Claude Desktop); read-only tools generated from the catalog, no approve or publish tool; --allow-drafts adds draft only (docs/MCP-SERVER.md)
 reachweaver completion {bash,zsh}        experimental: print a Tab-completion script for commands, options and fixed choices; reads no database and runs nothing
 reachweaver privacy-status [--policy F]   offline DB perms/size/row counts/oldest records/retention config
 reachweaver data-export [--out FILE]      redacted JSON export of local DB (new 0600 file)
@@ -422,7 +422,7 @@ ReachWeaver is on [PyPI](https://pypi.org/project/reachweaver/), and every relea
 pipx install reachweaver          # or: python3 -m pip install reachweaver
 reachweaver version
 # the same file from the GitHub release:
-pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.10.0/reachweaver-0.10.0-py3-none-any.whl"
+pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.11.0/reachweaver-0.11.0-py3-none-any.whl"
 ```
 
 Checksums, what CI checks in the package, and why it is not on PyPI or GitHub Packages (yet) are in [the Python package guide](docs/PACKAGING.md).
