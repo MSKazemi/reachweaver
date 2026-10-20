@@ -128,6 +128,10 @@ To turn it on, add this to your own `~/.claude/settings.json` (or a project's se
 - **Another folder than the one Claude Code runs in:** add `--home DIR` (a workspace) or `--db PATH`, for example `reachweaver statusline --home ~/reachweaver-work`.
 - **Plugin only:** a plugin cannot set your status line (the plugin `settings.json` honours only `agent` and `subagentStatusLine`, per the [plugins reference](https://code.claude.com/docs/en/plugins-reference)), and the plugin's folder changes with every update. Install the command line with `pipx install reachweaver` and use the first snippet.
 
+## Behaviour evals
+
+The plugin ships 13 behaviour tests in `plugin/evals/`. They check that Claude never runs `approve` or `publish --live` itself, never asks for or repeats a token, writes no Hacker News or Reddit text, starts with `context --json`, runs `voice-check`, saves ideas with `idea add`, uses a manual handoff where there is no adapter, and claims no unreceipted post and no virality. They are run with Claude Code's `claude plugin eval`, mostly with free transcript checks. Each run is a real model call on **your** Claude plan, so they run locally with `make plugin-eval` and never in CI. `make plugin-eval-load` checks the files without starting a run. See [plugin behaviour evals](PLUGIN-EVALS.md).
+
 ## Keeping your usage low
 
 - **The skill loads on demand.** `SKILL.md` is a short router (under 16 KB, down from about 37 KB). Claude loads only the one or two reference files your request needs.

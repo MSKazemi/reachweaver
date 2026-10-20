@@ -35,3 +35,4 @@ secrets/
 .claude/plans/
 *.local
 .vscode/
+plugin/evals/results/

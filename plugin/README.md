@@ -21,6 +21,7 @@ Then ask Claude about social media planning, or run `/reachweaver:reachweaver`. 
 - **Everything else is local and offline by default.** Planning, drafting, validation, `publish` without `--live` and `manual-export` never open a network connection. Local state stays in a `state/` folder in your project and in your own ignored account config.
 - **Credentials** come from operator-provided environment variables or a configured systemd credential directory, as applicable, for authorized online actions. They may be sent to the selected platform API or configured backend. Regression tests reduce the risk of disclosure in logs and exports but do not guarantee there are no defects. Live sending additionally needs `REACHWEAVER_ALLOW_LIVE=1`, `REACHWEAVER_ENV=prod`, an approved due post and an explicit `--live`.
 - **The `fact-check` subagent** can read files and open public https source pages through Claude Code's own WebFetch tool when Claude delegates a draft to it. It has no shell and cannot edit files, run ReachWeaver, approve or publish.
+- **`evals/`** holds behaviour test cases for `claude plugin eval` (prompts and graders). Sessions never load or run them. They run only when you start the evals yourself, and every run uses your own Claude plan.
 - **Optional online checks** (identity preflight, `landing-check --online`) run only when you invoke them explicitly.
 
 ## Privacy
