@@ -5,7 +5,7 @@ MYPY_VERSION ?= 2.4.0
 BUILD_VERSION ?= 1.6.1
 TWINE_VERSION ?= 7.0.0
 
-.PHONY: help test sync scan lint deps ruff typecheck format-check example check release-gate package
+.PHONY: help test sync scan lint deps ruff typecheck format-check example check release-gate package plugin-eval plugin-eval-load
 
 help:
 	@echo "make test     - offline unit tests (no network, no credentials)"
@@ -20,6 +20,8 @@ help:
 	@echo "make example  - offline example run against a throwaway database"
 	@echo "make check    - sync + scan + lint + deps + test (what CI runs, minus ruff and mypy)"
 	@echo "make release-gate [TAG=vX.Y.Z] - scan + lint + deps, then the offline release gate (versions, CHANGELOG, docs, bundle, blockers, tests)"
+	@echo "make plugin-eval [PLUGIN_EVAL_ARGS='--case NAME --runs 1 --ablation none'] - LOCAL ONLY: plugin behaviour suite, real model calls on your Claude plan (docs/PLUGIN-EVALS.md)"
+	@echo "make plugin-eval-load - LOCAL ONLY: load and schema-check the suite with a 0 USD ceiling; starts no run (needs the claude CLI)"
 
 test:
 	$(PYTHON) -m unittest discover -s tests -v
@@ -72,3 +74,25 @@ package:
 	pipx run --spec twine==$(TWINE_VERSION) twine check --strict $$tmp/dist/* && \
 	$(PYTHON) scripts/check_package.py $$tmp/dist --smoke && \
 	rm -rf $$tmp build reachweaver.egg-info
+
+# Plugin behaviour suite (docs/PLUGIN-EVALS.md). LOCAL ONLY, never part of `check` or CI: every run and every judge
+# grader is a real model call on your own Claude plan. Bash, Write and Edit are granted so the "never runs approve or
+# publish --live" graders can fail; Claude Code runs Bash under its OS sandbox. Results go to the ignored state/ folder.
+CLAUDE ?= claude
+PLUGIN_EVAL_TOOLS ?= Bash Write Edit
+PLUGIN_EVAL_OUT ?= state/plugin-evals
+PLUGIN_EVAL_ARGS ?=
+plugin-eval:
+	$(CLAUDE) plugin eval plugin --allow-tools $(PLUGIN_EVAL_TOOLS) --no-publish \
+	  --output-dir $(PLUGIN_EVAL_OUT)/$$(date -u +%Y%m%dT%H%M%SZ) $(PLUGIN_EVAL_ARGS)
+
+# Parse every case with the real CLI and a 0 USD ceiling: load errors are printed, no agent run starts (observed on
+# Claude Code 2.1.304: exit 2 "partial (cost ceiling hit)", $0.00). --trust-plugin because the output is captured.
+plugin-eval-load:
+	@tmp=$$(mktemp -d) && \
+	out=$$($(CLAUDE) plugin eval plugin --ablation none --runs 1 --max-cost-usd 0 --no-publish --trust-plugin \
+	  --allow-tools $(PLUGIN_EVAL_TOOLS) --output-dir $$tmp/out < /dev/null 2>&1); status=$$?; rm -rf $$tmp; \
+	echo "$$out"; \
+	if echo "$$out" | grep -q "failed to load"; then exit 1; fi; \
+	if [ $$status -ne 0 ] && [ $$status -ne 2 ]; then exit $$status; fi; \
+	echo "plugin/evals: every case loaded (no run started)"

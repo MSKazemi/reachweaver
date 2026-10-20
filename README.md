@@ -452,6 +452,8 @@ python3 scripts/lint.py          # stdlib syntax + JSON/JSONL lint
 python3 scripts/check_runtime_deps.py  # runtime must stay stdlib-only
 make check                       # all of the above (sync, scan, lint, deps, test)
 make typecheck                   # pinned mypy via pipx (CI runs it too)
+make plugin-eval-load            # parse the plugin's behaviour evals with the claude CLI; no model run
+make plugin-eval                 # LOCAL ONLY: plugin behaviour evals, real model calls on your Claude plan (docs/PLUGIN-EVALS.md)
 make release-gate                # offline versioned release gate: versions, CHANGELOG, docs, bundle, blockers, readiness, tests
 python3 scripts/release_gate.py --scorecard [--json]  # per-platform/area release-readiness scorecard
 python3 scripts/pilot_benchmark.py [--posts N] [--json]  # offline mock-only harness skeleton for the pilot report; synthetic, not pilot evidence
