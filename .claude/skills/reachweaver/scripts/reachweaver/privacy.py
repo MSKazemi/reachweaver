@@ -3,6 +3,11 @@
 Nothing here contacts a network or a social platform. Purging is planned first
 (dry run) and applied only on explicit request, under hard rules that preserve
 everything needed to prevent duplicate sends and to reconcile uncertain sends.
+
+Besides the database, export, purge and status cover the ideas inbox (``ideas.json``
+next to the database, reachweaver/ideas.py): exported in full, reported in status, and
+purged only for dropped or promoted ideas older than ``closed_ideas_days``; an open
+idea is never deleted.
 """
 from __future__ import annotations
 
@@ -17,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from . import home
+from . import ideas as ideas_inbox
 from .policy import ValidationError
 from .private_sources import (REDACTED_PRIVATE, is_private_evidence, redact_private_evidence, repo_of_url,
                               url_in_private_repo)
@@ -34,14 +40,16 @@ COOLDOWN_EVENT = "provider_cooldown"
 # #11: createSession counter events feed a 24 h budget; kept like a send claim.
 SESSION_EVENT = "bluesky_create_session"
 ACTIVE_STATUSES = ("draft", "approved", "scheduled", "sending", "needs_review")
+# closed_ideas_days: dropped or promoted ideas in the ideas inbox (ideas.json next to the database).
 POLICY_KEYS = ("metric_snapshots_days", "event_log_days", "cancelled_drafts_days",
-               "published_content_days", "campaign_evidence_days")
+               "published_content_days", "campaign_evidence_days", "closed_ideas_days")
 POLICY_ENV = "REACHWEAVER_RETENTION_POLICY"
 DEFAULT_POLICY_PATH = Path("config/retention.json")
 SECRET_ENV_NAME = re.compile(
     r"^REACHWEAVER_[A-Z0-9_]*(?:_TOKEN|_PASSWORD|_APP_PASSWORD|_BOT_TOKEN|_SECRET|_API_KEY)$")
 ACTION_KEYS = ("metric_snapshots_delete", "event_log_delete", "cancelled_posts_delete",
-               "cancelled_posts_minimize", "published_content_redact", "campaign_evidence_minimize")
+               "cancelled_posts_minimize", "published_content_redact", "campaign_evidence_minimize",
+               "closed_ideas_delete")
 TABLES = ("posts", "event_log", "campaign_variants", "metric_snapshots", "settings")
 
 _SECRET_KEY = (r"[A-Za-z0-9_.-]*(?:token|password|passwd|secret|api[_-]?key|access[_-]?key|"
@@ -124,6 +132,7 @@ def export_data(con, *, now: str | None = None, emails: bool = False) -> dict:
         "settings": _rows(con, "SELECT * FROM settings ORDER BY name"),
     }
     private_rows = _redact_private_sources(tables)
+    inbox, inbox_state, inbox_ideas, inbox_error = _ideas(con)
     return {
         "format": "reachweaver-local-export",
         "schema_version": EXPORT_SCHEMA_VERSION,
@@ -133,8 +142,33 @@ def export_data(con, *, now: str | None = None, emails: bool = False) -> dict:
         "private_source_rows_redacted": private_rows,
         "counts": {name: len(rows) for name, rows in tables.items()},
         "tables": redact_value(tables, emails=emails),
-        "note": "LOCAL DATA ONLY. Contains private drafts and analytics; store and share it privately.",
+        # The ideas inbox lives in its own file next to the database; same redaction as the tables.
+        "ideas_inbox": {"path": str(inbox) if inbox else None, "state": inbox_state, "error": inbox_error,
+                        "count": len(inbox_ideas), "ideas": redact_value(inbox_ideas, emails=emails)},
+        "note": "LOCAL DATA ONLY. Contains private drafts, ideas and analytics; store and share it privately.",
     }
+
+
+def _database_file(con) -> Path | None:
+    return next((Path(row["file"]) for row in con.execute("PRAGMA database_list")
+                 if row["name"] == "main" and row["file"]), None)
+
+
+def ideas_file(con) -> Path | None:
+    """The ideas inbox next to the database ``con`` opened (None for an in-memory database)."""
+    database = _database_file(con)
+    return database.parent / ideas_inbox.FILENAME if database else None
+
+
+def _ideas(con) -> tuple[Path | None, str, list[dict], str | None]:
+    """(path, state, ideas, error); state is ``absent``, ``present`` or ``unreadable`` (damaged or a symlink)."""
+    path = ideas_file(con)
+    if path is None or not (path.exists() or path.is_symlink()):
+        return path, "absent", [], None
+    try:
+        return path, "present", ideas_inbox.load(path)["ideas"], None
+    except (ValidationError, OSError) as exc:
+        return path, "unreadable", [], str(exc)
 
 
 def _redact_private_sources(tables: dict) -> int:
@@ -295,11 +329,22 @@ def plan_purge(con, policy: dict, now: str | None = None) -> dict:
                 and row["evidence_json"] != _minimized_evidence(row["evidence_json"]):
             actions["campaign_evidence_minimize"].append([row["campaign_id"], row["variant_id"]])
 
+    # The ideas inbox file next to the database: open ideas are never touched; dropped or promoted ones age
+    # from their last change. A damaged inbox is reported and left alone.
+    _, inbox_state, inbox_ideas, _ = _ideas(con)
+    protected["open_ideas_never_touched"] = 0
+    for item in inbox_ideas:
+        if item["status"] == "open":
+            protected["open_ideas_never_touched"] += 1
+        elif _older(item.get("updated_at") or item.get("created_at"), cutoff["closed_ideas_days"]):
+            actions["closed_ideas_delete"].append(item["id"])
+
     return {"dry_run": True, "planned_at": now, "policy": policy, "actions": actions,
             "counts": {key: len(value) for key, value in actions.items()}, "protected": protected,
+            "ideas_inbox": inbox_state,
             "note": ("LOCAL STATE ONLY. Posts in draft/approved/scheduled/sending/needs_review, campaign_variants rows, "
                      "published remote ids and send_claimed/provider_cooldown/bluesky_create_session events newer than 48h "
-                     "are never deleted.")}
+                     "are never deleted. Open ideas in the ideas inbox are never deleted.")}
 
 
 def _minimized_evidence(evidence_json: str) -> str:
@@ -369,13 +414,17 @@ def apply_purge(con, plan: dict, *, now: str | None = None) -> dict:
                 counts["campaign_evidence_minimize"] += con.execute(
                     "UPDATE campaign_variants SET evidence_json=? WHERE campaign_id=? AND variant_id=?",
                     (_minimized_evidence(row["evidence_json"]), campaign_id, variant_id)).rowcount
+        closed_ideas = actions.get("closed_ideas_delete") or []
+        inbox = ideas_file(con)
+        if closed_ideas and inbox is not None:  # re-checked under the inbox lock: an open idea is never removed
+            counts["closed_ideas_delete"] = ideas_inbox.remove_closed(inbox, closed_ideas)
         event(con, "privacy_purge", None, json.dumps(counts, sort_keys=True, separators=(",", ":")))
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")
         raise
     return {"dry_run": False, "applied_at": real_now.isoformat(timespec="seconds"), "counts": counts,
-            "note": "Local rows only. Backups, exports and remote platform copies are not affected."}
+            "note": "Local rows and the local ideas inbox only. Backups, exports and remote platform copies are not affected."}
 
 
 def _mode(path: Path) -> str | None:
@@ -385,10 +434,24 @@ def _mode(path: Path) -> str | None:
         return None
 
 
+def _ideas_status(con) -> dict:
+    """Permissions, size and counts of the ideas inbox file; never its text."""
+    path, state, items, error = _ideas(con)
+    present = path is not None and path.exists() and not path.is_symlink()
+    file_mode = _mode(path) if present and path is not None else None
+    counts = {name: 0 for name in ideas_inbox.STATUSES}
+    for item in items:
+        counts[item["status"]] += 1
+    return {"path": str(path) if path else None, "state": state, "error": error, "file_mode": file_mode,
+            "file_private": file_mode is not None and int(file_mode, 8) & 0o077 == 0,
+            "size_bytes": path.stat().st_size if present and path is not None else None,
+            "counts": counts,
+            "oldest_created_at": min((item["created_at"] for item in items if item.get("created_at")), default=None)}
+
+
 def privacy_status(con, *, policy_path: str | Path | None = None, env=None) -> dict:
     """Offline report: DB permissions/size, row counts, oldest records, retention configuration."""
-    database = next((Path(row["file"]) for row in con.execute("PRAGMA database_list")
-                     if row["name"] == "main" and row["file"]), None)
+    database = _database_file(con)
     file_mode = _mode(database) if database else None
     dir_mode = _mode(database.parent) if database else None
     oldest = {
@@ -416,6 +479,7 @@ def privacy_status(con, *, policy_path: str | Path | None = None, env=None) -> d
         "row_counts": {table: con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] for table in TABLES},
         "purged_post_content": con.execute("SELECT COUNT(*) FROM posts WHERE content=?", (PURGED,)).fetchone()[0],
         "oldest_records": oldest,
+        "ideas_inbox": _ideas_status(con),
         "retention_policy": retention,
         "secret_env_names_present": sorted(name for name, _ in _env_secrets(env)),
         "note": "OFFLINE. Values of secret environment variables are never printed; only their names.",

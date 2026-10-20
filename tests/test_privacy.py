@@ -279,5 +279,139 @@ class Lifecycle(unittest.TestCase):
         self.assertIn("live_safety", json.loads(printed))
 
 
+class IdeasInbox(unittest.TestCase):
+    """The ideas inbox (state/ideas.json next to the database) in export, purge and status."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        os.chmod(self.temp.name, 0o700)
+        self.db = str(Path(self.temp.name) / "state.sqlite")
+        self.inbox = Path(self.temp.name) / "ideas.json"
+
+    def seed_ideas(self):
+        """open (old), dropped (old), promoted (old), dropped (recent); returns their ids by name."""
+        from reachweaver import ideas
+        names = ("open_old", "dropped_old", "promoted_old", "dropped_recent")
+        ids = {name: ideas.add(self.inbox, f"Idea {name.replace('_', ' ')}")["id"] for name in names}
+        data = json.loads(self.inbox.read_text(encoding="utf-8"))
+        aged = {"open_old": ("open", OLD, None), "dropped_old": ("dropped", OLD, OLD),
+                "promoted_old": ("promoted", OLD, OLD), "dropped_recent": ("dropped", OLD, RECENT)}
+        for item in data["ideas"]:
+            name = next(n for n, i in ids.items() if i == item["id"])
+            item["status"], item["created_at"], item["updated_at"] = aged[name]
+        self.inbox.write_text(json.dumps(data), encoding="utf-8")
+        return ids
+
+    def remaining(self):
+        return {item["id"] for item in json.loads(self.inbox.read_text(encoding="utf-8"))["ideas"]}
+
+    def test_export_includes_the_inbox_with_the_same_redaction(self):
+        with connect(self.db) as db:
+            absent = export_data(db, now=NOW)["ideas_inbox"]
+            self.assertEqual((absent["state"], absent["count"], absent["ideas"]), ("absent", 0, []))
+            ids = self.seed_ideas()
+            with patch.dict(os.environ, {"REACHWEAVER_IDEA_TOKEN": "Idea open"}):  # an env secret value is stripped
+                data = export_data(db, now=NOW)
+        inbox = data["ideas_inbox"]
+        self.assertEqual((inbox["state"], inbox["count"], inbox["path"]), ("present", 4, str(self.inbox.resolve())))
+        self.assertEqual({i["id"] for i in inbox["ideas"]}, set(ids.values()))
+        self.assertIn("[REDACTED:env:REACHWEAVER_IDEA_TOKEN]", json.dumps(inbox))
+        self.assertEqual(set(data["tables"]), {"posts", "events", "campaign_variants", "metric_snapshots", "settings"})
+        out = Path(self.temp.name) / "export.json"
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(main(["--db", self.db, "data-export", "--out", str(out)]), 0)
+        self.assertIn("Idea dropped old", out.read_text(encoding="utf-8"))
+
+    def test_a_damaged_inbox_is_reported_not_fatal(self):
+        self.inbox.write_text("{not json", encoding="utf-8")
+        os.chmod(self.inbox, 0o600)
+        with connect(self.db) as db:
+            exported = export_data(db, now=NOW)["ideas_inbox"]
+            plan = plan_purge(db, {**POLICY, "closed_ideas_days": 30}, now=NOW)
+            status = privacy_status(db)["ideas_inbox"]
+        self.assertEqual((exported["state"], exported["ideas"]), ("unreadable", []))
+        self.assertIn("not valid UTF-8 JSON", exported["error"])
+        self.assertEqual((plan["ideas_inbox"], plan["counts"]["closed_ideas_delete"]), ("unreadable", 0))
+        self.assertEqual(status["state"], "unreadable")
+        self.assertEqual(self.inbox.read_text(encoding="utf-8"), "{not json")
+
+    def test_policy_without_the_key_keeps_every_idea_and_plans_the_same_rows(self):
+        with connect(self.db) as db:
+            Lifecycle.seed(self, db)  # same rows as the lifecycle tests
+            before = plan_purge(db, POLICY, now=NOW)
+            self.seed_ideas()
+            after = plan_purge(db, POLICY, now=NOW)
+        self.assertEqual(after["actions"]["closed_ideas_delete"], [])
+        for key in ACTION_KEYS_WITHOUT_IDEAS:
+            self.assertEqual(after["actions"][key], before["actions"][key], key)
+        self.assertEqual(after["protected"]["open_ideas_never_touched"], 1)
+        self.assertIsNone(after["policy"]["closed_ideas_days"])
+
+    def published(self, db, content="Published note"):  # used by Lifecycle.seed
+        return Lifecycle.published(self, db, content)
+
+    def test_dry_run_lists_closed_old_ideas_and_changes_nothing(self):
+        ids = self.seed_ideas()
+        before = self.inbox.read_bytes()
+        policy_file = Path(self.temp.name) / "retention.json"
+        policy_file.write_text(json.dumps({"retention_days": {"closed_ideas_days": 30}}))
+        with connect(self.db) as db:
+            plan = plan_purge(db, {"closed_ideas_days": 30}, now=NOW)
+        self.assertEqual(sorted(plan["actions"]["closed_ideas_delete"]), sorted([ids["dropped_old"], ids["promoted_old"]]))
+        self.assertEqual(plan["protected"]["open_ideas_never_touched"], 1)
+        self.assertEqual(plan["ideas_inbox"], "present")
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(main(["--db", self.db, "data-purge", "--policy", str(policy_file)]), 0)
+        printed = json.loads(out.getvalue())
+        self.assertTrue(printed["dry_run"])
+        self.assertEqual(printed["counts"]["closed_ideas_delete"], 2)
+        self.assertEqual(self.inbox.read_bytes(), before)
+
+    def test_apply_deletes_only_closed_old_ideas_and_never_an_open_one(self):
+        ids = self.seed_ideas()
+        with connect(self.db) as db:
+            plan = plan_purge(db, {"closed_ideas_days": 30}, now=NOW)
+            plan["actions"]["closed_ideas_delete"].append(ids["open_old"])  # a tampered plan
+            result = apply_purge(db, plan, now=NOW)
+            detail = db.execute("SELECT detail FROM event_log WHERE action='privacy_purge'").fetchone()["detail"]
+        self.assertEqual(result["counts"]["closed_ideas_delete"], 2)
+        self.assertEqual(json.loads(detail)["closed_ideas_delete"], 2)
+        self.assertEqual(self.remaining(), {ids["open_old"], ids["dropped_recent"]})
+        if os.name == "posix":
+            self.assertEqual(stat.S_IMODE(self.inbox.stat().st_mode), 0o600)
+        policy_file = Path(self.temp.name) / "retention.json"
+        policy_file.write_text(json.dumps({"retention_days": {"closed_ideas_days": 30}}))
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(main(["--db", self.db, "data-purge", "--policy", str(policy_file), "--apply"]), 0)
+        self.assertEqual(json.loads(out.getvalue())["counts"]["closed_ideas_delete"], 0)  # idempotent
+
+    def test_apply_without_an_inbox_creates_none(self):
+        with connect(self.db) as db:
+            result = apply_purge(db, {"actions": {"closed_ideas_delete": ["idea-00000000"]}}, now=NOW)
+        self.assertEqual(result["counts"]["closed_ideas_delete"], 0)
+        self.assertFalse(self.inbox.exists())
+
+    def test_status_reports_permissions_and_counts_never_text(self):
+        with connect(self.db) as db:
+            self.assertEqual(privacy_status(db)["ideas_inbox"]["state"], "absent")
+            self.seed_ideas()
+            status = privacy_status(db)["ideas_inbox"]
+        self.assertEqual(status["counts"], {"open": 1, "promoted": 1, "dropped": 2})
+        self.assertEqual(status["oldest_created_at"], OLD)
+        self.assertGreater(status["size_bytes"], 0)
+        if os.name == "posix":
+            self.assertEqual((status["file_mode"], status["file_private"]), ("0600", True))
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(main(["--db", self.db, "privacy-status"]), 0)
+        printed = out.getvalue()
+        self.assertEqual(json.loads(printed)["ideas_inbox"]["counts"]["dropped"], 2)
+        self.assertNotIn("Idea open old", printed)
+
+
+ACTION_KEYS_WITHOUT_IDEAS = ("metric_snapshots_delete", "event_log_delete", "cancelled_posts_delete",
+                             "cancelled_posts_minimize", "published_content_redact", "campaign_evidence_minimize")
+
+
 if __name__ == "__main__":
     unittest.main()

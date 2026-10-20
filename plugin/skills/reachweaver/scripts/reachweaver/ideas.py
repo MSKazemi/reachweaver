@@ -238,6 +238,22 @@ def drop(path: Path, idea_id: str) -> dict:
     return item
 
 
+def remove_closed(path: Path, idea_ids) -> int:
+    """Delete the named ideas that are dropped or promoted (``data-purge --apply``); an open idea is never
+    removed, whatever the list says. Returns how many were removed; a missing inbox removes nothing."""
+    wanted = {i for i in idea_ids if isinstance(i, str)}
+    if not wanted or path.is_symlink() or not path.is_file():
+        return 0
+    with _locked(path):
+        data = load(path)
+        keep = [item for item in data["ideas"] if item["status"] == "open" or item["id"] not in wanted]
+        removed = len(data["ideas"]) - len(keep)
+        if removed:
+            data["ideas"] = keep
+            _save(path, data)
+    return removed
+
+
 def _placeholder(text: str) -> str:
     return "{{write: " + text.replace("{", "(").replace("}", ")") + "}}"
 

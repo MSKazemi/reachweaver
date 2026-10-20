@@ -52,6 +52,26 @@ class BashTests(unittest.TestCase):
     def test_unknown_command_completes_nothing_harmful(self):
         self.assertEqual(self.complete("reachweaver", "nonsense", current="--x"), [])
 
+    def test_completes_the_actions_of_a_command_with_its_own_subcommands(self):
+        self.assertEqual(self.complete("reachweaver", "idea"), ["add", "drop", "list", "promote", "--help"])
+        self.assertEqual(self.complete("reachweaver", "idea", current="p"), ["promote"])
+        self.assertEqual(self.complete("reachweaver", "--db", "x.sqlite", "idea", current="l"), ["list"])
+        actions = sorted(completion._nested(completion._subparsers(make_parser())["idea"]))
+        self.assertEqual(actions, ["add", "drop", "list", "promote"])
+
+    def test_completes_options_and_choices_of_a_nested_action(self):
+        self.assertEqual(self.complete("reachweaver", "idea", "list", current="--s"), ["--status"])
+        self.assertEqual(self.complete("reachweaver", "idea", "list", "--status"), ["open", "promoted", "dropped"])
+        self.assertEqual(self.complete("reachweaver", "idea", "list", "--status", current="pr"), ["promoted"])
+        self.assertIn("--objective", self.complete("reachweaver", "idea", "promote", "idea-1a2b3c4d", current="--o"))
+        self.assertIn("awareness", self.complete("reachweaver", "--db", "x.sqlite", "idea", "promote", "--objective"))
+        self.assertEqual(self.complete("reachweaver", "idea", "add", current="--t"), ["--tag"])
+        self.assertEqual(self.complete("reachweaver", "idea", "add", "--tag"), [])  # a free value: nothing offered
+        self.assertEqual(self.complete("reachweaver", "idea", "promote", "--out"), [])
+        self.assertEqual(self.complete("reachweaver", "idea", "nonsense", current="--"), [])
+        # A flat command is unchanged: its options, not the nested actions.
+        self.assertNotIn("add", self.complete("reachweaver", "list", current=""))
+
 
 class CommandTests(unittest.TestCase):
     def test_command_prints_the_script_and_creates_nothing(self):
@@ -73,6 +93,13 @@ class RenderTests(unittest.TestCase):
         script = completion.render("zsh", make_parser())
         self.assertIn("bashcompinit", script)
         self.assertIn("complete -o default -F _reachweaver reachweaver", script)
+
+    def test_zsh_carries_the_same_nested_completion_as_bash(self):
+        parser = make_parser()
+        bash, zsh = completion.render("bash", parser), completion.render("zsh", parser)
+        self.assertTrue(zsh.endswith(bash), "zsh must run the exact bash function (through bashcompinit)")
+        for key in ("'idea list:--status'", "'idea promote'", "COMPREPLY=($(compgen -W 'add drop list promote --help'"):
+            self.assertIn(key, zsh)
 
     def test_unsupported_shell_is_refused(self):
         with self.assertRaises(ValueError):
