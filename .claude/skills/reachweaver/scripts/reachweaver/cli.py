@@ -1992,6 +1992,9 @@ def execute(args) -> int:
     if args.command == "idea":  # ideas inbox file next to the database; never opens the database
         from .ideas import run_cli as run_ideas
         return run_ideas(args)
+    if args.command == "followup-suggest":  # database mode=ro only; --record writes only the --state file
+        from .followups import run_cli as run_followups
+        return run_followups(args)
     if args.command == "statusline":  # read-only; home was activated by main()
         from .statusline import render as render_statusline
         print(render_statusline(args.db, None, activate=False))

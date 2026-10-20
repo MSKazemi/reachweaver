@@ -162,6 +162,10 @@ Each `bug_report` and `feature_request` gets a Markdown issue body in `--issues-
 
 The module exports these constants, and tests assert them: `NETWORK_ACCESS = False`, `SEND_PATH = None`, `AUTO_REPLY`, `MASS_FOLLOW`, `MASS_LIKE`, `MASS_DM`, `UNSOLICITED_OUTREACH`, `VOTE_MANIPULATION` and `FAKE_PERSONAS` are all `False`. Tests also check that `engagement.py` imports no `urllib`, `socket`, `http`, `subprocess` or publisher module. They also check that it exposes no public function whose name starts with send, post, publish, reply, follow, like, DM, message or submit.
 
+## Milestone follow-ups (`followup-suggest`)
+
+Competitor tools can auto-like, auto-comment, auto-DM or auto-repost when a post passes a milestone. ReachWeaver does not. `reachweaver followup-suggest --rules FILE` reads your published posts and their **exact** metric snapshots read-only and, when a post reaches a threshold you set, suggests a follow-up (a thank-you post with a resource link, a recap, an adaptation for another configured account, a manual pin note or a write-up idea) with the normal next commands. Nothing is drafted, approved, sent, liked, replied to or messaged, Reddit and Hacker News posts get no suggestion, and opt-out handles are never named. See [follow-up suggestions](FOLLOWUPS.md).
+
 ## Multilingual rules
 
 Rule packs exist for English (`en`), German (`de`), French (`fr`), Spanish (`es`), Italian (`it`), Portuguese (`pt`) and Persian (`fa`). Each pack covers every label: bug report, technical question, feature request, collaboration, actionable feedback, praise, spam, harassment and the `suspicious` prompt-injection rules (ignore instructions, AI identity, system prompt or role play, "send me", "click here", credential requests). Each pack also has opt-out phrases ("don't contact me" and equivalents). English rule ids are unchanged. Other rule ids are `<lang>_<rule>`, for example `de_injection_ignore_instructions` or `fa_bug_symptom`, so `matched_rules` shows which pack fired.

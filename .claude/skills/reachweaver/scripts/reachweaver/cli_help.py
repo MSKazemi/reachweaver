@@ -34,7 +34,7 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
                                     "media-check", "media-storyboard", "media-cutlist")),
     ("Research channels and sources", ("distribution-plan", "discovery-plan", "sources-scan", "signal-brief")),
     ("Creator amplification (offline, owner review)", ("creator-match", "creator-kit", "creator-coverage")),
-    ("Engagement", ("engagement-fetch", "engagement-triage", "engagement-queue")),
+    ("Engagement", ("engagement-fetch", "engagement-triage", "engagement-queue", "followup-suggest")),
     ("Data, privacy and schemas", ("archive", "media-relink", "data-export", "data-purge", "privacy-status", "schema-validate", "schema-export")),
     ("Updates", ("update",)),
 )

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "kind": "reachweaver.followup-rules",
+  "description": "Example owner thresholds for reachweaver followup-suggest. Suggestions only: nothing is liked, replied to, messaged, reposted, drafted or sent.",
+  "rules": [
+    {
+      "id": "replies-10-day1",
+      "metric": "replies",
+      "threshold": 10,
+      "within_hours": 24,
+      "platforms": ["bluesky", "mastodon"],
+      "kind": "thank_and_link",
+      "link": "https://example.org/docs/getting-started",
+      "note": "Point to the getting-started guide, not the sales page."
+    },
+    {
+      "id": "reposts-25-recap",
+      "metric": "reposts",
+      "threshold": 25,
+      "within_hours": 72,
+      "kind": "recap_thread"
+    },
+    {
+      "id": "likes-100-adapt",
+      "metric": "likes",
+      "threshold": 100,
+      "kind": "cross_post",
+      "target_platforms": ["linkedin", "threads"]
+    },
+    {
+      "id": "views-5000-pin",
+      "metric": "views",
+      "threshold": 5000,
+      "kind": "pin_or_feature"
+    },
+    {
+      "id": "saves-40-writeup",
+      "metric": "saves",
+      "threshold": 40,
+      "kind": "write_up"
+    }
+  ]
+}

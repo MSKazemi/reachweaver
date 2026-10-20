@@ -55,6 +55,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 | Run a fair experiment | [Growth experiments](GROWTH-EXPERIMENTS.md), [field pilot protocol](FIELD-PILOT-PROTOCOL.md) |
 | Decide what to do next | [Next actions](NEXT-ACTIONS.md), [weekly report example](WEEKLY-REPORT-EXAMPLE.md) |
 | Handle replies and comments | [Engagement](ENGAGEMENT.md) |
+| Follow up when a post passes a milestone (suggestions only) | [Follow-up suggestions](FOLLOWUPS.md) |
 
 ## 5. I run ReachWeaver on a server or manage data
 
