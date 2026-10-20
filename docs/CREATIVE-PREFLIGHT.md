@@ -49,6 +49,10 @@ A full score never proves that the claims are true, that the creative is origina
 
 The command reuses `profile_audit_registry.json` and the `seo-content-check` rules for repeated or heavy hashtags, text-length limits and near-identical wording across drafts. The three brainstorming questions are prompts for your own writing, not ready-to-post text.
 
+## Voice findings (optional)
+
+`--voice-profile FILE` adds advisory `voice_findings` per draft from a profile made by `voice-profile`: features outside the usual range of your own posts and stock phrases from a heuristic style list (not an AI detector). The text report lists the `warn` ones; the checklist points and the exit code do not change. See [voice check](VOICE-CHECK.md).
+
 ## Human-only destinations
 
 Reddit and Hacker News are human-only, and DEV is human-authored only. A draft for one of them is still checked, with a `human_only` note. When a brief contains one, the report has **no** brainstorming prompts at all: write that text yourself under the community's rules.

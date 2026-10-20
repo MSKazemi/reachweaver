@@ -13,6 +13,15 @@ Open this for writing, repurposing, scripts, calendars, hooks, translations and 
 7. Proofread in user-selected language and voice. For EN/IT/FA, adapt cultural context and terminology; preserve technical nouns, correct units, dates, and cited quantities. Never invent translations of citations, product features or legal disclosures.
 8. Separate publish-ready text from **media briefs**. Deliver image prompt/description, alt text, media rights source and required dimensions only after current spec verification. A storyboard is not a rendered video.
 
+## Voice check before the owner sees a draft
+
+Offline and advisory; it never blocks approval or publishing (full checkout: `docs/VOICE-CHECK.md`).
+
+1. Once, with the owner's consent: `reachweaver voice-profile --from OWN_POSTS --out NEW_FILE` (a .json, .csv or `---`-separated text file of posts the owner wrote) or `reachweaver voice-profile --from-db [--account ID] [--platform P] --out NEW_FILE` (published posts, database read-only). It needs 10+ posts (else `insufficient_sample`, exit 1), writes a NEW 0600 file and stores only statistics and short word lists. Never profile a third person's posts to imitate them.
+2. For every draft, before showing it: `reachweaver voice-check --profile FILE --text "..." --platform P --json` (or `--file`, `--post-id`; without `--profile` only the tell list runs). `creative-preflight --voice-profile FILE` adds the same findings per candidate.
+3. Rewrite each `warn` line yourself in the conversation: replace stock phrases (`tell.*`) with the concrete point, and move features outside the owner's range (`voice.*`) back toward their median. Read `profile_hints` for the owner's usual openings and words. Re-run until no `warn` remains or the owner prefers the flagged wording, then tell the owner what you changed. A tell shown as `info` because the owner uses it often may stay.
+4. The tell list is a heuristic style list, **not an AI detector**: never tell the owner a draft "passes" or "fails" AI detection. For human-only destinations (Reddit, Hacker News) report findings only; do not rewrite or draft that text.
+
 ## Format-specific angles (verify live policies/limits)
 
 | Channel | Native value to produce | Safe CTA | Caveat |

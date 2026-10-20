@@ -21,7 +21,8 @@ PLUGIN_SKILL = ROOT / "plugin/skills/reachweaver"
 PLUGIN_ROOT_FILES = ("LICENSE", "NOTICE", "DISCLAIMER.md")  # copied verbatim into plugin/
 SKILL_ROOT_FILES = ("LICENSE", "NOTICE", "DISCLAIMER.md")  # accompany standalone skill ZIP and local install
 REGISTRIES = ("distribution_registry.json", "platform_registry.json", "profile_audit_registry.json",
-              "accounts.example.json", "discovery_registry.json", "signup_registry.json")  # last: the example accounts file `workspace --init` copies; kept equal to config/
+              "accounts.example.json", "discovery_registry.json", "signup_registry.json",
+              "voice_tells.json")  # accounts.example.json: the example accounts file `workspace --init` copies; kept equal to config/
 # Canonical files mirrored into the skill's assets/ (flat, by basename).
 ASSET_SOURCES = (
     "examples/brand.reachweaver.json", "examples/campaign.reachweaver.json",
