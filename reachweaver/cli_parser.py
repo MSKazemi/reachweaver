@@ -980,6 +980,24 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-duplicate", action="store_true",
                    help="Explicit human override to brief a near_duplicate or previously_seen signal")
     p.add_argument("--json", action="store_true", help="Machine-readable result (paths, validation, skipped accounts)")
+    p = sub.add_parser("release-brief", help="Offline: a saved GitHub release JSON or CHANGELOG section -> NEW "
+                       "campaign scaffold folder + brief.md; placeholders block staging; never stages/publishes")
+    src = p.add_mutually_exclusive_group(required=True)
+    src.add_argument("--release", type=Path, help="Saved release JSON (gh api repos/OWNER/NAME/releases/latest "
+                     "> release.json); untrusted data; ReachWeaver makes no network call")
+    src.add_argument("--changelog", type=Path, help="Keep a Changelog CHANGELOG.md (use with --version)")
+    p.add_argument("--version", dest="release_version", metavar="X.Y.Z", help="Changelog section to brief")
+    p.add_argument("--repo", metavar="OWNER/NAME", help="Repository; must match the release URL; with --changelog "
+                   "it gives the evidence URL when the section has no link reference")
+    p.add_argument("--out", type=Path, required=True, help="NEW folder (0700) for campaign.reachweaver.json and "
+                   "brief.md (0600); refuses an existing path")
+    p.add_argument("--brand", type=Path, help="Brand JSON; with --accounts, one placeholder variant per approved account")
+    p.add_argument("--accounts", dest="release_accounts", type=Path, metavar="A",
+                   help="PUBLIC accounts config (needs --brand; same as global --accounts)")
+    p.add_argument("--objective", choices=sorted(OBJECTIVES), default="awareness",
+                   help="Campaign objective (default awareness)")
+    p.add_argument("--campaign", metavar="ID", help="Campaign id (default release-REPO-TAG)")
+    p.add_argument("--json", action="store_true", help="Machine-readable result (paths, validation, skipped accounts)")
     p = sub.add_parser("capabilities", help="Offline platform capability/API-approval registry; never grants permission")
     p.add_argument("--platform", help="Show one platform, e.g. x, reddit or pinterest")
     p.add_argument("--json", action="store_true", help="Machine-readable full registry entries")

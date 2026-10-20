@@ -158,7 +158,7 @@ Stuck or unsure? `reachweaver pause` stops all publishing until you run `reachwe
 | Connect a real account | [Account onboarding](docs/ACCOUNT-ONBOARDING.md), [security checklist](docs/SECURITY-CHECKLIST.md), [first live pilot](docs/FIRST-LIVE-PILOT.md) |
 | See what each platform supports | [Platform matrix](docs/PLATFORM-MATRIX.md), [platform guides](docs/PLATFORMS.md) |
 | Post to a network ReachWeaver cannot send to | [Manual export](docs/MANUAL-EXPORT.md) |
-| Plan a campaign from evidence | [Schemas](docs/SCHEMAS.md), [campaign preview](docs/CAMPAIGN-PREVIEW.md), [claim grounding](docs/CLAIM-GROUNDING.md) |
+| Plan a campaign from evidence | [Schemas](docs/SCHEMAS.md), [campaign preview](docs/CAMPAIGN-PREVIEW.md), [claim grounding](docs/CLAIM-GROUNDING.md), [release to draft](docs/RELEASE-TO-DRAFT.md) |
 | Pick channels for a region or goal | `reachweaver distribution-plan`, [global strategy](docs/GLOBAL-DISTRIBUTION-2026-10-08.md) |
 | Measure what worked | [Attribution](docs/ATTRIBUTION.md), [growth experiments](docs/GROWTH-EXPERIMENTS.md), [weekly report example](docs/WEEKLY-REPORT-EXAMPLE.md) |
 | Run it unattended on a server | [Worker operations](docs/WORKER-OPERATIONS.md) |
@@ -339,6 +339,7 @@ reachweaver media-storyboard --check STORYBOARD.json [--safe-zones F] [--json]  
 reachweaver media-cutlist PLAN.json [--json]  offline: one master video -> per-platform cut list (segments that fit each sourced duration limit, crop to the target aspect, subtitle format, a suggested ffmpeg command you run yourself); opens and edits no media (docs/MEDIA-ASSETS.md)
 reachweaver sources-scan --config F [--online] [--allow-private] [--state S] [--top N] [--json]  rank opt-in GitHub/feed/changelog/DOI signals; research only
 reachweaver signal-brief --scan SCAN.json --signal-id ID --brand B --out CAMPAIGN.json [--accounts A] [--objective O] [--allow-duplicate] [--json]  NEW 0600 campaign scaffold + .brief.md from one signal; placeholders block staging; no copy generated (docs/SOURCES.md)
+reachweaver release-brief (--release RELEASE.json | --changelog CHANGELOG.md --version X.Y.Z) [--repo OWNER/NAME] --out NEW_DIR [--brand B --accounts A] [--objective O] [--campaign ID] [--json]  offline: a saved GitHub release (gh api ... > release.json) -> NEW campaign folder + brief.md; release text is untrusted data; BLOCKED until you write and verify; workflow template in examples/github-workflows/ (docs/RELEASE-TO-DRAFT.md)
 reachweaver capabilities [--platform P] [--json] [--max-age-days 120]  offline capability/API-approval registry (docs/PLATFORMS.md)
 reachweaver distribution-plan --region R --goal G [--limit N] [--date D --timezone TZ] [--json]  offline worldwide channel hypotheses; never schedules or posts
 reachweaver account-advisor [--region R] [--goal G] [--format F] [--weekly-hours N] [--limit N] [--existing ID]... [--setup ID [--brand B] [--audience A] [--language L]] [--json]  offline shortlist of platforms to start, from the distribution registry; --setup prints the official start page, the steps you do yourself and a coaching prompt for a normal Claude chat that never opens the site; creates and connects no account (docs/ACCOUNT-ADVISOR.md)
