@@ -889,11 +889,18 @@ def _optional_count(value, where: str) -> int | None:
     return value
 
 
-def load_attribution_outcomes(path) -> dict:
+ATTRIBUTION_SOURCES = ("analytics", "ga4")
+# GA4 has no "conversions" column: its key events play that role for repo_stars_utm.
+_GA4_OUTCOME_FIELDS = {"sessions": "sessions", "conversions": "key_events"}
+
+
+def load_attribution_outcomes(path, source: str = "analytics") -> dict:
     """Per-post attributed sessions/conversions from a saved ``attribution-report --json`` file.
 
-    Only ``attributed.posts`` (exact UTM matches with a post id) and
-    ``inputs.analytics_date_range`` are read. Campaign-level and referrer-only rows cannot be
+    ``source="analytics"`` (default) reads ``attributed.posts`` (exact UTM matches with a post id) and
+    ``inputs.analytics_date_range``. ``source="ga4"`` reads the ``ga4`` section instead:
+    ``ga4.attributed.posts`` (sessions, and key events as conversions) and ``ga4.date_range``. The two
+    are never mixed or added up. Only these fields are read. Campaign-level and referrer-only rows cannot be
     credited to a post and are ignored. A null count stays None (unknown), never 0. Parsing
     only: no database, no network. Errors never echo the file's content.
     """
@@ -906,13 +913,25 @@ def load_attribution_outcomes(path) -> dict:
         raise ValidationError("--attribution file cannot be read") from exc
     except json.JSONDecodeError as exc:
         raise ValidationError(f"--attribution is not valid JSON: {exc.msg}") from None
-    attributed = data.get("attributed") if isinstance(data, dict) else None
+    if source not in ATTRIBUTION_SOURCES:
+        raise ValidationError(f"--attribution-source must be one of {', '.join(ATTRIBUTION_SOURCES)}")
+    if source == "ga4":
+        section = data.get("ga4") if isinstance(data, dict) else None
+        if not isinstance(section, dict):
+            raise ValidationError("--attribution has no ga4 section; run attribution-report with --ga4-csv first")
+        attributed = section.get("attributed")
+        fields = _GA4_OUTCOME_FIELDS
+        prefix = "ga4.attributed.posts"
+    else:
+        attributed = data.get("attributed") if isinstance(data, dict) else None
+        fields = {"sessions": "sessions", "conversions": "conversions"}
+        prefix = "attributed.posts"
     posts_in = attributed.get("posts") if isinstance(attributed, dict) else None
     if not isinstance(posts_in, list):
-        raise ValidationError("--attribution must be saved 'attribution-report --json' output (attributed.posts)")
+        raise ValidationError(f"--attribution must be saved 'attribution-report --json' output ({prefix})")
     posts: dict[str, dict] = {}
     for index, item in enumerate(posts_in):
-        where = f"attributed.posts[{index}]"
+        where = f"{prefix}[{index}]"
         if not isinstance(item, dict) or not isinstance(item.get("post_id"), str) or not item["post_id"].strip():
             raise ValidationError(f"{where} needs a post_id")
         if item["post_id"] in posts:
@@ -920,19 +939,23 @@ def load_attribution_outcomes(path) -> dict:
         if not isinstance(item.get("platform"), str) or not isinstance(item.get("account_id"), str):
             raise ValidationError(f"{where} needs platform and account_id")
         posts[item["post_id"]] = {"platform": item["platform"], "account_id": item["account_id"],
-                                  "sessions": _optional_count(item.get("sessions"), f"{where}.sessions"),
-                                  "conversions": _optional_count(item.get("conversions"), f"{where}.conversions")}
-    inputs = data.get("inputs")
-    window = inputs.get("analytics_date_range") if isinstance(inputs, dict) else None
+                                  **{key: _optional_count(item.get(name), f"{where}.{name}")
+                                     for key, name in fields.items()}}
+    if source == "ga4":
+        window, label = data["ga4"].get("date_range"), "ga4.date_range"
+    else:
+        inputs = data.get("inputs")
+        window = inputs.get("analytics_date_range") if isinstance(inputs, dict) else None
+        label = "inputs.analytics_date_range"
     date_range = None
     if window is not None:
         if not isinstance(window, list) or len(window) != 2:
-            raise ValidationError("inputs.analytics_date_range must be [first, last] dates or null")
-        first, last = (_day(value, "inputs.analytics_date_range") for value in window)
+            raise ValidationError(f"{label} must be [first, last] dates or null")
+        first, last = (_day(value, label) for value in window)
         if last < first:
-            raise ValidationError("inputs.analytics_date_range ends before it starts")
+            raise ValidationError(f"{label} ends before it starts")
         date_range = (first, last)
-    return {"posts": posts, "analytics_date_range": date_range}
+    return {"posts": posts, "analytics_date_range": date_range, "source": source}
 
 
 def attributed_outcome(outcomes: dict, post, signal: str, *, age_hours: int) -> tuple[int | None, str | None]:

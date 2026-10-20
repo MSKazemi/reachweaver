@@ -291,6 +291,7 @@ def evaluate_attribution_experiment(con: sqlite3.Connection, plan: dict[str, Any
     window = attribution["analytics_date_range"]
     result = {"experiment_id": plan["experiment_id"], "primary_metric": plan["primary_metric"],
               "primary_signal": signal, "primary_source": "attribution_report",
+              "attribution_source": attribution.get("source", "analytics"),
               "analytics_date_range": [d.isoformat() for d in window] if window else None,
               "guardrail_metric": plan["guardrail_metric"], "denominator": plan["denominator"],
               "metric_age_hours": plan["metric_age_hours"], "pairs_planned": len(plan["pairs"]),

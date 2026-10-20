@@ -507,6 +507,7 @@ def evaluate_against_baseline(
         measure: dict[str, Any] = {
             "metric": outcome, "denominator": "none", "primary_source": "attribution_report",
             "attribution_field": ATTRIBUTION_OUTCOMES[cast(str, outcome)],
+            "attribution_source": attribution.get("source", "analytics"),
             "analytics_date_range": [d.isoformat() for d in window] if window else None,
             "post_age_hours": age_hours, "age_tolerance_hours": None,
             "statistic": "median attributed count per post (arm minus baseline)"}

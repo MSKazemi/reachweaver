@@ -202,7 +202,7 @@ The other metrics of the default Traffic acquisition table (`Engagement rate`, `
 
 **Gaps.** `published_posts_without_matching_ga4_rows` (unknown, not zero), `published_after_ga4_window`, `ga4_date_range_unknown`, `ga4_manual_ad_content_column_missing` (only campaign-level matches are possible), `ga4_campaign_column_missing`, `ga4_<metric>_column_missing` and `ga4_<metric>_unknown_rows`.
 
-`experiment-readout --attribution` and `baseline-eval --attribution` read only the top-level `attributed.posts` from `--analytics`. They do not read the `ga4` section.
+`experiment-readout --attribution` and `baseline-eval --attribution` read the top-level `attributed.posts` from `--analytics` by default. Add `--attribution-source ga4` to read the `ga4` section instead: each post's GA4 sessions count for `docs_visits`, its key events for `repo_stars_utm`, and `ga4.date_range` is the window. The two sources are never mixed or added up, and the readout records which one it used as `attribution_source`.
 
 ### Search Console (`--gsc-csv`, section `search_console`)
 

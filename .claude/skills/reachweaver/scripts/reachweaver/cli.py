@@ -18,6 +18,7 @@ from .attribution import (
     CAMPAIGN_TYPES, attribution_report, build_utm_link, campaign_destinations,
     load_analytics_csv, load_attribution_outcomes, load_github_traffic, load_seo_briefs,
 )
+from .attribution import ATTRIBUTION_SOURCES
 from .web_analytics import combine_ga4, combine_gsc, load_ga4_csv, load_gsc_csv
 from .connections import check_connection, mastodon_instance_limits
 from .identity import IDENTITY_REQUIRED, current_fingerprint, refusal_text, verify_identity_online
@@ -662,6 +663,9 @@ def make_parser() -> argparse.ArgumentParser:
                         "instead of --source/--metric/--denominator; a post without one is excluded, never 0")
     p.add_argument("--outcome", choices=("docs_visits", "repo_stars_utm"),
                    help="With --attribution: docs_visits = attributed sessions, repo_stars_utm = attributed conversions")
+    p.add_argument("--attribution-source", choices=ATTRIBUTION_SOURCES, default="analytics",
+                   help="Which section of --attribution to read: analytics (the --analytics join, default) or ga4 "
+                        "(the --ga4-csv join; key events count as conversions). Never mixed")
     p.add_argument("--since", required=True, help="First audience-local send date YYYY-MM-DD (inclusive)")
     p.add_argument("--until", required=True, help="Last audience-local send date YYYY-MM-DD (inclusive)")
     p.add_argument("--slot", action="append", help="Personalized arm [explore:|exploit:]Wed@16:00; repeat, one comparison each")
@@ -692,6 +696,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--attribution", type=Path, metavar="ATTR.json",
                    help="Saved 'attribution-report --json' output; required for a docs_visits or repo_stars_utm "
                         "primary metric (per-post attributed sessions/conversions; unknown stays unknown, never 0)")
+    p.add_argument("--attribution-source", choices=ATTRIBUTION_SOURCES, default="analytics",
+                   help="Which section of --attribution to read: analytics (the --analytics join, default) or ga4 "
+                        "(the --ga4-csv join; key events count as conversions). Never mixed")
     p.add_argument("--json", action="store_true")
     p = sub.add_parser("experiment-next", help="Offline: deterministic next dimension from prior classified results")
     p.add_argument("--results", type=Path, required=True, help="JSON list of {experiment_id, dimension, label, direction}")
@@ -2128,7 +2135,7 @@ def execute(args) -> int:
         if account is None:
             raise ValidationError("Unknown account. Configure your own account metadata first")
         readouts = load_readouts(args.readout or [])
-        attribution = load_attribution_outcomes(args.attribution) if args.attribution is not None else None
+        attribution = load_attribution_outcomes(args.attribution, args.attribution_source) if args.attribution is not None else None
         with connect(args.db) as db:
             result = evaluate_against_baseline(
                 db, account_id=args.account, platform=account["platform"], audience_timezone=args.timezone,
@@ -3154,7 +3161,7 @@ def execute(args) -> int:
             result = evaluate_experiment(db,read_json(args.file))
             print(json.dumps(result,indent=2))
         elif args.command == "experiment-readout":
-            attribution = load_attribution_outcomes(args.attribution) if args.attribution is not None else None
+            attribution = load_attribution_outcomes(args.attribution, args.attribution_source) if args.attribution is not None else None
             result = run_readout(db, read_json(args.prereg), read_json(args.posts), expected_hash=args.expected_hash,
                                  attribution=attribution)
             print(json.dumps(result, indent=2) if args.json else render_readout(result))
