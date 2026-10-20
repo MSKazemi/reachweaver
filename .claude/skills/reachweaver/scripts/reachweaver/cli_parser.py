@@ -94,7 +94,17 @@ def _add_journal_filters(p: argparse.ArgumentParser) -> None:
 
 
 class _TopParser(argparse.ArgumentParser):
-    """Top-level parser: a mistyped command gets a short 'Did you mean' instead of a list of ~85 names."""
+    """Top-level parser: a mistyped command gets a short 'Did you mean' instead of a list of ~85 names.
+
+    Abbreviated long options are refused (``allow_abbrev=False``): ``publish --liv`` must not
+    parse as ``publish --live`` past an agent deny rule that matches the full spelling. Every
+    subcommand parser is built from this class (add_subparsers defaults parser_class to it), so
+    the setting reaches all of them.
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs["allow_abbrev"] = False
+        super().__init__(*args, **kwargs)
 
     def error(self, message):
         import re

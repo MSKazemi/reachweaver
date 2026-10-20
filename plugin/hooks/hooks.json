@@ -1,5 +1,5 @@
 {
-  "description": "Once per session: tell Claude when a newer ReachWeaver release exists (cached 24 h, silent offline). Never updates by itself.",
+  "description": "Once per session: tell Claude when a newer ReachWeaver release exists (cached 24 h, silent offline). Never updates by itself. Before every shell command: refuse owner-only ReachWeaver actions (approve, publish --live, resume, reconcile, reconnect, turning confirmation off, the live switches) so they stay in the owner's own terminal.",
   "hooks": {
     "SessionStart": [
       {
@@ -8,6 +8,19 @@
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/skills/reachweaver/scripts/run.py\" update --notice"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Monitor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -I \"${CLAUDE_PLUGIN_ROOT}/skills/reachweaver/scripts/reachweaver/agent_guard.py\"",
+            "timeout": 10,
+            "onFailure": "block"
           }
         ]
       }
