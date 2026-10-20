@@ -42,6 +42,22 @@ I posted this video on YouTube by hand yesterday. Record it, then check whether 
 draft I just wrote repeats it.
 ```
 
+## How Claude starts a session: one call
+
+Claude starts with one read-only command instead of five or six:
+
+```text
+reachweaver context --json
+```
+
+It prints about 2-3 KB of JSON: the version and install kind, the workspace, database and accounts file paths, each account's offline readiness (and persona, if you set one) with the *names* of missing credential variables, whether the emergency pause is on, whether a live send is possible in this shell (yes/no only, never an environment value), your approval safeguards, post counts, the posts waiting for you (approved but not sent, `needs_review`, still `sending`, needing re-approval), the next steps (`owner_runs: true` marks the ones that are yours) and `owner_only_commands`: `approve`, `publish --live`, `resume`, `reconcile`, `reconnect`, `connect --guide`, `share --guide`, `share --web`, `account-kit --approve-plan` and any setting change of `approval-mode`. Claude never runs those. `context` opens the database read-only and never creates it, makes no network request and changes nothing. Without `--json` it prints a short summary for you.
+
+**Update notice.** With the plugin, its SessionStart hook already checks for a newer release once per session (`context` shows `"session_hook": true`), so Claude does not check again. With another install, Claude runs `update --notice` once, only if no notice appeared yet.
+
+**Exact flags, never guessed.** `reachweaver describe` lists every command; `reachweaver describe COMMAND --json` gives one command's flags (required, choices, defaults, repeatable, type, help), which flags conflict, how to get JSON, and its tags: `owner_only` (Claude never runs it), `network` (may contact a site, usually only with `--online` or `--live`), `writes` (may change the database or write files; commands that open the database read-write count, because they create a missing one), `read_only` (changes nothing) and `interactive` (needs you at a terminal). The catalog is generated from the command line itself, so it cannot drift; the tags are kept in `reachweaver/catalog.py` and a test fails when a new command has none.
+
+**JSON results and error codes.** `draft`, `list`, `check`, `doctor`, `schedule`, `cancel`, `unapprove`, `import-metrics`, `campaign-stage`, `approval-mode` (display only) and the dry-run `publish` take `--json`, like most read-only commands. On a failure the `ERROR: ...` line still goes to stderr; with `--json`, stdout also gets `{"error": {"code": "...", "message": "..."}}`. The codes are stable: `validation_error`, `not_found`, `already_exists`, `refused`, `paused`, `live_gate`, `database`, `permission`, `io_error`, `invalid_json`, `invalid_csv`, `invalid_value`, `invalid_input`, `publish_error` and `error`. `publish --json` is refused together with `--live`, and `approval-mode --json` together with a setting change: those stay text you read in your own terminal.
+
 ## Who does what
 
 | Claude (in your session) | You (in your own terminal) |
@@ -57,7 +73,7 @@ The skill tells Claude never to run `approve` or `publish --live`, and this repo
 
 ## Keeping your usage low
 
-- **The skill loads on demand.** `SKILL.md` is a short router (about 12 KB, down from about 37 KB). Claude loads only the one or two reference files your request needs.
+- **The skill loads on demand.** `SKILL.md` is a short router (under 16 KB, down from about 37 KB). Claude loads only the one or two reference files your request needs.
 - **Commands cost nothing to run.** The offline commands run on your computer. Only the text they print goes back into the conversation, so ask for `--json` summaries instead of long listings.
 - **Work in stages.** A big request (several platforms for several weeks) is cheaper as steps: strategy, then one channel's drafts, then the rest.
 - **Be specific.** One goal, one project and one or two channels give better drafts than a general request.
