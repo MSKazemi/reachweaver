@@ -2118,6 +2118,9 @@ def execute(args) -> int:
                   "placeholder is written and each source is verified")
             print("No copy was generated; nothing was staged, approved, scheduled or published.")
         return 0
+    if args.command == "release-brief":  # offline; NEW scaffold folder only; no database, no network
+        from .release_brief import run_cli as run_release_brief
+        return run_release_brief(args)
     if args.command == "sources-scan":
         result = scan_config_file(args.config, online=args.online, state_path=args.state,
                                   top=args.top, mark_seen=args.mark_seen, allow_private=args.allow_private)

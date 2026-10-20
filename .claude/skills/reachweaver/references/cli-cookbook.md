@@ -165,6 +165,7 @@ Then the owner, in their own terminal: `approve POST_ID`, and only on the produc
 | `discovery-plan` | Platform discovery and topic/hashtag ideas; no reach forecast | `--file F`, `--json` |
 | `sources-scan` | Rank opt-in GitHub/feed/changelog/DOI signals | `--config F`, `--online` (**online**), `--state F`, `--mark-seen`, `--top N`, `--json` |
 | `signal-brief` | One signal -> NEW campaign scaffold + brief; never stages | `--scan F`, `--signal-id ID`, `--brand B`, `--out F`, `--objective`, `--json` |
+| `release-brief` | Saved GitHub release JSON or CHANGELOG section -> NEW campaign folder + brief.md; BLOCKED until written; never stages | `--release F` or `--changelog F --version X.Y.Z`, `--repo OWNER/NAME`, `--out NEW_DIR`, `--brand B`, `--accounts A`, `--objective`, `--campaign ID`, `--json` |
 | `creator-match` | Creator relevance shortlist from owner-curated evidence; contacts nobody | `--file F`, `--json` |
 | `creator-kit` | NEW private source kit for creator commentary; never sent | `--file F`, `--out NEW_DIR`, `--json` |
 | `creator-coverage` | Owner-confirmed creator pickup at 48h/7d | `--file F`, `--json` |

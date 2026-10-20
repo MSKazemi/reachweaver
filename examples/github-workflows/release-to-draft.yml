@@ -1,0 +1,58 @@
+# ReachWeaver release-to-draft: a TEMPLATE workflow. Copy it to .github/workflows/ in YOUR repository.
+#
+# When you create a GitHub release, this job prepares a checked campaign package for you to review.
+# It never makes a post:
+#   - no credentials: it uses only the default GITHUB_TOKEN, with read-only "contents: read" permission,
+#     to read the release you just created. No social account, no API key, no repository secret;
+#   - no posting: it contacts no social network, and nothing is staged, queued or sent;
+#   - the campaign file it writes stays BLOCKED until a person writes every post and checks the release page.
+# You download the "release-draft" artifact from the workflow run and continue locally (docs/RELEASE-TO-DRAFT.md):
+#   reachweaver campaign-check --file release-draft/campaign.reachweaver.json --brand BRAND.json
+#
+# Actions are pinned by full commit SHA (the version is in the comment); update them deliberately.
+name: Release to draft (review package only)
+on:
+  release:
+    types: [published]
+permissions:
+  contents: read
+jobs:
+  release-draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the repository (no stored credentials)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install ReachWeaver from PyPI
+        # release-brief ships after 0.10.0. Pin the exact version you reviewed, e.g. reachweaver==X.Y.Z.
+        run: python -m pip install --disable-pip-version-check "reachweaver>0.10.0"
+      - name: Save the release JSON (read-only GITHUB_TOKEN)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RELEASE_ID: ${{ github.event.release.id }}
+        run: gh api "repos/$REPO/releases/$RELEASE_ID" > "$RUNNER_TEMP/release.json"
+      - name: Write the campaign scaffold (offline; untrusted release text is data)
+        env:
+          REPO: ${{ github.repository }}
+        run: reachweaver release-brief --release "$RUNNER_TEMP/release.json" --repo "$REPO" --out release-draft
+      - name: Check the scaffold (BLOCKED is the expected result)
+        run: |
+          set +e
+          reachweaver campaign-check --file release-draft/campaign.reachweaver.json
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ] && [ "$code" -ne 2 ]; then exit "$code"; fi
+          echo "BLOCKED until you write the posts and verify the release page. Download the release-draft artifact."
+      - name: Upload the review package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-draft
+          path: release-draft/
+          if-no-files-found: error
+          retention-days: 14

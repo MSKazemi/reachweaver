@@ -149,6 +149,7 @@ COMMANDS: dict[str, dict] = {
     "discovery-plan": _c(R),
     "sources-scan": _c(NW, note="network only with --online; --state/--mark-seen write"),
     "signal-brief": _c(W),
+    "release-brief": _c(W, note="saved release JSON or CHANGELOG section -> NEW scaffold folder; never a post"),
     # Creator amplification
     "creator-match": _c(R),
     "creator-kit": _c(W),
