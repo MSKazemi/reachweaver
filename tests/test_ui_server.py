@@ -380,7 +380,8 @@ class AssetTests(unittest.TestCase):
         for use in re.finditer(r"localStorage", js):
             window = js[max(0, use.start() - 80):use.start()]
             self.assertIn("try {", window)
-        self.assertEqual(sorted(set(re.findall(r'"(rw-[a-z]+)"', js))), ["rw-alerts", "rw-auto", "rw-theme"])
+        # three preferences and the unsent text of the Claude composer (never sent anywhere but the local server)
+        self.assertEqual(sorted(set(re.findall(r'"(rw-[a-z]+)"', js))), ["rw-alerts", "rw-auto", "rw-draft", "rw-theme"])
 
     def test_router_cannot_reach_object_prototype_or_throw_on_bad_escapes(self):
         js = ui_assets.APP_JS

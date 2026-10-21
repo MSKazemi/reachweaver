@@ -9,12 +9,16 @@ must escape it (the bundled page does).
 """
 from __future__ import annotations
 
+import re
 from contextlib import contextmanager
+from typing import Any
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from . import ideas as ideas_inbox
 from . import ledger, workspace
 from .accounts import missing_credentials
+from .catalog import OWNER_ONLY_NOTE, owner_runs
 from .caps import load_caps
 from .journal import NOTE as JOURNAL_NOTE
 from .journal import build_entries
@@ -25,9 +29,9 @@ from .post_view import build_post_view
 from .privacy import redact, redact_value
 from .show_view import approval_sentence, length_of
 from .suggest import build_suggestions
-from .storage import (METRIC_FIELDS, approval_expiry_problem, approval_max_age_hours, connect_readonly, get_post,
-                      latest_snapshot, list_posts, metric_states, parse_utc, report, schema_gaps, snapshots_for,
-                      utc_now)
+from .storage import (METRIC_FIELDS, RECONCILE_MIN_SENDING_MINUTES, approval_expiry_problem, approval_max_age_hours,
+                      connect_readonly, get_post, latest_snapshot, list_posts, metric_states, parse_utc, report,
+                      schema_gaps, snapshots_for, utc_now)
 
 REQUIRED_TABLES = ("posts", "event_log", "settings")
 LIST_LIMIT = 500
@@ -162,6 +166,7 @@ def post_detail(con, post_id: str, accounts: dict) -> dict:
     detail["approval_summary"] = approval_sentence(detail)
     published = next((e["at"] for e in reversed(detail["events"]) if e["action"] == "published"), None)
     detail["results"] = post_results(con, post_id, published)  # recorded snapshots only; [] when none
+    detail["owner_action"] = owner_action(post, _owner_kind(post, approval_max_age_hours(con), utc_now()))
     exact = post["content"]
     detail = redact_value(detail)  # errors, events and previews may quote a secret
     detail["content"] = exact  # the exact text a reviewer approves is never altered ...
@@ -515,3 +520,273 @@ def search(con, query: str) -> dict:
             shared.append(item)
     return {"query": query, "posts": hits, "posts_total": len(posts), "campaigns": sorted(redact_value(sorted(campaigns))),
             "shared": shared[:SEARCH_LIMIT], "shared_total": len(shared)}
+
+
+# ---------------------------------------------------------------------------- "Work with Claude" companion
+# Owner-only action cards, the activity feed and the ideas inbox. Read-only like everything above: commands are
+# text for the owner's own terminal, derived from ``next_steps`` and ``start.build_guide`` and labelled with
+# ``catalog.owner_runs``; nothing here runs, approves or sends anything.
+
+OWNER_ACTION_LIMIT = 50
+ACTIVITY_LIMIT = 30
+IDEAS_LIMIT = 500
+LIVE_FLAG = "--live"  # catalog.COMMANDS["publish"]["owner_only_flags"]: the one flag that makes the dry run a send
+LIVE_GATE = "REACHWEAVER_ENV=prod and REACHWEAVER_ALLOW_LIVE=1"  # variable names only, as post_view's dry_run note
+OWNER_WHY = {
+    "needs_review": "Only you can look at the native platform and record what happened; a blind resend could post twice.",
+    "sending": (f"A send that does not finish is uncertain. Recording the outcome is refused for "
+                f"{RECONCILE_MIN_SENDING_MINUTES} minutes after the send started, in case the request is still in flight."),
+    "approval_expired": ("Your approval is older than the time limit you set (approval-mode), so it no longer counts. "
+                         "Only you can approve the exact text again."),
+    "approved": (f"A live send posts publicly under your account. It also needs {LIVE_GATE} in your own terminal, "
+                 "and it goes out only once the post is due."),
+    "draft": "Approval binds your name to this exact text; nothing can be sent until you give it.",
+}
+OWNER_TITLE = {"needs_review": "Check the platform, then record the outcome", "sending": "A send did not finish",
+               "approval_expired": "Approve it again", "approved": "Send it live, or let your worker do it",
+               "expires_before_due": "The approval runs out before the due time", "draft": "Review and approve"}
+
+
+def _command(label: str, command: str, note: str | None = None) -> dict:
+    return {"label": label, "command": command, "note": note, "owner_only": owner_runs(command)}
+
+
+def _owner_kind(row, max_age: int | None, now: str) -> str | None:
+    """Which owner action a post needs, if any (the post page; the Claude page uses the attention kinds)."""
+    status = row["status"]
+    if status in ("needs_review", "sending", "draft"):
+        return status
+    if status in ("approved", "scheduled"):
+        return "approval_expired" if approval_expiry_problem(row, max_age, now) is not None else "approved"
+    return None
+
+
+def owner_action(post, kind: str | None) -> dict | None:
+    """The terminal commands one post needs from its owner, built from ``next_steps``; None when it needs nothing.
+
+    Each command carries ``owner_only`` (``catalog.owner_runs``): the owner runs those; the others are safe to ask
+    Claude for. ``kind`` is an attention kind (``ATTENTION_KINDS``) or ``approved``."""
+    if kind is None:
+        return None
+    pid = post["id"]
+
+    def steps(status: str) -> list[dict]:
+        return next_steps({"id": pid, "status": status})
+    if kind == "needs_review":
+        commands = [_command(s["label"], s["command"], s.get("note")) for s in steps("needs_review")]
+    elif kind == "sending":
+        commands = [_command(s["label"], s["command"]) for s in steps("sending")]
+        commands += [_command(f"Still sending after {RECONCILE_MIN_SENDING_MINUTES} minutes? " + s["label"],
+                              s["command"], s.get("note")) for s in steps("needs_review")]
+    elif kind == "approval_expired":
+        withdraw = next(s for s in steps("approved") if " unapprove " in f" {s['command']} ")
+        grant = next(s for s in steps("draft") if owner_runs(s["command"]))
+        commands = [_command(withdraw["label"], withdraw["command"]),
+                    _command("Read the exact text again", f"reachweaver show {pid}"),
+                    _command(grant["label"], grant["command"])]
+    elif kind in ("approved", "overdue", "expires_before_due"):
+        dry = steps("approved")[0]
+        commands = [_command(dry["label"], dry["command"]),
+                    _command("Send it now (you, in a terminal)", f"{dry['command']} {LIVE_FLAG}",
+                             "Or leave it to the worker you run; it sends due posts only.")]
+        kind = "expires_before_due" if kind == "expires_before_due" else "approved"
+    elif kind == "draft":
+        commands = [_command(s["label"], s["command"]) for s in steps("draft")]
+    else:
+        return None
+    why = OWNER_WHY.get(kind) or OWNER_WHY["approved"]
+    if kind == "expires_before_due":
+        why = "Approve it again closer to its time, or send it earlier. " + OWNER_WHY["approved"]
+    return {"post_id": pid, "kind": kind, "title": OWNER_TITLE[kind], "why": why, "status": post["status"],
+            "platform": post["platform"], "account_id": post["account_id"], "commands": commands}
+
+
+def owner_actions_view(con, guide_steps: list[dict], *, now: str | None = None) -> dict:
+    """Everything only the owner can do now: steps of ``start.build_guide`` that the owner runs (e.g. ``resume``),
+    then each post that needs the owner, most urgent first (``attention_view`` kinds, then approved posts waiting
+    to be sent). Commands are text; nothing is run."""
+    general = [dict(_command(s["label"], s["command"], s.get("note")), why=OWNER_ONLY_NOTE)
+               for s in guide_steps if s.get("command") and owner_runs(s["command"]) and s["command"] != "reachweaver ui"]
+    rows = {row["id"]: row for row in list_posts(con)}
+    queue = [(rows[entry["id"]], entry["kind"]) for entry in attention_view(con, now=now)["items"] if entry["id"] in rows]
+    listed = {row["id"] for row, _ in queue}
+    queue += [(r, "approved") for r in sorted(rows.values(), key=lambda r: (r["scheduled_at"] or "9999", r["id"]))
+              if r["status"] in ("approved", "scheduled") and r["id"] not in listed]
+    found: list[tuple[dict, Any]] = []
+    for row, kind in queue:
+        action = owner_action(row, kind)
+        if action is not None:
+            found.append((action, row))
+    out = []
+    for action, row in found[:OWNER_ACTION_LIMIT]:
+        doc = redact_value(action)
+        doc["excerpt"] = _excerpt(row["content"])
+        doc["looks_like_secret"] = redact(row["content"]) != row["content"]
+        doc["campaign"] = redact(row["campaign"]) if row["campaign"] else None
+        out.append(doc)
+    return {"general": redact_value(general), "posts": out, "total": len(found),
+            "truncated": len(found) > len(out),
+            "note": OWNER_ONLY_NOTE + " Commands marked 'Claude can run this' are safe to ask Claude for."}
+
+
+# event_log action -> (label, tone). Anything else is shown by its action name, never by its detail.
+ACTIVITY_LABEL = {
+    "draft_created": ("Draft created", "info"), "approve": ("Approved", "ok"), "unapprove": ("Approval withdrawn", ""),
+    "schedule": ("Scheduled", "info"), "cancel": ("Cancelled", ""), "send_claimed": ("Send started", "warn"),
+    "published": ("Published", "ok"), "needs_review": ("Send needs your review", "bad"),
+    "reconciled_published": ("Recorded as posted", "ok"), "reconciled_not_published": ("Recorded as not posted", ""),
+    "emergency_paused": ("Emergency stop turned on", "bad"), "resumed": ("Emergency stop turned off", "ok"),
+    "metrics_recorded": ("Results recorded", "info"), "material_shared_recorded": ("Shared by hand recorded", "info"),
+    "media_set": ("Images attached", ""), "video_attached": ("Video attached", ""), "video_detached": ("Video detached", ""),
+    "attachment_relinked": ("Attachment relinked", ""),
+    "campaign_variant_staged": ("Campaign variant staged as a draft", "info"),
+    "human_confirmation_passed": ("Terminal confirmation passed", "ok"),
+    "human_confirmation_failed": ("Terminal confirmation failed", "bad"),
+    "approval_binding_failed": ("Approval no longer matches: approve again", "bad"),
+    "approval_replay_blocked": ("A reused approval was refused", "bad"),
+    "approval_confirmation_enabled": ("Terminal confirmation turned on", "ok"),
+    "approval_confirmation_disabled": ("Terminal confirmation turned off", "warn"),
+    "provider_cooldown": ("The platform asked to wait", "warn"),
+    "state_conflict": ("Send state conflict recorded", "warn"),
+    "account_disconnected": ("Account disconnected", ""), "account_reconnected": ("Account reconnected", "ok"),
+    "privacy_purge": ("Old local data purged", ""), "bluesky_create_session": ("Bluesky sign-in for a send", ""),
+    "bluesky_create_session_refused": ("Bluesky sign-in refused", "warn"),
+}
+APPROVER = re.compile(r"(?:^| )approver=(\S{1,80})")
+ACCOUNT_TOKEN = re.compile(r"(?:^| )account=([A-Za-z0-9_.:@-]{1,80})")
+ACTIVITY_NOTE = ("Local events only: the audit log of your database and your ideas inbox, newest first. Checks, "
+                 "voice-checks and voice profiles leave no record, so they do not appear here.")
+
+
+def ideas_path_for(database: str | Path) -> Path:
+    """``ideas.json`` next to the database, as ``ideas.inbox_path`` resolves it for an explicit database path."""
+    return Path(database).parent / ideas_inbox.FILENAME
+
+
+def _load_ideas(path: Path) -> tuple[list[dict], str | None]:
+    try:
+        return ideas_inbox.load(path)["ideas"], None
+    except (ValidationError, OSError) as exc:
+        return [], redact(str(exc))
+
+
+def _sort_key(at: str | None, rank: int, number: int) -> tuple[str, int, int] | None:
+    try:
+        return (parse_utc(at), rank, number) if at else None
+    except ValidationError:
+        return None
+
+
+def activity_view(con, ideas_path: Path, *, limit: int = ACTIVITY_LIMIT) -> dict:
+    """The last ``limit`` local events, newest first: audit-log rows (with the post's platform, account and the
+    usual excerpt) and ideas added, dropped or promoted. An event's detail is never returned; only the approver
+    name of an approval and the account of an account event are read from it."""
+    rows = con.execute("""SELECT e.id, e.at, e.post_id, e.action, e.detail, p.account_id, p.platform, p.content
+                          FROM event_log e LEFT JOIN posts p ON p.id=e.post_id ORDER BY e.id DESC LIMIT ?""",
+                       (limit,)).fetchall()
+    items: list[tuple[tuple, dict]] = []
+    for row in rows:
+        label, tone = ACTIVITY_LABEL.get(row["action"], (row["action"].replace("_", " ").capitalize(), ""))
+        detail = row["detail"] or ""
+        by = APPROVER.search(detail) if row["action"] == "approve" else None
+        account = row["account_id"]
+        if account is None:
+            token = ACCOUNT_TOKEN.search(detail)
+            account = token.group(1) if token else None
+        item = redact_value({"source": "event", "at": row["at"], "action": row["action"], "label": label, "tone": tone,
+                             "post_id": row["post_id"], "account_id": account, "platform": row["platform"],
+                             "by": by.group(1) if by else None, "idea_id": None})
+        if row["content"] is not None:
+            item["excerpt"] = _excerpt(row["content"])
+            item["looks_like_secret"] = redact(row["content"]) != row["content"]
+        items.append((_sort_key(row["at"], 1, row["id"]) or ("", 1, row["id"]), item))
+    ideas, error = _load_ideas(ideas_path)
+    for idea in ideas:
+        stamps = [("Idea added", "info", idea.get("created_at"))]
+        if idea["status"] == "promoted":
+            campaign = (idea.get("promoted") or {}).get("campaign_id")
+            stamps.append((f"Idea promoted to campaign {campaign}", "ok", idea.get("updated_at")))
+        elif idea["status"] == "dropped":
+            stamps.append(("Idea dropped", "", idea.get("updated_at")))
+        for label, tone, at in stamps:
+            key = _sort_key(at, 0, 0)
+            if key is None:
+                continue
+            item = redact_value({"source": "idea", "at": key[0], "action": "idea", "label": label, "tone": tone,
+                                 "post_id": None, "account_id": None, "platform": None, "by": None,
+                                 "idea_id": idea["id"], "excerpt": _excerpt(idea["text"])})
+            item["looks_like_secret"] = False
+            items.append((key, item))
+    items.sort(key=lambda pair: pair[0], reverse=True)
+    shown = [item for _, item in items[:limit]]
+    return {"items": shown, "shown": len(shown), "ideas_error": error, "note": ACTIVITY_NOTE}
+
+
+SOURCE_HOST = re.compile(r"https://([A-Za-z0-9.-]{1,253})(?:[:/?#]|$)")  # ideas.clean_source allows public https only
+
+
+def _host(url: str | None) -> str | None:
+    """The host name of an idea's source URL; the path and query are never shown."""
+    found = SOURCE_HOST.match(url or "")
+    return found.group(1).lower() if found else None
+
+
+def ideas_view(ideas_path: Path, *, status: str | None = None) -> dict:
+    """The ideas inbox (``idea list``), newest first: text, tags, state and the HOST of the source only. Never
+    creates the file; a damaged inbox is reported as an error instead of failing the page."""
+    if status is not None and status not in ideas_inbox.STATUSES:
+        raise ValidationError(f"status must be one of {', '.join(ideas_inbox.STATUSES)}")
+    ideas, error = _load_ideas(ideas_path)
+    counts = {name: 0 for name in ideas_inbox.STATUSES}
+    for idea in ideas:
+        counts[idea["status"]] += 1
+    chosen = sorted((i for i in ideas if status is None or i["status"] == status),
+                    key=lambda i: (i.get("created_at") or "", i["id"]), reverse=True)
+    items = []
+    for idea in chosen[:IDEAS_LIMIT]:
+        promoted = idea.get("promoted") or {}
+        items.append(redact_value({"id": idea["id"], "status": idea["status"], "text": idea["text"],
+                                   "excerpt": _excerpt(idea["text"]), "tags": list(idea.get("tags") or []),
+                                   "source_host": _host(idea.get("source_url")), "created_at": idea.get("created_at"),
+                                   "updated_at": idea.get("updated_at"),
+                                   "promoted_campaign": promoted.get("campaign_id")}))
+    return {"ideas": items, "counts": counts, "total": len(chosen), "truncated": len(chosen) > len(items),
+            "error": error, "exists": ideas_path.is_file()}
+
+
+def find_idea(ideas_path: Path, idea_id: str) -> dict:
+    """One idea as ``ideas_view`` shows it; ValidationError("Unknown idea") when it is not in the inbox."""
+    for idea in ideas_view(ideas_path)["ideas"]:
+        if idea["id"] == idea_id:
+            return idea
+    raise ValidationError("Unknown idea")
+
+
+def prompt_context(con, accounts: dict, ideas_path: Path, *, page: str | None = None, post_id: str | None = None,
+                   account_id: str | None = None, campaign: str | None = None, idea_id: str | None = None,
+                   region: str | None = None, goal: str | None = None) -> dict:
+    """The context for ``ui_prompts.build_prompt``: real ids from the local database, accounts file and ideas
+    inbox, never guessed. The post's exact text is included only to be quoted as untrusted data."""
+    context: dict = {"page": page, "accounts": [{"id": name, "platform": a["platform"]}
+                                                for name, a in sorted(accounts.items())]}
+    if post_id:
+        row = get_post(con, post_id)  # ValidationError("Unknown post id")
+        context["post"] = {"id": row["id"], "status": row["status"], "platform": row["platform"],
+                           "account_id": row["account_id"], "campaign": row["campaign"] or None,
+                           "content": row["content"]}
+    if account_id:
+        account = accounts.get(account_id)
+        if account is None:
+            raise ValidationError("Unknown account")
+        context["account"] = {"id": account_id, "platform": account["platform"], "handle": account.get("handle")}
+    if campaign:
+        if not list_posts(con, campaign=campaign):
+            raise ValidationError("Unknown campaign")
+        context["campaign"] = campaign
+    if idea_id:
+        context["idea"] = find_idea(ideas_path, idea_id)
+    if region:
+        context["region"] = region
+    if goal:
+        context["goal"] = goal
+    return context
