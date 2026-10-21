@@ -37,18 +37,18 @@ First run `run.py context --json` (read-only; creates nothing): version, paths, 
 | Auditing a profile or posts, bio/headline, "what should I improve next" | `references/profile-post-audit.md`, `references/next-actions.md`, `references/platform-playbooks.md` (offline `profile-audit`, `post-audit`, `suggest`, `creative-preflight --file F`) |
 | GitHub contributors, repo traffic or SEO, Reddit/Hacker News caution | `references/open-source-growth.md`, `references/github-discovery.md`, `references/channel-selection.md` |
 | A country or region, best posting time, a calendar or batch queue | `references/global-distribution.md`, `references/platform-algorithms.md`, `references/timing-intelligence.md` (offline `distribution-plan`, `calendar-plan`) |
-| DEV Community | `references/dev-community.md` (no AI-generated DEV comments or promotional articles) |
+| DEV Community | `references/dev-community.md` (no AI DEV comments or promo articles) |
 | Editorial planning, audience jobs, content pillars, production capacity | `references/editorial-system.md`, `references/creative-playbook.md` (planning worksheet; no command reads it) |
 | A new paper, release or blog; voice and hooks; drafts, videos, carousels | `references/campaign-contract.md`, `references/creative-playbook.md`, `references/formats.md`, `references/platform-playbooks.md` |
 | An easy one-post handoff to Instagram/TikTok/Threads or multiple manual networks (browser: `RW share --web --open` is owner-run) | Use the offline `share` CLI with `--platform`, `--text` / `--file`, optional `--note` for human-only venues. The owner can run `share --guide` in their terminal. This only prepares local files; see the full-repo `docs/EASY-SHARING.md`. |
 | Connecting accounts, credentials, scheduling, auto-posting, privacy, data export | `references/security.md`, `references/publishing.md`, `references/campaign-contract.md` |
-| Comments, replies, mentions, community | `references/engagement.md`, `references/creative-playbook.md`, `references/security.md` |
+| Comments, replies; conversations to join, more followers | `references/engagement.md`: run `RW engage-scout --config F`, give angles only; the owner writes and posts |
 | Analytics, experiments, timing results, peers, landing pages, UTM links | `references/measurement.md`, `references/experimental-learning.md`, `references/timing-intelligence.md` |
 | What was posted, when, with which files; a history or archive folder | Read-only `journal` (`--format markdown`, `--platform P`, `--since DATE`); `archive --copy-files` writes a private folder with exact text, metadata and hash-verified file copies; both send nothing (`references/cli-cookbook.md`) |
 | Moving to another computer, "will my copy work", one folder for the owner's data | `workspace` (read-only), `workspace --init DIR`, `workspace --gather` / `--repair` (dry run first; the owner decides `--apply`), `media-relink` for files moved by hand. Never copy a secrets file (`references/cli-cookbook.md`) |
 | "Save this for later", "post about this someday" | Run `RW idea add "ONE SENTENCE" [--source URL] [--tag T]` and say it was saved; write no post text or sample draft. `idea list`/`idea promote` later (`references/workflows.md`) |
 | "Does this sound like me", a draft reads like generic AI copy, any draft before showing it | Run `RW voice-check --text '...' [--profile F]`, rewrite the flagged lines yourself, show the result (`references/creative-playbook.md`) |
-| "Is it release-ready", what actually works, comparing tools | `references/skill-evaluation.md` |
+| Release-ready? What works? Comparing tools | `references/skill-evaluation.md` |
 | Anything not listed, or a row needs more detail | `references/routing-detail.md` (full routes), `references/workflows.md` (audits, the content-to-learning loop, regional planning, timing, durable delivery), `references/cli-cookbook.md` (every command with its flags) |
 
 Two rules that apply to every route:
