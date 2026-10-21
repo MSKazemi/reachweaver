@@ -2,9 +2,13 @@
 
 No external CSS, JavaScript, fonts, images, analytics or network requests.
 The browser only talks to the loopback ReachWeaver ShareServer. All user
-captions are inserted with textContent, never HTML markup. There is no
-Publish, approve or schedule control: "Mark as posted" only records a post
-the owner already published by hand.
+captions, package names and account names are inserted with textContent,
+never HTML markup. There is no Publish, approve or schedule control:
+"Mark as posted" only records a post the owner already published by hand.
+
+The look mirrors the read-only dashboard (ui_assets.APP_CSS): the same colour
+tokens (accent #0b6e69, dark mode by prefers-color-scheme), system font stack,
+12px radius and "RW" mark, copied here so the two pages read as one product.
 """
 HTML = r"""<!DOCTYPE html>
 <html lang="en">
@@ -12,114 +16,227 @@ HTML = r"""<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>Share Composer · ReachWeaver</title>
+<meta name="color-scheme" content="light dark">
+<title>ReachWeaver — Write a post</title>
 <style nonce="__CSP_NONCE__">
 :root {
   color-scheme: light;
-  --ink: #12273a; --muted: #586c7b; --sky: #005cb9;
-  --deep: #123d65; --line: #d9e4ef; --page: #f5f8fc;
-  --white: #ffffff; --soft: #eaf3ff; --focus: #1277ce;
-  --radius: 18px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  --bg: #f5f6f8; --panel: #ffffff; --ink: #1b1f24; --muted: #5b6573; --line: #dfe3e9; --hover: #f2f5f8;
+  --field-line: #8a94a3;
+  --accent: #0b6e69; --accent-ink: #ffffff; --accent-soft: #e2f2f0; --accent-strong: #08544f;
+  --ok: #166a2e; --warn: #7d5400; --bad: #b42318; --info: #1f5fbf;
+  --ok-bg: #e6f4ea; --warn-bg: #fff4d6; --bad-bg: #fde8e6; --info-bg: #e5eefb; --code-bg: #eef1f5;
+  --focus: #1f5fbf;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0f1317; --panel: #171c22; --ink: #e8ecf1; --muted: #9aa5b3; --line: #2b333d; --hover: #1d242c;
+    --field-line: #6b7686;
+    --accent: #3cc2b8; --accent-ink: #06201d; --accent-soft: #123532; --accent-strong: #7fe0d8;
+    --ok: #56d364; --warn: #e3b341; --bad: #ff7b72; --info: #79b8ff;
+    --ok-bg: #12301b; --warn-bg: #3a2c08; --bad-bg: #3d1512; --info-bg: #12263f; --code-bg: #0c1014;
+    --focus: #79b8ff;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1317; --panel: #171c22; --ink: #e8ecf1; --muted: #9aa5b3; --line: #2b333d; --hover: #1d242c;
+  --field-line: #6b7686;
+  --accent: #3cc2b8; --accent-ink: #06201d; --accent-soft: #123532; --accent-strong: #7fe0d8;
+  --ok: #56d364; --warn: #e3b341; --bad: #ff7b72; --info: #79b8ff;
+  --ok-bg: #12301b; --warn-bg: #3a2c08; --bad-bg: #3d1512; --info-bg: #12263f; --code-bg: #0c1014;
+  --focus: #79b8ff;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4);
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--page); color: var(--ink); line-height: 1.5; }
-main { max-width: 1160px; margin: auto; padding: 30px 24px 80px; }
-header { background: linear-gradient(120deg,#0d355e,#125a7a); color: white; }
-.head { max-width:1160px; margin:auto; padding: 30px 24px 38px; }
-.wordmark { font-size: 15px; font-weight: 760; letter-spacing: .1px; display:flex; gap:9px; align-items:center; }
-.mark { background: #b8f7de; color:#174957; width:28px; height:28px; border-radius:9px; display:grid; place-items:center; font-weight:900; }
-.eyebrow { font-size:12px; letter-spacing: 2px; font-weight:750; text-transform:uppercase; opacity: .82; margin-top:30px; }
-h1 { margin:7px 0 9px; font-size: clamp(30px,4vw,48px); letter-spacing: -.035em; line-height: 1.08; }
-.head p { max-width: 620px; font-size: 16px; opacity:.9; margin-bottom:0; }
-.security { font-size:12px; margin-top:22px; display:inline-block; padding:8px 12px; background: #ffffff1a; border: 1px solid #ffffff44; border-radius: 20px;}
-.steps { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin: 0 0 26px; padding:0; list-style:none;}
-.steps li { font-size:12px; font-weight:720; color:var(--muted); background:#e5edf5; padding:7px 12px; border-radius: 999px;}
-.steps li:first-child { background:var(--soft); color:var(--deep); }
-.layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(315px,.92fr); align-items:start; gap:22px; }
-.panel { background:var(--white); border: 1px solid var(--line); border-radius:var(--radius); box-shadow:0 8px 28px #133b6010; padding:24px; min-width:0; }
-h2 { font-size:21px; margin:0 0 5px; letter-spacing:-.025em; }
-h3 { font-size:17px; margin:0; overflow-wrap:anywhere; }
-.explain { color:var(--muted); font-size:14px; margin: 0 0 21px; }
-label { display:block; font-weight:720; font-size:14px; margin: 16px 0 7px; }
-textarea,input[type=text],input[type=search],input[type=url],input[type=datetime-local] { display:block; width:100%; padding:13px 14px; border:1px solid #becddd; border-radius: 12px; background:white; color:var(--ink); font:inherit; resize:vertical; }
-input[type=file] { display:block; max-width:100%; font:inherit; font-size:13px; }
-textarea { min-height: 215px; line-height: 1.55; }
-input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible { outline:3px solid #4aa6fb; outline-offset: 2px; }
-.hint { font-size:12px; color:var(--muted); margin-top:7px; overflow-wrap:anywhere; }
-.field { margin-top:17px; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.skip { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--accent-ink); padding: 10px 14px; z-index: 50; }
+.skip:focus { left: 8px; top: 8px; }
 .hidden { display: none !important; }
-.docbar { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; justify-content:space-between; margin:0 0 14px; padding:10px 12px; background:#f0f5fa; border-radius:12px; font-size:13px; }
-.docbar #editing { font-weight:700; color:var(--deep); overflow-wrap:anywhere; min-width:0; }
-.docbar .tools { display:flex; gap:8px; align-items:center; }
-.saved { font-size:12px; font-weight:700; padding:3px 9px; border-radius:20px; background:#e5edf5; color:var(--muted); }
-.saved.ok { background:#e3f6ee; color:#1d5549; }
-.saved.bad { background:#fff1dc; color:#684c15; }
-.small { font:inherit; font-size:12px; font-weight:700; padding:6px 11px; border-radius:10px; border:1px solid #bccfdf; background:white; color:var(--deep); cursor:pointer; }
-.small:disabled { opacity:.45; cursor:not-allowed; }
-.network-options { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:9px; max-height:330px; overflow:auto; padding:2px 4px 3px 2px; }
-.network { text-align:left; display:flex; flex-direction:column; gap:2px; min-height:64px; border:1px solid #ccd8e6; background:#fff; border-radius:12px; padding:10px 11px; cursor:pointer; color:var(--ink); }
-.network strong { font-size:14px; overflow-wrap:anywhere; }
-.network span { font-size:11px; color:var(--muted); }
-.network[aria-pressed=true] { background:#e8f3ff; border:2px solid var(--sky); padding:9px 10px; }
-.network[aria-pressed=true] strong::before { content:"✓ "; color:var(--sky); }
-.count { display:inline-block; color:var(--deep); background:var(--soft); border-radius:20px; font-size:12px; font-weight:750; padding:4px 10px; }
-.filter-row { display:flex; gap:8px; margin-bottom:11px; align-items:center; flex-wrap:wrap; }
-.filter-row button { font:inherit; padding:8px 12px; background:white; border:1px solid var(--line); border-radius:10px; color:var(--ink); cursor:pointer; font-size:12px; }
-.filter-row button[aria-pressed=true] { color:white; background:var(--deep); }
-.actions { display:flex; gap:12px; justify-content:flex-start; margin-top:25px; flex-wrap:wrap; }
-button { font-family:inherit; }
-.primary { background:var(--sky); color:white; border:1px solid var(--sky); border-radius:12px; padding:12px 21px; cursor:pointer; font-size:14px; font-weight:750; }
-.primary:hover { background:#054a94; }
-.primary:disabled,.secondary:disabled { opacity:.42; cursor:not-allowed; }
-.secondary { background:white; color:var(--deep); border:1px solid #bccfdf; border-radius:12px; padding:11px 18px; cursor:pointer; font-size:14px; font-weight:720; }
-.alert { border-radius:12px; border:1px solid #e0bf8b; background:#fff9ea; padding:12px 14px; margin-top:18px; color:#684c15; font-size:13px; white-space:pre-wrap; overflow-wrap:anywhere; }
-.alert.ok { border-color:#a6dcca; background:#edf9f4; color:#1d5549; }
-.wide { margin-top:22px; }
-.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr)); gap:13px; margin-top:15px; }
-.review { border:1px solid var(--line); border-radius:13px; padding:17px; background:#fcfdff; min-width:0; }
-.review-head { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;}
-.save-buttons { display:flex; gap:10px; flex-wrap:wrap; }
-.review pre { white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; background:#f0f5fa; color:#243b4c; padding:13px; border-radius:9px; font-family:inherit; font-size:13px; max-height: 230px; overflow:auto;}
-.review ul { color:#6b5416; font-size:12px; padding-left:21px; overflow-wrap:anywhere; }
-.review ul.media-checks { color:#243b4c; }
-.review small { color:var(--muted); }
-.chip { display:inline-block; font-size:11px; font-weight:760; padding:3px 9px; border-radius:20px; background:#e5edf5; color:var(--muted); white-space:nowrap; }
-.chip.exported { background:#e8f3ff; color:var(--deep); }
-.chip.posted { background:#e3f6ee; color:#1d5549; }
-.confirm { margin-top:14px; padding:12px 14px; border:1px solid #e0bf8b; background:#fff9ea; border-radius:12px; font-size:13px; color:#684c15; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-.confirm span { flex:1 1 220px; }
-.media-list { list-style:none; padding:0; margin:10px 0 0; display:flex; flex-direction:column; gap:6px; }
-.media-list li { display:flex; justify-content:space-between; gap:10px; align-items:center; background:#f0f5fa; border-radius:10px; padding:7px 10px; font-size:13px; min-width:0; }
-.media-list li span { overflow-wrap:anywhere; min-width:0; }
-.netlist { list-style:none; padding:0; margin:12px 0 0; display:flex; flex-direction:column; gap:10px; }
-.netlist li { border-top:1px solid var(--line); padding-top:10px; color:var(--ink); font-size:13px; }
-.netrow { display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap; }
-.netlist a { color:var(--sky); overflow-wrap:anywhere; }
-.markform { margin-top:8px; }
-.markform label { margin:10px 0 5px; font-size:13px; }
-.markform input { padding:9px 11px; }
-.foot { font-size:12px; color:var(--muted); margin:20px 0 0; }
-.no-preview { padding:30px 0; color:var(--muted); text-align:center; font-size:14px; }
-@media (max-width:820px) { main {padding:23px 14px 50px;} .head {padding:25px 18px 34px;} .layout {grid-template-columns:1fr;} .panel {padding:19px;} .network-options{ max-height:390px;}}
-@media (max-width:400px) { .network-options {grid-template-columns:1fr;} .review { padding:13px; } }
-@media (prefers-reduced-motion: no-preference) { button {transition: background-color .15s, border-color .15s;} }
+code, kbd { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; overflow-wrap: anywhere; }
+
+/* ---- header: brand bar + hero (one line on phones) */
+header { background: var(--panel); border-bottom: 1px solid var(--line); }
+.topbar { max-width: 1160px; margin: auto; padding: 10px 24px; display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 16px; }
+.mark { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; font-weight: 800;
+  background: var(--accent); color: var(--accent-ink); font-size: 12px; letter-spacing: .5px; flex: none; }
+h1 { font-size: 16px; font-weight: 600; margin: 0; color: var(--muted); }
+h1::before { content: "— "; }
+.results { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.hero { max-width: 1160px; margin: auto; padding: 4px 24px 22px; }
+.tagline { font-size: clamp(26px, 3.4vw, 38px); font-weight: 750; letter-spacing: -.03em; line-height: 1.1; margin: 8px 0 6px; }
+.lede { max-width: 640px; margin: 0; color: var(--muted); }
+.security { display: inline-block; margin-top: 12px; font-size: 12px; font-weight: 600; padding: 4px 11px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent-strong); }
+
+/* ---- progress */
+main { max-width: 1160px; margin: auto; padding: 18px 24px 64px; }
+.progress { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; counter-reset: step; }
+.progress li { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--muted);
+  padding: 7px 8px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); }
+.progress .num { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; flex: none; font-size: 12px;
+  border: 1px solid var(--field-line); }
+.progress .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.progress li.done { color: var(--ink); }
+.progress li.done .num { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent); }
+.progress li[aria-current="step"] { color: var(--accent-strong); border: 2px solid var(--accent); padding: 6px 7px; background: var(--accent-soft); }
+.progress li[aria-current="step"] .num { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.next { margin: 8px 2px 16px; font-size: 14px; color: var(--ink); }
+.next b { color: var(--accent-strong); }
+
+/* ---- panels and fields */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(315px, .92fr); align-items: start; gap: 18px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; min-width: 0; }
+h2 { font-size: 19px; margin: 0 0 4px; letter-spacing: -.01em; }
+h3 { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
+.explain { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+label { display: block; font-weight: 650; font-size: 14px; margin: 14px 0 6px; }
+textarea, input[type=text], input[type=search], input[type=url], input[type=datetime-local], select {
+  display: block; width: 100%; min-height: 44px; padding: 11px 12px; border: 1px solid var(--field-line); border-radius: 10px;
+  background: var(--panel); color: var(--ink); font: inherit; resize: vertical; }
+input[type=file] { display: block; width: 100%; max-width: 100%; min-height: 44px; padding: 6px; font: inherit; font-size: 14px; color: var(--ink);
+  border: 1px dashed var(--field-line); border-radius: 10px; background: var(--panel); }
+input[type=file]::file-selector-button { font: inherit; font-weight: 650; min-height: 32px; margin-right: 10px; padding: 4px 12px; border-radius: 8px;
+  border: 1px solid var(--field-line); background: var(--panel); color: var(--ink); cursor: pointer; }
+textarea { min-height: 190px; line-height: 1.55; }
+textarea[aria-invalid=true], input[aria-invalid=true] { border: 2px solid var(--bad); }
+.hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; overflow-wrap: anywhere; }
+.field-error { font-size: 13px; color: var(--bad); font-weight: 650; margin: 6px 0 0; }
+.field { margin-top: 14px; }
+.docbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; margin: 0 0 12px; padding: 8px 10px;
+  background: var(--code-bg); border-radius: 10px; font-size: 13px; }
+.docbar #editing { font-weight: 650; overflow-wrap: anywhere; min-width: 0; }
+.docbar .tools { display: flex; gap: 8px; align-items: center; }
+.saved { font-size: 12px; font-weight: 650; padding: 3px 9px; border-radius: 999px; background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
+.saved.ok { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.saved.bad { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+button { font-family: inherit; }
+.small { font: inherit; font-size: 13px; font-weight: 650; padding: 5px 11px; min-height: 32px; border-radius: 8px; border: 1px solid var(--field-line);
+  background: var(--panel); color: var(--ink); cursor: pointer; }
+.small:hover, .secondary:hover { border-color: var(--accent); }
+.small:disabled { opacity: .5; cursor: not-allowed; }
+.network-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 330px; overflow: auto; padding: 3px; }
+.network { text-align: left; display: flex; flex-direction: column; gap: 2px; min-height: 58px; border: 1px solid var(--line); background: var(--panel);
+  border-radius: 10px; padding: 9px 11px; cursor: pointer; color: var(--ink); font: inherit; }
+.network:hover { border-color: var(--accent); }
+.network strong { font-size: 14px; overflow-wrap: anywhere; }
+.network span { font-size: 12px; color: var(--muted); }
+.network[aria-pressed=true] { background: var(--accent-soft); border: 2px solid var(--accent); padding: 8px 10px; }
+.network[aria-pressed=true] strong::before { content: "✓ "; color: var(--accent-strong); }
+.count { display: inline-block; color: var(--accent-strong); background: var(--accent-soft); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 4px 10px; }
+.filter-row { display: flex; gap: 8px; margin: 12px 0 10px; align-items: center; flex-wrap: wrap; }
+.filter-row button { font: inherit; font-size: 13px; padding: 6px 12px; min-height: 34px; background: var(--panel); border: 1px solid var(--field-line); border-radius: 9px; color: var(--ink); cursor: pointer; }
+.filter-row button[aria-pressed=true] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.actions { display: flex; gap: 10px; justify-content: flex-start; margin-top: 18px; flex-wrap: wrap; align-items: center; }
+.go { margin: 18px 0 0; padding: 14px 16px; }
+.go .actions { margin-top: 0; }
+.primary { background: var(--accent); color: var(--accent-ink); border: 1px solid var(--accent); border-radius: 10px; padding: 11px 20px; min-height: 44px;
+  cursor: pointer; font-size: 15px; font-weight: 700; }
+.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.primary:disabled, .secondary:disabled { opacity: .45; cursor: not-allowed; }
+.secondary { background: var(--panel); color: var(--ink); border: 1px solid var(--field-line); border-radius: 10px; padding: 10px 16px; min-height: 44px;
+  cursor: pointer; font-size: 14px; font-weight: 650; }
+.alert { border-radius: 10px; border: 1px solid var(--warn); background: var(--warn-bg); padding: 11px 14px; margin-top: 14px; color: var(--ink);
+  font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.alert.ok { border-color: var(--ok); background: var(--ok-bg); }
+.alert .small { margin: 8px 8px 0 0; }
+.wide { margin-top: 18px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 12px; margin-top: 14px; }
+.review { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; background: var(--panel); min-width: 0; }
+.review-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.save-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+.review pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; background: var(--code-bg); color: var(--ink); padding: 12px;
+  border-radius: 9px; font-family: inherit; font-size: 14px; max-height: 230px; overflow: auto; }
+.review ul { color: var(--warn); font-size: 13px; padding-left: 20px; overflow-wrap: anywhere; }
+.review ul.media-checks { color: var(--ink); }
+.review small { color: var(--muted); }
+.chip { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--code-bg); color: var(--muted); white-space: nowrap; }
+.chip.ready { background: var(--info-bg); color: var(--info); }
+.chip.posted { background: var(--ok-bg); color: var(--ok); }
+.chip.here { background: var(--accent-soft); color: var(--accent-strong); }
+.confirm { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--warn); background: var(--warn-bg); border-radius: 10px; font-size: 14px;
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.confirm span { flex: 1 1 220px; }
+.media-list { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.media-list li { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: var(--code-bg); border-radius: 9px; padding: 6px 10px;
+  font-size: 13px; min-width: 0; }
+.media-list li span { overflow-wrap: anywhere; min-width: 0; }
+.netlist { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.netlist li { border-top: 1px solid var(--line); padding-top: 10px; font-size: 14px; }
+.netrow { display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+.netrow .who { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.netlist a { overflow-wrap: anywhere; }
+.markform { margin-top: 6px; }
+.markform label { margin: 10px 0 5px; font-size: 13px; }
+.cmdline { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
+.foot { font-size: 13px; color: var(--muted); margin: 18px 0 0; }
+.page-foot { max-width: 1160px; margin: 0 auto; padding: 0 24px 40px; font-size: 14px; color: var(--muted); }
+.page-foot .cmdline { margin-top: 0; }
+.no-preview { padding: 24px 0; color: var(--muted); text-align: center; font-size: 14px; }
+@media (max-width: 820px) {
+  .topbar { padding: 8px 14px; }
+  .results { display: none; }
+  .hero { padding: 0 14px 8px; display: flex; gap: 8px; align-items: baseline; white-space: nowrap; overflow: hidden; }
+  .tagline { font-size: 14px; font-weight: 700; letter-spacing: 0; margin: 0; flex: none; }
+  .lede, .security { display: none; }
+  .hero::after { content: "Private and local · nothing is posted for you"; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  main { padding: 12px 14px 48px; }
+  .layout { grid-template-columns: 1fr; gap: 14px; }
+  .panel { padding: 16px; }
+  .explain { margin-bottom: 8px; }
+  .network-options { max-height: 390px; }
+  .page-foot { padding: 0 14px 32px; }
+}
+@media (max-width: 640px) {
+  .progress { gap: 4px; }
+  .progress li { flex-direction: column; gap: 2px; padding: 5px 2px; font-size: 12px; text-align: center; }
+  .progress li[aria-current="step"] { padding: 4px 1px; }
+  .small, .filter-row button, .network, input[type=file]::file-selector-button { min-height: 44px; }
+  .small { padding: 8px 12px; }
+  textarea { min-height: 150px; }
+  .write-explain { display: none; }
+}
+@media (max-width: 400px) { .network-options { grid-template-columns: 1fr; } .review { padding: 13px; } }
+@media (prefers-reduced-motion: no-preference) { button { transition: background-color .15s, border-color .15s; } }
 </style>
 </head>
 <body>
+<a class="skip" href="#caption">Skip to the caption</a>
 <header>
-<div class="head">
-  <div class="wordmark"><span class="mark" aria-hidden="true">✦</span> ReachWeaver</div>
-  <div class="eyebrow">Your local sharing workspace</div>
-  <h1>One story.<br>Many places.</h1>
-  <p>Write once, select the networks you care about, then review and save the right posting files. You publish from each social app yourself.</p>
-  <span class="security">Private &amp; local · No login · No automatic posting</span>
+<div class="topbar">
+  <span class="brand"><span class="mark" aria-hidden="true">RW</span><span>ReachWeaver</span></span>
+  <h1>Write a post</h1>
+  <span class="results" id="results-top"></span>
+</div>
+<div class="hero">
+  <p class="tagline">One story. Many places.</p>
+  <p class="lede">Write once, pick your networks, check each version, then copy it into each app yourself.</p>
+  <span class="security">Private and local · No login · No automatic posting</span>
 </div>
 </header>
 <main>
-<ol class="steps" aria-label="Steps">
- <li>01 · Write</li><li>02 · Choose</li><li>03 · Preview</li><li>04 · Save</li><li>05 · Share manually</li><li>06 · Mark as posted</li>
+<nav aria-label="Progress">
+<ol class="progress" id="progress">
+ <li data-step="write"><span class="num" aria-hidden="true">1</span><span class="lbl">Write</span><span class="sr-only state"></span></li>
+ <li data-step="choose"><span class="num" aria-hidden="true">2</span><span class="lbl">Choose</span><span class="sr-only state"></span></li>
+ <li data-step="preview"><span class="num" aria-hidden="true">3</span><span class="lbl">Preview</span><span class="sr-only state"></span></li>
+ <li data-step="save"><span class="num" aria-hidden="true">4</span><span class="lbl">Save</span><span class="sr-only state"></span></li>
+ <li data-step="post"><span class="num" aria-hidden="true">5</span><span class="lbl">Post</span><span class="sr-only state"></span></li>
 </ol>
+</nav>
+<p class="next" id="next-hint"><b>Next:</b> write your caption.</p>
+<div id="announce" class="sr-only" role="status" aria-live="polite"></div>
 <div class="layout">
 <section class="panel" aria-labelledby="write-title">
  <div class="docbar">
@@ -130,52 +247,55 @@ button { font-family:inherit; }
    </span>
  </div>
  <h2 id="write-title">Your post</h2>
- <p class="explain">What would you like to share today? Your draft is kept on this computer as you type.</p>
+ <p class="explain write-explain">What would you like to share? Your draft is kept on this computer as you type.</p>
  <label for="caption">Caption or description</label>
- <textarea id="caption" placeholder="Tell people what you created, why it matters, and what they can do next..." maxlength="64000" spellcheck="true"></textarea>
- <p class="hint" id="counter">0 characters · Private text, never uploaded to a social network</p>
+ <textarea id="caption" placeholder="Tell people what you made, why it matters, and what they can do next…" maxlength="64000" spellcheck="true"></textarea>
+ <p class="hint" id="counter">0 characters · Kept on this computer, never uploaded</p>
  <div id="video-title" class="field hidden">
    <label for="title">YouTube video title</label>
    <input id="title" type="text" maxlength="200" placeholder="A clear and descriptive title">
-   <p class="hint">Required for YouTube. You'll upload the video in YouTube Studio.</p>
+   <p class="hint">Needed for YouTube. You upload the video in YouTube Studio yourself.</p>
  </div>
  <div id="community-notes" class="field hidden">
    <label for="notes">Your personal community note</label>
    <input id="notes" type="text" maxlength="200" placeholder="E.g. Read the group rules and add a useful personal answer">
-   <p class="hint">Community posts are human-written. ReachWeaver saves notes, not a prepared promotional post.</p>
+   <p class="hint">Community posts are written by you. ReachWeaver keeps your note, never a prepared promotional post.</p>
  </div>
  <div class="field">
    <label for="media-input">Photos or videos (optional)</label>
-   <input id="media-input" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,.webm">
+   <input id="media-input" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,.webm" aria-describedby="media-hint">
    <ul id="media-list" class="media-list" aria-label="Attached files"></ul>
-   <p class="hint">Kept privately on this computer and copied into the package folder when you save; never uploaded to a network. Up to 10 files, 256 MiB each. Each file's header is checked offline in the preview.</p>
- </div>
- <div class="actions">
-   <button id="preview" class="primary" type="button">Preview my posts</button>
-   <button id="reset" class="secondary" type="button">Clear form</button>
+   <p class="hint" id="media-hint">Kept on this computer and copied into the package when you save; never uploaded to a network. Up to 10 files, 256 MiB each.</p>
  </div>
 </section>
 <section class="panel" aria-labelledby="networks-title">
  <h2 id="networks-title">Where to share?</h2>
- <p class="explain">Select up to 10 networks. The composer shows manual destinations only, never unapproved auto-posting connections.</p>
- <label for="search">Find a platform</label>
- <input id="search" type="search" placeholder="Search Instagram, Misskey, YouTube..." autocomplete="off">
- <div class="filter-row" role="group" aria-label="Platform filter">
+ <p class="explain">Pick up to 10. Each one gets a version to copy and post yourself.</p>
+ <label for="search">Find a network</label>
+ <input id="search" type="search" placeholder="Search Instagram, Misskey, YouTube…" autocomplete="off">
+ <div class="filter-row" role="group" aria-label="Network filter">
    <button id="popular" type="button" aria-pressed="true">Popular</button>
-   <button id="all" type="button" aria-pressed="false">All manual networks</button>
+   <button id="all" type="button" aria-pressed="false">All networks</button>
    <span class="count" id="selection-count">0 selected</span>
  </div>
  <div class="network-options" id="networks" aria-label="Available networks">
-   <p class="hint">Loading your offline network catalog…</p>
+   <p class="hint">Loading your offline network list…</p>
  </div>
- <p class="hint">No passwords or tokens are needed. Each post remains your decision.</p>
+ <p class="hint">No passwords or tokens needed. Each post stays your decision.</p>
 </section>
 </div>
+<section class="panel go" aria-label="Check your posts">
+ <div class="actions">
+   <button id="preview" class="primary" type="button">Preview my posts</button>
+   <button id="reset" class="secondary" type="button">Clear form</button>
+   <span class="hint">Checks every network's limits on this computer. Nothing is saved or sent.</span>
+ </div>
+</section>
 <section class="panel wide" aria-labelledby="review-title">
   <div class="review-head">
     <div>
       <h2 id="review-title">Your previews</h2>
-      <p class="explain">Tailor each caption for its network, then preview again to recheck all limits before saving.</p>
+      <p class="explain">Adjust each caption for its network, then preview again before saving.</p>
     </div>
     <div class="save-buttons">
       <button id="save" class="primary" type="button" disabled>Save as new package</button>
@@ -188,23 +308,24 @@ button { font-family:inherit; }
     <button id="confirm-no" class="secondary" type="button">Cancel</button>
   </div>
   <div id="status" role="status" aria-live="polite"></div>
-  <div id="results" class="cards"><p class="no-preview">Select networks and choose “Preview my posts” to get started.</p></div>
-  <p class="foot">Saving creates private files on this computer, not online posts. You still choose the account, media, audience and publication time inside each platform.</p>
+  <div id="results" class="cards"><p class="no-preview">Pick networks and choose “Preview my posts” to see each version.</p></div>
+  <p class="foot">Saving creates private files on this computer, not online posts. You still choose the account, media, audience and time inside each app.</p>
 </section>
 <section class="panel wide" aria-labelledby="packages-title">
   <div class="review-head">
     <div>
       <h2 id="packages-title">Saved packages</h2>
-      <p class="explain">Open a package to edit it again, duplicate it, or record a post you published by hand.</p>
+      <p class="explain">Open one to edit it again, duplicate it, or mark a network as posted after you posted it yourself.</p>
     </div>
     <button id="refresh" class="secondary" type="button">Refresh</button>
   </div>
   <div id="pkg-status" role="status" aria-live="polite"></div>
   <div id="packages" class="cards"><p class="no-preview">Loading your saved packages…</p></div>
-  <p class="foot">“Mark as posted” records a post you already published yourself so you can measure it. It never posts, schedules or sends anything.</p>
+  <p class="foot">“Mark as posted” records a post you already published yourself so you can track how it did. It never posts, schedules or sends anything.</p>
 </section>
 </main>
-<noscript><p>This local composer needs JavaScript to display previews. The command-line Share flow works without JavaScript.</p></noscript>
+<footer class="page-foot"><div class="cmdline" id="results-foot"></div></footer>
+<noscript><p>This local composer needs JavaScript to show previews. The command-line Share flow works without JavaScript.</p></noscript>
 <script nonce="__CSP_NONCE__">
 (function () {
  "use strict";
@@ -212,13 +333,18 @@ button { font-family:inherit; }
  const el = id => document.getElementById(id);
  const MAX_MEDIA = 10;
  const MAX_MEDIA_BYTES = 256 * 1024 * 1024;
+ const RESULTS_CMD = "reachweaver ui";
+ const LINK_HELP = "Paste the full link to your post, starting with https://";
  const selected = new Set();
  const edits = new Map();
  let media = [];
  let current = {package:null, revision:null, state:null};
  let catalog = [];
+ let accounts = [];
+ let ledgerIds = {};
  let filter = "popular";
  let previewValid = false;
+ let savedClean = false;
  let previewData = [];
  let busy = false;
  let ready = false;
@@ -228,12 +354,6 @@ button { font-family:inherit; }
  let lastChange = 0;
  let confirmOpen = null;
  let lastPackages = [];
- const showIn = function(id, message, isSuccess) {
-   const target = el(id);
-   target.textContent = message || "";
-   target.className = message ? (isSuccess ? "alert ok" : "alert") : "";
- };
- const showMessage = function(message, isSuccess) { showIn("status", message, isSuccess); };
  const text = function(tag, value, className) {
    const node = document.createElement(tag);
    node.textContent = value;
@@ -245,6 +365,59 @@ button { font-family:inherit; }
    node.type = "button";
    return node;
  };
+ function announce(message) {
+   const node = el("announce");
+   node.textContent = "";
+   window.setTimeout(function(){ node.textContent = message; }, 60);
+ }
+ async function copy(value, node) {
+   const label = node.textContent;
+   let done = false;
+   try {
+     await navigator.clipboard.writeText(value);
+     done = true;
+   } catch(e) {
+     const area = document.createElement("textarea");
+     area.value = value; area.setAttribute("readonly", ""); area.className = "sr-only";
+     document.body.appendChild(area); area.select();
+     try { done = document.execCommand("copy"); } catch(e2) { done = false; }
+     area.remove();
+     node.focus();
+   }
+   if (done) {
+     node.textContent = "Copied";
+     announce("Copied to the clipboard.");
+     window.setTimeout(function(){ node.textContent = label; }, 2000);
+   } else {
+     announce("Copying was blocked. Select the text and copy it yourself.");
+     showMessage("Copying was blocked by the browser. Select the text and copy it yourself.", false);
+   }
+ }
+ function copyButton(label, value, accessible) {
+   const node = button(label, "small");
+   if (accessible) node.setAttribute("aria-label", accessible);
+   node.addEventListener("click", function(){ copy(value, node); });
+   return node;
+ }
+ // A message box: plain text, then optional copy buttons [{label, value, aria}].
+ const showIn = function(id, message, isSuccess, copies) {
+   const target = el(id);
+   target.replaceChildren();
+   target.className = message ? (isSuccess ? "alert ok" : "alert") : "";
+   if (!message) return;
+   target.appendChild(document.createTextNode(message));
+   if (copies && copies.length) {
+     const row = document.createElement("div");
+     for (const c of copies) row.appendChild(copyButton(c.label, c.value, c.aria));
+     target.appendChild(row);
+   }
+ };
+ const showMessage = function(message, isSuccess, copies) { showIn("status", message, isSuccess, copies); };
+ function resultsLine(id) {
+   const box = el(id);
+   box.replaceChildren(text("span", "See how your posts did: run "), text("code", RESULTS_CMD));
+   box.appendChild(copyButton("Copy", RESULTS_CMD, "Copy the command " + RESULTS_CMD));
+ }
  async function send(path, body, contentType, extra) {
    const headers = Object.assign({"X-ReachWeaver-Token":sessionToken}, extra || {});
    if (body !== undefined) headers["Content-Type"] = contentType;
@@ -264,10 +437,12 @@ button { font-family:inherit; }
                {"X-ReachWeaver-Filename": encodeURIComponent(file.name)});
  }
  function humanSelected() { return catalog.some(p => selected.has(p.id) && p.human_only); }
+ function textSelected() { return catalog.some(p => selected.has(p.id) && !p.human_only); }
  function payload() {
    return {
      platforms:Array.from(selected),
-     text:el("caption").value || null,
+     // A human-only network never receives the caption; with only those selected, the note is all that is sent.
+     text:(textSelected() || !humanSelected()) ? (el("caption").value || null) : null,
      title:selected.has("youtube") ? el("title").value : null,
      note:humanSelected() ? el("notes").value : "",
      overrides:Object.fromEntries(Array.from(edits).filter(entry => selected.has(entry[0]))),
@@ -285,6 +460,35 @@ button { font-family:inherit; }
    return {selected:Array.from(selected), edits:Array.from(edits), caption:el("caption").value,
            title:el("title").value, notes:el("notes").value, media:media.slice()};
  }
+ // ---- progress: Write -> Choose -> Preview -> Save -> Post, from the real editor state
+ const STEPS = [
+   ["write", "write your caption, or attach a photo or video."],
+   ["choose", "pick where to share it (up to 10 networks)."],
+   ["preview", "choose “Preview my posts” to check every network."],
+   ["save", "choose “Save as new package” to keep these posts ready."],
+   ["post", "copy each caption into its app and post it, then use “Mark as posted” below."]
+ ];
+ function progress() {
+   const wrote = Boolean(el("caption").value.trim() || media.length || el("notes").value.trim());
+   const chose = selected.size > 0;
+   const saved = savedClean && Boolean(current.package);
+   const previewed = previewValid || saved;
+   const posted = saved && Boolean(current.state && current.state.networks.some(n => n.state === "posted"));
+   const done = [wrote, chose, previewed, saved, posted];
+   const at = done.indexOf(false);
+   const items = el("progress").querySelectorAll("li");
+   items.forEach(function(item, index) {
+     item.classList.toggle("done", done[index] && (at === -1 || index < at));
+     const isCurrent = index === at;
+     if (isCurrent) item.setAttribute("aria-current", "step"); else item.removeAttribute("aria-current");
+     item.querySelector(".num").textContent = item.classList.contains("done") ? "✓" : String(index + 1);
+     item.querySelector(".state").textContent = item.classList.contains("done") ? " (done)" : isCurrent ? " (current step)" : "";
+   });
+   const hint = el("next-hint");
+   hint.replaceChildren(text("b", at === -1 ? "Done: " : "Next: "));
+   hint.appendChild(document.createTextNode(at === -1 ?
+     "posted and recorded. When you have numbers, record them to see how it did." : STEPS[at][1]));
+ }
  function setSaved(label, kind) {
    const node = el("saved");
    node.textContent = label;
@@ -293,7 +497,7 @@ button { font-family:inherit; }
  function saveDraft() {
    saveTimer = null;
    api("/api/draft/save", editorState()).then(function(){
-     setSaved("Saved", "ok");
+     setSaved("Draft saved", "ok");
    }).catch(function(e){
      setSaved("Not saved", "bad");
      showMessage("Your draft could not be kept: " + (e.message || "error"), false);
@@ -315,18 +519,21 @@ button { font-family:inherit; }
    stable = snapshot();
    el("undo").disabled = !undoStack.length;
    scheduleSave();
+   progress();
  }
  function counter() {
-   el("counter").textContent = el("caption").value.length + " characters · No social upload";
+   el("counter").textContent = el("caption").value.length + " characters · Kept on this computer, never uploaded";
  }
  function invalidate() {
    previewValid = false;
+   savedClean = false;
    el("save").disabled = true;
    el("update").disabled = true;
    el("confirm-update").classList.add("hidden");
    previewData = [];
-   el("results").replaceChildren(text("p", "Your draft changed. Preview again before saving.", "no-preview"));
+   el("results").replaceChildren(text("p", "Your post changed. Preview again before saving.", "no-preview"));
    showMessage("",false);
+   progress();
  }
  function conditionalFields() {
    el("video-title").classList.toggle("hidden",!selected.has("youtube"));
@@ -336,7 +543,7 @@ button { font-family:inherit; }
  function updateEditing() {
    const state = current.state;
    el("editing").textContent = current.package ?
-     "Editing saved package " + ((state && state.created) || "") + " · " + current.package :
+     "Editing: " + ((state && state.display_name) || "a saved package") :
      "New post (not saved as a package yet)";
    el("update").classList.toggle("hidden", !current.package);
  }
@@ -376,21 +583,23 @@ button { font-family:inherit; }
    );
    const items = el("networks");
    items.replaceChildren();
-   if (!choices.length) {items.appendChild(text("p","No matching networks. Try the All filter.","hint"));return;}
+   if (!choices.length) {items.appendChild(text("p","No matching networks. Try “All networks”.","hint"));return;}
    for(const p of choices) {
      const node = button("", "network");
      node.setAttribute("aria-pressed", selected.has(p.id) ? "true" : "false");
      node.appendChild(text("strong", p.label));
-     node.appendChild(text("span",p.human_only ? "You write the final post · Notes only" :
-       p.api_capable ? "Copy and post yourself · or connect it to send from ReachWeaver" : "Manual posting package"));
+     node.appendChild(text("span",p.human_only ? "You write the post · notes only" :
+       p.api_capable ? "Copy and post yourself (can also be connected)" : "Copy and post yourself"));
      node.addEventListener("click",function(){
        if(selected.has(p.id)) {selected.delete(p.id); edits.delete(p.id);}
        else if(selected.size < 10) selected.add(p.id);
-       else {showMessage("You can select a maximum of ten networks at once.",false);return;}
+       else {showMessage("You can pick at most ten networks at once.",false);return;}
        conditionalFields();
        invalidate();
        renderNetworks();
        changed();
+       const again = Array.from(el("networks").querySelectorAll(".network")).find(n => n.firstChild.textContent === p.label);
+       if (again) again.focus();
      });
      items.appendChild(node);
    }
@@ -409,6 +618,7 @@ button { font-family:inherit; }
      remove.addEventListener("click", function(){
        media = media.filter(m => m.id !== item.id);
        renderMedia(); invalidate(); changed();
+       el("media-input").focus();
      });
      row.appendChild(remove);
      list.appendChild(row);
@@ -423,25 +633,17 @@ button { font-family:inherit; }
        const result = await upload(file);
        media.push(result.media);
        renderMedia(); invalidate(); changed();
-       showMessage("Attached " + result.media.name + ". Preview to see its offline header checks.", true);
+       showMessage("Attached " + result.media.name + ". Preview to see its checks.", true);
      } catch(e) {
        showMessage(e.message || "The file could not be attached.", false);
      }
    }
  }
- async function copy(value, node) {
-   try {
-     await navigator.clipboard.writeText(value);
-     node.textContent = "Copied";
-   } catch(e) {
-     showMessage("Clipboard access was blocked. Select the text in the preview to copy it.",false);
-   }
- }
  function networkState(id) {
    const state = current.state;
    const found = state ? state.networks.find(n => n.id === id) : null;
-   if (!found) return ["Draft · not in a package yet", "chip"];
-   return found.state === "posted" ? ["Posted by hand", "chip posted"] : ["Exported to package", "chip exported"];
+   if (!found) return ["Not saved yet", "chip"];
+   return found.state === "posted" ? ["Posted by you", "chip posted"] : ["Ready to post", "chip ready"];
  }
  function renderPreview(packages) {
    const box = el("results");
@@ -455,15 +657,14 @@ button { font-family:inherit; }
      const state = networkState(item.id);
      header.appendChild(text("span", state[0], state[1]));
      card.appendChild(header);
-     card.appendChild(text("small",item.human_only ? "Human-written" : "Ready for review"));
      if (item.human_only) {
-       card.appendChild(text("p","Only personal notes are prepared for this community. You must write your own post in its app."));
+       card.appendChild(text("p","You write this one yourself in the community. Only your private note is kept."));
      } else {
        if(item.title) {
          card.appendChild(text("strong","Title"));
          card.appendChild(text("pre",item.title));
        }
-       const label = text("label","Customize the caption for " + item.label);
+       const label = text("label","Caption for " + item.label);
        const editor = document.createElement("textarea");
        editor.id = "edit-" + item.id;
        editor.rows = 5;
@@ -474,31 +675,35 @@ button { font-family:inherit; }
        editor.addEventListener("input",function(){
          edits.set(item.id, editor.value);
          previewValid = false;
+         savedClean = false;
          el("save").disabled = true;
          el("update").disabled = true;
-         showMessage("Edited " + item.label + ". Preview again to validate all network rules.",false);
+         showMessage("Edited " + item.label + ". Preview again to recheck every network.",false);
          changed();
        });
-       const copyButton = button("Copy this caption","secondary");
-       copyButton.addEventListener("click",function(){copy(editor.value,copyButton);});
-       card.appendChild(copyButton);
-       if(item.shortened) card.appendChild(text("p","Shortened to fit this network: read the ending before you copy it.","hint"));
+       const actions = document.createElement("div");
+       actions.className = "actions";
+       const copyNode = button("Copy caption","secondary");
+       copyNode.setAttribute("aria-label", "Copy the caption for " + item.label);
+       copyNode.addEventListener("click",function(){copy(editor.value,copyNode);});
+       actions.appendChild(copyNode);
+       card.appendChild(actions);
+       if(item.shortened) card.appendChild(text("p","Shortened to fit " + item.label + ": read the ending before you copy it.","hint"));
        if(item.note) card.appendChild(text("p",item.note,"hint"));
      }
      if(item.media_checks && item.media_checks.length) {
-       card.appendChild(text("strong","Photo and video checks (offline, from the file header):"));
+       card.appendChild(text("strong","Photo and video checks:"));
        const list = document.createElement("ul");
        list.className = "media-checks";
        for(const line of item.media_checks) list.appendChild(text("li", line));
        card.appendChild(list);
      }
      if(item.warnings.length) {
-       card.appendChild(text("strong","Before sharing, check:"));
+       card.appendChild(text("strong","Before you post, check:"));
        const list = document.createElement("ul");
        for(const warning of item.warnings) list.appendChild(text("li", warning));
        card.appendChild(list);
      }
-     card.appendChild(text("p","Not published. Open the platform, confirm all options and publish there yourself.","hint"));
      box.appendChild(card);
    }
  }
@@ -511,19 +716,21 @@ button { font-family:inherit; }
  async function preview() {
    if (busy) return;
    lockBusy(true);
-   showMessage("Checking your posts locally...",true);
+   showMessage("Checking your posts on this computer…",true);
    try {
      const result = await api("/api/preview",payload());
      previewData = result.platforms;
      previewValid = true;
      renderPreview(previewData);
-     showMessage("Ready for your review. No files have been saved or sent.",true);
+     showMessage("Ready to review. Nothing has been saved or sent.",true);
    } catch(e) {
      previewValid = false;
-     el("results").replaceChildren(text("p","Fix the issue above and preview again.","no-preview"));
+     el("results").replaceChildren(text("p","Fix the problem above and preview again.","no-preview"));
      showMessage(e.message || "Preview failed.",false);
    }
    lockBusy(false);
+   progress();
+   if (previewValid) el("review-title").scrollIntoView({block:"start", behavior:"smooth"});
  }
  async function save(mode) {
    if (!previewValid || busy) return;
@@ -537,9 +744,12 @@ button { font-family:inherit; }
      updateEditing();
      renderPreview(previewData);
      previewValid = false;
+     savedClean = true;
      scheduleSave();
-     showMessage((result.updated ? "Updated the package: " : "Saved a new package: ") + result.saved_to +
-       "\nOpen OPEN-FIRST.md in that folder. Nothing was uploaded or published.",true);
+     showMessage((result.updated ? "Updated: " : "Saved: ") + result.display_name + " (in " + result.folder + ")" +
+       "\nNext: copy each caption above into its app and post it. Nothing was uploaded or published.", true,
+       [{label:"Copy folder path", value:result.saved_to, aria:"Copy the folder path of " + result.display_name}]);
+     announce((result.updated ? "Updated " : "Saved ") + result.display_name + ".");
      loadPackages();
    } catch(e) {
      showMessage(e.message || "Saving failed.",false);
@@ -547,67 +757,110 @@ button { font-family:inherit; }
    lockBusy(false);
    el("save").disabled = true;
    el("update").disabled = true;
+   progress();
  }
  function hasContent() {
    return Boolean(el("caption").value || selected.size || media.length || el("notes").value);
  }
- async function openPackage(name, node) {
-   if (hasContent() && confirmOpen !== name) {
-     confirmOpen = name;
+ async function openPackage(pkg, node) {
+   if (hasContent() && confirmOpen !== pkg.name) {
+     confirmOpen = pkg.name;
      node.textContent = "Click again to replace the editor";
      showIn("pkg-status", "Opening a package replaces what is in the editor now. Click again to open it.", false);
      return;
    }
    confirmOpen = null;
    try {
-     const result = await api("/api/package/open", {package:name});
+     const result = await api("/api/package/open", {package:pkg.name});
      current = {package:result.package.name, revision:result.package.revision, state:result.package};
      applyEditor(result.editor, result.media);
+     savedClean = true;
      updateEditing();
-     setSaved("Saved", "ok");
+     setSaved("Draft saved", "ok");
      showIn("pkg-status", "", true);
-     showMessage("Opened " + name + ". Preview again before you save it as new or update it.", true);
+     showMessage("Opened " + result.package.display_name + ". Preview again before you save it.", true);
      el("caption").focus();
      renderPackages(lastPackages);
+     progress();
    } catch(e) {
      showIn("pkg-status", e.message || "The package could not be opened.", false);
    }
  }
- async function duplicate(name) {
+ async function duplicate(pkg) {
    try {
-     const result = await api("/api/package/duplicate", {package:name});
-     showIn("pkg-status", "Duplicated into a new package: " + result.saved_to + ". Nothing was uploaded or published.", true);
+     const result = await api("/api/package/duplicate", {package:pkg.name});
+     showIn("pkg-status", "Duplicated as: " + result.package.display_name + " (in " + result.package.folder +
+       "). Nothing was uploaded or published.", true);
+     announce("Duplicated as " + result.package.display_name + ".");
      loadPackages();
    } catch(e) {
      showIn("pkg-status", e.message || "The package could not be duplicated.", false);
    }
  }
- async function markPosted(pkg, network, url, when, node) {
-   node.disabled = true;
+ // The link as the server will check it, or null: one http(s) link with a host, no spaces, at most 2048
+ // characters. A bare "www.example.com/…" gets "https://" in front. The server checks it again.
+ function normalizeLink(raw) {
+   let value = (raw || "").trim();
+   if (!value) return null;
+   if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) value = "https://" + value.replace(/^\/+/, "");
+   if (value.length > 2048 || /\s/.test(value)) return null;
+   let parsed;
+   try { parsed = new URL(value); } catch(e) { return null; }
+   if ((parsed.protocol !== "https:" && parsed.protocol !== "http:") || parsed.hostname.indexOf(".") < 1) return null;
+   return value;
+ }
+ function accountsFor(network) {
+   const ledger = network.ledger || ledgerIds[network.id] || network.id;
+   return accounts.filter(a => a.platform === ledger);
+ }
+ async function markPosted(pkg, network, fields) {
+   const link = normalizeLink(fields.url.value);
+   if (!link) {
+     fields.url.setAttribute("aria-invalid", "true");
+     fields.error.textContent = LINK_HELP;
+     fields.error.classList.remove("hidden");
+     fields.url.focus();
+     return;
+   }
+   fields.url.value = link;
+   fields.url.removeAttribute("aria-invalid");
+   fields.error.classList.add("hidden");
+   fields.record.disabled = true;
    try {
-     const at = when ? new Date(when) : null;
+     const at = fields.when.value ? new Date(fields.when.value) : null;
      if (at && isNaN(at.getTime())) throw new Error("The posted time is not a valid date.");
-     const result = await api("/api/mark-posted", {package:pkg.name, platform:network.id, url:url,
-                                                   posted_at: at ? at.toISOString() : null});
+     const body = {package:pkg.name, platform:network.id, url:link, posted_at: at ? at.toISOString() : null};
+     if (fields.account && fields.account.value) body.account_id = fields.account.value;
+     const result = await api("/api/mark-posted", body);
      if (current.package === pkg.name) current.state = result.package;
-     showIn("pkg-status", network.label + ": " + result.notice, true);
+     const who = result.posted.account_id ? " (" + result.posted.account_id + ")" : "";
+     showIn("pkg-status", "Recorded as posted by you on " + network.label + who + ".\nNext: when you have numbers, run " +
+       result.next + "\n(replace N with your counts and TIME with when you read them, e.g. 2026-10-22T09:00:00Z)", true,
+       [{label:"Copy command", value:result.next, aria:"Copy the metrics command for " + network.label}]);
+     announce("Recorded as posted on " + network.label + ".");
      if (previewData.length) renderPreview(previewData);
      loadPackages();
+     progress();
    } catch(e) {
-     node.disabled = false;
-     showIn("pkg-status", e.message || "Nothing was recorded.", false);
+     fields.record.disabled = false;
+     fields.error.textContent = e.message || "Nothing was recorded.";
+     fields.error.classList.remove("hidden");
    }
  }
  function networkRow(pkg, network) {
    const row = document.createElement("li");
    const line = document.createElement("div");
    line.className = "netrow";
-   line.appendChild(text("strong", network.label));
-   line.appendChild(network.state === "posted" ? text("span", "Posted by hand", "chip posted") :
-                                                  text("span", "Exported", "chip exported"));
+   const who = document.createElement("span");
+   who.className = "who";
+   who.appendChild(text("strong", network.label));
+   who.appendChild(network.state === "posted" ? text("span", "Posted by you", "chip posted") :
+                                                 text("span", "Ready to post", "chip ready"));
+   line.appendChild(who);
    row.appendChild(line);
    if (network.posted) {
-     const info = text("p", "Post " + (network.posted.post_id || "") + " · " + (network.posted.label || "posted by hand") + " · ", "hint");
+     const info = text("p", "Post " + (network.posted.post_id || "") +
+       (network.posted.account_id ? " · " + network.posted.account_id : "") + " · ", "hint");
      if (/^https?:\/\//i.test(network.posted.url || "")) {
        const link = text("a", network.posted.url);
        link.href = network.posted.url;
@@ -619,37 +872,69 @@ button { font-family:inherit; }
      return row;
    }
    if (network.human_only) {
-     row.appendChild(text("p", "Human-only: write and post it yourself. 'reachweaver mark-shared' in the terminal can record it.", "hint"));
+     row.appendChild(text("p", "You write and post this one yourself. To keep it in your history, run reachweaver mark-shared in the terminal.", "hint"));
      return row;
    }
    if (!network.measurable) {
-     row.appendChild(text("p", "Not measurable in ReachWeaver yet, so it cannot be marked as posted.", "hint"));
+     row.appendChild(text("p", "ReachWeaver cannot track results for this network yet, so there is nothing to mark.", "hint"));
      return row;
    }
    const open = button("Mark as posted", "small");
+   open.setAttribute("aria-label", "Mark " + network.label + " as posted");
    const form = document.createElement("div");
    form.className = "markform hidden";
    const base = "mark-" + pkg.name + "-" + network.id;
    const urlLabel = text("label", "Link to your post on " + network.label);
    const url = document.createElement("input");
    url.type = "url"; url.id = base + "-url"; url.maxLength = 2048; url.placeholder = "https://";
-   url.autocomplete = "off";
+   url.autocomplete = "off"; url.inputMode = "url";
    urlLabel.setAttribute("for", url.id);
+   const error = text("p", "", "field-error hidden");
+   error.id = base + "-error";
+   url.setAttribute("aria-describedby", error.id);
+   form.appendChild(urlLabel); form.appendChild(url); form.appendChild(error);
+   const fields = {url:url, error:error, account:null, when:null, record:null};
+   const mine = accountsFor(network);
+   if (mine.length) {
+     const accountLabel = text("label", "Which account? (optional)");
+     const select = document.createElement("select");
+     select.id = base + "-account";
+     accountLabel.setAttribute("for", select.id);
+     select.appendChild(text("option", "Not sure / skip"));
+     select.firstChild.value = "";
+     for (const a of mine) {
+       const option = text("option", a.name ? a.id + " · " + a.name : a.id);
+       option.value = a.id;
+       select.appendChild(option);
+     }
+     form.appendChild(accountLabel); form.appendChild(select);
+     fields.account = select;
+   }
    const whenLabel = text("label", "When you posted it (optional, your local time)");
    const when = document.createElement("input");
    when.type = "datetime-local"; when.id = base + "-at";
    whenLabel.setAttribute("for", when.id);
+   form.appendChild(whenLabel); form.appendChild(when);
+   fields.when = when;
    const actions = document.createElement("div");
    actions.className = "actions";
    const record = button("Record as posted", "primary");
    const cancel = button("Cancel", "secondary");
+   fields.record = record;
    actions.appendChild(record); actions.appendChild(cancel);
-   form.appendChild(urlLabel); form.appendChild(url); form.appendChild(whenLabel); form.appendChild(when);
-   form.appendChild(text("p", "Records it in your history as posted by hand so you can measure it. Nothing is posted or sent.", "hint"));
+   form.appendChild(text("p", "Adds it to your history as posted by you, so you can track it. Nothing is posted or sent.", "hint"));
    form.appendChild(actions);
+   url.addEventListener("blur", function(){
+     const fixed = normalizeLink(url.value);
+     if (fixed && fixed !== url.value.trim()) url.value = fixed;
+   });
+   url.addEventListener("input", function(){
+     if (url.getAttribute("aria-invalid")) { url.removeAttribute("aria-invalid"); error.classList.add("hidden"); }
+   });
+   url.addEventListener("keydown", function(event){ if (event.key === "Enter") markPosted(pkg, network, fields); });
    open.addEventListener("click", function(){ form.classList.remove("hidden"); open.classList.add("hidden"); url.focus(); });
-   cancel.addEventListener("click", function(){ form.classList.add("hidden"); open.classList.remove("hidden"); });
-   record.addEventListener("click", function(){ markPosted(pkg, network, url.value.trim(), when.value, record); });
+   cancel.addEventListener("click", function(){ form.classList.add("hidden"); open.classList.remove("hidden"); open.focus(); });
+   record.addEventListener("click", function(){ markPosted(pkg, network, fields); });
    line.appendChild(open);
    row.appendChild(form);
    return row;
@@ -667,10 +952,12 @@ button { font-family:inherit; }
      card.className = "review";
      const head = document.createElement("div");
      head.className = "review-head";
-     head.appendChild(text("h3", pkg.created || pkg.name));
-     if (pkg.name === current.package) head.appendChild(text("span", "In the editor", "chip exported"));
+     head.appendChild(text("h3", pkg.display_name || pkg.created || pkg.name));
+     if (pkg.name === current.package) head.appendChild(text("span", "In the editor", "chip here"));
      card.appendChild(head);
-     card.appendChild(text("small", pkg.name + (pkg.media.length ? " · " + pkg.media.length + " media file(s)" : "")));
+     const count = pkg.networks.length;
+     card.appendChild(text("small", count + (count === 1 ? " network" : " networks") +
+       (pkg.media.length ? " · " + pkg.media.length + (pkg.media.length === 1 ? " photo or video" : " photos or videos") : "")));
      const list2 = document.createElement("ul");
      list2.className = "netlist";
      for (const network of pkg.networks) list2.appendChild(networkRow(pkg, network));
@@ -678,11 +965,12 @@ button { font-family:inherit; }
      const actions = document.createElement("div");
      actions.className = "actions";
      const open = button("Open in editor", "secondary");
-     open.addEventListener("click", function(){ openPackage(pkg.name, open); });
+     open.addEventListener("click", function(){ openPackage(pkg, open); });
      const copyPkg = button("Duplicate as new", "secondary");
-     copyPkg.addEventListener("click", function(){ duplicate(pkg.name); });
+     copyPkg.addEventListener("click", function(){ duplicate(pkg); });
      actions.appendChild(open); actions.appendChild(copyPkg);
      card.appendChild(actions);
+     card.appendChild(text("p", "Folder: " + (pkg.folder || pkg.name), "hint"));
      box.appendChild(card);
    }
  }
@@ -715,13 +1003,14 @@ button { font-family:inherit; }
  el("save").addEventListener("click",function(){ save("new"); });
  el("update").addEventListener("click",function(){
    if (!previewValid || !current.package) return;
-   el("confirm-text").textContent = "Replace the saved files of " + current.package +
-     " with what is in the editor? A package with a network marked as posted cannot be changed.";
+   el("confirm-text").textContent = "Replace the saved files of “" +
+     ((current.state && current.state.display_name) || current.package) +
+     "” with what is in the editor? A package with a network marked as posted cannot be changed.";
    el("confirm-update").classList.remove("hidden");
    el("confirm-yes").focus();
  });
  el("confirm-yes").addEventListener("click",function(){ save("update"); });
- el("confirm-no").addEventListener("click",function(){ el("confirm-update").classList.add("hidden"); });
+ el("confirm-no").addEventListener("click",function(){ el("confirm-update").classList.add("hidden"); el("update").focus(); });
  el("undo").addEventListener("click",undo);
  el("refresh").addEventListener("click",loadPackages);
  el("media-input").addEventListener("change",function(){
@@ -741,7 +1030,11 @@ button { font-family:inherit; }
      setSaved("Not saved", "bad"); showMessage(e.message || "The draft could not be cleared.", false);
    });
    renderPackages(lastPackages);
+   progress();
  });
+ resultsLine("results-top");
+ resultsLine("results-foot");
+ progress();
  if(!/^[A-Za-z0-9_-]{30,}$/.test(sessionToken)) {
    showMessage("This local page needs a session link. Open the complete URL printed in your terminal.",false);
    el("preview").disabled=true;
@@ -758,20 +1051,25 @@ button { font-family:inherit; }
    if (data.draft) {
      current = {package:data.draft.package, revision:data.draft.revision, state:null};
      applyEditor(data.draft, data.media);
-     setSaved("Saved", "ok");
+     setSaved("Draft saved", "ok");
    } else {
      stable = snapshot();
    }
    updateEditing();
    ready = true;
-   showMessage(data.draft ? "Your saved draft is back. No social network is connected." :
-               "Local composer ready. No social network is connected.",true);
+   showMessage(data.draft ? "Your draft is back. No social network is connected." :
+               "Ready. No social network is connected; nothing is posted for you.",true);
+   return api("/api/accounts", {}).catch(function(){ return {accounts:[], ledger_ids:{}}; });
+ }).then(function(data){
+   accounts = data.accounts || [];
+   ledgerIds = data.ledger_ids || {};
    return api("/api/packages", {});
  }).then(function(data){
    if (current.package) current.state = data.packages.find(p => p.name === current.package) || null;
    if (current.package && !current.state) current = {package:null, revision:null, state:null};
    updateEditing();
    renderPackages(data.packages);
+   progress();
  }).catch(function(err){
    showMessage(err.message || "Unable to open the local composer.",false);
    el("preview").disabled=true;

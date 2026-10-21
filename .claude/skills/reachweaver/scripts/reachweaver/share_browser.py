@@ -7,7 +7,9 @@ POSTs may create *private local manual-export folders only* after user action:
 save a package (new, or a confirmed update of one not marked posted), autosave the
 editor draft, attach a photo/video, and mark one network of a saved package as
 posted by hand (``storage.record_manual_publish``: a terminal record that nothing
-can send). Nothing here can approve, schedule or send; see share_composer_store.
+can send), optionally naming an account that the server checks against
+accounts.json (read, never written). Nothing here can approve, schedule or send;
+see share_composer_store.
 """
 from __future__ import annotations
 
@@ -15,6 +17,7 @@ import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
+import re
 import secrets
 import threading
 import time
@@ -43,8 +46,41 @@ _SAVE_FIELDS = frozenset({"mode", "package", "revision", "confirm"})
 # Every POST route and the body it takes. Nothing else is routed; there is no send, approve or schedule route.
 JSON_ROUTES = frozenset({"/api/preview", "/api/prepare", "/api/packages", "/api/package/open",
                          "/api/package/duplicate", "/api/mark-posted", "/api/draft/load", "/api/draft/save",
-                         "/api/draft/clear"})
+                         "/api/draft/clear", "/api/accounts"})
 MEDIA_ROUTE = "/api/media"
+# Technical wording from the shared share/manual-export rules -> plain words for the page. The rule and its
+# safety meaning are unchanged; only CLI flag and field names are replaced. Applied to errors and warnings.
+PLAIN_WORDS = (
+    ("variant.text must contain substantive text", "needs a caption: write a few words first"),
+    ("YouTube needs platform_options.title (the video title); variant.text is the description",
+     "YouTube needs a video title; your caption becomes the description"),
+    ("Human-only communities need --note, not pre-written post text",
+     "Human-only communities get your own community note, never a prepared post"),
+    ("This selection is human-only. Remove --text/--file and supply --note",
+     "this selection is human-only: write a short personal community note, and write the real post yourself "
+     "in that community"),
+    ("--title is only for YouTube", "The video title is only used for YouTube"),
+    ("Choose a network with --platform instagram,threads or --guide", "Choose at least one network."),
+    ("; try 'reachweaver share --list' or 'reachweaver delivery-options'.", "; choose one from the list."),
+    ("Unknown manual destination", "Unknown network"),
+    (MEDIA_CHECK_NOTE, "These checks ran offline from the file header only; alt text, captions, rights and consent "
+                       "are yours to check"),
+)
+_NO_MEDIA = re.compile(r"no media manifest supplied: (?P<kinds>[a-z, ]+) not validated; attach the file yourself "
+                       r"and run media-check before posting")
+METRICS_NEXT = "reachweaver metrics {post_id} --observed-at TIME --source native-export --likes N --replies N"
+
+
+def plain(message: str, label: str = "") -> str:
+    """``message`` in plain words for the composer page (see PLAIN_WORDS); ``label`` names the network."""
+    found = _NO_MEDIA.search(message)
+    if found and label:
+        need = "a photo or video" if "image" in found.group("kinds") else "a video"
+        message = message.replace(found.group(0), f"{label} needs {need}. Add it here or attach it in the "
+                                                  f"{label} app.")
+    for old, new in PLAIN_WORDS:
+        message = message.replace(old, new)
+    return message
 
 
 def catalog() -> list[dict[str, Any]]:
@@ -161,15 +197,16 @@ def _safe_preview(packages: list[tuple[str, dict]]) -> list[dict[str, Any]]:
         rows = (pkg.get("share") or {}).get("media_checks") or []
         media_lines = set(_media_lines(rows)) | {MEDIA_CHECK_NOTE} if rows else set()
         warnings = pkg["preflight"]["warnings"]
+        label = pkg["platform_label"]
         result.append({
             "id": platform,
-            "label": pkg["platform_label"],
+            "label": label,
             "human_only": human,
             "text": None if human else content["text"],
             "title": content.get("title"),
             "format": content.get("format", "notes" if human else "text"),
-            "warnings": [w for w in warnings if w not in media_lines],
-            "media_checks": [w for w in warnings if w in media_lines],
+            "warnings": [plain(w, label) for w in warnings if w not in media_lines],
+            "media_checks": [plain(w, label) for w in warnings if w in media_lines],
             "note": "Write this yourself under the community rules" if human else
                     (pkg.get("share") or {}).get("send_from_reachweaver") or
                     "Copy after reviewing the native app's options",
@@ -221,7 +258,8 @@ def _prepare(obj: Any) -> dict:
                             revision=obj.get("revision"))
     state = store.package_state(target)
     return {"ready": True, "saved_to": str(target), "count": len(packages), "published": False,
-            "package": state, "updated": update is not None,
+            "package": state, "updated": update is not None, "display_name": state["display_name"],
+            "folder": state["folder"],
             "notice": "Private files prepared locally. Open OPEN-FIRST.md and post by hand."}
 
 
@@ -250,12 +288,21 @@ def _duplicate_package(obj: Any) -> dict:
             "notice": f"Copied {pkg.name} into a new package. Nothing was uploaded or published."}
 
 
-def _mark_posted(obj: Any, db: str | None) -> dict:
-    obj = _only(obj, {"package", "platform", "url", "posted_at"})
-    record = store.mark_posted(obj.get("package"), obj.get("platform"), obj.get("url"), obj.get("posted_at"), db)
+def _mark_posted(obj: Any, db: str | None, accounts: str | None = None) -> dict:
+    """``account_id`` is optional; when given it must exist in accounts.json for this network's platform."""
+    obj = _only(obj, {"package", "platform", "url", "posted_at", "account_id"})
+    record = store.mark_posted(obj.get("package"), obj.get("platform"), obj.get("url"), obj.get("posted_at"), db,
+                               account_id=obj.get("account_id"), accounts=accounts)
     return {"posted": record, "package": store.package_state(store.package_path(obj["package"])),
+            "next": METRICS_NEXT.format(post_id=record["post_id"]),
             "notice": f"Recorded as {store.POSTED_LABEL} (post {record['post_id']}). Nothing was posted or sent, "
                       "and this record can never be approved, scheduled or sent."}
+
+
+def _accounts(obj: Any, accounts: str | None) -> dict:
+    """Read-only: public ids, platforms and handles from accounts.json for the optional account choice."""
+    _only(obj, set())
+    return {"accounts": store.list_accounts(accounts), "ledger_ids": dict(store.LEDGER_ID)}
 
 
 def _draft_load(obj: Any) -> dict:
@@ -297,11 +344,12 @@ class ShareServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = False
 
-    def __init__(self, port: int = 0, db: str | None = None):
+    def __init__(self, port: int = 0, db: str | None = None, accounts: str | None = None):
         if not isinstance(port, int) or isinstance(port, bool) or not 0 <= port <= 65535:
             raise ValidationError("Local browser port must be between 0 and 65535.")
         self.token = secrets.token_urlsafe(32)
         self.db = db  # the history database "Mark as posted" records into (--db, else the workspace default)
+        self.accounts = accounts  # accounts.json read (never written) for the optional account choice
         self.write_lock = threading.Lock()  # one composer request touches the files or the database at a time
         super().__init__((BIND_ADDRESS, port), ShareHandler)
 
@@ -491,7 +539,7 @@ class ShareHandler(BaseHTTPRequestHandler):
         except RecursionError:  # deeply nested JSON: refuse it rather than drop the connection
             self._json_response(422, {"errors": ["The request JSON is nested too deeply."]})
         except (ValidationError, UnicodeError, ValueError, TypeError) as exc:
-            self._json_response(422, {"errors": [str(exc)]})
+            self._json_response(422, {"errors": [plain(str(exc))]})
         except OSError:
             self._json_response(500, {"errors": [
                 "Could not read or save local handoff files. Check disk permissions and available space."
@@ -509,7 +557,9 @@ class ShareHandler(BaseHTTPRequestHandler):
         if path == "/api/package/duplicate":
             return _duplicate_package(obj)
         if path == "/api/mark-posted":
-            return _mark_posted(obj, self.server.db)
+            return _mark_posted(obj, self.server.db, self.server.accounts)
+        if path == "/api/accounts":
+            return _accounts(obj, self.server.accounts)
         if path == "/api/draft/load":
             return _draft_load(obj)
         if path == "/api/draft/save":
@@ -519,9 +569,9 @@ class ShareHandler(BaseHTTPRequestHandler):
         raise ValidationError("Not found.")
 
 
-def serve(port: int = 0, open_browser: bool = False, db: str | None = None) -> int:
+def serve(port: int = 0, open_browser: bool = False, db: str | None = None, accounts: str | None = None) -> int:
     """Owner-run loopback browser, stopped by Ctrl+C. No scheduled/background tasks."""
-    server = ShareServer(port, db=db)
+    server = ShareServer(port, db=db, accounts=accounts)
     try:
         print("ReachWeaver manual Share Composer (offline, loopback only)")
         print("Open this private local URL in your browser:")
