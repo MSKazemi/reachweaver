@@ -481,6 +481,15 @@ a.fx:hover { text-decoration: underline; }
   background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 600; }
 .writecta:hover { background: var(--accent-strong); }
 .side nav a.writecta[aria-current="page"] { background: var(--accent-strong); color: var(--accent-ink); }
+/* "Write a new post" as a page button: the Overview's top (phones, where the sidebar is a drawer), the next step and
+   the Write page. Under `studio` it is a real link to the composer; on its own the dashboard links to #/write. */
+.writebtn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 18px;
+  border-radius: 10px; background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 700; }
+.writebtn:hover { background: var(--accent-strong); color: var(--accent-ink); }
+.writebtn .ico { width: 18px; height: 18px; }
+.overtop { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
+.overtop .writebtn { display: none; }
+.linkline { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 8px 0; }
 
 /* ---- loading skeleton */
 .sk { border-radius: 8px; background: var(--code-bg); margin: 0 0 12px; }
@@ -491,6 +500,7 @@ a.fx:hover { text-decoration: underline; }
   .shell { display: block; }
   .side { position: fixed; left: 0; top: 0; bottom: 0; height: auto; width: 280px; max-width: 86vw; transform: translateX(-105%); box-shadow: 0 0 40px rgba(0, 0, 0, .3); }
   .side.open { transform: none; }
+  .overtop .writebtn { display: inline-flex; }  /* the sidebar's button is in the closed drawer here */
   .top { padding: 8px 12px; gap: 8px; }
   .top .menu { display: inline-grid; } .top .brand.small { display: flex; padding: 0; }
   .iconbtn { width: var(--tap); height: var(--tap); flex: none; }
@@ -588,7 +598,19 @@ const REASON_HELP = {
   threads_authorization_warning: "The Threads token expires within a week. Refresh it soon.",
   threads_authorization_unknown: "authorization_expires_at is not recorded for Threads, so expiry cannot be warned about. Record it.",
   instagram_authorization_expiry_invalid: "authorization_expires_at for Instagram cannot be read, so the token is treated as expired. Fix the date in the accounts file.",
-  threads_authorization_expiry_invalid: "authorization_expires_at for Threads cannot be read, so the token is treated as expired. Fix the date in the accounts file."
+  threads_authorization_expiry_invalid: "authorization_expires_at for Threads cannot be read, so the token is treated as expired. Fix the date in the accounts file.",
+  linkedin_version_unsupported: "The LinkedIn API version in your accounts file (linkedin_version) is a year old or more, so automatic LinkedIn sending is refused. Posting by hand is not affected. Fix: put the 'Latest Version' from LinkedIn's versioning page (see docs/LINKEDIN.md) into linkedin_version in config/accounts.json.",
+  linkedin_version_ageing: "The LinkedIn API version (linkedin_version) is getting old. Fix: move it to a newer version from LinkedIn's versioning page (docs/LINKEDIN.md) before it stops working.",
+  credential_unreadable: "A credential file or variable exists but cannot be read (for example its permissions). Only its name is shown. Fix: check the file named here; ReachWeaver never shows the value.",
+  provider_cooldown_ceiling_clamped: "A platform asked for a wait longer than 24 hours; ReachWeaver waits 24 hours at most. Fix: look at the account on the platform before anything else is sent.",
+  ai_disclosure_registry_aging: "The bundled AI-label rules were checked a while ago. Fix: re-check the platform pages they cite (reachweaver registry-age) before relying on the AI-label check.",
+  ai_disclosure_registry_invalid: "The bundled AI-label rules failed their checks, so a post with media needs an explicit AI-label answer. Fix: reinstall or update ReachWeaver.",
+  queued_posts_for_unconfigured_accounts: "Some approved or scheduled posts belong to an account that is no longer in your accounts file, so they cannot be sent. Fix: add the account back, or cancel those posts in your terminal.",
+  approval_replay_reapproval_required: "A post's approval was already used once (or came back from an older copy of the database). Fix: approve it again in your terminal before it can be sent.",
+  approval_withdrawn_reapproval_required: "A post's approval was withdrawn earlier, yet the post is approved again in this database (an older copy). Fix: approve it again in your terminal before it can be sent.",
+  approval_nonce_missing_reapproval_required: "A post was approved by an older version without the one-time approval record. Fix: approve it again in your terminal before it can be sent.",
+  approval_ledger_broken: "The approval record (state/approval-ledger.jsonl) does not match the database, so the affected sends are refused. Fix: restore the matching file from your backup; never edit it by hand.",
+  approval_ledger_unavailable: "The approval record (state/approval-ledger.jsonl) is missing or unreadable, so approved posts cannot be checked and are not sent. Fix: restore it next to the database from your backup."
 };
 const STATUS_LABEL = { draft: "draft", approved: "approved", scheduled: "scheduled", sending: "sending",
   needs_review: "needs review", published: "published", cancelled: "cancelled", published_manual: "posted by you" };
@@ -614,7 +636,9 @@ const REASON_TITLE = {
   no_accounts_configured: "No accounts set up (only needed for automatic sending)", registry_entry_stale: "Platform research is getting old",
   research_facts_stale: "Some platform facts are getting old", manual_platform_has_queued_posts: "Approved posts for a platform you post to by hand",
   provider_cooldown_active: "A platform asked to wait", rolling_budget_exhausted: "Today's send limit is used up",
-  accounts_config_unloadable: "The accounts file cannot be read", caps_file_invalid: "The send-limits file is invalid"
+  accounts_config_unloadable: "The accounts file cannot be read", caps_file_invalid: "The send-limits file is invalid",
+  linkedin_version_unsupported: "LinkedIn API version too old (only for automatic sending)",
+  linkedin_version_ageing: "LinkedIn API version is getting old (only for automatic sending)"
 };
 function reasonTitle(code) { return REASON_TITLE[code] || code.replace(/_/g, " "); }
 const ADAPTER_LABEL = { live_text: "can send automatically", backend: "sends through a scheduler", manual: "you post by hand", other: "other" };
@@ -750,6 +774,22 @@ function command(text) {
     btn.textContent = "Copied"; btn.classList.add("done"); setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1600); }));
   return h("div", { class: "cmd" }, h("code", null, text), btn);
 }
+// ---- `reachweaver studio`: the composer it runs beside this dashboard. Its full local URL comes from api/studio (it
+// carries the composer's own token, in the fragment) and is only ever put in a link; both pages send no referrer.
+// null when this dashboard runs alone (`ui`): then "Write a new post" stays a command to copy.
+let COMPOSER = null;
+const COMPOSER_URL = /^http:\/\/127\.0\.0\.1:\d{1,5}\/#[A-Za-z0-9_-]{30,}$/;
+function composerHref(ideaId) { return COMPOSER + (ideaId ? "&idea=" + encodeURIComponent(ideaId) : ""); }
+function writeLink(label, ideaId) {
+  return h("a", { class: "writebtn", href: COMPOSER ? composerHref(ideaId) : "#/write", rel: COMPOSER ? "noopener noreferrer" : null }, icon("pen"), label);
+}
+async function loadStudio() {
+  try { const d = await api("studio"); if (d && typeof d.composer === "string" && COMPOSER_URL.test(d.composer)) COMPOSER = d.composer; } catch (e) { /* the dashboard alone */ }
+  if (!COMPOSER) return;
+  const cta = document.querySelector(".writecta");
+  if (cta) { cta.href = COMPOSER; cta.rel = "noopener noreferrer"; cta.removeAttribute("data-route"); }
+  for (const p of PAGES) if (p[1] === "#/write") p[1] = COMPOSER;
+}
 async function api(path) {
   const res = await fetch("api/" + path, { headers: { Accept: "application/json" }, cache: "no-store" });
   let body = null;
@@ -783,24 +823,30 @@ function refreshBadges() { api("attention").then(applyBadges).catch(() => { /* b
 
 // ---- Overview
 // "Your next step": one action chosen by the same logic as `reachweaver start`, then at most three others.
+// A step this browser can do itself is a link: writing a post (the composer, when `studio` runs it) and your ideas
+// (this dashboard's Ideas page). Everything else, including every owner-only command, stays a command to copy.
 function stepBlock(step, lead) {
+  const link = step.opens === "composer" && COMPOSER ? writeLink("Open the composer") :
+    step.opens === "ideas" ? h("a", { class: "tap", href: "#/ideas" }, "See your ideas") : null;
   return [h(lead ? "p" : "div", { class: lead ? "lead" : null }, step.label),
-    step.command ? command(step.command) : null,
-    step.owner_only ? h("div", { class: "note" }, h("span", { class: "who you" }, "You run this"), " in your own terminal; Claude never does.") : null,
+    link ? h("div", { class: "linkline" }, link) : step.command ? command(step.command) : null,
+    step.owner_only && !link ? h("div", { class: "note" }, h("span", { class: "who you" }, "You run this"), " in your own terminal; Claude never does.") : null,
     step.note ? h("div", { class: "note" }, step.note) : null];
 }
 function nextStepCard(guide, att) {
-  const waiting = att && att.total ? h("p", { class: "note" }, h("a", { class: "tap", href: "#/queue" },
+  // Drafts or uncertain sends are already the step itself: the Queue link is only added when it says something new.
+  const covered = guide.state === "drafts" || guide.state === "needs_review";
+  const waiting = att && att.total && !covered ? h("p", { class: "note" }, h("a", { class: "tap", href: "#/queue" },
     att.total + (att.total === 1 ? " post is" : " posts are") + " waiting for you: open the Queue")) : null;
   return h("section", { class: "card nextstep", "aria-labelledby": "nextstep-h" },
     h("h2", { class: "ct", id: "nextstep-h" }, "Your next step"), stepBlock(guide.primary, true),
     guide.secondary.length ? [h("h3", { class: "olabel" }, "Also"), h("ul", { class: "alsosteps" }, guide.secondary.map(st => h("li", null, stepBlock(st))))] : null,
     waiting);
 }
+// The per-status numbers live once, in the "All posts" card; waiting drafts once, in "Your next step".
 function countsSentence(counts) {
-  const parts = STATUS_ORDER.filter(k => counts[k]).map(k => counts[k] + " " + (k === "draft" ? (counts[k] === 1 ? "draft" : "drafts") : STATUS_LABEL[k]));
   const total = STATUS_ORDER.reduce((n, k) => n + (counts[k] || 0), 0);
-  return total ? total + (total === 1 ? " post: " : " posts: ") + parts.join(", ") + "." : "No posts yet.";
+  return total ? total + (total === 1 ? " post." : " posts.") : "No posts yet.";
 }
 function openDetails() { const d = document.getElementById("why"); if (d) { d.open = true; d.scrollIntoView({ block: "start" }); const s = d.querySelector("summary"); if (s) s.focus(); } }
 // Yellow or red only for a real problem (the emergency stop, an uncertain send, something blocked); otherwise one calm line.
@@ -878,7 +924,8 @@ async function viewOverview() {
   applyBadges(att);
   // Top to bottom: what is wrong (only when something really is), the one next step, what is coming and what went out.
   // Every list the old Overview repeated (drafts, owner commands, activity) is one tap away on Queue and Work with Claude.
-  return [h("h1", null, "Overview"), h("p", { class: "lede" }, countsSentence(counts), " Checked ", when(s.observed_at), "."),
+  return [h("div", { class: "overtop" }, h("div", null, h("h1", null, "Overview"),
+      h("p", { class: "lede" }, countsSentence(counts), " Checked ", when(s.observed_at), ".")), writeLink("Write a new post")),
     statusBanner(s), nextStepCard(guide, att),
     h("div", { class: "grid2" }, lateCard("Coming up", comingNodes), lateCard("Recently posted", recentNodes)),
     statusCard(counts), askCard(), detailsSection(s)];
@@ -1596,6 +1643,8 @@ function ideaRow(i) {
     text: i.excerpt, meta: [i.id, i.tags.map(t => h("span", { class: "tag" }, "#" + t)), i.source_host ? "source: " + i.source_host : null,
       i.promoted_campaign ? "campaign " + i.promoted_campaign : null],
     extra: [i.text.length > i.excerpt.length ? h("details", null, h("summary", null, "Full text"), h("pre", { class: "exact" }, i.text)) : null,
+      // Write it: a link that opens the composer with this idea as the caption (studio), else the command that does.
+      i.status === "open" ? (COMPOSER ? h("div", { class: "linkline" }, writeLink("Write a post from this idea", i.id)) : command("reachweaver share --web --open --idea " + i.id)) : null,
       i.status === "open" ? h("div", { class: "pact" }, btn, live) : null, i.status === "open" ? show : null],
     right: when(i.created_at) });
 }
@@ -1615,14 +1664,18 @@ async function viewIdeas(params) {
     h("p", { class: "note" }, "Only the host of a source link is shown. Promoting writes a NEW campaign scaffold folder that stays blocked until you finish and verify it; nothing is staged, approved or sent.")];
 }
 
-// ---- Write a new post: the browser composer is its own small local page that `share --web` starts. This read-only
-// dashboard cannot start it, so the page gives the one command to copy, then says what happens next.
+// ---- Write a new post: the browser composer is its own small local page. Under `reachweaver studio` it already runs
+// beside this dashboard, so this is a link; on its own this read-only dashboard cannot start it, so the page gives the
+// one command to copy (`reachweaver studio` next time opens both together), then says what happens next.
 function viewWrite() {
+  const open = COMPOSER ? [h("p", { class: "lead" }, "The composer is running next to this dashboard:"), h("div", { class: "linkline" }, writeLink("Open the composer")),
+      h("p", { class: "note" }, "No account, password or social network is contacted, and this dashboard stays read-only.")] :
+    [h("p", { class: "lead" }, "Copy this command and run it in your terminal:"), command("reachweaver share --web --open"),
+      h("p", { class: "note" }, "It opens the composer in your browser. No account, password or social network is contacted, and this dashboard stays read-only. Next time, ",
+        h("code", null, "reachweaver studio"), " opens this dashboard and the composer together, linked.")];
   return [h("h1", null, "Write a new post"),
     h("p", { class: "lede" }, "Write once and get a ready-to-paste version for each network. It runs only on your computer; you post it in each app yourself."),
-    h("section", { class: "card nextstep", "aria-labelledby": "write-h" }, h("h2", { class: "ct", id: "write-h" }, "Open the composer"),
-      h("p", { class: "lead" }, "Copy this command and run it in your terminal:"), command("reachweaver share --web --open"),
-      h("p", { class: "note" }, "It opens the composer in your browser. No account, password or social network is contacted, and this dashboard stays read-only.")),
+    h("section", { class: "card nextstep", "aria-labelledby": "write-h" }, h("h2", { class: "ct", id: "write-h" }, "Open the composer"), open),
     h("ol", { class: "steps" }, h("li", null, h("b", null, "Write your post"), h("div", { class: "note" }, "Pick the networks; each version is checked against its limits.")),
       h("li", null, h("b", null, "Copy each version"), h("div", { class: "note" }, "Paste it into the network's own app and post it yourself.")),
       h("li", null, h("b", null, "Record that you posted it"), h("div", { class: "note" }, "Then it shows here under Posted and Results.")),
@@ -1768,7 +1821,7 @@ const PAGES = [["Overview", "#/", "home"], ["Write a new post", "#/write", "pen"
   ["Accounts", "#/accounts", "accounts"], ["Channels", "#/distribution", "channels"], ["Ideas", "#/ideas", "idea"],
   ["Work with Claude", "#/claude", "chat"]];
 let palette = null, palInput = null, palList = null, palItems = [], palSel = 0, palPosts = null, palAt = 0, palOpener = null, palLeaving = false;
-function palGo(target) { palLeaving = true; palette.close(); location.hash = target; }
+function palGo(target) { palLeaving = true; palette.close(); if (COMPOSER && target.startsWith(COMPOSER)) location.assign(target); else location.hash = target; }
 // Esc or closing without a choice puts focus back where it was (the Ctrl K button or the field you were in).
 function palReturn() {
   if (palLeaving) { palLeaving = false; return; }
@@ -1866,5 +1919,5 @@ window.addEventListener("hashchange", () => { const { path, full } = parseHash()
   if (!path.startsWith("/search")) gq.value = ""; scrolls.set(lastFull, window.scrollY); render(lastFull); if (path !== lastPath) main.focus({ preventScroll: true }); lastPath = path; lastFull = full; });
 document.getElementById("refresh").addEventListener("click", () => { render(); toast("Refreshed"); });
 lastPath = parseHash().path; lastFull = parseHash().full;
-render();
+loadStudio().then(() => render());
 """

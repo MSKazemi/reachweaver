@@ -134,6 +134,14 @@ button { font-family: inherit; }
 .network span { font-size: 12px; color: var(--muted); }
 .network[aria-pressed=true] { background: var(--accent-soft); border: 2px solid var(--accent); padding: 8px 10px; }
 .network[aria-pressed=true] strong::before { content: "✓ "; color: var(--accent-strong); }
+.picked { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.pick { font: inherit; font-size: 13px; font-weight: 650; min-height: 36px; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent-strong); }
+.pick:hover { background: var(--accent); color: var(--accent-ink); }
+.results-link { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 14px; border-radius: 10px; font-weight: 700;
+  border: 1px solid var(--accent); color: var(--accent-strong); background: var(--accent-soft); text-decoration: none; }
+.results-link:hover { background: var(--accent); color: var(--accent-ink); }
+.alert .results-link { margin: 8px 8px 0 0; }
 .count { display: inline-block; color: var(--accent-strong); background: var(--accent-soft); border-radius: 999px; font-size: 12px; font-weight: 700; padding: 4px 10px; }
 .filter-row { display: flex; gap: 8px; margin: 12px 0 10px; align-items: center; flex-wrap: wrap; }
 .filter-row button { font: inherit; font-size: 13px; padding: 6px 12px; min-height: 34px; background: var(--panel); border: 1px solid var(--field-line); border-radius: 9px; color: var(--ink); cursor: pointer; }
@@ -195,14 +203,14 @@ button { font-family: inherit; }
   .layout { grid-template-columns: 1fr; gap: 14px; }
   .panel { padding: 16px; }
   .explain { margin-bottom: 8px; }
-  .network-options { max-height: 390px; }
+  .network-options { max-height: none; overflow: visible; }  /* the list flows in the page; the chips show the choice */
   .page-foot { padding: 0 14px 32px; }
 }
 @media (max-width: 640px) {
   .progress { gap: 4px; }
   .progress li { flex-direction: column; gap: 2px; padding: 5px 2px; font-size: 12px; text-align: center; }
   .progress li[aria-current="step"] { padding: 4px 1px; }
-  .small, .filter-row button, .network, input[type=file]::file-selector-button { min-height: 44px; }
+  .small, .filter-row button, .network, .pick, input[type=file]::file-selector-button { min-height: 44px; }
   .small { padding: 8px 12px; }
   textarea { min-height: 150px; }
   .write-explain { display: none; }
@@ -278,6 +286,7 @@ button { font-family: inherit; }
    <button id="all" type="button" aria-pressed="false">All networks</button>
    <span class="count" id="selection-count">0 selected</span>
  </div>
+ <div class="picked hidden" id="picked" role="group" aria-label="Selected networks"></div>
  <div class="network-options" id="networks" aria-label="Available networks">
    <p class="hint">Loading your offline network list…</p>
  </div>
@@ -329,7 +338,19 @@ button { font-family: inherit; }
 <script nonce="__CSP_NONCE__">
 (function () {
  "use strict";
- const sessionToken = window.location.hash.slice(1);
+ // "#TOKEN" or "#TOKEN&idea=idea-xxxxxxxx" (the dashboard's "Write a post from this idea" under `studio`). The
+ // fragment is never sent to any server; the idea part is dropped from the address at once, so a reload never
+ // offers it again.
+ const hashParts = window.location.hash.slice(1).split("&");
+ const sessionToken = hashParts[0];
+ const ideaWanted = (function(){
+   const value = new URLSearchParams(hashParts.slice(1).join("&")).get("idea") || "";
+   return /^idea-[0-9a-f]{8}$/.test(value) ? value : null;
+ })();
+ if (hashParts.length > 1) { try { history.replaceState(null, "", "#" + sessionToken); } catch(e) { /* keep going */ } }
+ // Under `reachweaver studio`: the dashboard's Results page (its own token is in that URL). null when alone.
+ let dashboardUrl = null;
+ const DASHBOARD_URL = /^http:\/\/127\.0\.0\.1:\d{1,5}\/[A-Za-z0-9_-]{20,}\/#\/results$/;
  const el = id => document.getElementById(id);
  const MAX_MEDIA = 10;
  const MAX_MEDIA_BYTES = 256 * 1024 * 1024;
@@ -413,8 +434,15 @@ button { font-family: inherit; }
    }
  };
  const showMessage = function(message, isSuccess, copies) { showIn("status", message, isSuccess, copies); };
+ function resultsLink(label) {
+   const link = text("a", label, "results-link");
+   link.href = dashboardUrl;
+   link.rel = "noopener noreferrer";
+   return link;
+ }
  function resultsLine(id) {
    const box = el(id);
+   if (dashboardUrl) { box.replaceChildren(resultsLink("See how your posts did")); return; }
    box.replaceChildren(text("span", "See how your posts did: run "), text("code", RESULTS_CMD));
    box.appendChild(copyButton("Copy", RESULTS_CMD, "Copy the command " + RESULTS_CMD));
  }
@@ -524,6 +552,9 @@ button { font-family: inherit; }
  function counter() {
    el("counter").textContent = el("caption").value.length + " characters · Kept on this computer, never uploaded";
  }
+ // What the last preview or save checked. "Your post changed" is only true against that; after a reload, an opened
+ // package or Undo there is no preview on the page yet, which is not a change.
+ let previewedKey = null;
  function invalidate() {
    previewValid = false;
    savedClean = false;
@@ -531,14 +562,44 @@ button { font-family: inherit; }
    el("update").disabled = true;
    el("confirm-update").classList.add("hidden");
    previewData = [];
-   el("results").replaceChildren(text("p", "Your post changed. Preview again before saving.", "no-preview"));
+   const differs = previewedKey !== null && JSON.stringify(payload()) !== previewedKey;
+   el("results").replaceChildren(text("p", differs ? "Your post changed. Preview again before saving." :
+     selected.size ? "Choose “Preview my posts” to see each version." :
+     "Pick networks and choose “Preview my posts” to see each version.", "no-preview"));
    showMessage("",false);
    progress();
+ }
+ function toggleNetwork(p) {
+   if (selected.has(p.id)) { selected.delete(p.id); edits.delete(p.id); }
+   else if (selected.size < 10) selected.add(p.id);
+   else { showMessage("You can pick at most ten networks at once.", false); return false; }
+   conditionalFields();
+   invalidate();
+   renderNetworks();
+   changed();
+   return true;
+ }
+ // The chosen networks as chips above the list, so the choice stays in view however long the list is.
+ function renderPicked() {
+   const box = el("picked");
+   box.replaceChildren();
+   for (const p of catalog.filter(c => selected.has(c.id))) {
+     const chip = button(p.label + " ✕", "pick");
+     chip.setAttribute("aria-label", "Remove " + p.label);
+     chip.addEventListener("click", function(){
+       if (!toggleNetwork(p)) return;
+       const next = el("picked").querySelector("button") || el("search");
+       next.focus();
+     });
+     box.appendChild(chip);
+   }
+   box.classList.toggle("hidden", !selected.size);
  }
  function conditionalFields() {
    el("video-title").classList.toggle("hidden",!selected.has("youtube"));
    el("community-notes").classList.toggle("hidden",!humanSelected());
    el("selection-count").textContent = selected.size + " selected";
+   renderPicked();
  }
  function updateEditing() {
    const state = current.state;
@@ -560,6 +621,7 @@ button { font-family: inherit; }
    counter(); conditionalFields(); renderNetworks(); renderMedia(); invalidate();
  }
  function applyEditor(editor, infos) {
+   previewedKey = null;  // a reloaded draft or an opened package has not been previewed on this page yet
    restore({selected:editor.platforms || [], edits:Object.entries(editor.overrides || {}),
             caption:editor.text || "", title:editor.title || "", notes:editor.note || "", media:infos || []});
    undoStack.length = 0;
@@ -591,13 +653,7 @@ button { font-family: inherit; }
      node.appendChild(text("span",p.human_only ? "You write the post · notes only" :
        p.api_capable ? "Copy and post yourself (can also be connected)" : "Copy and post yourself"));
      node.addEventListener("click",function(){
-       if(selected.has(p.id)) {selected.delete(p.id); edits.delete(p.id);}
-       else if(selected.size < 10) selected.add(p.id);
-       else {showMessage("You can pick at most ten networks at once.",false);return;}
-       conditionalFields();
-       invalidate();
-       renderNetworks();
-       changed();
+       if (!toggleNetwork(p)) return;
        const again = Array.from(el("networks").querySelectorAll(".network")).find(n => n.firstChild.textContent === p.label);
        if (again) again.focus();
      });
@@ -721,6 +777,7 @@ button { font-family: inherit; }
      const result = await api("/api/preview",payload());
      previewData = result.platforms;
      previewValid = true;
+     previewedKey = JSON.stringify(payload());
      renderPreview(previewData);
      showMessage("Ready to review. Nothing has been saved or sent.",true);
    } catch(e) {
@@ -741,6 +798,7 @@ button { font-family: inherit; }
        {mode:"update", package:current.package, revision:current.revision, confirm:true} : {mode:"new"};
      const result = await api("/api/prepare", Object.assign(payload(), extra));
      current = {package:result.package.name, revision:result.package.revision, state:result.package};
+     previewedKey = JSON.stringify(payload());
      updateEditing();
      renderPreview(previewData);
      previewValid = false;
@@ -837,6 +895,7 @@ button { font-family: inherit; }
      showIn("pkg-status", "Recorded as posted by you on " + network.label + who + ".\nNext: when you have numbers, run " +
        result.next + "\n(replace N with the numbers the app shows; the time defaults to now)", true,
        [{label:"Copy command", value:result.next, aria:"Copy the metrics command for " + network.label}]);
+     if (dashboardUrl) el("pkg-status").appendChild(resultsLink("See it in your results"));
      announce("Recorded as posted on " + network.label + ".");
      if (previewData.length) renderPreview(previewData);
      loadPackages();
@@ -907,6 +966,8 @@ button { font-family: inherit; }
        option.value = a.id;
        select.appendChild(option);
      }
+     // Exactly one of your accounts on this network: it is chosen for you (you can still change it or skip).
+     if (mine.length === 1) select.value = mine[0].id;
      form.appendChild(accountLabel); form.appendChild(select);
      fields.account = select;
    }
@@ -1023,6 +1084,7 @@ button { font-family: inherit; }
    edits.clear();
    media = [];
    current = {package:null, revision:null, state:null};
+   previewedKey = null;
    el("caption").value="";el("title").value="";el("notes").value="";
    counter(); conditionalFields(); invalidate(); renderNetworks(); renderMedia(); updateEditing();
    undoStack.length = 0; stable = snapshot(); el("undo").disabled = true;
@@ -1042,8 +1104,51 @@ button { font-family: inherit; }
    el("packages").replaceChildren(text("p","Missing local session link.","hint"));
    return;
  }
+ let pendingOffer = null;
+ function setCaption(value) {
+   el("caption").value = value;
+   edits.clear();
+   counter(); invalidate(); changed();
+ }
+ // Text from an idea (studio's "Write a post from this idea") or from `share --web --text/--idea`. An empty editor
+ // takes it at once; an unsaved draft is never replaced without your click, and Undo brings it back.
+ function useText(value, label) {
+   if (!hasContent() && !current.package) {
+     setCaption(value);
+     showMessage("Started from " + label + ". Pick your networks next. Nothing is posted for you.", true);
+     el("caption").focus();
+     return;
+   }
+   const box = el("status");
+   box.replaceChildren(document.createTextNode("The editor already holds your post, so nothing was replaced. Use " + label +
+     " as the caption instead?"));
+   box.className = "alert";
+   const row = document.createElement("div");
+   const yes = button("Use it as my caption", "small");
+   const no = button("Keep my draft", "small");
+   yes.addEventListener("click", function(){
+     setCaption(value);
+     showMessage("Now using " + label + " as your caption. Undo brings the previous caption back.", true);
+     el("caption").focus();
+   });
+   no.addEventListener("click", function(){ showMessage("Kept your draft.", true); el("caption").focus(); });
+   row.appendChild(yes); row.appendChild(no);
+   box.appendChild(row);
+ }
+ function startFromRequest() {
+   if (pendingOffer) { useText(pendingOffer.text, pendingOffer.label); return; }
+   if (!ideaWanted) return;
+   api("/api/idea", {idea:ideaWanted}).then(function(data){
+     useText(data.idea.text, "idea " + data.idea.id);
+   }).catch(function(e){ showMessage(e.message || "The idea could not be read.", false); });
+ }
  api("/api/catalog").then(function(data){
    catalog = data.platforms;
+   if (typeof data.dashboard === "string" && DASHBOARD_URL.test(data.dashboard)) {
+     dashboardUrl = data.dashboard;
+     resultsLine("results-top");
+     resultsLine("results-foot");
+   }
    conditionalFields();
    renderNetworks();
    return api("/api/draft/load", {});
@@ -1059,6 +1164,7 @@ button { font-family: inherit; }
    ready = true;
    showMessage(data.draft ? "Your draft is back. No social network is connected." :
                "Ready. No social network is connected; nothing is posted for you.",true);
+   if (data.offer && typeof data.offer.text === "string") pendingOffer = {text:data.offer.text, label:String(data.offer.label || "your text")};
    return api("/api/accounts", {}).catch(function(){ return {accounts:[], ledger_ids:{}}; });
  }).then(function(data){
    accounts = data.accounts || [];
@@ -1070,6 +1176,7 @@ button { font-family: inherit; }
    updateEditing();
    renderPackages(data.packages);
    progress();
+   startFromRequest();
  }).catch(function(err){
    showMessage(err.message || "Unable to open the local composer.",false);
    el("preview").disabled=true;

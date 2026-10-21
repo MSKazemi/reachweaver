@@ -169,7 +169,7 @@ ReachWeaver's local policy:
 | 12+ | `ERROR: linkedin_version_unsupported` | refused before the claim |
 | in the future, not `YYYYMM`, or before 202206 | `ERROR: linkedin_version_invalid` | refused before the claim |
 
-This matches the registry constraint in `platform_registry.json` (each version is supported for a minimum of one year; live sends are refused from month 12). Age is counted in calendar months from the version's `YYYYMM` to the current UTC month, so `202510` is 12 months old throughout October 2026 and is refused even before LinkedIn's announced 2026-10-15 sunset. Tests: `tests/test_linkedin.py` (`test_version_status_month_boundaries_match_documented_policy`).
+This matches the registry constraint in `platform_registry.json` (each version is supported for a minimum of one year; live sends are refused from month 12). Age is counted in calendar months from the version's `YYYYMM` to the current UTC month, so `202510` is 12 months old throughout October 2026 and is refused even before LinkedIn's announced 2026-10-15 sunset. Tests: `tests/test_linkedin.py` (`test_version_status_month_boundaries_match_documented_policy`). `account-add linkedin --field linkedin_version=YYYYMM` runs the same check and prints a note (it still adds the account) when the version is ageing or 12 months old or more, so the dashboard's "LinkedIn API version too old" is no surprise; posting by hand is never affected.
 
 Upgrade procedure: read the LinkedIn changelog for the Posts API, update `linkedin_version`, run `doctor` and `connect-check --online`, then supervise one post.
 

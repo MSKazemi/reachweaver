@@ -63,6 +63,10 @@ COMMANDS: dict[str, dict] = {
     "health": _c(W, note=DB_NOTE),
     "workspace": _c(W, note="read-only report unless --init, or --gather/--repair with --apply"),
     "ui": _c(("read_only", "interactive"), note="serves a loopback dashboard until interrupted; the owner opens it"),
+    "studio": _c(("writes", "interactive"),
+                 note="serves the read-only dashboard and the composer together until interrupted; writes only what "
+                      "the composer writes (private local files, posted-by-hand records) and an empty database "
+                      "when none exists; never sends"),
     "mcp-serve": _c(("writes", "interactive"),
                     note="draft: stdio MCP server the owner registers in an MCP client; read-only tools, plus draft "
                          "only with --allow-drafts; runs until its input closes"),

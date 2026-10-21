@@ -10,8 +10,9 @@ Fixed order (a rule, not a prediction of reach):
    the emergency stop. Shown first because nothing else should happen before it is understood.
 2. ``drafts``: drafts waiting -> ``reachweaver review`` (the owner's own approval loop).
 3. ``results_due``: a post 6..30 days old with no numbers from day 6 on -> the exact ``reachweaver metrics`` line.
-4. ``idea``: each open idea BY NAME (oldest first) -> ``reachweaver share --platform <your usual networks>
-   --text '<idea>'`` (a copy-ready package, never a send), or the browser composer for a long idea.
+4. ``idea``: each open idea BY NAME (oldest first) -> ``reachweaver share --web --open --idea <id>``: the browser
+   composer with that idea as the caption (the note names your usual networks; a copy-ready package, never a send).
+   The command carries the idea id, never its text, and the inbox is only read.
 5. ``rhythm``: days since you last posted on each network you use.
 6. ``what_works``: the strongest "what works for you" line from ``insights`` (an observation, not a cause).
 
@@ -32,7 +33,6 @@ from .policy import ValidationError
 SCHEMA = "reachweaver.next.v1"
 MAX_ACTIONS = 5
 KINDS = ("safety", "drafts", "results_due", "idea", "rhythm", "what_works", "first_post", "save_idea")
-IDEA_TEXT_IN_COMMAND = 280  # a longer idea goes into the browser composer instead of a long command line
 IDEA_TITLE = 60
 SHARE_WEB = "reachweaver share --web --open"
 STALE_DAYS = 7
@@ -49,20 +49,21 @@ def _shareable(platforms: list[str]) -> list[str]:
     return [p for p in platforms if p in allowed and p not in human]
 
 
+def idea_command(idea_id: str) -> str:
+    """The composer, started with this idea's text as the draft (``share --web --idea``; the inbox is not changed)."""
+    return f"{SHARE_WEB} --idea {shlex.quote(idea_id)}"
+
+
 def _idea_actions(open_ideas: list[dict], networks: list[str]) -> list[dict]:
     out = []
     for item in open_ideas:
         text = " ".join(item["text"].split())
         title = results.first_words(text, IDEA_TITLE)
-        if networks and len(text) <= IDEA_TEXT_IN_COMMAND and not results.has_control(text):
-            command = f"reachweaver share --platform {','.join(networks)} --text {shlex.quote(text)}"
-            note = ("Makes a copy-ready version for " + ", ".join(results.platform_name(p) for p in networks)
-                    + " that you paste and post yourself; nothing is sent.")
-        else:
-            command = SHARE_WEB
-            note = ("Paste the idea into the composer in your browser; it makes a ready-to-paste version per "
-                    "network. Nothing is sent.")
-        out.append(_action("idea", f"Write a post from your idea \"{title}\"", command, note, idea_id=item["id"]))
+        where = (" for " + ", ".join(results.platform_name(p) for p in networks)) if networks else " per network"
+        note = (f"Opens the composer in your browser with this idea as your caption; it makes a ready-to-paste "
+                f"version{where} that you post yourself. Nothing is sent.")
+        out.append(_action("idea", f"Write a post from your idea \"{title}\"", idea_command(item["id"]), note,
+                           idea_id=item["id"]))
     return out
 
 

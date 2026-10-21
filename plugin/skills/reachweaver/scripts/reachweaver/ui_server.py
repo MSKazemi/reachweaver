@@ -11,7 +11,11 @@ Threat model (a browser on the same machine is the only client):
 * GET (and HEAD) only: there is no route that changes state, approves, publishes or pauses;
 * the database is opened ``mode=ro`` per request (``ui_data.open_database``), never created;
 * a strict Content-Security-Policy (no inline script or style, no remote anything);
-* request lines are not logged (they contain the token); errors are JSON without tracebacks.
+* request lines are not logged (they contain the token); errors are JSON without tracebacks;
+* ``studio`` (``reachweaver studio``) may hand this server the composer's full local URL (``composer_url``), which
+  carries the composer's own token: it is only ever returned by the token-gated ``api/studio`` route of a server in
+  the same process, with ``Cache-Control: no-store`` and ``Referrer-Policy: no-referrer``. A dashboard started on
+  its own (``ui``) has no composer URL, and this server still has no route that writes anything.
 
 Importing this module opens no socket; ``make_server`` binds only when called.
 """
@@ -74,6 +78,7 @@ class DashboardServer(ThreadingHTTPServer):
         self.token = token
         self.safety_lock = threading.Lock()
         self.safety_cache: tuple[float, dict] | None = None
+        self.composer_url: str | None = None  # set only by `studio`: the composer it runs beside this dashboard
 
     @property
     def allowed_hosts(self) -> frozenset[str]:
@@ -229,6 +234,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _api(self, route: str, query: dict) -> None:
         server = self.server
+        if route == "studio":  # the composer link exists only when `studio` runs both pages in this process
+            self._json(200, {"studio": server.composer_url is not None, "composer": server.composer_url})
+            return
         if route == "next":  # the same read-only guidance as the `start` command
             guide = start.build_guide(server.database, server.accounts_path)
             guide["steps"] = [step for step in guide["steps"] if step["command"] != "reachweaver ui"]  # you are in it

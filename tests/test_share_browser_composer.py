@@ -480,7 +480,7 @@ class WritePathSecurityTests(ComposerBase):
                   "/api/mark-posted": {"package": name, "platform": "threads", "url": URL},
                   "/api/draft/save": {"platforms": ["threads"], "text": "x"}, "/api/draft/clear": {},
                   "/api/draft/load": {}, "/api/packages": {}, "/api/prepare": {"platforms": ["threads"], "text": "x"},
-                  "/api/accounts": {}}
+                  "/api/accounts": {}, "/api/idea": {"idea": "idea-0a1b2c3d"}}
         self.assertEqual(set(bodies) | {"/api/preview"}, set(JSON_ROUTES))
         port = self.srv.server_port
         variants = [

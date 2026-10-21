@@ -34,6 +34,22 @@ The address looks like `http://127.0.0.1:PORT/RANDOM-TOKEN/`. Press Ctrl-C in th
 
 Keep the address private. It is the only thing that lets a browser read your queue, so do not paste it into a chat, an issue or a screenshot. The token stays valid until you stop the dashboard. `--open` hands the address to your browser on its command line, where another user of a shared computer could see it with `ps`; on such a machine paste the address yourself instead.
 
+## Studio: dashboard and composer together
+
+```bash
+reachweaver studio --open        # both pages; the browser opens the dashboard (the composer if you have no posts yet)
+reachweaver studio --port 8765 --composer-port 8766
+```
+
+`studio` starts this dashboard and the [browser composer](BROWSER-SHARE-COMPOSER.md) in one process, so they behave like one app:
+
+- **Write a new post** (the sidebar, the button at the top of the Overview on a phone, the next-step card, the Write page and Ctrl K) opens the composer directly.
+- On the **Ideas** page each open idea has **Write a post from this idea**: the composer opens with the idea as your caption. If the composer already holds a post, nothing is replaced; it asks first, and Undo brings your caption back.
+- In the composer, **See how your posts did** (top and bottom of the page, and after **Mark as posted**) opens the dashboard's Results.
+- Steps that only you can run in a terminal (approve, review, publish, resume, metrics...) stay commands to copy.
+
+It prints two addresses, each with its own per-run token; keep both private. Holding the dashboard address of a studio run also gives the composer link, so treat them as one key. If you have no database yet, `studio` creates an empty one first (exactly what `reachweaver init` does). Ctrl-C stops both pages. `ui` and `share --web` on their own still work as before: the dashboard then shows the command to start the composer, and the composer shows the command to start the dashboard.
+
 ## Layout
 
 A sidebar starts with **Write a new post** and groups the pages into **Work** (Overview, Queue, Schedule, Ideas, Work with Claude), **Record** (Posted, Results, Campaigns) and **Setup** (Accounts, Channels). Counts next to Overview, Queue and Schedule say what needs you: red when a send needs review or an approval has expired, amber otherwise. They come from one read-only check (`api/attention`) and are refreshed on every page. The header holds the search box, a refresh button and a settings menu (theme, auto-refresh, alerts, keyboard shortcuts). Lists of posts are compact rows: status, platform and account, the first two lines of text, and the relevant time; the whole row opens the post.
@@ -52,8 +68,10 @@ Card titles are real headings, so a screen reader can jump between them, and a c
   - **Coming up** (the next five scheduled posts), **Recently posted** (the last five entries of the journal), a bar of all posts by status whose legend links into the queue, and a compact **Ask Claude** composer with two ready-made prompts ("What needs me today?" and "Plan next week's posts").
   - **Setup and safety details**, folded away: every readiness reason in plain words with what to do (its code in small print); **Files and approvals** (the approval record in a sentence with a link to each affected post, the database integrity check and the same folder check as `reachweaver workspace`, reused for up to a minute because it hashes the files of unsent posts); **Suggestions** (up to five offline rules from `reachweaver suggest --include-db`, not a reach prediction, hidden when there are none); each account's status ("ready", or "Not connected (only needed for automatic sending)") with how it posts and the names of missing variables behind a "Technical details" toggle; and **Sends that failed**.
 
-  The Overview no longer repeats the same drafts in three lists: the posts that need you are in the Queue, and the owner-only command cards and the activity feed are on the Work with Claude page. The browser tab title shows how many sends need review, e.g. `(1) ReachWeaver Dashboard`.
-- **Write a new post**: the browser composer is its own small local page that `reachweaver share --web --open` starts. The dashboard runs nothing, so this page gives that one command with a Copy button and the four steps that follow (write, copy each version and post it yourself, record that you posted it, add the numbers later).
+  On a phone a **Write a new post** button sits at the top of the Overview (44 px tall), because the sidebar is a closed drawer there. Under `studio`, a step that writes a post is a link to the composer, and the ideas step links to the Ideas page; everything else stays a command to copy.
+
+  Waiting drafts are shown once: in **Your next step** (with the count), and as a number in the **All posts** bar. The Overview no longer repeats them in other lists: the posts that need you are in the Queue, and the owner-only command cards and the activity feed are on the Work with Claude page. The browser tab title shows how many sends need review, e.g. `(1) ReachWeaver Dashboard`.
+- **Write a new post**: the browser composer is its own small local page. Under `reachweaver studio` this page (and every **Write a new post** button) is a link to it. With `reachweaver ui` alone the dashboard runs nothing, so this page gives the command `reachweaver share --web --open` with a Copy button and the four steps that follow (write, copy each version and post it yourself, record that you posted it, add the numbers later).
 - **Work with Claude**: see [Work with Claude](#work-with-claude) below.
 - **Ideas**: your ideas inbox (`reachweaver idea`, the private `ideas.json` next to the database), newest first, filtered by state (open, promoted, dropped) and searchable. Each idea shows its text, id, tags and only the **host** of its source link (never the path or query). An open idea has **Promote with Claude**, which copies a prompt that asks Claude to propose a campaign id and, after you agree, run `idea promote` and fill the scaffold with verified claims. The dashboard never creates, changes or drops an idea; a damaged inbox is shown as an error instead of breaking the page.
 - **Queue**: status chips (with their counts) and an account menu filter the list, and a search box narrows the posts shown. The list is grouped under a heading per status; each row shows when the post is due, or when it was created if it has no time. Posts in `needs_review` come first because a send ended in an unknown state and a human must check the native platform. Empty states say what to do next.
@@ -102,6 +120,7 @@ The server is a small module built on the Python standard library, with no new d
 
 - **Loopback only.** It binds to `127.0.0.1`. There is no `--host` option, and the server refuses any other host.
 - **Unguessable address.** Every request must carry the random token in the URL path; anything else gets a bare 403. The token is not logged and the page sends no referrer.
+- **Studio links.** Under `studio` the dashboard and the composer are still two servers with two tokens and all of their own checks (this one stays read-only and GET-only). Each learns the other's full address only from a token-protected JSON answer of a server in the same process, never from the page's HTML; both send `Referrer-Policy: no-referrer`, links carry `rel="noopener noreferrer"`, the composer's token stays in the URL fragment (never sent over the network), and neither page may fetch from the other (the Content-Security-Policy allows only its own origin).
 - **No DNS-rebinding or cross-site reads.** The `Host` header must be the loopback name and port; cross-origin and cross-site fetch requests are refused.
 - **One request per connection.** The server answers HTTP/1.0 and drops a client that sends nothing for 10 seconds, so idle connections cannot pile up. A malformed request gets a plain 400, never a traceback.
 - **Read only, twice.** Only `GET`/`HEAD` are accepted (anything else is 405), and the database is opened with SQLite `mode=ro` and `query_only`, so even a bug cannot write. The ideas inbox is only read, and a missing one is never created.
