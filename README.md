@@ -146,7 +146,7 @@ Credentials are set privately in your own environment, never typed into Claude, 
 | Approve that exact text | `reachweaver approve POST_ID --approver YOUR_NAME` | Ties your approval to the exact text. Still sends nothing. |
 | Rehearse the send | `reachweaver publish --post-id POST_ID` | Prints `DRY RUN` and contacts no one. |
 
-Several drafts waiting? `reachweaver review` walks them one by one in your terminal: it shows each one and asks you to approve, skip, cancel or quit, so you never copy a post id by hand. Stuck or unsure? `reachweaver pause` stops all publishing until you run `reachweaver resume`, and `reachweaver cancel POST_ID` withdraws a post you no longer want. Every command is listed in the [command reference](#command-reference) below.
+Several drafts waiting? `reachweaver review` walks them one by one in your terminal: it shows each one and asks you to approve, skip, cancel or quit, so you never copy a post id by hand. Stuck or unsure? `reachweaver pause` stops all publishing until you run `reachweaver resume`, and `reachweaver cancel POST_ID` withdraws a post you no longer want. `reachweaver --help` (or `reachweaver help`) prints the 16 everyday commands with one plain line each; `reachweaver --help all` lists every command by task, and `reachweaver help COMMAND` explains one. Every command is listed in the [command reference](#command-reference) below.
 
 ## Where to read next
 
@@ -276,6 +276,9 @@ reachweaver dead-letter [--json]          read-only needs_review grouped by sani
 reachweaver ops-metrics [--format json|prometheus] [--since 24h] [--optout F] [--out FILE]  read-only counts (claims, publishes, failures by send class, cooldowns, pause, dead letters, stale sending, oldest due age); Prometheus textfile output, written atomically; labels are account ids, platform and fixed codes only (docs/WORKER-OPERATIONS.md#operational-metrics-and-alerting-issue-26)
 reachweaver ops-summary [--json] [--since 24h] [--stale-minutes 30] [--optout F] [--now T]  one redacted read-only report: overall readiness, per-account adapter/budget/queue, dead letters, ops-metrics totals; exit 1 when blocked (docs/WORKER-OPERATIONS.md#one-page-operations-summary-issue-26)
 reachweaver                              no command: the same guidance as start, plus a pointer to --help
+reachweaver --help | -h                  the everyday commands only (start, share, idea, draft, check, review, publish, list, report, metrics-fetch, suggest, ui, connect, workspace, update, help), one plain line each
+reachweaver --help all                   every command, grouped by task, plus the global options; --help COMMAND prints that command's own help
+reachweaver help [all|COMMAND]           the same as --help, --help all and COMMAND --help; offline, prints text only
 reachweaver start [--json]               experimental, read-only: look at your workspace, accounts file (accounts still using example placeholders are named), database, queue, ideas inbox and metric snapshots and print the exact next command to run, the browser composer first; runs nothing and never creates the database
 reachweaver context [--json]             read-only session start for Claude Code in one call: version, paths, account readiness, pause, live gate, approval mode, post counts, posts waiting for you, next steps and the owner-only commands; never creates the database (docs/CLAUDE-CODE.md)
 reachweaver describe [COMMAND] [--json]  machine-readable command catalog generated from the parser: flags, choices, defaults, JSON support and owner_only/network/writes/read_only tags

@@ -2,7 +2,7 @@
 
 Load on demand; `SKILL.md` stays small. `tests/test_cookbook_drift.py` checks that every subcommand has a row here and that every flag written next to a command exists.
 
-**Prefix.** `RW` means `python3 <skill-dir>/scripts/run.py` (skill-dir holds `SKILL.md`), run **from the user's project directory**. In a full checkout `python3 -m reachweaver` is equivalent, and after `pip install` so is `reachweaver`. Global options go before the command: `--db DB`, `--accounts FILE`, `--profile FILE`, `--home DIR`, `--plain`. In a copied skill, `docs/`, `examples/` and `config/` paths become `assets/` (e.g. `assets/accounts.example.json`); `RW COMMAND --help` shows every flag.
+**Prefix.** `RW` means `python3 <skill-dir>/scripts/run.py` (skill-dir holds `SKILL.md`), run **from the user's project directory**. In a full checkout `python3 -m reachweaver` is equivalent, and after `pip install` so is `reachweaver`. Global options go before the command: `--db DB`, `--accounts FILE`, `--profile FILE`, `--home DIR`, `--plain`. In a copied skill, `docs/`, `examples/` and `config/` paths become `assets/` (e.g. `assets/accounts.example.json`); `RW COMMAND --help` shows every flag; `RW --help` lists the everyday commands and `RW --help all` every command by task.
 
 **Legend.** **OWNER** = the owner runs it in their own terminal; **Claude never runs it**: prepare the exact command and hand it over. **online** = contacts a network; only with the owner's permission for that run. Everything else is offline or local, and nothing here posts unless the owner runs `publish --live`.
 
@@ -35,7 +35,8 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `account-route` | Which account/username to use for a persona on a network | `--platform P`, `--persona ID`, `--json` |
 | `account-kit` | Plan sign-up packets for accounts the user creates; creates none | `--platform P` (repeat), `--persona ID`, `--questions`, `--out NEW_DIR`, `--json`; **OWNER** `--approve-plan SHA` |
 | `context` | Start every session here: one compact read-only summary (accounts, pause, live gate, approval mode, posts waiting for the owner, next steps, owner-only commands); creates nothing | `--json` |
-| `describe` | Machine-readable command catalog from the parser: flags, `--json` support, `owner_only`/`network`/`writes`/`read_only` tags; ask for one command to keep it small | `COMMAND`, `--json` |
+| `describe` | Machine-readable command catalog from the parser: flags, `--json` support, `owner_only`/`network`/`writes`/`read_only` tags and `everyday` (true for the short list `--help` shows); ask for one command to keep it small | `COMMAND`, `--json` |
+| `help` | Human help text: no topic = the everyday commands (same as `RW --help`), `all` = every command by task (same as `RW --help all`), a command name = its options; offline. Agents use `describe` instead | `TOPIC` (`all` or a command name) |
 | `version` | Installed version and install kind | `--json` |
 | `update` | **online** (one GET to github.com): newer skill bundle? | `--check` (default), `--notice`, `--json`; `--apply --yes` only after the user agrees |
 | `init` | Create the local database (0600); connects nothing | none |

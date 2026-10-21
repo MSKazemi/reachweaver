@@ -2,7 +2,7 @@
 
 This guide is for you if you are not a developer, or you are new to this tool. It explains what ReachWeaver does, the few ideas you need, and how one post goes from idea to published. No account or password is needed to read it or to try the first steps.
 
-Looking for the exact commands in order? Use the [quickstart](QUICKSTART.md). Meeting an unfamiliar word? See the [glossary](GLOSSARY.md). Something went wrong? See [troubleshooting](TROUBLESHOOTING.md).
+Looking for the exact commands in order? Use the [quickstart](QUICKSTART.md). Meeting an unfamiliar word? See the [glossary](GLOSSARY.md). Something went wrong? See [troubleshooting](TROUBLESHOOTING.md). Forgot a command? `reachweaver --help` lists the everyday ones in plain words, and `reachweaver --help all` lists every command.
 
 ## The idea in one minute
 

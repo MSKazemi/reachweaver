@@ -1,19 +1,28 @@
-"""Grouped command index for ``reachweaver --help``.
+"""Tiered command help for ``reachweaver --help``.
 
-argparse prints one flat list of ~80 subcommands. This module groups them by the job a person is
-doing, so the top-level help reads as a map. Per-command help (``reachweaver COMMAND --help``) is
-unchanged. ``tests/test_cli_help.py`` fails if a subcommand is missing from every group, so the
-index cannot drift; an ungrouped command still appears under "Other" rather than disappearing.
+argparse prints one flat list of ~120 subcommands. This module gives two views instead:
+
+* ``reachweaver --help`` (``-h``, ``reachweaver help``): a short "Everyday" view of the commands a creator
+  uses week to week, one plain-language line each (``EVERYDAY``).
+* ``reachweaver --help all`` (``reachweaver help all``): every command, grouped by the job a person is doing
+  (``GROUPS``), plus the global options.
+
+``reachweaver --help COMMAND`` and ``reachweaver help COMMAND`` print that command's own help, which is
+unchanged (``reachweaver COMMAND --help``). Only the overview changes: every command stays callable and
+``describe --json`` still lists all of them. ``tests/test_cli_help.py`` fails if a subcommand is missing
+from every group or an everyday entry names no real command, so neither view can drift; an ungrouped
+command still appears under "Other" rather than disappearing.
 """
 from __future__ import annotations
 
 import argparse
 import re
+import sys
 import textwrap
 
 # (title, command names in the order a person meets them)
 GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Get started and look around", ("start", "context", "describe", "connect", "account-advisor", "profile", "account-route", "account-kit", "version", "init", "doctor", "health", "workspace", "ui", "list", "show", "journal", "capabilities", "completion", "mcp-serve")),
+    ("Get started and look around", ("start", "help", "context", "describe", "connect", "account-advisor", "profile", "account-route", "account-kit", "version", "init", "doctor", "health", "workspace", "ui", "list", "show", "journal", "capabilities", "completion", "mcp-serve")),
     ("Draft and approve (nothing is sent)", (
         "idea", "draft", "check", "repeat-check", "mark-shared", "review", "approve", "unapprove", "cancel", "schedule", "media-attach", "media-detach",
         "video-attach", "video-detach", "youtube-attach", "youtube-detach", "campaign-check", "campaign-preview",
@@ -41,6 +50,38 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Data, privacy and schemas", ("archive", "media-relink", "data-export", "data-purge", "privacy-status", "schema-validate", "schema-export")),
     ("Updates", ("update",)),
 )
+
+# The everyday view: (command, plain-language line[, a second hint line]). Chosen from what the user-facing
+# docs walk a creator through, in that order: README "Easy sharing" and docs/START-HERE.md (share, share --web,
+# draft, check, approval, the dry-run publish), docs/QUICKSTART.md (draft, check, publish preview, list), the
+# bundled skill's everyday loop (.claude/skills/reachweaver/SKILL.md: idea inbox, draft, review, report,
+# metrics-fetch, suggest) and the setup pages (connect, workspace, update, ui). They are also the commands the
+# user docs name most often (share, publish, workspace, connect, idea and draft lead that count). The single-post
+# approval command is reached through `review`, which walks the drafts and runs it for each one with the same
+# checks; agent-facing commands (context, describe, mcp-serve) and specialist ones stay in `--help all`. The
+# lines only describe: publish stays a dry run without the owner's live switches, and review stays owner-only.
+EVERYDAY: tuple[tuple[str, ...], ...] = (
+    ("start", "See where you are and the exact next command to type"),
+    ("share", "Turn one caption into copy-ready posts you paste into each app yourself",
+     "share --web opens the same composer in your browser; nothing goes online"),
+    ("idea", "Save a post idea for later; list, drop or promote it to a campaign"),
+    ("draft", "Save a post for one account as a draft; nothing is sent"),
+    ("check", "Look for problems in a draft before you approve it"),
+    ("review", "Go through your drafts one by one and approve the ones you want (you only)"),
+    ("publish", "Preview what would be sent; a dry run unless you, the owner, turn on live"),
+    ("list", "See your posts and where each one stands"),
+    ("report", "What your published posts achieved, from the numbers recorded so far"),
+    ("metrics-fetch", "Fetch the public like, repost and reply counts of your Bluesky/Mastodon posts"),
+    ("suggest", "A ranked list of things worth improving, for you to review"),
+    ("ui", "Open a read-only dashboard of your posts in your browser"),
+    ("connect", "See which accounts are ready, or walk through connecting them"),
+    ("workspace", "What lives in this folder and whether it moves to another computer"),
+    ("update", "Check whether a newer ReachWeaver is out"),
+    ("help", "This overview; help all lists every command, help COMMAND explains one"),
+)
+EVERYDAY_NAMES = frozenset(entry[0] for entry in EVERYDAY)
+FOOTER = ("Nothing is sent without your explicit approval and the live-send gates; run publish without --live",
+          "for a dry run. See docs/QUICKSTART.md to try it with no account and no network.")
 SUMMARY_WIDTH = 66
 
 
@@ -73,9 +114,75 @@ def grouped_index(parser: argparse.ArgumentParser) -> str:
         lines += ["", title + ":"]
         for name in names:
             lines.append(f"  {name.ljust(width)}{summary(helps.get(name))}".rstrip())
-    lines += ["", "Nothing is sent without your explicit approval and the live-send gates; run publish without --live",
-              "for a dry run. See docs/QUICKSTART.md to try it with no account and no network."]
+    lines += ["", *FOOTER]
     return "\n".join(lines)
+
+
+def _subparsers(parser: argparse.ArgumentParser) -> argparse._SubParsersAction:
+    return next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
+
+
+def everyday_help(parser: argparse.ArgumentParser) -> str:
+    """The short top-level help: usage, the everyday commands, and how to see all of them."""
+    known = set(_subparsers(parser).choices)
+    rows = [entry for entry in EVERYDAY if entry[0] in known]
+    width = max(len(entry[0]) for entry in rows) + 2
+    lines = [parser.format_usage().rstrip(), "", "Approval-first social publishing; dry-run by default.", "",
+             "Everyday commands (reachweaver COMMAND --help for details):"]
+    for name, line, *extra in rows:
+        lines.append(f"  {name.ljust(width)}{line}")
+        lines += [f"  {'':{width}}{more}" for more in extra]
+    lines += ["", f"Run `reachweaver --help all` (or `reachweaver help all`) to see all {len(known)} commands by group.",
+              "", *FOOTER]
+    return "\n".join(lines) + "\n"
+
+
+def full_help(parser: argparse.ArgumentParser) -> str:
+    """The whole map: usage, description, global options and every command grouped by task."""
+    saved = parser.epilog
+    parser.epilog = grouped_index(parser)
+    try:
+        return parser.format_help()
+    finally:
+        parser.epilog = saved
+
+
+def help_text(parser: argparse.ArgumentParser, topic: str | None) -> str:
+    """Help for a topic: None (everyday), "all" (every command) or one command name. Prints nothing itself."""
+    if topic is None:
+        return everyday_help(parser)
+    if topic == "all":
+        return full_help(parser)
+    choices = _subparsers(parser).choices
+    if topic in choices:
+        return choices[topic].format_help()
+    import difflib
+    close = difflib.get_close_matches(topic, list(choices), n=3, cutoff=0.6)
+    hint = f" Did you mean: {', '.join(close)}?" if close else ""
+    from .policy import ValidationError
+    raise ValidationError(f"unknown help topic '{topic}'.{hint} Use 'all' or a command name; "
+                          "'reachweaver --help all' lists every command by task")
+
+
+class TieredHelpAction(argparse._HelpAction):
+    """``-h/--help [TOPIC]`` on the top-level parser: everyday view, ``all``, or one command's help.
+
+    A subclass of argparse's own help action, so the catalog (``describe``) and shell completion keep
+    treating it as the help flag. Subcommands keep argparse's standard ``-h``.
+    """
+
+    def __init__(self, option_strings, dest=argparse.SUPPRESS, default=argparse.SUPPRESS, help=None, **kwargs):
+        argparse.Action.__init__(self, option_strings=option_strings, dest=dest, default=default, nargs="?",
+                                 metavar="TOPIC", help=help, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        from .policy import ValidationError
+        try:
+            text = help_text(parser, values)
+        except ValidationError as exc:
+            parser.error(str(exc))
+        parser._print_message(text, sys.stdout)
+        parser.exit()
 
 
 _HINTS = (

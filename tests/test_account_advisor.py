@@ -242,7 +242,7 @@ class NoBrowserAgentRecommendationTests(unittest.TestCase):
         for report in reports:
             self.assertNotRegex(render_text(report), CHROME)
             self.assertNotRegex(json.dumps(report), CHROME)
-        for argv in (["account-advisor", "--help"], ["--help"]):
+        for argv in (["account-advisor", "--help"], ["--help", "all"]):
             with self.subTest(argv=argv), contextlib.redirect_stdout(io.StringIO()) as out, \
                     self.assertRaises(SystemExit):
                 main(argv)

@@ -14,6 +14,9 @@ Tags (a command carries exactly one of ``read_only`` / ``writes``):
 * ``read_only``  -- changes nothing: no database write, no file written, never creates the database.
 * ``interactive`` -- needs a person at a terminal or runs until interrupted; not for an agent.
 
+``everyday`` (one boolean per command, schema_version 1, additive) is true for the short list that
+``reachweaver --help`` shows (``cli_help.EVERYDAY``); every command is listed either way.
+
 ``owner_only_flags`` names the flags that turn an otherwise agent-safe command into an owner-only one
 (``publish --live``, ``account-kit --approve-plan``...). The classification is conservative: when a mode
 of a command could write, the command is tagged ``writes``.
@@ -46,6 +49,7 @@ COMMANDS: dict[str, dict] = {
     # Get started and look around
     "context": _c(R, note="session start: one compact read-only summary"),
     "describe": _c(R, note="this catalog"),
+    "help": _c(R, note="prints help text from the parser; offline"),
     "start": _c(R),
     "version": _c(R),
     "init": _c(W),
@@ -267,8 +271,10 @@ def _entry(name: str, sub: argparse.ArgumentParser, help_text: str | None, *, wi
     actions = [a for a in sub._actions if not isinstance(a, argparse._HelpAction)]
     groups = [{"required": bool(g.required), "flags": [_option_name(a) for a in g._group_actions]}
               for g in sub._mutually_exclusive_groups]
+    from .cli_help import EVERYDAY_NAMES
     entry = {"name": name, "help": help_text, "tags": list(meta["tags"]),
              "owner_only_flags": list(meta["owner_only_flags"]), "json": json_option(sub),
+             "everyday": name in EVERYDAY_NAMES,
              "flags": [_flag(a, with_help=with_help) for a in actions]}
     if groups:
         entry["exclusive_groups"] = groups
