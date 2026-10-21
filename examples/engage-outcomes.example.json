@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "kind": "reachweaver.engage-outcomes",
+  "description": "SYNTHETIC example: numbers you read yourself from each platform's own counters and wrote down with the date. followers and stars are running totals; profile_visits is whatever window the platform reports. Leave a value out when you do not know it.",
+  "snapshots": [
+    {"observed_at": "2026-10-07T09:00:00Z", "platform": "bluesky", "followers": 310, "source": "profile page"},
+    {"observed_at": "2026-10-14T09:00:00Z", "platform": "bluesky", "followers": 318, "source": "profile page"},
+    {"observed_at": "2026-10-21T09:00:00Z", "platform": "bluesky", "followers": 331, "source": "profile page"},
+    {"observed_at": "2026-10-14T09:00:00Z", "platform": "github", "stars": 41, "source": "repository page"},
+    {"observed_at": "2026-10-21T09:00:00Z", "platform": "github", "stars": 47, "source": "repository page"},
+    {"observed_at": "2026-10-21T09:00:00Z", "platform": "linkedin", "profile_visits": 58, "source": "LinkedIn profile viewers, past 7 days"}
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "kind": "reachweaver.engage-candidates",
+  "description": "SYNTHETIC example of conversations you found yourself and pasted in (no scraping, no login reuse). The handles, ids and text are invented. Try it with: reachweaver engage-scout --config examples/engage-scout.example.json --input examples/engage-candidates.example.json --now 2026-10-21T12:00:00Z",
+  "items": [
+    {
+      "platform": "x",
+      "url": "https://x.com/example_maker/status/1980000000000000001",
+      "author_handle": "example_maker",
+      "created_at": "2026-10-21T09:30:00Z",
+      "text": "Is there a tool for cross-posting to Bluesky and Mastodon that keeps a human in the loop before anything goes out?",
+      "author_followers": 4200,
+      "reply_count": 3
+    },
+    {
+      "platform": "linkedin",
+      "url": "https://www.linkedin.com/feed/update/urn:li:activity:7380000000000000001/",
+      "author_handle": "example-dev-advocate",
+      "created_at": "2026-10-21T07:00:00Z",
+      "text": "Hot take: most social media automation fails because nobody reviews the posts. In my experience a human in the loop beats any scheduler.",
+      "author_followers": 12000,
+      "reply_count": 14
+    },
+    {
+      "platform": "threads",
+      "url": "https://www.threads.com/@example.builder/post/DExample0001",
+      "author_handle": "example.builder",
+      "created_at": "2026-10-21T10:15:00Z",
+      "text": "Writing my first Claude Code skill. How do I keep it from doing things I did not approve?",
+      "author_followers": 800,
+      "reply_count": 0
+    },
+    {
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=EXAMPLE0001",
+      "author_handle": "ExampleChannel",
+      "title": "Building Claude Code plugins: a walkthrough",
+      "created_at": "2026-10-20T18:00:00Z",
+      "text": "A walkthrough of Claude Code plugins and skills for small open-source projects.",
+      "author_followers": 30000,
+      "reply_count": 40
+    },
+    {
+      "platform": "stackoverflow",
+      "url": "https://stackoverflow.com/questions/79000001/post-to-bluesky-api-from-python",
+      "author_handle": "example-asker",
+      "title": "Post to the Bluesky API from Python without a library?",
+      "created_at": "2026-10-21T08:00:00Z",
+      "text": "I get an error when I call the bluesky api with my app password. What am I missing?",
+      "reply_count": 1
+    },
+    {
+      "platform": "reddit",
+      "url": "https://www.reddit.com/r/opensource/comments/example1/how_do_you_grow_a_small_cli_project/",
+      "author_handle": "example_redditor",
+      "title": "How do you grow a small CLI project?",
+      "created_at": "2026-10-21T06:00:00Z",
+      "text": "Looking for open-source growth advice for a social publishing CLI.",
+      "reply_count": 12
+    }
+  ]
+}

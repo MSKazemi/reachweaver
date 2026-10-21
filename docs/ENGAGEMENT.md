@@ -162,6 +162,10 @@ Each `bug_report` and `feature_request` gets a Markdown issue body in `--issues-
 
 The module exports these constants, and tests assert them: `NETWORK_ACCESS = False`, `SEND_PATH = None`, `AUTO_REPLY`, `MASS_FOLLOW`, `MASS_LIKE`, `MASS_DM`, `UNSOLICITED_OUTREACH`, `VOTE_MANIPULATION` and `FAKE_PERSONAS` are all `False`. Tests also check that `engagement.py` imports no `urllib`, `socket`, `http`, `subprocess` or publisher module. They also check that it exposes no public function whose name starts with send, post, publish, reply, follow, like, DM, message or submit.
 
+## Conversations to join (`engage-scout`)
+
+Triage handles replies to your own posts. To find other people's conversations where you can add something, use [`engage-scout`](ENGAGE-SCOUT.md): a ranked daily shortlist with an angle per item, read-it-yourself entries for human-only venues, and `engage-log` to record what you replied. It never posts, replies, likes or follows.
+
 ## Milestone follow-ups (`followup-suggest`)
 
 Competitor tools can auto-like, auto-comment, auto-DM or auto-repost when a post passes a milestone. ReachWeaver does not. `reachweaver followup-suggest --rules FILE` reads your published posts and their **exact** metric snapshots read-only and, when a post reaches a threshold you set, suggests a follow-up (a thank-you post with a resource link, a recap, an adaptation for another configured account, a manual pin note or a write-up idea) with the normal next commands. Nothing is drafted, approved, sent, liked, replied to or messaged, Reddit and Hacker News posts get no suggestion, and opt-out handles are never named. See [follow-up suggestions](FOLLOWUPS.md).

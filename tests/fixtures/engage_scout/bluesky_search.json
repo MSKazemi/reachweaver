@@ -1,0 +1,33 @@
+{
+  "_comment": "SYNTHETIC response in the app.bsky.feed.searchPosts shape observed on 2026-10-21; invented DIDs, handles and text.",
+  "posts": [
+    {
+      "uri": "at://did:plc:synthaaaaaaaaaaaaaaaaaaa/app.bsky.feed.post/3synthpost001",
+      "cid": "bafysynthetic001",
+      "author": {"did": "did:plc:synthaaaaaaaaaaaaaaaaaaa", "handle": "synthetic-one.bsky.social", "displayName": "Synthetic One", "labels": []},
+      "record": {"$type": "app.bsky.feed.post", "text": "Is there a tool for cross-posting that keeps a human in the loop?", "createdAt": "2026-10-21T10:00:00.000Z"},
+      "replyCount": 1, "repostCount": 0, "likeCount": 2, "quoteCount": 0, "indexedAt": "2026-10-21T10:00:01.000Z", "labels": []
+    },
+    {
+      "uri": "at://did:plc:synthbbbbbbbbbbbbbbbbbbb/app.bsky.feed.post/3synthpost002",
+      "cid": "bafysynthetic002",
+      "author": {"did": "did:plc:synthbbbbbbbbbbbbbbbbbbb", "handle": "synthetic-two.bsky.social", "labels": [{"val": "!no-unauthenticated", "src": "did:plc:synthbbbbbbbbbbbbbbbbbbb"}]},
+      "record": {"$type": "app.bsky.feed.post", "text": "Cross-posting with a human in the loop, anyone?", "createdAt": "2026-10-21T09:00:00.000Z"},
+      "replyCount": 0, "indexedAt": "2026-10-21T09:00:01.000Z", "labels": []
+    },
+    {
+      "uri": "at://did:plc:synthccccccccccccccccccc/app.bsky.feed.post/3synthpost003",
+      "cid": "bafysynthetic003",
+      "author": {"did": "did:plc:synthccccccccccccccccccc", "handle": "synthetic-three.bsky.social", "labels": []},
+      "record": {"$type": "app.bsky.feed.post", "text": "How do I do cross-posting with a human in the loop?", "createdAt": "2026-10-21T08:00:00.000Z"},
+      "replyCount": 0, "indexedAt": "2026-10-21T08:00:01.000Z", "labels": [],
+      "threadgate": {"uri": "at://did:plc:synthccccccccccccccccccc/app.bsky.feed.threadgate/3synthpost003"}
+    },
+    {
+      "uri": "at://did:plc:synthdddddddddddddddddddd/app.bsky.feed.post/3synthpost004",
+      "author": {"did": "did:plc:synthdddddddddddddddddddd", "handle": "synthetic-four.bsky.social"}
+    }
+  ],
+  "cursor": "3",
+  "hitsTotal": 4
+}
