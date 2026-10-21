@@ -6,6 +6,10 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-21
+
+Approval covers more of what is actually sent, and stays withdrawn when you withdraw it. A Mastodon post's visibility, language and content warning and a Postiz post's server and integration are bound into the approval; an exact repeat of material already shared on the same account is refused at send time unless you approved it with `--allow-repeat`; `unapprove` and `cancel` are recorded in the approval ledger, so a restored backup cannot send a withdrawn post. New owner-only `review` walks your drafts one by one in your own terminal. Preflight retries appear in the worker log. 119 commands (1 more than 0.12.0, none removed). No live adapter is added; dry-run, emergency-stop, credential isolation and reconciliation are unchanged.
+
 **Upgrade notes.**
 - **Approval ledger:** `unapprove` and `cancel` now append a `withdrawn` line to `approval-ledger.jsonl`. Existing ledgers stay valid and nothing needs re-approval. A version older than this one reads a ledger with a `withdrawn` line as broken and refuses every send and approval (`approval_ledger_unavailable`), so do not downgrade after an `unapprove` or `cancel`; if you must, restore the ledger from a backup taken before the upgrade, together with the database.
 - **Worker log:** `publish --log-json` can now write a `preflight_retry` line, and the `run_end` `counts` object has a new key, `preflight_retries`. `schema_version` stays 1 (both changes only add); a parser that rejects unknown events or keys needs updating.
