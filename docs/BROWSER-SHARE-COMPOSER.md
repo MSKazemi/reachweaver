@@ -22,15 +22,23 @@ Your browser should open an address starting with http://127.0.0.1. If it doesn'
 
 **Do not share that session URL.** It contains a random authorization token in the URL fragment. ReachWeaver does not store credentials, cookies or posting tokens for this feature.
 
-## Four easy steps
+## Five steps: Write → Choose → Preview → Save → Post
+
+The page is titled **ReachWeaver — Write a post**. A small progress bar under the header shows these five steps and moves on as you work (the current step is marked for screen readers with `aria-current="step"`), and the line under it says what to do next. On a phone the header shrinks to one line, so the caption box is visible as soon as the page opens.
 
 1. **Write:** enter one caption/description. For YouTube, add a video title. For human-only communities, add a short private note and write the real message yourself.
 2. **Choose:** search or tap networks, up to ten at once. Every network gets a copy-only package; Bluesky, LinkedIn, Mastodon and Telegram are offered as copy-only too (see below), and nothing is sent from this page.
-3. **Preview and tailor:** see the exact text and warnings, and edit each network's caption separately (for example a short Threads version and a longer Instagram version). After editing, click **Preview my posts** again to revalidate every network before saving. Changing the main caption discards these per-network edits, so finish the main caption first. The Copy button copies the current editor text; nothing posts automatically.
-4. **Save:** click **Save as new package**. ReachWeaver writes a new private folder below state/shares (in your workspace, or else the folder you started the command from) and shows its full path. Open OPEN-FIRST.md, review each platform's CHECKLIST.md, and paste the relevant caption into the native app yourself.
-5. **Mark as posted** (optional): after you published a network's post yourself, paste its link in the **Saved packages** list (see below) so ReachWeaver can measure it.
+3. **Preview and tailor:** click **Preview my posts** (below both panels). See the exact text and warnings, and edit each network's caption separately (for example a short Threads version and a longer Instagram version). After editing, preview again to recheck every network before saving. Changing the main caption discards these per-network edits, so finish the main caption first. **Copy caption** copies the current editor text and says "Copied" (also announced to screen readers); nothing posts automatically.
+4. **Save:** click **Save as new package**. ReachWeaver writes a new private folder below state/shares (in your workspace, or else the folder you started the command from) and says, for example, *Saved: Our first speckled mugs are out of the… · 21 Oct 19:30 (in state/shares/share-20261021-193000-…)*, with a **Copy folder path** button. The readable name comes from the first words of your caption and the save time; it is for display only (kept in the package's PACKAGE.json), and the folder keeps its fixed `share-YYYYMMDD-HHMMSS-<hex>` name. Open OPEN-FIRST.md, review each platform's CHECKLIST.md, and paste the relevant caption into the native app yourself.
+5. **Post, then mark as posted** (optional): after you published a network's post yourself, paste its link in the **Saved packages** list (see below) so ReachWeaver can measure it.
 
 There is **no Publish button**, because this UI is a manual handoff, not a new API integration. "Mark as posted" only records what you already did by hand.
+
+To see how your posts did, run `reachweaver ui` (the read-only dashboard) in a terminal; the composer shows that command with a **Copy** button in its header and footer. It does not link to the dashboard: the two are separate local servers with separate session links.
+
+## Look and accessibility
+
+The composer uses the dashboard's colours, font, corner radius and "RW" mark, and follows your system's light or dark setting (`prefers-color-scheme`). The keyboard focus ring has at least 3:1 contrast in both themes; Copied, Saved and Recorded messages go to a screen-reader status region; and on screens narrower than 640 px every button and field is at least 44 px tall. Warnings use plain words, for example *Instagram needs a photo or video. Add it here or attach it in the Instagram app.* instead of the command-line media-manifest wording; the rule behind each message is unchanged.
 
 ## Your draft is kept, and you can undo
 
@@ -38,7 +46,7 @@ As you type, the composer keeps your draft on this computer (state/composer/draf
 
 ## Saved packages: reopen, duplicate, update
 
-The **Saved packages** section lists every package in state/shares, newest first, with each network marked **Exported** (its files are in the package) or **Posted by hand**.
+The **Saved packages** section lists every package in state/shares, newest first, under its readable name, with each network marked **Ready to post** (its files are in the package) or **Posted by you**.
 
 - **Open in editor** loads the package back: networks, caption, per-network edits, title, note and attached files. If the editor already holds something, the first click asks you to click again.
 - **Duplicate as new** copies the package into a new one (rechecked against every rule; no network is marked posted in the copy).
@@ -52,7 +60,11 @@ Each preview card then lists **Photo and video checks**: the same offline header
 
 ## Mark as posted (measure what you posted by hand)
 
-Under a saved package, choose **Mark as posted** next to a network, paste the link of the post you published (and, if it was not just now, when you posted it), then **Record as posted**. The composer records it exactly like `mark-shared --url`: a "posted by hand" record (status published_manual) in your history database, with the package's caption and media fingerprints so the repeat guard knows them. It shows the new post id, and the network turns **Posted by hand**. Record its results later with `reachweaver metrics POST_ID ...` or import-metrics.
+Under a saved package, choose **Mark as posted** next to a network, paste the link of the post you published (and, if it was not just now, when you posted it), then **Record as posted**. A link without `https://` (such as `www.threads.net/@you/post/…`) gets it added; anything that is still not one web link shows *Paste the full link to your post, starting with https://* before anything is sent. The server checks the link again.
+
+If your accounts.json (`REACHWEAVER_ACCOUNTS`, else the workspace's config/accounts.json) has accounts for that network, an optional **Which account?** list offers them (id and public handle only; the file is read, never written). Leave it on "Not sure / skip" to record without an account, as before. A chosen account must exist in accounts.json and be for that network's platform (`dev` matches `devto`), else the server refuses and records nothing.
+
+The composer records it exactly like `mark-shared --url` (with `--account` when you chose one): a "posted by hand" record (status published_manual) in your history database, with the package's caption and media fingerprints so the repeat guard knows them. The network turns **Posted by you**, and the page says *Recorded as posted by you on Threads. Next: when you have numbers, run* `reachweaver metrics POST_ID --observed-at TIME --source native-export --likes N --replies N`, with a **Copy command** button; replace N with your counts and TIME with when you read them (ISO 8601 with a timezone). import-metrics works too.
 
 It is refused, with nothing recorded, when the link is not one http(s) link, when that link is already recorded for the network, when the time is in the future, for human-only venues (record your own post with `mark-shared` in the terminal), and for networks ReachWeaver cannot measure yet. The record can never be approved, scheduled or sent. It uses the history database of `--db`, `REACHWEAVER_DB` or the workspace, like other commands (`reachweaver --db PATH share --web`).
 
@@ -73,7 +85,7 @@ Some destinations (e.g. Reddit and Hacker News) are treated as human-only. They 
 - No caption is transmitted to social platforms. Text is sent from your browser to the **local ReachWeaver server on the same computer** for validation and file generation.
 - Preview never writes files. Saving always rechecks rules, creates a fresh 0700 owner-only directory (on POSIX), writes 0600 files and stages the entire handoff before a final rename. An update replaces a package only after your confirmation and only if it is unchanged since you opened it.
 - The browser cannot specify an arbitrary destination path or load a local file by URL. Package names and attached-file ids must match a strict pattern and are resolved and confirmed to sit inside the private state/shares or state/composer folder; symbolic links there are refused, never followed. An attached file is at most 256 MiB, must have a photo or video extension and must arrive within 120 seconds.
-- The history database is opened only by **Mark as posted**, which adds a terminal "posted by hand" record and nothing else.
+- The history database is opened only by **Mark as posted**, which adds a terminal "posted by hand" record and nothing else. accounts.json is only read (for the optional account list and to check a chosen account); credential variable names are never sent to the page.
 - A malicious program already running as your operating-system user may still access your local files or browser session. Keep the computer secure and never share your session link.
 
 The default command line share --guide remains available for anyone who prefers using a terminal. The existing read-only operations dashboard, reachweaver ui, remains **unchanged and read-only**.

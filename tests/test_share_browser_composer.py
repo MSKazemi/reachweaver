@@ -27,6 +27,14 @@ from reachweaver.storage import connect, pending
 
 CAPTION = "We released a small offline helper for preparing posts by hand."
 URL = "https://www.threads.net/@owner.example/post/C0mp0serTest1"
+# Synthetic public account entries (no credentials; env_prefix names only).
+ACCOUNTS = {"accounts": [
+    {"id": "owner-threads", "platform": "threads", "env_prefix": "REACHWEAVER_THREADS_ONE",
+     "username": "owner.example"},
+    {"id": "owner-bsky", "platform": "bluesky", "env_prefix": "REACHWEAVER_BSKY_ONE",
+     "handle": "owner.example.bsky.social"},
+    {"id": "owner-devto", "platform": "devto", "env_prefix": "REACHWEAVER_DEVTO_ONE", "username": "owner"},
+]}
 
 
 def png_bytes(width: int = 1080, height: int = 1350) -> bytes:
@@ -425,9 +433,9 @@ class MarkPostedTests(ComposerBase):
     def test_record_manual_publish_refusals_surface_as_plain_messages(self):
         name = self.saved()
         cases = [
-            ({"platform": "threads", "url": "not a link"}, "post link"),
+            ({"platform": "threads", "url": "not a link"}, "Paste the full link to your post, starting with https://"),
             ({"platform": "threads", "url": ""}, "Paste the link"),
-            ({"platform": "threads", "url": "javascript:alert(1)"}, "post link"),
+            ({"platform": "threads", "url": "javascript:alert(1)"}, "starting with https://"),
             ({"platform": "threads", "url": URL, "posted_at": "2999-01-01T00:00:00Z"}, "in the future"),
             ({"platform": "threads", "url": URL, "posted_at": "yesterday"}, "ISO 8601"),
             ({"platform": "reddit", "url": URL}, "human-only"),
@@ -471,7 +479,8 @@ class WritePathSecurityTests(ComposerBase):
         bodies = {"/api/package/open": {"package": name}, "/api/package/duplicate": {"package": name},
                   "/api/mark-posted": {"package": name, "platform": "threads", "url": URL},
                   "/api/draft/save": {"platforms": ["threads"], "text": "x"}, "/api/draft/clear": {},
-                  "/api/draft/load": {}, "/api/packages": {}, "/api/prepare": {"platforms": ["threads"], "text": "x"}}
+                  "/api/draft/load": {}, "/api/packages": {}, "/api/prepare": {"platforms": ["threads"], "text": "x"},
+                  "/api/accounts": {}}
         self.assertEqual(set(bodies) | {"/api/preview"}, set(JSON_ROUTES))
         port = self.srv.server_port
         variants = [
@@ -567,6 +576,18 @@ class WritePathSecurityTests(ComposerBase):
         for method in ("do_POST", "do_PUT", "do_DELETE", "do_PATCH"):
             self.assertIs(getattr(ui_server.Handler, method), ui_server.Handler._refuse_method)
 
+    def test_accounts_route_is_read_only(self):
+        config = self.root / "config"
+        config.mkdir()
+        (config / "accounts.json").write_text(json.dumps(ACCOUNTS), encoding="utf-8")
+        before = (config / "accounts.json").read_bytes()
+        code, data = self.post("/api/accounts", {})
+        self.assertEqual(code, 200, data)
+        self.assertEqual((config / "accounts.json").read_bytes(), before)
+        self.assertFalse(Path(self.db).exists())
+        code, data = self.post("/api/accounts", {"path": "/etc/passwd"})
+        self.assertEqual(code, 422, data)
+
     def test_database_is_untouched_until_mark_posted(self):
         self.save_new({"platforms": ["threads"], "text": CAPTION})
         self.post("/api/packages")
@@ -574,6 +595,166 @@ class WritePathSecurityTests(ComposerBase):
         self.assertFalse(Path(self.db).exists())
         with self.assertRaises(sqlite3.OperationalError):
             sqlite3.connect(f"file:{self.db}?mode=ro", uri=True).execute("SELECT 1")
+
+
+class AccountChoiceTests(ComposerBase):
+    """The optional "which account" on Mark as posted: listed read-only, validated by the server."""
+
+    def setUp(self):
+        super().setUp()
+        (self.root / "config").mkdir()
+        (self.root / "config" / "accounts.json").write_text(json.dumps(ACCOUNTS), encoding="utf-8")
+
+    def nothing_recorded(self, name: str) -> None:
+        self.assertFalse(list(self.shares.glob(f"{name}/*/{store.POSTED_FILE}")))
+        if Path(self.db).exists():
+            with connect(self.db) as con:
+                self.assertEqual(con.execute("SELECT COUNT(*) FROM posts").fetchone()[0], 0)
+
+    def test_accounts_lists_public_ids_and_handles_only(self):
+        code, data = self.post("/api/accounts", {})
+        self.assertEqual(code, 200, data)
+        self.assertEqual(data["accounts"], [
+            {"id": "owner-bsky", "platform": "bluesky", "name": "owner.example.bsky.social"},
+            {"id": "owner-devto", "platform": "devto", "name": "owner"},
+            {"id": "owner-threads", "platform": "threads", "name": "owner.example"}])
+        self.assertEqual(data["ledger_ids"], {"dev": "devto"})
+        self.assertNotIn("REACHWEAVER_", json.dumps(data))  # no env_prefix (credential variable names)
+
+    def test_missing_or_invalid_accounts_file_offers_no_choice(self):
+        (self.root / "config" / "accounts.json").write_text("{not json", encoding="utf-8")
+        self.assertEqual(self.post("/api/accounts", {})[1]["accounts"], [])
+        (self.root / "config" / "accounts.json").unlink()
+        self.assertEqual(self.post("/api/accounts", {})[1]["accounts"], [])
+
+    def test_unknown_mismatched_or_malformed_account_is_refused_before_any_write(self):
+        name = self.save_new({"platforms": ["threads"], "text": CAPTION})["package"]["name"]
+        cases = [("someone-else", "no account called someone-else"),
+                 ("owner-bsky", "is for bluesky, not Threads"),
+                 ("../owner-threads", "Choose an account from the list"),
+                 (7, "Choose an account from the list"),
+                 ("Owner-Threads", "Choose an account from the list")]
+        for account, words in cases:
+            with self.subTest(account=account):
+                code, data = self.post("/api/mark-posted", {"package": name, "platform": "threads", "url": URL,
+                                                            "account_id": account})
+                self.assertEqual(code, 422, data)
+                self.assertIn(words, data["errors"][0])
+                self.assertIn("Nothing was recorded", data["errors"][0])
+                self.nothing_recorded(name)
+
+    def test_unreadable_accounts_file_refuses_a_chosen_account(self):
+        name = self.save_new({"platforms": ["threads"], "text": CAPTION})["package"]["name"]
+        (self.root / "config" / "accounts.json").unlink()
+        code, data = self.post("/api/mark-posted", {"package": name, "platform": "threads", "url": URL,
+                                                    "account_id": "owner-threads"})
+        self.assertEqual(code, 422, data)
+        self.assertIn("could not be read", data["errors"][0])
+        self.nothing_recorded(name)
+
+    def test_a_matching_account_is_recorded_and_no_account_stays_valid(self):
+        name = self.save_new({"platforms": ["threads", "dev"], "text": CAPTION})["package"]["name"]
+        code, data = self.post("/api/mark-posted", {"package": name, "platform": "threads", "url": URL,
+                                                    "account_id": "owner-threads"})
+        self.assertEqual(code, 200, data)
+        self.assertEqual(data["posted"]["account_id"], "owner-threads")
+        threads = next(n for n in data["package"]["networks"] if n["id"] == "threads")
+        self.assertEqual(threads["posted"]["account_id"], "owner-threads")
+        post_id = data["posted"]["post_id"]
+        self.assertEqual(data["next"], f"reachweaver metrics {post_id} --observed-at TIME --source native-export "
+                                       "--likes N --replies N")
+        from reachweaver.cli_parser import make_parser
+        args = make_parser().parse_args(data["next"].split()[1:])  # the suggested command parses as given
+        self.assertEqual((args.command, args.post_id, args.likes), ("metrics", post_id, "N"))
+        with connect(self.db) as con:
+            row = con.execute("SELECT account_id, status, approved_at FROM posts WHERE id=?", (post_id,)).fetchone()
+            self.assertEqual(tuple(row), ("owner-threads", "published_manual", None))
+            self.assertEqual(pending(con), [])
+        # dev maps to the devto history platform, so a devto account matches it; no account at all is fine too.
+        code, data = self.post("/api/mark-posted", {"package": name, "platform": "dev", "account_id": "owner-devto",
+                                                    "url": "https://dev.to/owner/offline-helper-1a2b"})
+        self.assertEqual(code, 200, data)
+        self.assertEqual(data["posted"]["account_id"], "owner-devto")
+        other = self.save_new({"platforms": ["threads"], "text": CAPTION})["package"]["name"]
+        code, data = self.post("/api/mark-posted", {"package": other, "platform": "threads", "account_id": None,
+                                                    "url": URL + "2"})
+        self.assertEqual(code, 200, data)
+        self.assertIsNone(data["posted"]["account_id"])
+
+
+class DisplayNameAndPlainWordsTests(ComposerBase):
+    def test_package_gets_a_readable_name_from_the_caption_and_the_folder_pattern_is_unchanged(self):
+        saved = self.save_new({"platforms": ["threads"], "text": "Our first speckled mugs are out of the kiln "
+                                                                 "today and they look great"})
+        name = saved["package"]["name"]
+        self.assertTrue(store.PACKAGE_NAME.fullmatch(name), name)
+        self.assertRegex(saved["display_name"], r"^Our first speckled mugs are out of the… · \d{1,2} [A-Z][a-z]{2} "
+                                                r"\d\d:\d\d$")
+        self.assertEqual(saved["folder"], f"state/shares/{name}")
+        info = json.loads((self.shares / name / store.INFO_FILE).read_text(encoding="utf-8"))
+        self.assertEqual(info, {"display_name": saved["display_name"]})
+        listed = self.post("/api/packages")[1]["packages"]
+        self.assertEqual(listed[0]["display_name"], saved["display_name"])
+
+    def test_display_name_strips_controls_and_bidi_and_stays_plain_text(self):
+        markup = "<b>Hi</b>\n\tthere <script>alert(1)</script> and a much longer tail of words"
+        shown = self.save_new({"platforms": ["threads"], "text": markup})["display_name"]
+        title = shown.split(" · ")[0]
+        self.assertTrue(title.startswith("<b>Hi</b> there <script>"), title)  # data; the page uses textContent
+        self.assertLessEqual(len(title), store.MAX_TITLE_CHARS + 1)
+        self.assertNotIn("\n", shown)
+        self.assertNotIn("\t", shown)
+        # The share preflight already refuses bidi overrides and controls in a caption; the name is cleaned anyway
+        # (a package rebuilt from older files never carries them into the page).
+        hostile = "Hi" + chr(0x202E) + chr(0x200B) + chr(7) + chr(0x2028) + chr(0xD800) + "there" + chr(0xE000)
+        self.assertEqual(store.display_title(hostile), "Hi there")
+        self.assertEqual(store.display_title("   "), "Untitled post")
+        self.assertEqual(store.display_title("", "Read the rules"), "Read the rules")
+
+    def test_a_tampered_stored_name_is_not_trusted(self):
+        saved = self.save_new({"platforms": ["threads"], "text": "Kiln day"})
+        folder = self.shares / saved["package"]["name"]
+        for bad in ("Fine\u202eevil", "x" * 500, 42, "line\nbreak"):
+            with self.subTest(bad=bad):
+                (folder / store.INFO_FILE).write_text(json.dumps({"display_name": bad}), encoding="utf-8")
+                shown = store.package_display(folder)
+                self.assertTrue(shown.startswith("Kiln day · "), shown)
+        (folder / store.INFO_FILE).unlink()
+        os.symlink(self.root / "elsewhere.json", folder / store.INFO_FILE)
+        (self.root / "elsewhere.json").write_text(json.dumps({"display_name": "Planted"}), encoding="utf-8")
+        self.assertTrue(store.package_display(folder).startswith("Kiln day · "))
+
+    def test_preview_warnings_and_errors_are_plain(self):
+        code, data = self.post("/api/preview", {"platforms": ["instagram", "tiktok"], "text": CAPTION})
+        self.assertEqual(code, 200, data)
+        cards = {c["id"]: c for c in data["platforms"]}
+        self.assertIn("Instagram needs a photo or video. Add it here or attach it in the Instagram app.",
+                      cards["instagram"]["warnings"])
+        self.assertIn("TikTok needs a video. Add it here or attach it in the TikTok app.", cards["tiktok"]["warnings"])
+        self.assertFalse(any("manifest" in w for c in cards.values() for w in c["warnings"]))
+        code, data = self.post("/api/preview", {"platforms": ["youtube"], "text": CAPTION})
+        self.assertEqual(code, 422, data)
+        self.assertIn("YouTube needs a video title", data["errors"][0])
+        self.assertNotIn("platform_options", data["errors"][0])
+        code, data = self.post("/api/preview", {"platforms": ["reddit"], "text": "A ready promo post"})
+        self.assertEqual(code, 422, data)
+        self.assertIn("human-only", data["errors"][0])
+        self.assertNotIn("--note", data["errors"][0])
+        code, data = self.post("/api/preview", {"platforms": [], "text": CAPTION})
+        self.assertEqual(code, 422, data)
+        self.assertEqual(data["errors"], ["Choose at least one network."])
+
+    def test_page_strings_brand_and_accessibility_hooks(self):
+        from reachweaver.share_browser_ui import HTML
+        for needed in ("<title>ReachWeaver — Write a post</title>", 'aria-hidden="true">RW</span>', "#0b6e69",
+                       "@media (prefers-color-scheme: dark)", 'role="status"', '"aria-current", "step"',
+                       "Ready to post", "Paste the full link to your post, starting with https://",
+                       "See how your posts did: run ", '"reachweaver ui"', "Copy folder path",
+                       "Recorded as posted by you on ", "Next: when you have numbers, run ", "Which account? (optional)",
+                       "min-height: 44px", "Write", "Choose", "Preview", "Save", "Post"):
+            self.assertIn(needed, HTML)
+        for gone in ("innerHTML", "Exported", "outerHTML", "insertAdjacentHTML", "eval(", "✦"):
+            self.assertNotIn(gone, HTML)
 
 
 if __name__ == "__main__":

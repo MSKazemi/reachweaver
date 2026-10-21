@@ -23,6 +23,7 @@ import stat
 import tempfile
 from datetime import datetime
 from typing import Any, Callable, Iterable
+import unicodedata
 
 from . import home
 from .policy import ValidationError
@@ -42,6 +43,9 @@ MAX_PACKAGES_LISTED = 200
 DRAFT_FILE = "draft.json"
 EDITOR_FILE = "composer.json"
 POSTED_FILE = "POSTED.json"
+INFO_FILE = "PACKAGE.json"  # display metadata only (the readable name); nothing that shares or sends reads it
+MAX_TITLE_CHARS = 40  # caption words in a display name
+MAX_DISPLAY_CHARS = 120
 MEDIA_FOLDER = "media"
 POSTED_LABEL = "posted by hand"
 # Share destination id -> the platform id the history database uses (the same alias share_tailor.POLICY_ID uses).
@@ -422,6 +426,69 @@ def _created(name: str) -> str:
         return ""
 
 
+_UNSAFE_CATEGORIES = frozenset({"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"})
+
+
+def _plain_words(value: object) -> str:
+    """One line of visible text: control, format (bidi overrides, zero-width), surrogate, private-use and
+    unassigned characters become spaces, and runs of whitespace collapse to one space."""
+    if not isinstance(value, str):
+        return ""
+    cleaned = "".join(" " if unicodedata.category(ch) in _UNSAFE_CATEGORIES else ch for ch in value[:4096])
+    return " ".join(cleaned.split())
+
+
+def display_title(text: object, note: object = "") -> str:
+    """The first words of the caption (else the community note), cut at a word boundary with an ellipsis."""
+    words = _plain_words(text) or _plain_words(note)
+    if not words:
+        return "Untitled post"
+    if len(words) <= MAX_TITLE_CHARS:
+        return words
+    cut = words[:MAX_TITLE_CHARS + 1]
+    space = cut.rfind(" ")
+    return (cut[:space] if space >= MAX_TITLE_CHARS // 2 else cut[:MAX_TITLE_CHARS]).rstrip(" .,;:-") + "…"
+
+
+def _short_date(when: datetime) -> str:
+    return f"{when.day} {when.strftime('%b %H:%M')}"
+
+
+def display_name(text: object, note: object, when: datetime) -> str:
+    """A readable package name such as "Our first speckled mugs… · 21 Oct 19:30". Display only: the folder keeps
+    its strict ``share-YYYYMMDD-HHMMSS-<hex>`` name."""
+    return f"{display_title(text, note)} · {_short_date(when)}"
+
+
+def _valid_display(value: object) -> bool:
+    return isinstance(value, str) and 0 < len(value) <= MAX_DISPLAY_CHARS and _plain_words(value) == value
+
+
+def _folder_time(name: str) -> datetime:
+    try:
+        return datetime.strptime(name.split("-")[1] + name.split("-")[2], "%Y%m%d%H%M%S")
+    except (IndexError, ValueError):
+        return datetime.now()
+
+
+def package_display(pkg: Path) -> str:
+    """The stored display name (PACKAGE.json, checked again on every read), else one derived from the caption."""
+    info = pkg / INFO_FILE
+    if info.is_file() and not info.is_symlink():
+        try:
+            data = read_json_file(info, 16 * 1024)
+            if isinstance(data, dict) and _valid_display(data.get("display_name")):
+                return str(data["display_name"])
+        except (ValidationError, ValueError, UnicodeError, OSError):
+            pass
+    try:
+        editor = editor_from_package(pkg)
+        text, note = editor.get("text"), editor.get("note")
+    except (ValidationError, ValueError, UnicodeError, OSError):
+        text, note = "", ""
+    return display_name(text, note, _folder_time(pkg.name))
+
+
 def package_state(pkg: Path) -> dict:
     """What the browser shows for one package: per network exported or posted (by hand), plus the revision."""
     from .share import _human_only
@@ -432,13 +499,14 @@ def package_state(pkg: Path) -> dict:
         posted = posted_record(pkg, platform)
         ledger = LEDGER_ID.get(platform, platform)
         networks.append({
-            "id": platform, "label": str(export.get("platform_label") or platform),
+            "id": platform, "label": str(export.get("platform_label") or platform), "ledger": ledger,
             "human_only": platform in human, "state": "posted" if posted else "exported",
             "measurable": _measurable(ledger) and platform not in human,
             "posted": None if posted is None else {
-                k: posted.get(k) for k in ("post_id", "url", "posted_at", "label", "status")},
+                k: posted.get(k) for k in ("post_id", "url", "posted_at", "label", "status", "account_id")},
         })
-    return {"name": pkg.name, "created": _created(pkg.name), "networks": networks,
+    return {"name": pkg.name, "created": _created(pkg.name), "display_name": package_display(pkg),
+            "folder": (SHARES / pkg.name).as_posix(), "networks": networks,
             "media": [p.name for p in _package_media(pkg)], "revision": revision(pkg),
             "any_posted": any(n["state"] == "posted" for n in networks)}
 
@@ -551,8 +619,11 @@ def write_package(packages: list[tuple[str, dict]], media: list[tuple[Path, str]
         write_private_file(stage / "OPEN-FIRST.md", readme)
         saved = dict(clean_editor(editor, fields=_EDITOR_FIELDS), media=names)
         write_private_file(stage / EDITOR_FILE, json.dumps(saved, ensure_ascii=False, indent=2) + "\n")
+        now = datetime.now()
+        shown = display_name(saved.get("text"), saved.get("note"), _folder_time(old.name) if old else now)
+        write_private_file(stage / INFO_FILE, json.dumps({"display_name": shown}, ensure_ascii=False) + "\n")
         if old is None:
-            target = base / ("share-" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(6))
+            target = base / ("share-" + now.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(6))
             if os.path.lexists(target):
                 raise ValidationError("The generated output destination already exists.")
             stage.rename(target)
@@ -574,7 +645,11 @@ def write_package(packages: list[tuple[str, dict]], media: list[tuple[Path, str]
 
 # --- mark as posted --------------------------------------------------------------------------------------------
 
+LINK_HELP = "Paste the full link to your post, starting with https://"
 _CLI_WORDS = (("--url is required: the link of the post on the platform", "Paste the link of your post."),
+              ("--url must be one http(s) link without spaces, at most 2048 characters",
+               LINK_HELP + " (one link, no spaces, at most 2048 characters). Nothing was recorded."),
+              ("--url must be an http(s) link with a host", LINK_HELP + ". Nothing was recorded."),
               ("--url", "The post link"), ("--at", "The posted time"),
               ("Give at least one of --text/--file, --image, --video or --link",
                "This network has no caption or media in the package to record."))
@@ -586,12 +661,55 @@ def _plain(message: str) -> str:
     return message
 
 
-def mark_posted(name: object, platform: object, url: object, posted_at: object, db: str | None) -> dict:
+def _account_names(raw: dict) -> str:
+    for key in ("handle", "username", "channel_username"):
+        value = _plain_words(raw.get(key))
+        if value and len(value) <= 100:
+            return value
+    return ""
+
+
+def list_accounts(accounts: str | Path | None = None) -> list[dict]:
+    """Public account identifiers for the optional "which account" choice: id, platform and a handle. Read-only;
+    a missing or invalid accounts file simply means no choice is offered (the record is made without one)."""
+    from .accounts import load_accounts
+    try:
+        loaded = load_accounts(accounts)
+    except (ValidationError, OSError, ValueError, UnicodeError):
+        return []
+    return [{"id": account_id, "platform": str(raw.get("platform")), "name": _account_names(raw)}
+            for account_id, raw in sorted(loaded.items())]
+
+
+def check_account(account_id: object, ledger: str, label: str, accounts: str | Path | None = None) -> str | None:
+    """None (no account chosen), or an account id that exists in accounts.json for this network's platform."""
+    from .accounts import ACCOUNT_ID, load_accounts
+    if account_id is None or account_id == "":
+        return None
+    if not isinstance(account_id, str) or not ACCOUNT_ID.fullmatch(account_id):
+        raise ValidationError("Choose an account from the list, or no account. Nothing was recorded.")
+    try:
+        loaded = load_accounts(accounts)
+    except (ValidationError, OSError, ValueError, UnicodeError):
+        raise ValidationError("Your accounts file could not be read, so the account could not be checked. Choose "
+                              "no account, or fix accounts.json. Nothing was recorded.") from None
+    raw = loaded.get(account_id)
+    if raw is None:
+        raise ValidationError(f"There is no account called {account_id} in accounts.json. Nothing was recorded.")
+    if raw.get("platform") != ledger:
+        raise ValidationError(f"The account {account_id} is for {raw.get('platform')}, not {label}. "
+                              "Nothing was recorded.")
+    return account_id
+
+
+def mark_posted(name: object, platform: object, url: object, posted_at: object, db: str | None,
+                account_id: object = None, accounts: str | Path | None = None) -> dict:
     """Record that the owner published one network of a saved package BY HAND, via record_manual_publish.
 
     Refused before any write: an unknown package or network, a human-only venue, a network the history database
-    cannot measure, or a network already marked. record_manual_publish's own refusals (bad link, duplicate link,
-    a future time, no material) come back as ValidationError with the CLI flag names replaced by plain words.
+    cannot measure, a network already marked, or an ``account_id`` that is not in accounts.json for this network's
+    platform. record_manual_publish's own refusals (bad link, duplicate link, a future time, no material) come
+    back as ValidationError with the CLI flag names replaced by plain words.
     """
     from .repeat_guard import sha256_file
     from .share import _human_only
@@ -610,6 +728,7 @@ def mark_posted(name: object, platform: object, url: object, posted_at: object, 
     if posted_at is not None and (not isinstance(posted_at, str) or len(posted_at) > 64):
         raise ValidationError("The posted time must be an ISO 8601 date with a timezone.")
     export = _export(pkg, platform)
+    account = check_account(account_id, ledger, str(export.get("platform_label") or platform), accounts)
     content = export.get("content") or {}
     text: str = content["text"] if isinstance(content.get("text"), str) else ""
     link = url if isinstance(url, str) else ""  # record_manual_publish refuses an empty link
@@ -619,12 +738,13 @@ def mark_posted(name: object, platform: object, url: object, posted_at: object, 
     try:
         when = parse_utc(posted_at) if posted_at else utc_now()
         with connect(db) as con:
-            made = record_manual_publish(con, platform=ledger, url=link, content=text, images=images,
-                                         video=videos[0] if videos else None, posted_at=posted_at or None)
+            made = record_manual_publish(con, platform=ledger, url=link, account_id=account, content=text,
+                                         images=images, video=videos[0] if videos else None,
+                                         posted_at=posted_at or None)
     except ValidationError as exc:
         raise ValidationError(_plain(str(exc))) from None
     record = {"post_id": made["post_id"], "shared_id": made["shared_id"], "status": made["status"],
-              "provenance": made["provenance"], "label": POSTED_LABEL, "platform": ledger,
+              "provenance": made["provenance"], "label": POSTED_LABEL, "platform": ledger, "account_id": account,
               "url": link.strip(), "posted_at": when, "recorded_at": utc_now()}
     try:
         write_private_file(_inside(pkg, platform) / POSTED_FILE, json.dumps(record, indent=2) + "\n")

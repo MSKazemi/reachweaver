@@ -6,6 +6,15 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Changed
+
+- Browser composer (`share --web`) is easier to use, especially on phones: title "ReachWeaver — Write a post"; the header shrinks to one line under 820 px so the caption box is visible on first load (375×667: caption top at 372 px, was 783 px); the six static step chips are replaced by a Write → Choose → Preview → Save → Post progress bar that follows the real editor state (`aria-current="step"`) with a "Next:" hint; dark mode by `prefers-color-scheme`; the dashboard's colours, font, radius and "RW" mark; a focus ring of 6.1:1 (light) and 8.3:1 (dark) on panels, was 2.6:1; a screen-reader status region for Copied/Saved/Recorded; 44 px targets under 640 px (375 px with one saved package: 0 of 34 smaller, was 15 of 31). Saved packages get a readable display name from the caption and time (in `PACKAGE.json`; the folder name is unchanged), and the save message reads "Saved: <name> (in state/shares/…)" with a Copy folder path button. "Exported" reads "Ready to post"; technical warnings and errors are reworded in plain language with the same meaning. The header and footer show "See how your posts did: run reachweaver ui" with a Copy button. [docs/BROWSER-SHARE-COMPOSER.md](docs/BROWSER-SHARE-COMPOSER.md).
+- Composer "Mark as posted" checks the link in the page first (adds a missing `https://`, plain error "Paste the full link to your post, starting with https://"), offers an optional account choice from accounts.json for that network, and ends with the next step: the exact `reachweaver metrics POST_ID --observed-at TIME --source native-export --likes N --replies N` command with a Copy button.
+
+### Security
+
+- Composer: the optional `account_id` on `/api/mark-posted` is checked by the server (id pattern, present in accounts.json, same history platform) before the database is opened, and passed to `record_manual_publish`; nothing new can approve, schedule or send. New read-only `/api/accounts` route behind the same Host/token/Origin/size guards returns ids, platforms and public handles only (never `env_prefix`). Display names are stripped of control, format/bidi, surrogate and private-use characters, re-validated on every read, and shown with `textContent`.
+
 ## [0.15.0] - 2026-10-21
 
 One place to write, share and learn. The browser composer reopens, autosaves and attaches media, and "Mark as posted" makes a post you shared by hand measurable. `share` now also makes copy-ready Bluesky, Mastodon, Telegram and LinkedIn posts, and `account-add` writes a valid account entry without a secret. Your own results feed hashtag ideas, follow-up thresholds, `suggest` and `calendar-plan`. `platform-risk` shows how dependent you are on each network, and `eu-review-evidence` lists the human review recorded for each published post. Media posts now need an explicit AI-label answer at approval where a platform requires a label (owner-approved; see Upgrade notes). 129 commands (4 more than 0.14.0, none removed). No live adapter is added.

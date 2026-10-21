@@ -86,7 +86,7 @@ class BrowserComposerTests(unittest.TestCase):
             html = body.decode("utf-8")
             self.assertEqual(code, 200)
             self.assertIn("One story.", html)
-            self.assertIn("Share manually", html)
+            self.assertIn("<title>ReachWeaver — Write a post</title>", html)
             self.assertNotIn("<script src=", html)
             self.assertNotIn("<link rel=", html)
             self.assertNotIn("analytics.", html)
