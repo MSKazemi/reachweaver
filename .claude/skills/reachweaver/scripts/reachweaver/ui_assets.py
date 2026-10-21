@@ -26,6 +26,7 @@ INDEX_HTML = r"""<!doctype html>
 <aside class="side" id="side" aria-label="Sections">
   <div class="brand"><span class="mark" aria-hidden="true">RW</span><span>ReachWeaver</span></div>
   <span class="readonly" title="This dashboard cannot approve, schedule, pause or publish">Read-only view</span>
+  <a class="writecta" href="#/write" data-route="write"><span data-icon="pen"></span><span>Write a new post</span></a>
   <nav aria-label="Sections" id="nav">
     <p class="navgroup">Work</p>
     <a href="#/" data-route="overview"><span data-icon="home"></span><span class="lbl">Overview</span><span class="count" data-count="overview"></span></a>
@@ -79,8 +80,9 @@ INDEX_HTML = r"""<!doctype html>
 <nav class="tabs" aria-label="Main sections">
   <a href="#/" data-route="overview" class="tab"><span data-icon="home"></span><span>Overview</span><span class="count" data-count="overview"></span></a>
   <a href="#/queue" data-route="queue" class="tab"><span data-icon="queue"></span><span>Queue</span><span class="count" data-count="queue"></span></a>
-  <a href="#/schedule" data-route="schedule" class="tab"><span data-icon="calendar"></span><span>Schedule</span><span class="count" data-count="schedule"></span></a>
+  <a href="#/schedule" data-route="schedule" class="tab" id="scheduletab" hidden><span data-icon="calendar"></span><span>Schedule</span><span class="count" data-count="schedule"></span></a>
   <a href="#/posted" data-route="posted" class="tab"><span data-icon="posted"></span><span>Posted</span></a>
+  <a href="#/results" data-route="results" class="tab"><span data-icon="results"></span><span>Results</span></a>
   <button type="button" class="tab" id="more" aria-controls="side" aria-expanded="false"><span data-icon="more"></span><span>More</span></button>
 </nav>
 <div id="toast" role="status" aria-live="polite"></div>
@@ -89,21 +91,36 @@ INDEX_HTML = r"""<!doctype html>
 </html>
 """
 
-# The tab icon: the same "RW" mark as the header, drawn as plain shapes (no text, no font, no script).
-ICON_SVG = r"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0b6e69"/><path d="M7 23V9h5a4 4 0 0 1 0 8H7m5 0 4 6M16 9l2.5 14L21 13l2.5 10L26 9" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>"""
+# Brand tokens, defined once. The stylesheet below starts with them as CSS custom properties (--rw-accent, ...), and
+# the browser composer (``share --web``) can mirror the same look by importing BRAND or BRAND_CSS from this module.
+BRAND = {
+    "accent": "#0b6e69",       # light theme accent (buttons, links, the RW mark)
+    "accent-dark": "#3cc2b8",  # dark theme accent
+    "radius": "12px",          # cards and panels
+    "font": 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+    "mono": "ui-monospace, SFMono-Regular, Menlo, monospace",
+    "wordmark": "ReachWeaver",
+}
+BRAND_CSS = (":root { " + " ".join(f"--rw-{name}: {value if name != 'wordmark' else chr(34) + value + chr(34)};"
+                                   for name, value in BRAND.items()) + " }\n")
 
-APP_CSS = r""":root {
+# The tab icon: the same "RW" mark as the header, drawn as plain shapes (no text, no font, no script).
+ICON_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" '
+            f'fill="{BRAND["accent"]}"/><path d="M7 23V9h5a4 4 0 0 1 0 8H7m5 0 4 6M16 9l2.5 14L21 13l2.5 10L26 9" '
+            'fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>')
+
+APP_CSS = BRAND_CSS + r""":root {
   --bg: #f5f6f8; --panel: #ffffff; --ink: #1b1f24; --muted: #5b6573; --line: #dfe3e9; --hover: #f2f5f8;
-  --accent: #0b6e69; --accent-ink: #ffffff; --accent-soft: #e2f2f0; --accent-strong: #08544f;
+  --accent: var(--rw-accent); --accent-ink: #ffffff; --accent-soft: #e2f2f0; --accent-strong: #08544f;
   --ok: #166a2e; --warn: #7d5400; --bad: #b42318; --info: #1f5fbf;
   --ok-bg: #e6f4ea; --warn-bg: #fff4d6; --bad-bg: #fde8e6; --info-bg: #e5eefb; --code-bg: #eef1f5;
   --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .08);
-  --radius: 12px; --gutter: 16px; --side: 232px;
+  --radius: var(--rw-radius); --gutter: 16px; --side: 232px; --tap: 44px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0f1317; --panel: #171c22; --ink: #e8ecf1; --muted: #9aa5b3; --line: #2b333d; --hover: #1d242c;
-    --accent: #3cc2b8; --accent-ink: #06201d; --accent-soft: #123532; --accent-strong: #7fe0d8;
+    --accent: var(--rw-accent-dark); --accent-ink: #06201d; --accent-soft: #123532; --accent-strong: #7fe0d8;
     --ok: #56d364; --warn: #e3b341; --bad: #ff7b72; --info: #79b8ff;
     --ok-bg: #12301b; --warn-bg: #3a2c08; --bad-bg: #3d1512; --info-bg: #12263f; --code-bg: #0c1014;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4);
@@ -111,7 +128,7 @@ APP_CSS = r""":root {
 }
 :root[data-theme="dark"] {
   --bg: #0f1317; --panel: #171c22; --ink: #e8ecf1; --muted: #9aa5b3; --line: #2b333d; --hover: #1d242c;
-  --accent: #3cc2b8; --accent-ink: #06201d; --accent-soft: #123532; --accent-strong: #7fe0d8;
+  --accent: var(--rw-accent-dark); --accent-ink: #06201d; --accent-soft: #123532; --accent-strong: #7fe0d8;
   --ok: #56d364; --warn: #e3b341; --bad: #ff7b72; --info: #79b8ff;
   --ok-bg: #12301b; --warn-bg: #3a2c08; --bad-bg: #3d1512; --info-bg: #12263f; --code-bg: #0c1014;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4);
@@ -119,7 +136,7 @@ APP_CSS = r""":root {
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  font: 15px/1.5 var(--rw-font); }
 .skip { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--accent-ink); padding: 8px 12px; z-index: 50; }
 .skip:focus { left: 8px; top: 8px; }
 a { color: var(--accent); }
@@ -178,12 +195,13 @@ main:focus { outline: none; }
 main[aria-busy="true"] { cursor: progress; }
 .foot { max-width: 1180px; width: 100%; margin: 0 auto; padding: 0 24px 24px; font-size: 13px; }
 h1 { font-size: 24px; margin: 0 0 4px; letter-spacing: -.2px; }
+h1, h2, h3, .lede, .pv-head, .tl .ta, .sumline { overflow-wrap: anywhere; }
 h2 { font-size: 16px; margin: 26px 0 10px; }
 h3 { font-size: 15px; margin: 18px 0 8px; }
 .muted { color: var(--muted); }
 .lede { margin: 0 0 18px; color: var(--muted); }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin: 0 0 14px; box-shadow: var(--shadow); }
-.card > .ct { margin: 0 0 10px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.card > .ct, .late > .ct { margin: 0 0 10px; font-size: 15px; font-weight: 700; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; letter-spacing: 0; }
 .card > .ct .count { margin-left: 2px; }
 .card > .ct a { margin-left: auto; font-size: 13px; font-weight: 400; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 14px; margin: 0 0 14px; align-items: start; }
@@ -195,7 +213,7 @@ h3 { font-size: 15px; margin: 18px 0 8px; }
 .banner.attention { background: var(--warn-bg); color: var(--warn); }
 .banner.blocked { background: var(--bad-bg); color: var(--bad); }
 .banner small { display: block; color: var(--ink); margin-top: 2px; font-size: 13px; }
-.chip { display: inline-block; font-size: 12px; padding: 1px 9px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; line-height: 18px; }
+.chip { display: inline-block; max-width: 100%; font-size: 12px; padding: 1px 9px; border-radius: 999px; border: 1px solid currentColor; white-space: normal; overflow-wrap: anywhere; line-height: 18px; }
 .chip.draft { color: var(--muted); } .chip.approved, .chip.scheduled { color: var(--info); }
 .chip.sending { color: var(--warn); } .chip.needs_review { color: var(--bad); font-weight: 700; }
 .chip.published, .chip.published_manual { color: var(--ok); } .chip.cancelled { color: var(--muted); text-decoration: line-through; }
@@ -260,7 +278,7 @@ button.chipbtn[aria-pressed="true"] { background: var(--accent); color: var(--ac
 .allclear { display: flex; gap: 10px; align-items: center; color: var(--ok); font-weight: 600; }
 .allclear .ico { width: 22px; height: 22px; }
 .exact { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--code-bg); border: 1px solid var(--line);
-  border-radius: 9px; padding: 12px; margin: 0; font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  border-radius: 9px; padding: 12px; margin: 0; font: 14px/1.5 var(--rw-mono); }
 .meter { display: flex; align-items: center; gap: 10px; margin: 8px 0 0; font-size: 13px; color: var(--muted); }
 .meter .track { flex: 1; max-width: 260px; height: 8px; border-radius: 999px; background: var(--code-bg); border: 1px solid var(--line); overflow: hidden; }
 .meter .bar { height: 100%; background: var(--ok); }
@@ -269,10 +287,11 @@ button.chipbtn[aria-pressed="true"] { background: var(--accent); color: var(--ac
 dl.kv { display: grid; grid-template-columns: minmax(110px, 200px) 1fr; gap: 5px 14px; margin: 0; }
 dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }
 .aside dl.kv { grid-template-columns: 1fr; gap: 0; } .aside dl.kv dt { font-size: 12px; margin-top: 8px; } .aside dl.kv dt:first-child { margin-top: 0; }
-code, pre.json { font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
+code, pre.json { font: 13px/1.45 var(--rw-mono); }
 pre.json { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow-x: auto; margin: 6px 0 0; max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }
 .cmd { display: flex; gap: 8px; align-items: center; background: var(--code-bg); border: 1px solid var(--line); border-radius: 9px; padding: 6px 8px 6px 12px; margin: 6px 0; }
-.cmd code { flex: 1; overflow-wrap: anywhere; }
+.cmd code { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.cmd button { flex: none; }
 .next ol { margin: 0; padding-left: 20px; } .next li { margin: 0 0 10px; } .next li:last-child { margin: 0; }
 .note { color: var(--muted); font-size: 13px; }
 .status-card { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-start; border-left: 4px solid var(--muted); }
@@ -295,7 +314,7 @@ dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--li
 dialog::backdrop { background: rgba(0, 0, 0, .45); }
 dialog h2 { margin-top: 0; }
 dialog table td { border: 0; padding: 3px 10px 3px 0; }
-kbd { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: var(--muted); }
+kbd { font: 12px var(--rw-mono); background: var(--code-bg); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: var(--muted); }
 
 /* ---- command palette */
 dialog.palette { width: min(620px, calc(100vw - 32px)); max-width: none; padding: 0; margin-top: 12vh; overflow: hidden; }
@@ -322,9 +341,9 @@ dialog.palette { width: min(620px, calc(100vw - 32px)); max-width: none; padding
 .kindtag { font-size: 12px; font-weight: 600; white-space: nowrap; }
 .kindtag.t-bad { color: var(--bad); } .kindtag.t-warn { color: var(--warn); } .kindtag.t-info { color: var(--info); }
 .flag { display: block; font-size: 13px; color: var(--warn); } .flag.bad { color: var(--bad); font-weight: 600; }
-.src { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.src { display: inline-block; max-width: 100%; font-size: 12px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); overflow-wrap: anywhere; }
 .suggest ol { margin: 6px 0 0; padding-left: 20px; } .suggest li { margin: 0 0 10px; }
-.late > strong { display: block; margin-bottom: 6px; }
+.late > .ct { margin-bottom: 6px; }
 
 /* ---- post page */
 .post-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
@@ -380,7 +399,7 @@ a.card { color: var(--ink); text-decoration: none; }
 a.card:hover { border-color: var(--accent); }
 .card .title { font-weight: 700; font-size: 16px; overflow-wrap: anywhere; }
 .acct { display: flex; gap: 12px; align-items: center; }
-.acct .who { min-width: 0; } .acct .who b { display: block; overflow-wrap: anywhere; }
+.acct .acctwho { min-width: 0; } .acct .acctwho b { display: block; overflow-wrap: anywhere; }
 .rank { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; font-size: 13px; flex: none; }
 .chan-head { display: flex; gap: 10px; align-items: center; }
 .badges { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -388,7 +407,7 @@ a.card:hover { border-color: var(--accent); }
 /* ---- work with Claude: composer, prompt cards, owner-only cards, activity feed, ideas */
 textarea { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px;
   width: 100%; min-width: 0; resize: vertical; display: block; }
-textarea.promptout { font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); color: var(--ink); }
+textarea.promptout { font: 13px/1.45 var(--rw-mono); background: var(--code-bg); color: var(--ink); }
 button.primary { display: inline-flex; align-items: center; gap: 6px; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
 button.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
 .composer { display: flex; flex-direction: column; gap: 8px; }
@@ -416,7 +435,9 @@ button.primary:hover { background: var(--accent-strong); border-color: var(--acc
 .owners > .card { margin: 0; }
 .late .owners { grid-template-columns: 1fr; gap: 10px; } .late .owner { box-shadow: none; padding: 12px 14px; }
 .owner { border-left: 4px solid var(--info); } .owner.t-bad { border-left-color: var(--bad); } .owner.t-warn { border-left-color: var(--warn); }
-.ohead { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 14px; }
+.ohead { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 14px; min-width: 0; }
+.ohead > * { min-width: 0; max-width: 100%; }
+.owner, .owners > .card, .meta > * { min-width: 0; max-width: 100%; }
 .otext { margin: 6px 0 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .why { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0 2px; font-size: 13px; color: var(--muted); }
 .why .ico { width: 16px; height: 16px; margin-top: 1px; color: var(--warn); }
@@ -434,6 +455,33 @@ a.fx:hover { text-decoration: underline; }
 .tag { font-size: 12px; color: var(--accent-strong); background: var(--accent-soft); border-radius: 999px; padding: 0 8px; }
 .row .pact { margin-top: 6px; } .row details { margin: 4px 0 0; }
 
+/* ---- overview: one next step, a calm note unless something is really wrong */
+.nextstep { border-left: 4px solid var(--accent); }
+.nextstep .lead { font-size: 17px; font-weight: 600; margin: 0 0 4px; overflow-wrap: anywhere; }
+.nextstep .cmd { font-size: 15px; }
+.nextstep .cmd button { font-weight: 600; }
+.alsosteps { list-style: none; margin: 14px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.alsosteps li { padding: 10px 0 0; min-width: 0; }
+.alsosteps .cmd { margin: 4px 0 0; }
+.calm { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 16px; padding: 10px 14px; border: 1px solid var(--line);
+  border-radius: var(--radius); background: var(--panel); color: var(--muted); font-size: 14px; }
+.calm .ico { color: var(--accent); margin-top: 2px; }
+.calm.ok .ico { color: var(--ok); }
+.problems { margin: 6px 0 0; padding-left: 18px; color: var(--ink); font-size: 14px; }
+.techdetails { margin: 18px 0 0; }
+.techdetails > summary { font-weight: 600; color: var(--ink); }
+.cmd button.done { border-color: var(--ok); color: var(--ok); }
+
+/* ---- results: one line for the chosen window, then the top posts */
+.sumline { font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+.tops { margin: 10px 0 0; padding-left: 20px; } .tops li { margin: 0 0 8px; overflow-wrap: anywhere; }
+.postid { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 4px; }
+.postid code { font-size: 12px; }
+.writecta { display: flex; align-items: center; gap: 10px; margin: 0 4px 8px; padding: 9px 12px; border-radius: 10px;
+  background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 600; }
+.writecta:hover { background: var(--accent-strong); }
+.side nav a.writecta[aria-current="page"] { background: var(--accent-strong); color: var(--accent-ink); }
+
 /* ---- loading skeleton */
 .sk { border-radius: 8px; background: var(--code-bg); margin: 0 0 12px; }
 .sk.h { height: 30px; width: 220px; } .sk.l { height: 16px; width: 60%; } .sk.b { height: 120px; }
@@ -445,14 +493,16 @@ a.fx:hover { text-decoration: underline; }
   .side.open { transform: none; }
   .top { padding: 8px 12px; gap: 8px; }
   .top .menu { display: inline-grid; } .top .brand.small { display: flex; padding: 0; }
+  .iconbtn { width: var(--tap); height: var(--tap); flex: none; }
+  .side nav a { min-height: var(--tap); }
   .searchbox { flex: 1 1 auto; }
   .kbdhint, .updated, #refresh { display: none; }
   .searchbox input[type="search"] { padding-right: 10px; }
   main { padding: 16px var(--gutter) 96px; }
   .foot { padding-bottom: 96px; }
-  .tabs { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  .tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
     background: var(--panel); border-top: 1px solid var(--line); padding: 4px 4px 8px; }
-  .tab { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; border: 0; border-radius: 10px;
+  .tab { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 2px; min-height: var(--tap); border: 0; border-radius: 10px;
     background: none; color: var(--muted); text-decoration: none; font-size: 11px; }
   .tab .ico { width: 22px; height: 22px; }
   .tab[aria-current="page"] { color: var(--accent-strong); background: var(--accent-soft); }
@@ -475,6 +525,17 @@ a.fx:hover { text-decoration: underline; }
   .cal { grid-template-columns: 1fr; } .cal .dow, .cal .cell.blank { display: none; } .cal .cell { min-height: 0; }
   .cal .item { white-space: normal; }
   .grid2 { grid-template-columns: 1fr; }
+  /* touch targets of at least 44 x 44 CSS pixels (WCAG 2.5.5) on a phone */
+  button, select, input[type="text"], input[type="search"], a.chipbtn, button.chipbtn { min-height: var(--tap); }
+  a.chipbtn, button.chipbtn, button.linkbtn { display: inline-flex; align-items: center; justify-content: center; min-width: var(--tap); }
+  button.linkbtn { min-height: var(--tap); }
+  summary { padding: 12px 0; min-height: var(--tap); }
+  .row .txt, .row-link { min-height: var(--tap); }
+  main a:not(.txt):not(.card):not(.row-link):not(.more-link):not(.fx):not(.item):not(.num):not(.more) {
+    display: inline-flex; align-items: center; min-height: var(--tap); min-width: var(--tap); }
+  .more-link { display: flex; align-items: center; min-height: var(--tap); }
+  .feed a.fx { display: block; line-height: var(--tap); }
+  .pager { flex-wrap: wrap; }
 }
 @media print {
   /* A post sheet printed or saved as PDF: the exact text and the approval binding, no controls. */
@@ -530,7 +591,7 @@ const REASON_HELP = {
   threads_authorization_expiry_invalid: "authorization_expires_at for Threads cannot be read, so the token is treated as expired. Fix the date in the accounts file."
 };
 const STATUS_LABEL = { draft: "draft", approved: "approved", scheduled: "scheduled", sending: "sending",
-  needs_review: "needs review", published: "published", cancelled: "cancelled", published_manual: "posted by hand" };
+  needs_review: "needs review", published: "published", cancelled: "cancelled", published_manual: "posted by you" };
 const STATUS_ORDER = ["needs_review", "sending", "approved", "scheduled", "draft", "published", "published_manual", "cancelled"];
 const SENT_STATUSES = ["sending", "published", "needs_review"];
 const STATUS_MEANING = {
@@ -541,10 +602,22 @@ const STATUS_MEANING = {
   needs_review: ["Needs your review", "A send ended in an unknown state. Check the native platform first; never resend blindly."],
   published: ["Published", "Sent. Open the remote post to confirm it looks right."],
   cancelled: ["Cancelled", "This post will never be sent."],
-  published_manual: ["Posted by hand", "You published this yourself and recorded it with mark-shared --url, so its results can be measured. ReachWeaver never sent it and can never send, approve or schedule it."]
+  published_manual: ["Posted by you", "You posted this yourself and recorded it, so its results can be measured. ReachWeaver did not send it and never will."]
 };
 const STATUS_GROUP = { needs_review: "Needs your review", sending: "Sending", approved: "Approved, waiting", scheduled: "Scheduled",
-  draft: "Drafts", published: "Published", cancelled: "Cancelled", published_manual: "Posted by hand" };
+  draft: "Drafts", published: "Published", cancelled: "Cancelled", published_manual: "Posted by you" };
+// Plain words for readiness codes on the page; the code itself stays in the details for searching the docs.
+const REASON_TITLE = {
+  emergency_pause_active: "Emergency stop is on", needs_review: "A send ended in an unknown state (uncertain send — check the platform)",
+  stale_sending: "A send never finished (uncertain send — check the platform)", overdue_scheduled: "A scheduled post is past its time",
+  approval_rebind_required: "An approval no longer matches its post", credentials_missing: "Not connected (only needed for automatic sending)",
+  no_accounts_configured: "No accounts set up (only needed for automatic sending)", registry_entry_stale: "Platform research is getting old",
+  research_facts_stale: "Some platform facts are getting old", manual_platform_has_queued_posts: "Approved posts for a platform you post to by hand",
+  provider_cooldown_active: "A platform asked to wait", rolling_budget_exhausted: "Today's send limit is used up",
+  accounts_config_unloadable: "The accounts file cannot be read", caps_file_invalid: "The send-limits file is invalid"
+};
+function reasonTitle(code) { return REASON_TITLE[code] || code.replace(/_/g, " "); }
+const ADAPTER_LABEL = { live_text: "can send automatically", backend: "sends through a scheduler", manual: "you post by hand", other: "other" };
 // Why a post is on the "Needs you" list (ui_data.ATTENTION_KINDS): label, what to do, colour.
 const KIND = {
   needs_review: ["Needs review", "Check the platform, then reconcile in your terminal. Never resend blindly.", "bad"],
@@ -585,7 +658,7 @@ const ICONS = {
   external: ["M14 4h6v6", "M20 4l-9 9", "M18 14v6H4V6h6"], back: ["M15 5l-7 7 7 7"], fwd: ["M9 5l7 7-7 7"], stop: ["M6 6h12v12H6z"],
   idea: ["M9 18h6", "M10 21h4", "M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"],
   chat: ["M4 5h16v11H9l-5 4z", "M8 9h8", "M8 12h5"], copy: ["M9 9h11v11H9z", "M5 15H4V4h11v1"],
-  lock: ["M6 11h12v9H6z", "M8.5 11V8a3.5 3.5 0 0 1 7 0v3"]
+  lock: ["M6 11h12v9H6z", "M8.5 11V8a3.5 3.5 0 0 1 7 0v3"], pen: ["M4 20h4L19 9l-4-4L4 16z", "M13 7l4 4"]
 };
 function icon(name) {
   const svg = document.createElementNS(SVGNS, "svg");
@@ -600,7 +673,14 @@ function safeLink(url) { // only http(s) from stored data becomes a link
 function chip(status) { return h("span", { class: "chip " + status }, STATUS_LABEL[status] || status); }
 function unknown(v) { return v == null || v === "" ? h("span", { class: "muted" }, "unknown") : String(v); }
 function empty(title, hint, ico) { return h("div", { class: "card empty" }, ico ? icon(ico) : null, h("b", null, title), hint); }
-function card(title, ...kids) { return h("div", { class: "card" }, h("div", { class: "ct" }, title), kids); }
+function card(title, ...kids) { return h("div", { class: "card" }, h("h2", { class: "ct" }, title), kids); }
+// An example time for a command, in this browser's time zone with its UTC offset, so it is never a stale date:
+// tomorrow at 09:00 for a time ahead (schedule), or this hour for a time already passed (when results were read).
+function exampleTime(past) {
+  const d = new Date(Date.now() + (past ? 0 : 86400000)); d.setMinutes(0, 0, 0); if (!past) d.setHours(9);
+  const p = n => String(Math.abs(n)).padStart(2, "0"), off = -d.getTimezoneOffset();
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + "T" + p(d.getHours()) + ":00:00" + (off < 0 ? "-" : "+") + p(Math.trunc(off / 60)) + ":" + p(off % 60);
+}
 const PLATFORMS = ["bluesky", "mastodon", "linkedin", "x", "threads", "instagram", "youtube", "tiktok", "facebook", "reddit", "hackernews", "telegram", "github", "pinterest"];
 function pfClass(platform) { return "pf-" + (PLATFORMS.includes(platform) ? platform : "other"); }
 function pf(platform) { return h("span", { class: "pf" }, h("span", { class: "dot " + pfClass(platform), "aria-hidden": "true" }), platform || "unknown"); }
@@ -662,11 +742,12 @@ function toast(message) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
 }
 async function copy(text, what) {
-  try { await navigator.clipboard.writeText(text); toast("Copied " + what); } catch (e) { toast("Could not copy; select the text and copy it"); }
+  try { await navigator.clipboard.writeText(text); toast("Copied " + what); return true; } catch (e) { toast("Could not copy; select the text and copy it"); return false; }
 }
 function command(text) {
   const btn = h("button", { type: "button", "aria-label": "Copy command: " + text }, "Copy");
-  btn.addEventListener("click", () => copy(text, "command"));
+  btn.addEventListener("click", () => copy(text, "command").then(ok => { if (!ok) return;
+    btn.textContent = "Copied"; btn.classList.add("done"); setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1600); }));
   return h("div", { class: "cmd" }, h("code", null, text), btn);
 }
 async function api(path) {
@@ -694,39 +775,86 @@ function applyBadges(a) {
   setCount("overview", a.total, k.needs_review || k.approval_expired ? "bad" : "warn");
   setCount("queue", c.needs_review || 0, "bad");
   setCount("schedule", (k.overdue || 0) + (k.approval_expired || 0), k.approval_expired ? "bad" : "warn");
+  // The phone's bottom bar shows Schedule only when something is approved, scheduled or sending; otherwise it is under More.
+  const tab = document.getElementById("scheduletab");
+  if (tab) tab.hidden = !((c.approved || 0) + (c.scheduled || 0) + (c.sending || 0));
 }
 function refreshBadges() { api("attention").then(applyBadges).catch(() => { /* badges are a convenience */ }); }
 
 // ---- Overview
-function nextCard(guide) {
-  const items = guide.steps.map(s => h("li", null, h("div", null, s.label), s.command ? command(s.command) : null,
-    s.note ? h("div", { class: "note" }, s.note) : null));
-  return h("div", { class: "card next" }, h("div", { class: "ct" }, "What to do next"), h("p", { class: "muted" }, guide.summary), h("ol", null, items));
+// "Your next step": one action chosen by the same logic as `reachweaver start`, then at most three others.
+function stepBlock(step, lead) {
+  return [h(lead ? "p" : "div", { class: lead ? "lead" : null }, step.label),
+    step.command ? command(step.command) : null,
+    step.owner_only ? h("div", { class: "note" }, h("span", { class: "who you" }, "You run this"), " in your own terminal; Claude never does.") : null,
+    step.note ? h("div", { class: "note" }, step.note) : null];
 }
-function kindTag(kind) { const k = KIND[kind] || [kind, "", ""]; return h("span", { class: "kindtag t-" + k[2], title: k[1] }, k[0]); }
-function attentionRow(item) {
-  const due = item.scheduled_at && item.kind !== "draft" && item.kind !== "needs_review";
-  return row({ badge: kindTag(item.kind), href: postHref(item.id), text: item.excerpt, secret: item.looks_like_secret,
-    meta: [pf(item.platform), item.account_id, item.campaign ? "campaign " + item.campaign : null],
-    extra: item.kind === "needs_review" && item.last_error ? h("div", { class: "bad" }, "Last error: " + item.last_error) : null,
-    right: due ? when(item.scheduled_at) : when(item.created_at || item.approved_at, "") });
+function nextStepCard(guide, att) {
+  const waiting = att && att.total ? h("p", { class: "note" }, h("a", { class: "tap", href: "#/queue" },
+    att.total + (att.total === 1 ? " post is" : " posts are") + " waiting for you: open the Queue")) : null;
+  return h("section", { class: "card nextstep", "aria-labelledby": "nextstep-h" },
+    h("h2", { class: "ct", id: "nextstep-h" }, "Your next step"), stepBlock(guide.primary, true),
+    guide.secondary.length ? [h("h3", { class: "olabel" }, "Also"), h("ul", { class: "alsosteps" }, guide.secondary.map(st => h("li", null, stepBlock(st))))] : null,
+    waiting);
 }
-function needsCard(a) {
-  if (!a.total) return h("div", { class: "card" }, h("div", { class: "ct" }, "Needs you"),
-    h("div", { class: "allclear" }, icon("check"), "Nothing needs you right now."),
-    h("p", { class: "note" }, "No send to reconcile, no draft waiting, nothing past its time."));
-  const present = Object.entries(a.kinds).filter(([, n]) => n);
-  const hints = [metaLine(present.map(([k, n]) => h("span", null, h("b", null, n), " " + KIND[k][0].toLowerCase()))),
-    h("details", null, h("summary", null, "What these mean"), present.map(([k]) => h("div", { class: "note" }, h("b", null, KIND[k][0]), ": " + KIND[k][1])))];
-  return h("div", { class: "card" }, h("div", { class: "ct" }, "Needs you", h("span", { class: "count " + (a.kinds.needs_review || a.kinds.approval_expired ? "c-bad" : "c-warn") }, a.total)),
-    hints, h("div", { class: "rows" }, a.items.map(attentionRow)),
-    a.truncated ? h("p", { class: "note" }, "Showing the first " + a.items.length + " of " + a.total + ". The Queue lists them all.") : null);
+function countsSentence(counts) {
+  const parts = STATUS_ORDER.filter(k => counts[k]).map(k => counts[k] + " " + (k === "draft" ? (counts[k] === 1 ? "draft" : "drafts") : STATUS_LABEL[k]));
+  const total = STATUS_ORDER.reduce((n, k) => n + (counts[k] || 0), 0);
+  return total ? total + (total === 1 ? " post: " : " posts: ") + parts.join(", ") + "." : "No posts yet.";
+}
+function openDetails() { const d = document.getElementById("why"); if (d) { d.open = true; d.scrollIntoView({ block: "start" }); const s = d.querySelector("summary"); if (s) s.focus(); } }
+// Yellow or red only for a real problem (the emergency stop, an uncertain send, something blocked); otherwise one calm line.
+function statusBanner(s) {
+  const hl = s.headline, paused = s.global.emergency_paused;
+  const why = h("button", { type: "button", class: "linkbtn" }, "Details");
+  why.addEventListener("click", openDetails);
+  if (hl.level === "blocked" || hl.level === "attention") {
+    const seen = new Map();
+    for (const r of hl.problems) { if (paused && r.code === "emergency_pause_active") continue;  // the title says it
+      if (!seen.has(r.code)) seen.set(r.code, []); if (r.account_id) seen.get(r.code).push(r.account_id); }
+    return h("div", { class: "banner " + hl.level, role: "status" }, icon(paused ? "stop" : "alert"),
+      h("div", null, h("b", null, paused ? "Emergency stop is ON: nothing new will be sent." : hl.level === "blocked" ? "Something is blocked" : "Something needs your attention"),
+        h("ul", { class: "problems" }, [...seen.entries()].map(([code, accts]) => h("li", null, reasonTitle(code) + (accts.length ? " (" + accts.join(", ") + ")" : "")))),
+        h("small", null, why)));
+  }
+  if (hl.level === "ok") return h("p", { class: "calm ok" }, icon("check"), h("span", null, "Everything checks out. ", why));
+  return h("p", { class: "calm" }, icon("check"), h("span", null, "Automatic sending isn't set up — you don't need it to write or post by hand. ",
+    hl.setup_notes ? why : null));
+}
+function accountStatus(a) {
+  if (a.status === "ok") return h("span", { class: "chip ok" }, "ready");
+  if (a.credentials_missing.length && a.status !== "blocked") return h("span", { class: "chip draft" }, "Not connected (only needed for automatic sending)");
+  return h("span", { class: "chip " + a.status }, a.status === "blocked" ? "blocked" : "needs attention");
+}
+function detailsSection(s) {
+  const problems = new Set(s.headline.problems.map(r => r.code));
+  const groups = new Map();  // one row per (level, code); the accounts it affects are listed together
+  for (const r of s.reasons) { const key = r.level + "/" + r.code; if (!groups.has(key)) groups.set(key, { r, accounts: [] }); if (r.account_id) groups.get(key).accounts.push(r.account_id); }
+  const reasons = groups.size ? h("div", { class: "card" }, [...groups.values()].map(({ r, accounts }) => h("div", { class: "reason" },
+    problems.has(r.code) ? h("span", { class: "lvl " + r.level }, r.level === "blocked" ? "Blocked" : "Attention") : h("span", { class: "lvl" }, "Note"),
+    reasonTitle(r.code), accounts.length ? " (" + accounts.join(", ") + ")" : "",
+    h("div", { class: "muted" }, REASON_HELP[r.code] || "See docs/TROUBLESHOOTING.md for this code.", " ", h("code", null, r.code))))) :
+    h("div", { class: "card" }, h("div", { class: "allclear" }, icon("check"), "Nothing needs attention."));
+  const accounts = s.accounts.length ? [table(["Account", "Platform", "Status", "Sent / 24h", "Needs review"],
+    s.accounts.map(a => h("tr", null, h("td", null, a.account_id), h("td", null, pf(a.platform)), h("td", null, accountStatus(a)),
+      h("td", { class: "num" }, a.budget.attempts_rolling_24h + " / " + a.budget.max_per_24h), h("td", { class: "num" }, a.needs_review)))),
+    h("details", null, h("summary", null, "Technical details: how each account posts"), h("div", { class: "card" }, s.accounts.map(a => h("div", { class: "reason" },
+      h("b", null, a.account_id), ": " + (ADAPTER_LABEL[a.adapter] || a.adapter) + " (adapter ", h("code", null, a.adapter), ")",
+      a.credentials_missing.length ? h("div", { class: "note" }, "Not set (names only): " + a.credentials_missing.join(", ")) : null))))] :
+    empty("No accounts set up", "Only needed for automatic sending. Writing and posting by hand work without them.", "accounts");
+  return h("details", { class: "techdetails", id: "why" },
+    h("summary", null, "Setup and safety details" + (s.reasons.length ? " (" + s.reasons.length + ")" : "")),
+    h("h3", null, "Why this status"), reasons,
+    h("div", { class: "grid2" }, lateCard("Files and approvals", safetyNodes), lateCard("Suggestions", suggestionNodes, "suggest")),
+    h("h3", null, "Accounts"), accounts,
+    h("h3", null, "Sends that failed"), h("div", { class: "card" }, s.dead_letter.total ? kv(s.dead_letter.by_code) : "None."),
+    h("p", { class: "note" }, s.note));
 }
 function statusCard(counts) {
   const total = STATUS_ORDER.reduce((n, k) => n + (counts[k] || 0), 0);
   const bar = h("div", { class: "stack", role: "img", "aria-label": STATUS_ORDER.map(k => (counts[k] || 0) + " " + STATUS_LABEL[k]).join(", ") });
   for (const k of STATUS_ORDER) if (counts[k]) { const seg = h("span", { class: "s-" + k, title: counts[k] + " " + STATUS_LABEL[k] }); seg.style.width = (100 * counts[k] / total) + "%"; bar.append(seg); }
-  return h("div", { class: "card" }, h("div", { class: "ct" }, "All posts", h("span", { class: "muted" }, String(total))), total ? bar : null,
+  return h("div", { class: "card" }, h("h2", { class: "ct" }, "All posts", h("span", { class: "muted" }, String(total))), total ? bar : null,
     h("div", { class: "legend" }, STATUS_ORDER.map(k => h("a", { href: k === "scheduled" ? "#/schedule" : "#/queue?status=" + k },
       h("span", { class: "sw s-" + k }), h("b", null, counts[k] || 0), STATUS_LABEL[k]))));
 }
@@ -746,71 +874,39 @@ async function recentNodes() {
 }
 async function viewOverview() {
   const [s, guide, att] = await Promise.all([api("overview"), api("next"), api("attention")]);
-  const g = s.global, counts = g.status_counts || {};
+  const counts = s.global.status_counts || {};
   applyBadges(att);
-  const out = [h("h1", null, "Overview"), h("p", { class: "lede" }, "What needs a human right now. Read-only; observed ", when(s.observed_at), ".")];
-  const paused = g.emergency_paused, level = paused ? "blocked" : s.overall;
-  out.push(h("div", { class: "banner " + level }, icon(paused ? "stop" : level === "ok" ? "check" : "alert"),
-    h("div", null, h("b", null, paused ? "Emergency stop is ON: no new sends." : "Readiness: " + s.overall),
-      h("small", null, "Runtime environment: " + g.runtime_environment + ". Live-send opt-in variable: " + (g.live_opt_in_env ? "set" : "not set") + "."),
-      !paused && s.overall !== "ok" && s.reasons.length && s.reasons.every(r => r.code === "credentials_missing")
-        ? h("small", null, "Only credentials are missing: drafting, review and dry runs still work. They are needed for live sends only.") : null,
-      !paused && s.overall !== "ok" ? h("small", null, h("a", { href: "#why" }, "Why this status")) : null)));
-  out.push(h("div", { class: "grid2" }, needsCard(att), nextCard(guide)));
-  out.push(h("div", { class: "grid2" }, askCard(), lateCard("Your turn in the terminal", ownerNodes, "ownercard")));
-  out.push(statusCard(counts));
-  out.push(h("div", { class: "grid2" }, lateCard("Coming up", comingNodes), lateCard("Recently posted", recentNodes),
-    lateCard("Activity", () => activityNodes(6))));
-  out.push(h("h2", { id: "why" }, "Why this status"));
-  const groups = new Map();  // one row per (level, code); the accounts it affects are listed together
-  for (const r of s.reasons) { const key = r.level + "/" + r.code; if (!groups.has(key)) groups.set(key, { r, accounts: [] }); if (r.account_id) groups.get(key).accounts.push(r.account_id); }
-  out.push(groups.size ? h("div", { class: "card" }, [...groups.values()].map(({ r, accounts }) => h("div", { class: "reason" },
-    h("span", { class: "lvl " + r.level }, r.level === "blocked" ? "Blocked" : "Attention"),
-    h("code", null, r.code), accounts.length ? " (" + accounts.join(", ") + ")" : "",
-    h("div", { class: "muted" }, REASON_HELP[r.code] || "See docs/TROUBLESHOOTING.md for this code.")))) :
-    h("div", { class: "card" }, h("div", { class: "allclear" }, icon("check"), "Nothing needs attention.")));
-  out.push(h("div", { class: "grid2" }, lateCard("Files and approvals", safetyNodes), lateCard("Suggestions", suggestionNodes, "suggest")));
-  out.push(h("h2", null, "Accounts"));
-  out.push(s.accounts.length ? table(["Account", "Platform", "Adapter", "Status", "Sent / 24h", "Needs review", "Missing credentials"],
-    s.accounts.map(a => h("tr", null,
-      h("td", null, a.account_id), h("td", null, pf(a.platform)), h("td", null, a.adapter),
-      h("td", null, h("span", { class: "chip " + a.status }, a.status)),
-      h("td", { class: "num" }, a.budget.attempts_rolling_24h + " / " + a.budget.max_per_24h),
-      h("td", { class: "num" }, a.needs_review),
-      h("td", null, a.credentials_missing.length ? a.credentials_missing.join(", ") : "none")))) :
-    empty("No accounts configured", "Copy config/accounts.example.json to config/accounts.json. Drafts can still be exported for manual posting.", "accounts"));
-  out.push(h("h2", null, "Dead letters"));
-  out.push(h("div", { class: "card" }, s.dead_letter.total ? kv(s.dead_letter.by_code) : "None."));
-  out.push(h("p", { class: "note" }, s.note));
-  return out;
+  // Top to bottom: what is wrong (only when something really is), the one next step, what is coming and what went out.
+  // Every list the old Overview repeated (drafts, owner commands, activity) is one tap away on Queue and Work with Claude.
+  return [h("h1", null, "Overview"), h("p", { class: "lede" }, countsSentence(counts), " Checked ", when(s.observed_at), "."),
+    statusBanner(s), nextStepCard(guide, att),
+    h("div", { class: "grid2" }, lateCard("Coming up", comingNodes), lateCard("Recently posted", recentNodes)),
+    statusCard(counts), askCard(), detailsSection(s)];
 }
 
 // The Overview's short way into Claude Code: a compact composer and two ready-made prompts.
 function askCard() {
-  return h("div", { class: "card askcard" }, h("div", { class: "ct" }, icon("chat"), "Ask Claude", h("a", { href: "#/claude" }, "More on the Claude page")),
+  return h("div", { class: "card askcard" }, h("h2", { class: "ct" }, icon("chat"), "Ask Claude", h("a", { href: "#/claude" }, "More on the Claude page")),
     composer({ compact: true, page: "overview" }), h("div", { class: "olabel" }, "Or start from"), pagePrompts("page=overview", true));
-}
-async function ownerNodes() {
-  const d = await api("owner-actions");
-  if (!d.general.length && !d.posts.length) return [];
-  return [h("p", { class: "note" }, "Exact commands for your own terminal. Claude never runs the ones marked “You run this”."), ownerList(d, 2),
-    d.total > 2 ? h("a", { class: "more-link", href: "#/claude" }, "All " + d.total + " on the Claude page") : null];
 }
 // Cards filled after the page is shown, so a slow or failing check never blocks the Overview.
 function lateCard(title, loader, extra) {
-  const box = h("div", { class: "card late" + (extra ? " " + extra : "") }, h("strong", null, title), h("div", { class: "sk l" }), h("div", { class: "sk l" }));
-  loader().then(nodes => { const kids = nodes.flat().filter(Boolean); if (!kids.length) { box.hidden = true; return; } box.replaceChildren(h("strong", null, title), ...kids); })
-    .catch(err => { box.replaceChildren(h("strong", null, title), h("p", { class: "muted" }, "Could not load this check: " + err.message)); });
+  const head = () => h("h2", { class: "ct" }, title);
+  const box = h("div", { class: "card late" + (extra ? " " + extra : "") }, head(), h("div", { class: "sk l" }), h("div", { class: "sk l" }));
+  loader().then(nodes => { const kids = nodes.flat().filter(Boolean); if (!kids.length) { box.hidden = true; return; } box.replaceChildren(head(), ...kids); })
+    .catch(err => { box.replaceChildren(head(), h("p", { class: "muted" }, "Could not load this check: " + err.message)); });
   return box;
 }
 const LEDGER_CLASS = { ok: "ok", absent: "ok", not_checked: "attention", broken: "blocked", unavailable: "blocked" };
+const LEDGER_LABEL = { ok: "Approval record: OK", absent: "Approval record: nothing recorded yet", not_checked: "Approval record: not checked",
+  broken: "Approval record: does not match", unavailable: "Approval record: cannot be read" };
 const CHECK_LEVEL = { blocking: ["blocked", "Problem"], warning: ["attention", "Attention"], info: ["", "Note"] };
 async function safetyNodes() {
   const d = await api("safety");
-  const out = [h("div", { class: "reason" }, h("span", { class: "chip " + (LEDGER_CLASS[d.ledger.status] || "attention") }, "approval ledger: " + d.ledger.status.replace(/_/g, " ")), " ", d.ledger.sentence)];
+  const out = [h("div", { class: "reason" }, h("span", { class: "chip " + (LEDGER_CLASS[d.ledger.status] || "attention") }, LEDGER_LABEL[d.ledger.status] || "Approval record: " + d.ledger.status.replace(/_/g, " ")), " ", d.ledger.sentence)];
   for (const p of d.ledger.problems) out.push(h("div", { class: "reason" },
     p.post_id ? h("a", { href: postHref(p.post_id) }, "Post " + p.post_id) : "The ledger", ": ", p.sentence));
-  out.push(h("div", { class: "reason" }, h("span", { class: "chip " + (d.integrity === "ok" ? "ok" : "blocked") }, "database: " + (d.integrity || "unknown")),
+  out.push(h("div", { class: "reason" }, h("span", { class: "chip " + (d.integrity === "ok" ? "ok" : "blocked") }, "Database check: " + (d.integrity || "unknown")),
     " ", d.workspace ? "Workspace folder: " + d.workspace : "Not a marked workspace folder."));
   const check = c => { const [cls, label] = CHECK_LEVEL[c.level] || ["", c.level];
     return h("div", { class: "reason" }, h("span", { class: "lvl " + cls }, label), h("code", null, c.code), h("div", null, c.detail), h("div", { class: "muted" }, c.advice)); };
@@ -908,7 +1004,7 @@ async function viewSchedule(params) {
     const days = new Map();
     for (const p of d.upcoming) { const k = localDay(p.scheduled_at); if (!days.has(k)) days.set(k, []); days.get(k).push(p); }
     for (const items of days.values()) out.push(dayTitle(items[0].scheduled_at), rows(agendaRows(items, p => clock(p.scheduled_at, true))));
-  } else out.push(empty("Nothing scheduled in the next " + d.days + " days", h("span", null, "Give an approved post a time in your terminal: ", h("code", null, "reachweaver schedule POST_ID --at 2026-10-20T09:00:00+02:00")), "calendar"));
+  } else out.push(empty("Nothing scheduled in the next " + d.days + " days", h("span", null, "Give an approved post a time in your terminal: ", h("code", null, "reachweaver schedule POST_ID --at " + exampleTime())), "calendar"));
   if (d.later) out.push(h("p", { class: "muted" }, d.later + " more scheduled after that. The Queue lists them all."));
   out.push(h("h2", null, "Approved, no time set (" + d.unscheduled.length + ")"));
   out.push(d.unscheduled.length ? rows(agendaRows(d.unscheduled, p => h("span", { class: "note" }, "approved ", when(p.approved_at))))
@@ -923,12 +1019,12 @@ function postedRow(e) {
   const link = safeLink(e.remote_url), files = Object.entries(e.files || {}), measured = e.source === "posted_by_hand";
   const byHand = e.source === "by_hand" || measured; // measured: a published_manual record with its own post page
   return row({ search: e.excerpt + " " + e.id + " " + (e.account || "") + " " + e.platform + " " + (e.campaign || "") + " " + (e.note || ""),
-    badge: byHand ? h("span", { class: "src" }, measured ? "posted by hand" : "shared by hand") : chip(e.status),
+    badge: byHand ? h("span", { class: "src" }, "posted by you") : chip(e.status),
     href: byHand && !measured ? null : postHref(e.id), text: e.excerpt, secret: e.looks_like_secret,
-    meta: [pf(e.platform), e.account || "account unknown", byHand ? "by you" : "approved by " + (e.approved_by || "unknown"),
+    meta: [pf(e.platform), e.account || "account not recorded", byHand ? "not sent by ReachWeaver" : "approved by " + (e.approved_by || "unknown"),
       files.length ? files.map(([k, n]) => n + " " + k).join(", ") : null],
     extra: [!byHand && e.status !== "published" ? h("div", { class: "note" }, "possibly posted: check the platform") : null,
-      e.note ? h("div", { class: "muted" }, "Note: " + e.note) : null],
+      e.note && !measured ? h("div", { class: "muted" }, "Note: " + e.note) : null],  // a measured one's note only repeats the badge
     right: [h("div", null, when(e.when)), link ? h("a", { class: "over", href: link, rel: "noopener noreferrer", target: "_blank" }, "Open ", icon("external")) : h("span", { class: "muted" }, "no link")] });
 }
 function listSearch(rowsList, placeholder, total, suffix) {
@@ -956,7 +1052,7 @@ async function viewPosted(params) {
   const acc = accountMenu(ids, account, v => { location.hash = "#/posted" + (v ? "?account=" + encodeURIComponent(v) : ""); });
   const list = d.entries.map(postedRow);
   queueRows = list; queueSel = -1;
-  return [h("h1", null, "Posted"), h("p", { class: "lede" }, "What ReachWeaver sent, plus what you recorded as shared by hand, newest first."),
+  return [h("h1", null, "Posted"), h("p", { class: "lede" }, "Everything that went out, newest first: what ReachWeaver sent and what you posted yourself and recorded."),
     h("div", { class: "filters" }, acc, listSearch(list, "Search what was posted ( / )", d.shown, d.truncated ? " (newest " + d.shown + " only)" : "")),
     list.length ? rows(list) :
       empty(account ? "Nothing posted from this account yet" : "Nothing posted yet", h("span", null, "Posted it yourself? Record it with ",
@@ -986,25 +1082,45 @@ function snapshotCell(s, keys, barKey, max) {
   return [metricLine(s.metrics, keys), m && m.state === "exact" ? hbar(m.value, max, barKey + " " + m.value + " of the largest " + max) : null,
     h("div", { class: "note" }, "recorded ", when(s.observed_at), s.age_hours != null ? " · " + s.age_hours + " h after posting" : "", " · " + s.source)];
 }
+// The time window of the Results page: a read-only query parameter (?since=7d|30d|all); "This week" by default.
+const RESULT_WINDOWS = [["7d", "This week"], ["30d", "30 days"], ["all", "All"]];
+function resultsSummary(d, label) {
+  const s = d.summary, parts = [s.posts + (s.posts === 1 ? " post" : " posts")];
+  for (const k of d.metrics) if (s.totals[k] != null) parts.push(NUM.format(s.totals[k]) + " " + k);
+  const byId = new Map(d.posts.map(p => [p.id, p]));
+  const top = s.top.map(id => byId.get(id)).filter(Boolean);
+  return h("section", { class: "card", "aria-labelledby": "sum-h" }, h("h2", { class: "ct", id: "sum-h" }, label),
+    h("p", { class: "sumline" }, parts.join(" · ")),
+    h("p", { class: "note" }, parts.length > 1 ? "Numbers you recorded from each platform's own analytics (latest record per post)." :
+      s.posts ? "No numbers recorded yet for these posts; unknown is not zero." : "Nothing went out in this window."),
+    top.length ? [h("h3", { class: "olabel" }, "Top posts by likes, replies and reposts"), h("ol", { class: "tops" }, top.map(p => h("li", null,
+      h("a", { class: "tap", href: postHref(p.id) }, p.excerpt || "(empty)"), h("div", { class: "note" }, NUM.format(p.interactions) + " interactions · ", pf(p.platform), " · ", when(p.when)))))] : null);
+}
 async function viewResults(params) {
   const account = params.get("account") || "", platform = params.get("platform") || "";
-  const q = new URLSearchParams(); if (account) q.set("account", account); if (platform) q.set("platform", platform);
-  const [d, accounts] = await Promise.all([api("results" + (q.toString() ? "?" + q : "")), api("accounts")]);
-  const go = (a, p) => { const n = new URLSearchParams(); if (a) n.set("account", a); if (p) n.set("platform", p); location.hash = "#/results" + (n.toString() ? "?" + n : ""); };
+  const since = RESULT_WINDOWS.some(([k]) => k === params.get("since")) ? params.get("since") : "7d";
+  const q = new URLSearchParams({ since }); if (account) q.set("account", account); if (platform) q.set("platform", platform);
+  const [d, accounts] = await Promise.all([api("results?" + q), api("accounts")]);
+  const go = (a, p, w) => { const n = new URLSearchParams(); if (w && w !== "7d") n.set("since", w); if (a) n.set("account", a); if (p) n.set("platform", p); location.hash = "#/results" + (n.toString() ? "?" + n : ""); };
   const ids = accounts.accounts.map(a => a.id); if (account && !ids.includes(account)) ids.push(account);
-  const acc = accountMenu(ids, account, v => go(v, platform));
+  const acc = accountMenu(ids, account, v => go(v, platform, since));
   const names = [...new Set(d.platforms.map(p => p.platform).concat(platform ? [platform] : []))];
   const plat = h("select", { "aria-label": "Platform filter" }, h("option", { value: "" }, "All platforms"), names.map(n => h("option", { value: n, selected: n === platform }, n)));
-  plat.addEventListener("change", () => go(account, plat.value));
-  const out = [h("h1", null, "Results"), h("p", { class: "lede" }, "What you recorded from each platform's own analytics. Unknown is shown as unknown, never as zero."),
-    h("div", { class: "filters" }, acc, plat)];
+  plat.addEventListener("change", () => go(account, plat.value, since));
+  const windows = h("div", { class: "chips", role: "group", "aria-label": "Time window" }, RESULT_WINDOWS.map(([k, label]) => {
+    const b = h("button", { type: "button", class: "chipbtn", "aria-pressed": k === since ? "true" : "false" }, label);
+    b.addEventListener("click", () => go(account, platform, k)); return b; }));
+  const label = (RESULT_WINDOWS.find(([k]) => k === since) || [])[1] || "All";
+  const out = [h("h1", null, "Results"), h("p", { class: "lede" }, "How your posts did, from what you recorded from each platform's own analytics. Unknown is shown as unknown, never as zero."),
+    windows, h("div", { class: "filters" }, acc, plat), resultsSummary(d, since === "all" ? "All posts" : label)];
+  if (!d.posts.length && since !== "all") out.push(h("p", { class: "muted" }, h("a", { class: "tap", href: "#/results?since=all" }, "Show every post instead")));
   // Columns only for metrics with a recorded value somewhere; the others are named once instead of a wall of "unknown".
   const used = d.metrics.filter(k => d.platforms.some(p => p.metrics[k] && (p.metrics[k].value != null || p.metrics[k].estimated)));
   const unused = d.metrics.filter(k => !used.includes(k));
   if (d.platforms.length) {
     out.push(h("h2", null, "By platform"), h("p", { class: "note" }, "Totals of exact values over " + d.platform_totals_scope + "; the coverage says how many posts have a value."));
     out.push(table(["Platform", "Published", "With data", ...used], d.platforms.map(p => h("tr", null,
-      h("td", null, pf(p.platform)), h("td", { class: "num" }, p.published, p.posted_by_hand ? h("div", { class: "note" }, p.posted_by_hand + " posted by hand") : null), h("td", { class: "num" }, p.with_snapshot),
+      h("td", null, pf(p.platform)), h("td", { class: "num" }, p.published, p.posted_by_hand ? h("div", { class: "note" }, p.posted_by_hand + " posted by you") : null), h("td", { class: "num" }, p.with_snapshot),
       used.map(k => { const m = p.metrics[k]; return h("td", { class: "num" }, m.value == null ? h("span", { class: "muted" }, "unknown") : NUM.format(m.value),
         h("div", { class: "note" }, m.coverage + (m.estimated ? " · ~" + NUM.format(m.estimated.sum) + " est." : ""))); })))));
     if (unused.length) out.push(h("p", { class: "note" }, (used.length ? "Nothing recorded yet for: " : "No value recorded yet for any metric: ") + unused.join(", ") + ". They stay unknown, not zero."));
@@ -1022,14 +1138,14 @@ async function viewResults(params) {
   out.push(d.posts.length ? table(["Posted", "Text", "Account", "Latest record"], d.posts.map(p => h("tr", null,
     h("td", null, when(p.when)),
     h("td", null, h("a", { class: "row-link", href: postHref(p.id) }, p.excerpt || "(empty)"),
-      p.posted_by_hand ? h("div", null, h("span", { class: "src" }, "posted by hand")) : null,
+      p.posted_by_hand ? h("div", null, h("span", { class: "src" }, "posted by you")) : null,
       p.campaign ? h("div", { class: "note" }, "campaign " + p.campaign) : null),
     h("td", null, p.account || "account unknown", h("div", { class: "muted" }, pf(p.platform))),
     h("td", null, snapshotCell(p.latest, d.metrics, barKey, max))))) :
     empty("Nothing published yet", h("span", null, "Results appear here once a post is published and you record its numbers. Posted it yourself? Make it measurable with ",
       h("code", null, "reachweaver mark-shared --platform PLATFORM --url URL --text '...'"), "."), "results"));
-  if (d.posts.length && !d.with_snapshot) out.push(h("div", { class: "card" }, h("strong", null, "Record results in your terminal"),
-    command("reachweaver metrics POST_ID --observed-at 2026-10-20T09:00:00+02:00 --source native_export --views 120 --likes 4"),
+  if (d.posts.length && !d.with_snapshot) out.push(h("div", { class: "card" }, h("h2", { class: "ct" }, "Record results in your terminal"),
+    command("reachweaver metrics POST_ID --observed-at " + exampleTime(true) + " --source native_export --views 120 --likes 4"),
     h("p", { class: "note" }, "Or import a native export with reachweaver import-metrics --csv FILE. Bluesky and Mastodon public counters: reachweaver metrics-fetch --online.")));
   if (d.truncated) out.push(h("p", { class: "muted" }, "Showing the newest " + d.shown + " published posts."));
   out.push(h("p", { class: "note" }, d.note));
@@ -1076,19 +1192,22 @@ async function viewCampaign(params) {
 async function viewSearch(params) {
   const q = (params.get("q") || "").trim();
   const box = document.getElementById("gq"); if (box && box.value !== q) box.value = q;
-  if (!q) return [h("h1", null, "Search"), empty("Type in the search box", "Search finds posts in any status, campaign names and posts you recorded as shared by hand.", "search")];
+  if (!q) return [h("h1", null, "Search"), empty("Type in the search box", "Search finds posts in any status, campaign names and the posts you posted yourself and recorded.", "search")];
   const d = await api("search?q=" + encodeURIComponent(q));
-  const out = [h("h1", null, "Search"), h("p", { class: "lede" }, "Results for “" + d.query + "”: " + d.posts_total + " post(s), " + d.campaigns.length + " campaign(s), " + d.shared_total + " shared by hand.")];
+  const out = [h("h1", null, "Search"), h("p", { class: "lede" }, "Results for “" + d.query + "”: " + d.posts_total + " post(s), " + d.campaigns.length + " campaign(s)" +
+    (d.shared_total ? ", " + d.shared_total + " other post(s) you recorded." : "."))];
   if (d.campaigns.length) out.push(h("h2", null, "Campaigns"), h("div", { class: "chips" }, d.campaigns.map(c => h("a", { class: "chipbtn", href: "#/campaign?name=" + encodeURIComponent(c) }, c))));
   if (d.posts.length) {
+    // A post you made by hand shows when you posted it ("Posted by you · 4 days ago"), not when you recorded it.
     const list = d.posts.map(p => row({ search: p.excerpt, badge: chip(p.status), href: postHref(p.id), text: p.excerpt, secret: p.looks_like_secret,
-      meta: [pf(p.platform), p.account_id, p.campaign ? "campaign " + p.campaign : null], right: when(p.created_at) }));
+      meta: [pf(p.platform), p.account_id, p.campaign ? "campaign " + p.campaign : null],
+      right: p.posted_at ? h("span", { title: "When it went out" }, "posted ", when(p.posted_at)) : h("span", { title: "When it was written" }, "written ", when(p.created_at)) }));
     queueRows = list; queueSel = -1;
     out.push(h("h2", null, "Posts"), rows(list));
   }
   if (d.posts_total > d.posts.length) out.push(h("p", { class: "muted" }, "Showing the newest " + d.posts.length + " of " + d.posts_total + " posts; refine the search to narrow them."));
-  if (d.shared.length) out.push(h("h2", null, "Shared by hand"), rows(d.shared.map(e => { const link = safeLink(e.url);
-    return row({ badge: h("span", { class: "src" }, "shared by hand"), text: e.excerpt, meta: [pf(e.platform), e.account_id || null],
+  if (d.shared.length) out.push(h("h2", null, "Other posts you recorded"), rows(d.shared.map(e => { const link = safeLink(e.url);
+    return row({ badge: h("span", { class: "src" }, "posted by you"), text: e.excerpt, meta: [pf(e.platform), e.account_id || null],
       extra: e.note ? h("div", { class: "muted" }, "Note: " + e.note) : null,
       right: [h("div", null, when(e.when)), link ? h("a", { class: "over", href: link, rel: "noopener noreferrer", target: "_blank" }, "Open ", icon("external")) : h("span", { class: "muted" }, "no link")] }); })));
   if (!d.posts.length && !d.campaigns.length && !d.shared.length) out.push(empty("Nothing matches", "Search looks at post text, ids, accounts, platforms, campaign names, notes and links.", "search"));
@@ -1174,14 +1293,28 @@ function spark(results) {
     "aria-label": key + " by hours after posting: " + pts.map(([x, y]) => y + " at " + x + " h").join(", ") });
   svg.append(svgEl("line", { x1: P, y1: H - P, x2: W - P, y2: H - P, class: "axis" }), svgEl("polyline", { points: xy.map(p => p.join(",")).join(" ") }));
   for (const [x, y] of xy) svg.append(svgEl("circle", { cx: x, cy: y, r: 3.5 }));
-  return h("div", { class: "card" }, h("div", { class: "ct" }, key + " over time"), svg,
+  return h("div", { class: "card" }, h("h2", { class: "ct" }, key + " over time"), svg,
     h("p", { class: "note" }, pts.map(([x, y]) => NUM.format(y) + " at " + x + " h").join(" · ") + ". Exact values you recorded; nothing is interpolated beyond the points."));
 }
 const EVENT_TONE = { published: "ok", needs_review: "bad", approve: "info", schedule: "info", cancel: "bad", reconcile: "ok" };
+// Each event as a plain sentence from the server (ui_data.event_sentence); the stored detail only behind a toggle.
 function timeline(events) {
-  return h("ol", { class: "tl" }, events.map(e => h("li", { class: EVENT_TONE[e.action] || "" },
-    h("div", null, h("span", { class: "ta" }, e.action.replace(/_/g, " ")), " ", h("span", { class: "note" }, when(e.at))),
-    e.detail ? h("div", { class: "td" }, e.detail) : null)));
+  return h("ol", { class: "tl" }, events.map(e => h("li", { class: EVENT_TONE[e.action] || e.tone || "" },
+    h("div", null, h("span", { class: "ta" }, e.label || e.action.replace(/_/g, " ")), " ", h("span", { class: "note" }, when(e.at))),
+    e.sentence ? h("div", { class: "td" }, e.sentence) : null,
+    e.detail ? h("details", null, h("summary", null, "Technical details"), h("div", { class: "td" }, e.detail)) : null)));
+}
+function dateText(iso) {
+  try { return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }); } catch (e) { return String(iso).slice(0, 10); }
+}
+function markNav(name) { // a post page highlights the section it belongs to (Posted for a post that went out)
+  for (const a of document.querySelectorAll("a[data-route]")) { if (a.dataset.route === name) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); }
+}
+function firstWords(text, max) {
+  const flat = String(text || "").split(/\s+/).filter(Boolean).join(" ");
+  if (flat.length <= max) return flat || "(empty post)";
+  const cut = flat.slice(0, max), at = cut.lastIndexOf(" ");
+  return (at > max / 2 ? cut.slice(0, at) : cut) + "…";
 }
 let neighbours = { prev: null, next: null };
 async function viewPost(id) {
@@ -1194,7 +1327,9 @@ async function viewPost(id) {
   const first = p.next_steps[0], owner = p.owner_action;
   const ownerCmds = new Set(owner ? owner.commands.map(c => c.command) : []);
   const rest = p.next_steps.slice(1).filter(s => !ownerCmds.has(s.command));  // the owner card shows those
-  const pager = h("div", { class: "pager" }, h("a", { href: "#/queue" }, icon("back"), "Queue"), h("span", null,
+  const wentOut = p.status === "published" || p.status === "published_manual", byYou = p.status === "published_manual";
+  markNav(wentOut ? "posted" : "queue");
+  const pager = h("div", { class: "pager" }, wentOut ? h("a", { href: "#/posted" }, icon("back"), "Posted") : h("a", { href: "#/queue" }, icon("back"), "Queue"), h("span", null,
     neighbours.prev ? h("a", { href: postHref(neighbours.prev), title: "Previous post ( [ )" }, icon("back"), "Previous") : null,
     neighbours.prev && neighbours.next ? "  ·  " : null,
     neighbours.next ? h("a", { href: postHref(neighbours.next), title: "Next post ( ] )" }, "Next", icon("fwd")) : null));
@@ -1219,9 +1354,9 @@ async function viewPost(id) {
   // "not_approved" default would read as "never approved", so the page says what it means instead.
   const approval = Object.assign({}, p.approval);
   if (SENT_STATUSES.includes(p.status) && approval.binding === "not_approved") approval.binding = "not re-checked after the send started";
-  left.push(h("details", null, h("summary", null, "Approval details"), h("div", { class: "card" }, kv(approval))));
+  if (!byYou) left.push(h("details", null, h("summary", null, "Approval details"), h("div", { class: "card" }, kv(approval))));
   if (p.platform_preview) left.push(h("details", null, h("summary", null, "Platform preview (offline)"), h("div", { class: "card" }, kv(p.platform_preview))));
-  left.push(h("details", null, h("summary", null, "Source, schedule and API cost"), h("div", { class: "card" },
+  if (!byYou) left.push(h("details", null, h("summary", null, "Source, schedule and API cost"), h("div", { class: "card" },
     kv({ source_url: p.source_url, scheduled_at: p.scheduled_at || "not scheduled", approved_at: p.approved_at || "not approved", api_cost: p.api_cost }))));
   for (const [t, v] of [["Media", p.media], ["Video", p.video], ["Reply", p.reply]]) { const s = reviewSection(t, v); if (s) left.push(s); }
   if (p.results && p.results.length) {
@@ -1232,16 +1367,18 @@ async function viewPost(id) {
       h("p", { class: "note" }, "From the platform's own analytics as you recorded them; unknown is never shown as zero."));
   } else if (p.status === "published" || p.status === "published_manual") left.push(h("p", { class: "muted" }, "No results recorded for this post yet. Record them with reachweaver metrics " + p.id + " ..."));
   left.push(h("h2", null, "Timeline"), p.events.length ? h("div", { class: "card" }, timeline(p.events)) : h("p", { class: "muted" }, "No events."));
-  const aside = [prompts && prompts.cards.length ? h("div", { class: "card claudecard" }, h("div", { class: "ct" }, icon("chat"), "Work with Claude"),
+  const aside = [prompts && prompts.cards.length ? h("div", { class: "card claudecard" }, h("h2", { class: "ct" }, icon("chat"), "Work with Claude"),
       promptCards(prompts.cards, true), h("p", { class: "note" }, h("a", { href: "#/claude?post=" + encodeURIComponent(p.id) }, "Ask something else about this post"))) : null,
-    rest.length ? h("div", { class: "card" }, h("div", { class: "ct" }, "More commands for your terminal"),
+    rest.length ? h("div", { class: "card" }, h("h2", { class: "ct" }, "More commands for your terminal"),
       rest.map(s => h("div", null, h("div", { class: "note" }, s.label), command(s.command)))) : null,
-    h("div", { class: "card" }, kv({ account: p.account_id, platform: pf(p.platform), campaign: p.campaign ? h("a", { href: "#/campaign?name=" + encodeURIComponent(p.campaign) }, p.campaign) : "none",
-      scheduled: when(p.scheduled_at, "not scheduled"), approved: p.approved_at ? when(p.approved_at) : "not approved" }),
-      link ? h("p", null, h("a", { href: link, rel: "noopener noreferrer", target: "_blank" }, "Open remote post ", icon("external"))) : null),
+    h("div", { class: "card" }, kv(Object.assign({ account: p.account_id || "not recorded", platform: pf(p.platform),
+      campaign: p.campaign ? h("a", { href: "#/campaign?name=" + encodeURIComponent(p.campaign) }, p.campaign) : "none" },
+      byYou ? { posted: h("span", null, "Posted by you", p.posted_at ? [" on ", h("time", { datetime: p.posted_at, title: p.posted_at }, dateText(p.posted_at))] : "", " (not sent by ReachWeaver)") } :
+        { scheduled: when(p.scheduled_at, "not scheduled"), approved: p.approved_at ? when(p.approved_at) : "not approved" })),
+      link ? h("p", null, h("a", { class: "tap", href: link, rel: "noopener noreferrer", target: "_blank" }, wentOut ? "Open it on " + p.platform + " " : "Open remote post ", icon("external"))) : null),
     h("p", { class: "note" }, "This page cannot approve, schedule, pause or publish; run commands in your terminal.")];
-  return [pager, h("h1", null, "Post ", h("code", null, p.id), " ", chip(p.status)),
-    h("p", { class: "lede" }, pf(p.platform), " · " + p.account_id + (p.campaign ? " · campaign " + p.campaign : "")),
+  return [pager, h("h1", null, firstWords(p.content, 70), " ", chip(p.status), h("span", { class: "postid" }, "Post ", h("code", null, p.id))),
+    h("p", { class: "lede" }, pf(p.platform), " · " + (p.account_id || "account not recorded") + (p.campaign ? " · campaign " + p.campaign : "")),
     h("div", { class: "post-grid" }, h("div", null, left.flat()), h("aside", { class: "aside", "aria-label": "Next step and facts" }, aside))];
 }
 
@@ -1250,13 +1387,14 @@ async function viewAccounts() {
   const d = await api("accounts");
   return [h("h1", null, "Accounts"), h("p", { class: "lede" }, "Configured accounts. Credential values are never shown."),
     d.error ? h("div", { class: "error" }, d.error) : null,
-    h("p", { class: "muted" }, "Credentials are needed only for live sending. Drafting, review and dry runs work without them."),
+    h("p", { class: "muted" }, "Credentials are needed only for live sending. Drafting, review and dry runs work without them, and so does posting by hand."),
     pagePrompts("page=accounts"),
     d.accounts.length ? h("div", { class: "cards" }, d.accounts.map(a => h("div", { class: "card" },
-      h("div", { class: "acct" }, avatar(a.handle || a.id, a.platform), h("div", { class: "who" }, h("b", null, a.id), h("span", { class: "muted" }, a.handle || "handle not set"))),
-      h("div", { class: "badges" }, h("span", { class: "chip info" }, a.platform), h("span", { class: "chip draft" }, a.adapter + (a.backend ? " (" + a.backend + ")" : "")),
-        a.credentials_missing.length ? h("span", { class: "chip attention" }, a.credentials_missing.length + " missing") : h("span", { class: "chip ok" }, "all set")),
-      a.credentials_missing.length ? h("div", { class: "note" }, "Not set: " + a.credentials_missing.join(", ")) : null,
+      h("div", { class: "acct" }, avatar(a.handle || a.id, a.platform), h("div", { class: "acctwho" }, h("b", null, a.id), h("span", { class: "muted" }, a.handle || "handle not set"))),
+      h("div", { class: "badges" }, h("span", { class: "chip info" }, a.platform), h("span", { class: "chip draft" }, ADAPTER_LABEL[a.adapter] || a.adapter),
+        a.credentials_missing.length ? h("span", { class: "chip draft" }, "Not connected (only needed for automatic sending)") : h("span", { class: "chip ok" }, "connected: all set")),
+      h("details", null, h("summary", null, "Technical details"), h("div", { class: "note" }, "Adapter: ", h("code", null, a.adapter + (a.backend ? " (" + a.backend + ")" : ""))),
+        a.credentials_missing.length ? h("div", { class: "note" }, a.credentials_missing.length + " missing (names only): " + a.credentials_missing.join(", ")) : null),
       h("div", { class: "meta" }, h("a", { class: "over", href: "#/queue?account=" + encodeURIComponent(a.id) }, "Queue"), h("a", { href: "#/posted?account=" + encodeURIComponent(a.id) }, "Posted"),
         h("a", { href: "#/results?account=" + encodeURIComponent(a.id) }, "Results"))))) :
       empty("No accounts configured", "Copy config/accounts.example.json to config/accounts.json.", "accounts")];
@@ -1433,9 +1571,9 @@ async function viewClaude(params) {
   return [h("h1", null, "Work with Claude"),
     h("p", { class: "lede" }, "Keep Claude Code open in its own app on your subscription. Here you say what you want and copy a precise prompt; this page calls no model and runs nothing."),
     howSteps(),
-    h("div", { class: "grid2" }, h("div", { class: "card askcard" }, h("div", { class: "ct" }, icon("chat"), "Ask Claude"),
+    h("div", { class: "grid2" }, h("div", { class: "card askcard" }, h("h2", { class: "ct" }, icon("chat"), "Ask Claude"),
       composer({ page: "claude", choices, about: composerState.about })),
-    h("div", { class: "card" }, h("div", { class: "ct" }, "Ready-made prompts"),
+    h("div", { class: "card" }, h("h2", { class: "ct" }, "Ready-made prompts"),
       postId ? [h("p", { class: "note" }, "For post ", h("a", { href: postHref(postId) }, postId), ":"), pagePrompts("page=post&post=" + encodeURIComponent(postId))] : null,
       pagePrompts("page=claude"))),
     h("h2", null, "Only you can do these", owner.total ? h("span", { class: "count c-warn" }, owner.total) : null),
@@ -1477,12 +1615,27 @@ async function viewIdeas(params) {
     h("p", { class: "note" }, "Only the host of a source link is shown. Promoting writes a NEW campaign scaffold folder that stays blocked until you finish and verify it; nothing is staged, approved or sent.")];
 }
 
+// ---- Write a new post: the browser composer is its own small local page that `share --web` starts. This read-only
+// dashboard cannot start it, so the page gives the one command to copy, then says what happens next.
+function viewWrite() {
+  return [h("h1", null, "Write a new post"),
+    h("p", { class: "lede" }, "Write once and get a ready-to-paste version for each network. It runs only on your computer; you post it in each app yourself."),
+    h("section", { class: "card nextstep", "aria-labelledby": "write-h" }, h("h2", { class: "ct", id: "write-h" }, "Open the composer"),
+      h("p", { class: "lead" }, "Copy this command and run it in your terminal:"), command("reachweaver share --web --open"),
+      h("p", { class: "note" }, "It opens the composer in your browser. No account, password or social network is contacted, and this dashboard stays read-only.")),
+    h("ol", { class: "steps" }, h("li", null, h("b", null, "Write your post"), h("div", { class: "note" }, "Pick the networks; each version is checked against its limits.")),
+      h("li", null, h("b", null, "Copy each version"), h("div", { class: "note" }, "Paste it into the network's own app and post it yourself.")),
+      h("li", null, h("b", null, "Record that you posted it"), h("div", { class: "note" }, "Then it shows here under Posted and Results.")),
+      h("li", null, h("b", null, "Add the numbers later"), h("div", { class: "note" }, "Likes and replies from the app; Results adds them up."))),
+    h("p", { class: "note" }, "Prefer the terminal? ", h("code", null, "reachweaver share --guide"), " asks a few questions instead.")];
+}
+
 // ---- router (own-property lookup only: '#/constructor' must not reach Object.prototype)
 const ROUTES = Object.assign(Object.create(null), { "": ["overview", viewOverview], queue: ["queue", viewQueue],
   schedule: ["schedule", viewSchedule], posted: ["posted", viewPosted], results: ["results", viewResults],
   campaigns: ["campaigns", viewCampaigns], campaign: ["campaigns", viewCampaign], search: ["search", viewSearch],
   accounts: ["accounts", viewAccounts], distribution: ["distribution", viewDistribution], ideas: ["ideas", viewIdeas],
-  claude: ["claude", viewClaude] });
+  claude: ["claude", viewClaude], write: ["write", viewWrite] });
 let rendering = 0, lastPath = null, lastFull = null, shownPath = null;
 const scrolls = new Map();  // where each list was scrolled to, so coming back from a post lands on the same row
 function parseHash() {
@@ -1609,13 +1762,21 @@ alerts.addEventListener("change", async () => {
 alerts.checked = store("rw-alerts") === "1" && typeof Notification !== "undefined" && Notification.permission === "granted"; setAlerts(alerts.checked);
 
 // ---- command palette (Ctrl K): jump to a page or a post by typing; it only navigates
-const PAGES = [["Overview", "#/", "home"], ["Queue", "#/queue", "queue"], ["Queue: needs review", "#/queue?status=needs_review", "alert"],
+const PAGES = [["Overview", "#/", "home"], ["Write a new post", "#/write", "pen"],["Queue", "#/queue", "queue"], ["Queue: needs review", "#/queue?status=needs_review", "alert"],
   ["Queue: drafts", "#/queue?status=draft", "queue"], ["Schedule", "#/schedule", "calendar"], ["Schedule: month", "#/schedule?view=month", "calendar"],
   ["Posted", "#/posted", "posted"], ["Results", "#/results", "results"], ["Campaigns", "#/campaigns", "campaigns"],
   ["Accounts", "#/accounts", "accounts"], ["Channels", "#/distribution", "channels"], ["Ideas", "#/ideas", "idea"],
   ["Work with Claude", "#/claude", "chat"]];
-let palette = null, palInput = null, palList = null, palItems = [], palSel = 0, palPosts = null, palAt = 0;
-function palGo(target) { palette.close(); location.hash = target; }
+let palette = null, palInput = null, palList = null, palItems = [], palSel = 0, palPosts = null, palAt = 0, palOpener = null, palLeaving = false;
+function palGo(target) { palLeaving = true; palette.close(); location.hash = target; }
+// Esc or closing without a choice puts focus back where it was (the Ctrl K button or the field you were in).
+function palReturn() {
+  if (palLeaving) { palLeaving = false; return; }
+  const back = palOpener && palOpener.isConnected && palOpener.getClientRects().length ? palOpener : null;
+  const btn = document.getElementById("palettebtn"), box = document.getElementById("gq");
+  const target = back || (btn && btn.getClientRects().length ? btn : box);
+  if (target) target.focus();
+}
 function palMove(i) {
   palSel = Math.max(0, Math.min(palItems.length - 1, i));
   [...palList.children].forEach((li, n) => li.setAttribute("aria-selected", n === palSel ? "true" : "false"));
@@ -1644,9 +1805,12 @@ function openPalette() {
       else if (e.key === "ArrowUp") { e.preventDefault(); palMove(palSel - 1); }
       else if (e.key === "Enter") { e.preventDefault(); const it = palItems[palSel]; if (it) palGo(it.target); }
     });
+    palette.addEventListener("close", palReturn);
     document.body.append(palette);
   }
   if (typeof palette.showModal !== "function" || palette.open) return;
+  const was = document.activeElement;
+  palOpener = was && was !== document.body && was !== main ? was : null;
   palette.showModal(); palInput.value = ""; palFill(); palInput.focus();
   if (palPosts === null || Date.now() - palAt > 30000) api("posts").then(d => { palPosts = d.posts; palAt = Date.now(); if (palette.open) palFill(); }).catch(() => { palPosts = []; });
 }

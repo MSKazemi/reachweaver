@@ -138,6 +138,13 @@ class PromptBuilderTests(unittest.TestCase):
         self.assertEqual([c["intent"] for c in ui_prompts.cards_for("post", FULL)], ["voice", "followup", "claims"])
         self.assertEqual([c["intent"] for c in ui_prompts.cards_for("overview", {})], ["today", "week"])
 
+    def test_a_post_that_already_went_out_is_not_offered_a_draft_tightening(self):
+        for status in ("published", "published_manual", "needs_review"):
+            out = dict(FULL, post=dict(POST, status=status))
+            self.assertEqual([c["intent"] for c in ui_prompts.cards_for("post", out)], ["followup", "claims"], status)
+        followup = ui_prompts.build_prompt("followup", dict(FULL, post=dict(POST, status="published_manual")))["prompt"]
+        self.assertNotIn("not published yet", followup)  # posted by hand is out, not waiting
+
     def test_the_builder_is_pure(self):
         self.assertEqual(referenced_names(ui_prompts.__file__) & FORBIDDEN_NAMES, set())
         self.assertEqual(ui_prompts.build_prompt("today", FULL), ui_prompts.build_prompt("today", FULL))

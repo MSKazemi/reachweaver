@@ -24,16 +24,17 @@ from .journal import NOTE as JOURNAL_NOTE
 from .journal import build_entries
 from .storage import shared_entries
 from .ops_summary import build_summary
-from .policy import SUPPORTED_LIVE, ValidationError
+from .policy import LIVE_ENVIRONMENT, SUPPORTED_LIVE, ValidationError
 from .post_view import build_post_view
 from .privacy import redact, redact_value
 from .show_view import approval_sentence, length_of
 from .insights import top_insights
 from .suggest import build_suggestions
+from .storage import MANUAL_RECORDED_EVENT as MANUAL_RECORDED
 from .storage import (MANUAL_STATUS, MEASURED_STATUSES, METRIC_FIELDS, RECONCILE_MIN_SENDING_MINUTES,
                       approval_expiry_problem, approval_max_age_hours,
                       connect_readonly, get_post, latest_snapshot, list_posts, metric_states, parse_utc, report,
-                      schema_gaps, snapshots_for, utc_now)
+                      report_since, schema_gaps, snapshots_for, utc_now)
 
 REQUIRED_TABLES = ("posts", "event_log", "settings")
 LIST_LIMIT = 500
@@ -93,14 +94,79 @@ def load_accounts_view(loader) -> tuple[dict, str | None]:
 
 def overview(con, accounts: dict, accounts_error: str | None, *, optout: list[dict] | None = None,
              optout_configured: bool = False) -> dict:
-    """The redacted ops-summary document (readiness, per-account state, queue, dead letters)."""
+    """The redacted ops-summary document (readiness, per-account state, queue, dead letters) plus ``headline``:
+    what the Overview's banner says (see ``headline``)."""
     try:
         (caps, caps_path), caps_error = load_caps(), None
     except ValidationError as exc:
         (caps, caps_path), caps_error = (None, None), str(exc)
-    return build_summary(con, accounts, accounts_error=accounts_error, caps=caps,
-                         caps_path=str(caps_path) if caps_path else None, caps_error=caps_error,
-                         optout=optout, optout_configured=optout_configured)
+    summary = build_summary(con, accounts, accounts_error=accounts_error, caps=caps,
+                            caps_path=str(caps_path) if caps_path else None, caps_error=caps_error,
+                            optout=optout, optout_configured=optout_configured)
+    summary["headline"] = headline(summary)
+    return summary
+
+
+# Attention-level readiness reasons that are a real problem for anyone, including a creator who only posts by hand:
+# something was sent or is queued to be sent and needs a human. Every "blocked" reason is a problem too. The other
+# attention reasons (a missing credential of an account that sends nothing, aging research facts, an unrecorded
+# token expiry ...) only matter for automatic sending; the Overview folds them into its setup details.
+PROBLEM_CODES = frozenset({
+    "emergency_pause_active", "needs_review", "stale_sending", "overdue_scheduled", "approval_rebind_required",
+    "manual_platform_has_queued_posts", "queued_posts_for_unconfigured_accounts", "provider_cooldown_active",
+    "rolling_budget_exhausted", ledger.REPLAY, ledger.WITHDRAWN, ledger.BROKEN, ledger.UNAVAILABLE,
+})
+
+
+def headline(summary: dict) -> dict:
+    """What the Overview leads with: ``level`` is ``blocked`` (emergency stop on, or a blocked reason), ``attention``
+    (a real problem such as an uncertain send), ``setup`` (no problem; automatic sending is not set up, which a
+    creator who posts by hand does not need) or ``ok``. ``problems`` are the reasons the banner names; the emergency
+    stop and uncertain sends are never left out. ``setup_notes`` counts the reasons folded into the details."""
+    glob = summary["global"]
+    problems = [r for r in summary["reasons"] if r["level"] == "blocked" or r["code"] in PROBLEM_CODES]
+    if glob["emergency_paused"] and not any(r["code"] == "emergency_pause_active" for r in problems):
+        problems.insert(0, {"level": "blocked", "code": "emergency_pause_active", "account_id": None})
+    review = int(glob["status_counts"].get("needs_review", 0))
+    if review and not any(r["code"] == "needs_review" for r in problems):  # e.g. a post of an unconfigured account
+        problems.append({"level": "attention", "code": "needs_review", "account_id": None})
+    live_ready = any(a["adapter"] != "manual" and not a["credentials_missing"] for a in summary["accounts"])
+    automatic = bool(glob["live_opt_in_env"]) and glob["runtime_environment"] == LIVE_ENVIRONMENT and live_ready
+    if glob["emergency_paused"] or any(r["level"] == "blocked" for r in problems):
+        level = "blocked"
+    elif problems:
+        level = "attention"
+    else:
+        level = "ok" if automatic else "setup"
+    return {"level": level, "problems": problems, "needs_review": review,
+            "setup_notes": len(summary["reasons"]) - sum(1 for r in summary["reasons"] if r in problems),
+            "automatic_sending": automatic}
+
+
+NEXT_SECONDARY = 3
+WRITE_LABEL = "Write a new post"
+
+
+def next_view(guide: dict) -> dict:
+    """The Overview's "Your next step" card from the ``start`` guide (``start.build_guide``, same order): one
+    ``primary`` step and at most ``NEXT_SECONDARY`` others. When nothing is waiting, the primary step is writing a new
+    post in the browser composer (``share --web``), which needs no account. Each step says whether only the owner may
+    run its command (``catalog.owner_runs``). Commands are text; nothing is run."""
+    from .start import SHARE_WEB  # start imports this module: a late import avoids the cycle
+    steps = [dict(s, owner_only=bool(s.get("command") and owner_runs(s["command"])))
+             for s in guide["steps"] if s.get("command") != "reachweaver ui"]
+    waiting = guide.get("state") not in ("empty", "idle")
+    write = {"label": WRITE_LABEL, "command": SHARE_WEB,
+             "note": "Opens a page on this computer that turns one post into a ready-to-paste version for each "
+                     "network. You post it yourself; nothing is sent.", "owner_only": False}
+    if waiting and steps:
+        primary, rest = steps[0], steps[1:]
+        if not any(s.get("command") == SHARE_WEB for s in rest):
+            # The easiest way to make something new stays one glance away, but never ahead of a stop or an uncertain send.
+            rest.insert(len(rest) if guide.get("state") in ("needs_review", "paused") else 0, write)
+    else:
+        primary, rest = write, [s for s in steps if s.get("command") != SHARE_WEB]
+    return dict(guide, primary=primary, secondary=rest[:NEXT_SECONDARY], more=max(0, len(rest) - NEXT_SECONDARY))
 
 
 def _excerpt(text: str) -> str:
@@ -155,7 +221,37 @@ def next_steps(post) -> list[dict]:
 def _events(con, post_id: str) -> list[dict]:
     rows = con.execute("SELECT at, action, detail FROM event_log WHERE post_id=? ORDER BY id DESC LIMIT ?",
                        (post_id, EVENT_LIMIT)).fetchall()
-    return [{"at": r["at"], "action": r["action"], "detail": r["detail"]} for r in rows]
+    return [{"at": r["at"], "action": r["action"], "detail": r["detail"],
+             **event_sentence(r["action"], r["detail"])} for r in rows]
+
+
+DETAIL_PAIR = re.compile(r"([a-z_]{1,40})=(\S{1,200})")
+
+
+def event_sentence(action: str, detail: str | None) -> dict:
+    """A timeline entry in plain words: ``label`` (as on the activity feed), ``tone`` and ``sentence``, a short
+    sentence built from a few known ``key=value`` fields of the stored detail (never the raw detail; the page keeps
+    that behind a "Technical details" toggle). Unknown fields are left out, never guessed."""
+    label, tone = ACTIVITY_LABEL.get(action, (action.replace("_", " ").capitalize(), ""))
+    fields = dict(DETAIL_PAIR.findall(detail or ""))
+    where = " on " + fields["platform"] if fields.get("platform") not in (None, "unknown") else ""
+    account = fields.get("account") if fields.get("account") not in (None, "unknown") else None
+    sentence = None
+    if action == "draft_created":
+        sentence = "Draft written" + (f" for {account}" if account else "") + where + "."
+    elif action == MANUAL_RECORDED:
+        day = (fields.get("posted_at") or "")[:10]
+        sentence = ("You recorded that you posted it yourself" + where + (f" on {day}" if day else "")
+                    + ". ReachWeaver did not send it.")
+        label, tone = "Posted by you", "ok"
+    elif action == "metrics_recorded":
+        source = fields.get("source")
+        sentence = "Results recorded" + (f" from {source.replace('-', ' ')}" if source else "") + "."
+        if "estimated" in fields.get("statuses", ""):
+            sentence += " Some values are the platform's estimates."
+    elif action == "approve" and fields.get("approver"):
+        sentence = f"Approved by {fields['approver']}."
+    return redact_value({"label": label, "tone": tone, "sentence": sentence})
 
 
 def post_detail(con, post_id: str, accounts: dict) -> dict:
@@ -175,6 +271,7 @@ def post_detail(con, post_id: str, accounts: dict) -> dict:
     if post["status"] == MANUAL_STATUS:  # the time the owner declared he posted it by hand
         published = post["send_started_at"]
     detail["posted_by_hand"] = post["status"] == MANUAL_STATUS
+    detail["posted_at"] = published  # when it went out (sent, or declared posted by hand); None before that
     detail["results"] = post_results(con, post_id, published)  # recorded snapshots only; [] when none
     detail["owner_action"] = owner_action(post, _owner_kind(post, approval_max_age_hours(con), utc_now()))
     exact = post["content"]
@@ -393,11 +490,24 @@ def _snapshot_view(row, posted_at: str | None) -> dict | None:
                          "metrics": {k: {"state": states[k][0], "value": states[k][1]} for k in METRIC_FIELDS}})
 
 
-def results_view(con, *, account: str | None = None, platform: str | None = None) -> dict:
+RESULTS_WINDOWS = ("7d", "30d")  # the Results page's "This week" and "30 days"; anything else is every post
+INTERACTIONS = ("likes", "replies", "reposts")
+TOP_POSTS = 3
+
+
+def results_view(con, *, account: str | None = None, platform: str | None = None, since: str | None = None,
+                 now: str | None = None) -> dict:
     """Recorded results: per-platform totals of exact values (``storage.report``) and each published post's latest
-    snapshot, newest post first. Nothing is fetched; a post without a snapshot is listed as not recorded."""
+    snapshot, newest post first. Nothing is fetched; a post without a snapshot is listed as not recorded.
+
+    ``since`` (``7d`` or ``30d``, as ``report --since``) keeps posts that went out in that window, and their
+    snapshots taken since its start. ``summary`` adds up the exact latest values of the posts shown (a metric no post
+    has an exact value for is None, never 0) and names the top posts by recorded interactions."""
+    if since is not None and since not in RESULTS_WINDOWS:
+        raise ValidationError("since must be one of " + ", ".join(RESULTS_WINDOWS))
+    start = report_since(since, now) if since else None
     entries = build_entries(con, statuses=MEASURED_STATUSES, account=account, platform=platform, by_hand=False,
-                            limit=RESULTS_LIMIT + 1)
+                            since=start, limit=RESULTS_LIMIT + 1)
     shown = entries[:RESULTS_LIMIT]
     posts = []
     for entry in shown:
@@ -407,9 +517,21 @@ def results_view(con, *, account: str | None = None, platform: str | None = None
         item["excerpt"] = _excerpt(text)
         item["looks_like_secret"] = redact(text) != text
         item["latest"] = _snapshot_view(latest_snapshot(con, entry["id"]), entry.get("when"))
+        if start and item["latest"] and (item["latest"]["observed_at"] or "") < start:
+            item["latest"] = None  # recorded before the window began: not a result of this window
+        values = [_exact(item["latest"], k) for k in INTERACTIONS]
+        item["interactions"] = sum(v for v in values if v is not None) if any(v is not None for v in values) else None
         posts.append(item)
+    totals = {}
+    for key in METRIC_FIELDS:
+        values = [v for v in (_exact(p["latest"], key) for p in posts) if v is not None]
+        totals[key] = sum(values) if values else None
+    top = sorted((p for p in posts if p["interactions"]), key=lambda p: (-p["interactions"], p["when"] or ""))
+    summary_doc = {"window": since or "all", "start": start, "posts": len(posts),
+                   "with_record": sum(1 for p in posts if p["latest"] is not None), "totals": totals,
+                   "top": [p["id"] for p in top[:TOP_POSTS]]}
     platforms = []
-    for name, summary in report(con).items():
+    for name, summary in report(con, since=start).items():
         if platform is not None and name != platform:
             continue
         platforms.append({"platform": name, "published": summary["published"],
@@ -420,8 +542,10 @@ def results_view(con, *, account: str | None = None, platform: str | None = None
                                           "estimated": summary["metrics"][k]["estimated"]} for k in METRIC_FIELDS}})
     recorded = sum(1 for p in posts if p["latest"] is not None)
     return {"metrics": list(METRIC_FIELDS), "platforms": platforms, "posts": posts, "shown": len(posts),
-            "with_snapshot": recorded, "truncated": len(entries) > RESULTS_LIMIT,
-            "platform_totals_scope": "all published posts of each platform (not filtered by account)",
+            "with_snapshot": recorded, "truncated": len(entries) > RESULTS_LIMIT, "summary": summary_doc,
+            "platform_totals_scope": ("all published posts of each platform (not filtered by account)" if not start
+                                      else "posts of each platform that went out in this window (not filtered by "
+                                           "account)"),
             "note": RESULTS_NOTE, "insights": insights_panel(con, account=account, platform=platform)}
 
 
@@ -523,23 +647,33 @@ def search(con, query: str) -> dict:
     needle = " ".join(query.split()).casefold()
     if not 1 <= len(needle) <= SEARCH_MAX_CHARS:
         raise ValidationError(f"search needs 1 to {SEARCH_MAX_CHARS} characters")
+    rows = {row["id"]: row for row in list_posts(con)}
+    entries = shared_entries(con)
+    # A hand-shared record linked to its measurable published_manual post (mark-shared --url) is the same post:
+    # a match on the record's note or link finds the post, and the record is not listed a second time.
+    linked = {e["post_id"]: e for e in entries if e.get("post_id") in rows}
     posts, campaigns = [], set()
-    for row in sorted(list_posts(con), key=lambda r: r["created_at"], reverse=True):
+    for row in sorted(rows.values(), key=lambda r: r["created_at"], reverse=True):
         fields = (row["content"], row["id"], row["account_id"], row["platform"], row["campaign"], row["remote_url"])
-        if any(_contains(f, needle) for f in fields):
+        record = linked.get(row["id"]) or {}
+        if any(_contains(f, needle) for f in fields) or any(_contains(record.get(k), needle) for k in ("note", "url")):
             posts.append(row)
         if _contains(row["campaign"], needle):
             campaigns.add(row["campaign"])
     hits = []
     for row in posts[:SEARCH_LIMIT]:
+        went_out = row["status"] in MEASURED_STATUSES  # published or posted by hand: show when, not when recorded
         item = redact_value({"id": row["id"], "status": row["status"], "platform": row["platform"],
                              "account_id": row["account_id"], "campaign": row["campaign"] or None,
-                             "created_at": row["created_at"]})
+                             "created_at": row["created_at"],
+                             "posted_at": row["send_started_at"] if went_out else None})
         item["excerpt"] = _excerpt(row["content"])
         item["looks_like_secret"] = redact(row["content"]) != row["content"]
         hits.append(item)
     shared = []
-    for entry in shared_entries(con):
+    for entry in entries:
+        if entry.get("post_id") in rows:
+            continue  # listed as its post above (when it matches)
         if any(_contains(entry.get(k), needle) for k in ("content", "note", "url", "platform", "account_id")):
             item = redact_value({"id": entry["id"], "platform": entry["platform"], "account_id": entry["account_id"],
                                  "when": entry["posted_at"] or entry["recorded_at"], "url": entry["url"] or None,

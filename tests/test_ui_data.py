@@ -17,7 +17,7 @@ from reachweaver import ui_data
 from reachweaver.accounts import load_accounts
 from reachweaver.cli import main
 from reachweaver.policy import ValidationError
-from reachweaver.storage import (add_post, claim_sending, connect, finish_send, record_shared,
+from reachweaver.storage import (add_post, claim_sending, connect, finish_send, record_manual_publish, record_shared,
                                  set_approval_max_age_hours, store_metrics, transition, uncertain_send)
 
 SECRET = "-".join(("very", "private", "app", "password", "value"))
@@ -538,6 +538,142 @@ class StaticSafetyTests(unittest.TestCase):
             bad = Path(tmp) / "bad.py"
             bad.write_text("from reachweaver.storage import transition\ntransition(None, 'x', 'approve')\n")
             self.assertEqual(referenced_names(str(bad)) & FORBIDDEN_NAMES, {"transition"})
+
+
+def summary_doc(*reasons, paused=False, review=0, live=False, env="unset", accounts=None):
+    """A minimal ops-summary document for ``headline``."""
+    return {"global": {"emergency_paused": paused, "live_opt_in_env": live, "runtime_environment": env,
+                       "status_counts": {"needs_review": review} if review else {}},
+            "reasons": [{"level": level, "code": code, "account_id": account} for level, code, account in reasons],
+            "accounts": accounts or []}
+
+
+class HeadlineTests(unittest.TestCase):
+    """The Overview leads with a yellow or red banner only for a real problem, and never hides one."""
+
+    def test_a_manual_creator_without_credentials_gets_a_calm_setup_note(self):
+        doc = summary_doc(("attention", "credentials_missing", "bsky"), ("attention", "research_facts_stale", "bsky"),
+                          accounts=[{"adapter": "live_text", "credentials_missing": ["X_APP_PASSWORD"]}])
+        line = ui_data.headline(doc)
+        self.assertEqual((line["level"], line["problems"], line["setup_notes"]), ("setup", [], 2))
+        self.assertFalse(line["automatic_sending"])
+
+    def test_the_emergency_stop_is_never_folded_away(self):
+        line = ui_data.headline(summary_doc(paused=True))  # even without its reason row
+        self.assertEqual(line["level"], "blocked")
+        self.assertEqual([p["code"] for p in line["problems"]], ["emergency_pause_active"])
+
+    def test_uncertain_sends_are_problems_even_for_an_unconfigured_account(self):
+        line = ui_data.headline(summary_doc(("attention", "stale_sending", "bsky"), review=2))
+        self.assertEqual(line["level"], "attention")
+        self.assertEqual(sorted(p["code"] for p in line["problems"]), ["needs_review", "stale_sending"])
+        self.assertEqual(line["needs_review"], 2)
+
+    def test_any_blocked_reason_is_shown(self):
+        line = ui_data.headline(summary_doc(("blocked", "credentials_missing", "bsky")))  # queued work cannot send
+        self.assertEqual((line["level"], len(line["problems"])), ("blocked", 1))
+
+    def test_ok_only_when_automatic_sending_is_really_set_up(self):
+        ready = [{"adapter": "live_text", "credentials_missing": []}]
+        self.assertEqual(ui_data.headline(summary_doc(live=True, env="prod", accounts=ready))["level"], "ok")
+        self.assertEqual(ui_data.headline(summary_doc(live=True, env="dev", accounts=ready))["level"], "setup")
+
+    def test_overview_document_carries_the_headline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "u.sqlite"
+            with connect(str(db)) as con:
+                add_post(con, "nobody", "bluesky", "A draft")
+            with ui_data.open_database(db) as con:
+                doc = ui_data.overview(con, {}, None)
+        self.assertIn(doc["headline"]["level"], ("setup", "attention", "blocked", "ok"))
+        self.assertNotIn("emergency_pause_active", [p["code"] for p in doc["headline"]["problems"]])
+
+
+def guide(state, *steps):
+    return {"state": state, "summary": "s", "steps": [{"label": label, "command": command, "note": None}
+                                                       for label, command in steps], "warnings": []}
+
+
+class NextStepTests(unittest.TestCase):
+    def test_nothing_waiting_makes_writing_a_new_post_the_one_primary_action(self):
+        view = ui_data.next_view(guide("idle", ("Nothing queued: write a draft", "reachweaver draft --account a --text 'x'"),
+                                       ("Or write it in your browser", "reachweaver share --web --open"),
+                                       ("Browse", "reachweaver ui")))
+        self.assertEqual(view["primary"]["command"], "reachweaver share --web --open")
+        self.assertEqual(view["primary"]["label"], "Write a new post")
+        commands = [s["command"] for s in view["secondary"]]
+        self.assertNotIn("reachweaver share --web --open", commands)  # shown once
+        self.assertNotIn("reachweaver ui", commands)  # you are in it
+
+    def test_waiting_work_comes_first_in_start_order_with_at_most_three_others(self):
+        view = ui_data.next_view(guide("needs_review", ("Stop is on", "reachweaver resume"), ("Uncertain", "reachweaver dead-letter"),
+                                       ("Drafts", "reachweaver review"), ("Queued", "reachweaver publish"),
+                                       ("Ideas", "reachweaver idea list --status open")))
+        self.assertEqual(view["primary"]["command"], "reachweaver resume")
+        self.assertTrue(view["primary"]["owner_only"])  # the owner runs it; Claude never does
+        self.assertLessEqual(len(view["secondary"]), ui_data.NEXT_SECONDARY)
+        self.assertEqual(view["secondary"][0]["command"], "reachweaver dead-letter")  # safety before writing more
+        drafts = ui_data.next_view(guide("drafts", ("Drafts", "reachweaver review"), ("Ideas", "reachweaver idea list")))
+        self.assertEqual([s["command"] for s in drafts["secondary"]],
+                         ["reachweaver share --web --open", "reachweaver idea list"])
+        self.assertEqual(view["more"], 2)  # four other guide steps plus "Write a new post", three shown
+        self.assertEqual(len(view["steps"]), 5)  # the full guide is still there
+
+
+class EventSentenceTests(unittest.TestCase):
+    def test_known_events_read_as_sentences_and_unknown_fields_are_never_guessed(self):
+        manual = ui_data.event_sentence("manual_publish_recorded", "provenance=owner_declared_manual_publish platform=linkedin "
+                                        "account=li posted_at=2026-10-10T08:00:00+00:00 shared_id=s platform_id=none")
+        self.assertEqual(manual["label"], "Posted by you")
+        self.assertEqual(manual["sentence"], "You recorded that you posted it yourself on linkedin on 2026-10-10. "
+                                             "ReachWeaver did not send it.")
+        self.assertNotIn("provenance", manual["sentence"])
+        metrics = ui_data.event_sentence("metrics_recorded", "source=linkedin-analytics observed_at=x statuses=clicks:estimated")
+        self.assertIn("platform's estimates", metrics["sentence"])
+        other = ui_data.event_sentence("some_new_action", "token=" + SECRET)
+        self.assertEqual((other["label"], other["sentence"]), ("Some new action", None))
+
+    def test_post_timeline_entries_carry_the_sentence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "u.sqlite"
+            with connect(str(db)) as con:
+                pid = add_post(con, "acct", "bluesky", "Hello")
+            with ui_data.open_database(db) as con:
+                events = ui_data.post_detail(con, pid, {})["events"]
+        self.assertEqual(events[0]["label"], "Draft created")
+        self.assertEqual(events[0]["sentence"], "Draft written for acct on bluesky.")
+
+
+class ResultsWindowTests(ResultsBase):
+    def test_window_filters_posts_and_sums_exact_values_only(self):
+        with ui_data.open_database(self.db) as con:
+            everything = ui_data.results_view(con)
+            week = ui_data.results_view(con, since="7d", now="2030-01-03T00:00:00+00:00")
+            with self.assertRaises(ValidationError):
+                ui_data.results_view(con, since="2d")
+        self.assertEqual(everything["summary"]["window"], "all")
+        self.assertEqual(everything["summary"]["totals"]["views"], 150)  # latest exact value of the measured post
+        self.assertIsNone(everything["summary"]["totals"]["clicks"])  # nobody recorded clicks: unknown, not 0
+        self.assertEqual(everything["summary"]["top"], [self.sent])  # 6 likes, the only post with interactions
+        self.assertEqual(week["posts"], [])  # sent at NOW, years before this window
+        self.assertEqual((week["summary"]["posts"], week["summary"]["totals"]["views"]), (0, None))
+
+
+class SearchMergeTests(unittest.TestCase):
+    def test_a_post_made_by_hand_is_listed_once_with_the_time_it_was_posted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = Path(tmp) / "u.sqlite"
+            with connect(str(db)) as con:
+                made = record_manual_publish(con, platform="bluesky", url="https://bsky.app/profile/o/post/3",
+                                             account_id="bsky", content="Speckled mugs are out",
+                                             posted_at="2026-10-11T10:00:00+00:00", note="kiln day")
+            with ui_data.open_database(db) as con:
+                by_text = ui_data.search(con, "speckled")
+                by_note = ui_data.search(con, "kiln")
+        for found in (by_text, by_note):
+            self.assertEqual([p["id"] for p in found["posts"]], [made["post_id"]])
+            self.assertEqual((found["shared"], found["shared_total"]), ([], 0))  # not a second entry
+        self.assertEqual(by_text["posts"][0]["posted_at"], "2026-10-11T10:00:00+00:00")
 
 
 if __name__ == "__main__":
