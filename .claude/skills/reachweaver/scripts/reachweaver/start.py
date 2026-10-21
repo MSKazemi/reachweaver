@@ -261,5 +261,26 @@ def render(guide: dict) -> str:
             lines.append(f"     {step['command']}")
         if step["note"]:
             lines.append(f"     {step['note']}")
-    lines += ["", "This command only reads local state; it runs nothing for you."]
+    lines += ["", "This command only reads local state; it runs nothing for you.", "", *everyday_footer()]
     return "\n".join(lines)
+
+
+# The everyday loop in five verbs, shown under every `start` and bare `reachweaver` (2026-10-21 UX re-measure: a
+# fresh folder's screen never named posted, report, idea or next, so people needed --help first). Each command is
+# also in the --help everyday list (cli_help.EVERYDAY); tests parse every one.
+EVERYDAY = (
+    ("write", STUDIO, f"or in the terminal: {SHARE_GUIDE}"),
+    ("record", POSTED, None),
+    ("results", REPORT_WEEK, None),
+    ("ideas", 'reachweaver idea "text"', None),
+    ("next", NEXT, None),
+)
+
+
+def everyday_footer() -> list[str]:
+    """At most six lines: a heading that points at --help, then one verb and its command per line."""
+    width = max(len(verb) for verb, _, _ in EVERYDAY) + 2
+    lines = ["Everyday (more: reachweaver --help; every command: reachweaver --help all):"]
+    for verb, command, extra in EVERYDAY:
+        lines.append(f"  {verb.ljust(width)}{command}" + (f"   ({extra})" if extra else ""))
+    return lines

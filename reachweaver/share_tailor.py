@@ -218,23 +218,32 @@ FORMAT_WORDS = {"image": "photo post", "video": "video post", "carousel": "carou
 
 
 def measure(platform: str, text: str) -> str:
-    """``76/2200 characters``: the length by the rule ``fit`` applies, against that network's limit."""
+    """``76 of 2200 characters allowed``: the length by the rule ``fit`` applies, against that network's limit.
+
+    Plain words (2026-10-21): "characters" where the sourced or conservative rule counts characters (Bluesky's
+    graphemes are the characters you see); TikTok's sourced rule counts UTF-16 units, which equal characters
+    unless a character such as most emoji counts as 2, and then says so; YouTube's sourced description rule is in
+    bytes, so that unit stays."""
     if platform == "bluesky":
-        return f"{grapheme_count(text)}/{BLUESKY_MAX_GRAPHEMES} graphemes"
+        return f"{grapheme_count(text)} of {BLUESKY_MAX_GRAPHEMES} characters allowed"
     if platform == "mastodon":
-        return f"{mastodon_length(text)}/{mastodon_text_limit(None)} characters (a link counts as 23)"
+        return f"{mastodon_length(text)} of {mastodon_text_limit(None)} characters allowed (a link counts as 23)"
     if platform == "threads":
-        return f"{threads_length(text)}/{FACTS['threads']['text_max_chars']['value']} characters"
+        return f"{threads_length(text)} of {FACTS['threads']['text_max_chars']['value']} characters allowed"
     if platform == "instagram":
-        return f"{len(text)}/{FACTS['instagram']['caption_max_chars']['value']} characters"
+        return f"{len(text)} of {FACTS['instagram']['caption_max_chars']['value']} characters allowed"
     if platform == "tiktok":
-        return f"{utf16_length(text)}/{FACTS['tiktok']['caption_max_utf16']['value']} UTF-16 units"
+        units = utf16_length(text)
+        extra = "" if units == len(text) else " (TikTok counts some characters, like most emoji, as 2)"
+        return f"{units} of {FACTS['tiktok']['caption_max_utf16']['value']} characters allowed{extra}"
     if platform == "youtube":
-        return f"{len(text.encode('utf-8'))}/{FACTS['youtube']['description_max_bytes']['value']} bytes"
+        size = len(text.encode("utf-8"))
+        extra = "" if size == len(text) else " (accented letters and emoji take 2 to 4 bytes)"
+        return f"{size} of {FACTS['youtube']['description_max_bytes']['value']} bytes allowed{extra}"
     if platform in ("telegram", "linkedin"):
-        return f"{len(text)}/{CONSERVATIVE_TEXT_LIMITS[platform]} characters"
+        return f"{len(text)} of {CONSERVATIVE_TEXT_LIMITS[platform]} characters allowed"
     if platform == "facebook":
-        return f"{len(text)}/{CONSERVATIVE_TEXT_LIMITS['facebook']} characters (ReachWeaver's cap)"
+        return f"{len(text)} of {CONSERVATIVE_TEXT_LIMITS['facebook']} characters allowed (ReachWeaver's cap)"
     return f"{len(text)} characters (no known limit here)"
 
 

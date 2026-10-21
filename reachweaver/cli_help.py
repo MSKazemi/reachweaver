@@ -73,7 +73,7 @@ EVERYDAY: tuple[tuple[str, ...], ...] = (
      "share --web opens the same composer in your browser; nothing goes online"),
     ("posted", "Posted something yourself? Record it from its link, with its likes and views",
      "posted LINK --likes 12 --views 300; run it again later to update the numbers"),
-    ("idea", "Save a post idea for later; list, drop or promote it to a campaign"),
+    ("idea", "Save a post idea for later: reachweaver idea \"text\"; list, drop or promote it"),
     ("draft", "Save a post for one account as a draft; nothing is sent"),
     ("review", "Go through your drafts one by one and approve the ones you want (you only)",
      "each draft's checks are shown first (the same as 'check')"),

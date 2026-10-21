@@ -2266,6 +2266,78 @@ def record_manual_publish(con, *, platform: str, url: str, account_id: str | Non
     return {"post_id": post_id, "shared_id": shared_id, "status": MANUAL_STATUS, "provenance": MANUAL_PROVENANCE}
 
 
+MANUAL_CORRECTED_EVENT = "manual_publish_corrected"
+_KEEP = object()
+
+
+def correct_manual_publish(con, post_id: str, *, posted_at: str | None = None, content: str | None = None,
+                           account_id: str | None = None, remote_id: object = _KEEP,
+                           now: str | None = None) -> dict:
+    """Correct what the owner declared about a post he recorded BY HAND: its posted time, text or account.
+
+    Only a ``published_manual`` record can be corrected (``posted URL --at ...`` again, 2026-10-21): such a row is
+    never sendable, its ``send_started_at``/``content``/``account_id`` are the owner's own declaration, and
+    nothing was approved for it. A post ReachWeaver sent (``published``) or any other status is refused: its send
+    time, text and account are the record of what was sent, so only numbers may be added to it. The status,
+    every approval column and the link stay as they are; the linked ``mark-shared`` entry gets the same values so
+    the repeat guard keeps seeing what was really posted. Refused (ValidationError, nothing written): a time more
+    than 10 minutes in the future, a time after numbers already entered for it, a bad account or text value.
+    ``None`` leaves a field unchanged (``remote_id`` is left unchanged unless passed). Records one
+    ``manual_publish_corrected`` event with the old and new times (never the text). Returns
+    ``{"post_id", "changed": {field: [old, new]}}``; ``changed`` is empty when every value was already right.
+    Callers outside a transaction only.
+    """
+    if account_id is not None and (not isinstance(account_id, str) or not account_id.strip()):
+        raise ValidationError("account must be a nonempty account id or None")
+    if content is not None and not isinstance(content, str):
+        raise ValidationError("text must be a string")
+    if remote_id is not _KEEP and remote_id is not None and (
+            not isinstance(remote_id, str) or not remote_id.strip() or len(remote_id) > 1024):
+        raise ValidationError("remote_id must be a nonempty platform id or None")
+    current = parse_utc(now or utc_now())
+    when = parse_utc(posted_at) if posted_at is not None else None
+    if when is not None and datetime.fromisoformat(when) > (datetime.fromisoformat(current)
+                                                            + timedelta(minutes=MANUAL_FUTURE_SKEW_MINUTES)):
+        raise ValidationError("--at is in the future: give the time you actually posted it; nothing changed")
+    with _atomic(con):
+        row = con.execute("SELECT status, send_started_at, content, account_id, remote_id FROM posts WHERE id=?",
+                          (post_id,)).fetchone()
+        if row is None:
+            raise ValidationError(f"Unknown post id {post_id}")
+        if row["status"] != MANUAL_STATUS:
+            raise ValidationError("Only a post you recorded by hand can be corrected; ReachWeaver sent this one, so "
+                                  "its time, text and account stay as recorded (you can still add its numbers)")
+        if when is not None:
+            first = con.execute("SELECT MIN(observed_at) FROM metric_snapshots WHERE post_id=?", (post_id,)).fetchone()[0]
+            if first and datetime.fromisoformat(parse_utc(first)) < datetime.fromisoformat(when):
+                raise ValidationError(f"You entered numbers for it on {parse_utc(first)[:10]}, before that time; "
+                                      "give the time you actually posted it; nothing changed")
+        wanted: dict[str, object] = {"send_started_at": when, "content": content, "account_id": account_id}
+        if remote_id is not _KEEP:
+            wanted["remote_id"] = remote_id
+        changed = {field: [row[field], value] for field, value in wanted.items()
+                   if (value is not None or field == "remote_id") and value != row[field]}
+        if not changed:
+            return {"post_id": post_id, "changed": {}}
+        assignments = ", ".join(f"{field}=?" for field in changed)
+        updated = con.execute(f"UPDATE posts SET {assignments} WHERE id=? AND status=?",  # nosec: fixed field names
+                              (*(new for _, new in changed.values()), post_id, MANUAL_STATUS)).rowcount
+        if updated != 1:
+            raise ValidationError("The post changed while it was being corrected; nothing changed")
+        shared = {"send_started_at": "posted_at", "content": "content", "account_id": "account_id"}
+        linked = {shared[field]: new for field, (_, new) in changed.items() if field in shared}
+        if linked and any(r[1] == "post_id" for r in con.execute("PRAGMA table_info(shared_material)")):
+            con.execute(f"UPDATE shared_material SET {', '.join(f'{c}=?' for c in linked)} WHERE post_id=?",
+                        (*linked.values(), post_id))
+        detail = [f"provenance=owner_declared_manual_publish fields={','.join(sorted(changed))}"]
+        if "send_started_at" in changed:
+            detail.append(f"previous_posted_at={changed['send_started_at'][0]} posted_at={when}")
+        if "account_id" in changed:
+            detail.append(f"previous_account={changed['account_id'][0] or 'unknown'} account={account_id}")
+        event(con, MANUAL_CORRECTED_EVENT, post_id, " ".join(detail))
+    return {"post_id": post_id, "changed": changed}
+
+
 def event_activity(con, actions: tuple[str, ...], *, since: str | None = None,
                    until: str | None = None) -> list[dict]:
     """Audit events whose action is in ``actions``, with ``since <= at <= until`` when given.

@@ -42,11 +42,13 @@ class Base(unittest.TestCase):
 
 
 class MistypedInput(Base):
-    def test_unknown_flag_suggests_the_close_one_with_the_subcommand_usage(self):
+    def test_unknown_flag_suggests_the_close_one_without_the_usage_block(self):
         code, _, err = self.run_cli("share", "--text", "hi", "--platfrom", "bluesky")
         self.assertEqual(code, 2)
-        self.assertIn("usage: reachweaver share", err)
-        self.assertIn("unrecognized arguments: --platfrom bluesky. Did you mean --platform?", err)
+        self.assertNotIn("usage:", err)  # only the error and its hint (UX re-measure 2026-10-21)
+        self.assertEqual(len(err.strip().splitlines()), 1, err)
+        self.assertIn("reachweaver share: error: unrecognized arguments: --platfrom bluesky. Did you mean --platform?",
+                      err)
         self.assertIn("'reachweaver share --help' lists the options", err)
 
     def test_a_global_option_after_the_command_says_where_it_goes(self):

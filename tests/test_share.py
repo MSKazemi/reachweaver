@@ -310,9 +310,9 @@ class ShareOnboardingTests(unittest.TestCase):
         self.assertEqual(code, 0, errors)
         self.assertIn("Same text for all 3: it fits every network, so nothing was changed", out)
         self.assertEqual(out.count("\nOur new release is out https://example.org/notes\n"), 1)
-        self.assertIn(" - Instagram (photo post): 48/2200 characters", out)
-        self.assertIn(" - Threads: 48/500 characters", out)
-        self.assertIn(" - Bluesky: 48/300 graphemes", out)
+        self.assertIn(" - Instagram (photo post): 48 of 2200 characters allowed", out)
+        self.assertIn(" - Threads: 48 of 500 characters allowed", out)
+        self.assertIn(" - Bluesky: 48 of 300 characters allowed", out)
 
     def test_a_shortened_text_is_shown_per_network_with_a_pointer_to_the_full_text(self):
         long = " ".join(["This sentence keeps the post long enough."] * 12)

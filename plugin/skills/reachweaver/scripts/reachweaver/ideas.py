@@ -391,6 +391,7 @@ def run_cli(args) -> int:
             print(json.dumps(record, indent=2, ensure_ascii=False))
         else:
             print(f"Added {record['id']} to the ideas inbox ({path}). Not a draft: nothing was queued or sent.")
+            print("Saved. When you're ready: reachweaver next")
         return 0
     if action == "list":
         items = listing(path, status=args.status, tag=args.tag)

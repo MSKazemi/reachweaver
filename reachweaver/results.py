@@ -78,21 +78,41 @@ def first_words(text: object, limit: int = FIRST_WORDS) -> str:
     return cut.rstrip(",.;:-") + "…"
 
 
-def post_title(post) -> str:
-    """How a post is named in summaries: its first words, or for a post recorded by its link only
-    (``reachweaver posted URL`` without --text) a short form of that link, e.g. ``bsky.app/…/3kabc``."""
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")  # fixed: no locale
+
+
+def has_text(post) -> bool:
     content = post["content"] if "content" in post.keys() else ""
-    if " ".join(str(content or "").split()):
-        return first_words(content)
-    url = post["remote_url"] if "remote_url" in post.keys() else None
-    if not url:
-        return first_words("")
-    from urllib.parse import urlsplit
-    parts = urlsplit(str(url))
-    host = (parts.hostname or "").removeprefix("www.")
-    tail = [segment for segment in parts.path.split("/") if segment]
-    shown = host + (f"/…/{tail[-1]}" if len(tail) > 1 else f"/{tail[0]}" if tail else "")
-    return first_words(shown, FIRST_WORDS + 20)
+    return bool(" ".join(str(content or "").split()))
+
+
+def post_title(post) -> str:
+    """How a post is named in summaries: its first words, or for a post without text (``reachweaver posted URL``
+    without --text) its network and day, e.g. ``Instagram post of 18 Oct`` (2026-10-21: a link fragment such as
+    ``instagram.com/…/DemoPost123`` did not tell the person which post it was)."""
+    if has_text(post):
+        return first_words(post["content"])
+    platform = post["platform"] if "platform" in post.keys() else ""
+    posted = post["send_started_at"] if "send_started_at" in post.keys() else None
+    return untitled_label(str(platform or ""), posted)
+
+
+def untitled_label(platform: str, posted_at: object, now: datetime | None = None) -> str:
+    """``Instagram post of 18 Oct`` (the year is added when it is not this year); ``Instagram post`` without a
+    time. The day is in the computer's time zone, as every other date shown to the person."""
+    name = platform_name(platform) if platform else "Your"
+    moment = to_time(posted_at)
+    if moment is None:
+        return f"{name} post"
+    local = moment.astimezone()
+    this_year = (now or datetime.now(local.tzinfo)).astimezone().year
+    day = f"{local.day} {MONTHS[local.month - 1]}" + (f" {local.year}" if local.year != this_year else "")
+    return f"{name} post of {day}"
+
+
+def quoted_title(row: dict) -> str:
+    """A row's name for a sentence: first words in quotes; a network-and-day label (no text) as it is."""
+    return f"\"{row['first_words']}\"" if row.get("titled", True) else str(row["first_words"])
 
 
 def to_time(value: object) -> datetime | None:
@@ -138,7 +158,7 @@ def post_results(con: sqlite3.Connection, *, since: str | None = None) -> list[d
         rows.append({
             "post_id": post["id"], "platform": post["platform"], "account_id": post["account_id"] or None,
             "posted_by_hand": is_manual(post), "posted_at": post["send_started_at"],
-            "first_words": post_title(post),
+            "first_words": post_title(post), "titled": has_text(post),
             "observed_at": snapshot["observed_at"] if snapshot is not None else None,
             "source": snapshot["source"] if snapshot is not None else None,
             "hours_after_posting": (round(hours_between(sent, observed)) if sent and observed else None),
@@ -182,7 +202,7 @@ def results_due(con: sqlite3.Connection, now: datetime) -> list[dict]:
         if any(hours >= DUE_AFTER_HOURS for hours in snapshot_ages(con, post["id"], sent)):
             continue
         due.append({"post_id": post["id"], "platform": post["platform"], "account_id": post["account_id"] or None,
-                    "first_words": post_title(post), "posted_at": post["send_started_at"],
+                    "first_words": post_title(post), "titled": has_text(post), "posted_at": post["send_started_at"],
                     "days_since_posting": int(age // 24), "command": metrics_command(post["id"])})
     due.sort(key=lambda item: (item["posted_at"], item["post_id"]))
     return due

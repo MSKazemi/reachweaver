@@ -167,7 +167,10 @@ class CliTests(Base):
         code, out, _ = self.cli("next", "--json")
         doc = json.loads(out)
         self.assertEqual(doc["schema"], "reachweaver.next.v1")
-        self.assertEqual(set(doc["actions"][0]), {"rank", "kind", "text", "command", "note", "evidence"})
+        # keys may be added, never renamed: an idea also carries its terminal alternative (2026-10-21)
+        self.assertEqual(set(doc["actions"][0]), {"rank", "kind", "text", "command", "note", "evidence", "alternative"})
+        self.assertEqual(doc["actions"][0]["alternative"]["command"],
+                         "reachweaver share --guide --text 'Behind the scenes of my studio'")
 
     def test_bare_suggest_prints_the_same_view_and_json_keeps_its_schema(self):
         self.state.mkdir(mode=0o700)

@@ -358,6 +358,6 @@ def render_text(result: dict) -> str:
 # Bare ``suggest`` (no input flag) with nothing to rank: where to go next instead of an error. Commands only.
 EMPTY_NEXT_STEPS = (
     {"label": "Write a first post in your browser and post it by hand", "command": "reachweaver share --web --open"},
-    {"label": "Save an idea to post about later", "command": "reachweaver idea add 'Your idea'"},
+    {"label": "Save an idea to post about later", "command": "reachweaver idea 'Your idea'"},
     {"label": "See where you are and what to type next", "command": "reachweaver start"},
 )
