@@ -15,6 +15,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
+from .netconnect import IPv4FirstHTTPSHandler
+
 from .accounts import bluesky_service, require_credential, validate_mastodon_options
 from .policy import SUPPORTED_LIVE, SUPPORTED_LIVE_VIDEO, ValidationError, require_https_public_server, validate_post
 from .ratelimit import RetryHint, hint_from_http_error
@@ -87,7 +89,9 @@ class _NoRedirects(HTTPRedirectHandler):
 
 
 def _send_http(req: Request):
-    return build_opener(_NoRedirects()).open(req, timeout=25)
+    # IPv4 first, 4 s connect per address (netconnect): a broken IPv6 route no longer costs the full
+    # timeout per AAAA address. Request, redirect refusal, headers and timeout are unchanged.
+    return build_opener(_NoRedirects(), IPv4FirstHTTPSHandler()).open(req, timeout=25)
 
 
 # Fixed code for a request urllib/http.client refused to build or send: a control character in
