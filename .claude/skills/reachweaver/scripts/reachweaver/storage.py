@@ -2204,7 +2204,8 @@ def find_manual_duplicate(con, platform: str, url: str) -> str | None:
 def record_manual_publish(con, *, platform: str, url: str, account_id: str | None = None, content: str = "",
                           images: list[str] | tuple[str, ...] = (), video: str | None = None,
                           links: list[str] | tuple[str, ...] = (), posted_at: str | None = None, note: str = "",
-                          remote_id: str | None = None, now: str | None = None) -> dict:
+                          remote_id: str | None = None, now: str | None = None,
+                          link_is_enough: bool = False) -> dict:
     """Record a post the owner says he published BY HAND so its results can be measured. Sends nothing.
 
     Writes, under one ``BEGIN IMMEDIATE``: (1) the ``mark-shared`` ledger entry exactly as ``record_shared`` does
@@ -2218,6 +2219,9 @@ def record_manual_publish(con, *, platform: str, url: str, account_id: str | Non
     ``claim_sending``, ``reconcile``, the media/video setters and every worker select approved, scheduled, sending or
     needs_review rows only. Refused (ValidationError, nothing written): an unknown platform, a bad link, a publish
     time more than 10 minutes in the future, no material, or a link already recorded for this platform.
+    ``link_is_enough`` (``posted URL``, 2026-10-21) accepts a record with no text, file or link material: the
+    post's own ``url`` identifies it. Its ledger entry then holds no material, so the repeat guard compares
+    nothing against it (an empty text never matches: ``repeat_guard._compare`` needs text on both sides).
     Returns ``{"post_id", "shared_id", "status", "provenance"}``. Callers outside a transaction only.
     """
     from .policy import PLATFORMS
@@ -2232,7 +2236,7 @@ def record_manual_publish(con, *, platform: str, url: str, account_id: str | Non
     if not isinstance(content, str) or not isinstance(note, str):
         raise ValidationError("text and note must be strings")
     images, links = list(images), list(links)
-    if not (content or images or video or links):
+    if not (content or images or video or links or link_is_enough):
         raise ValidationError("Give at least one of --text/--file, --image, --video or --link")
     current = parse_utc(now or utc_now())
     when = parse_utc(posted_at) if posted_at else current

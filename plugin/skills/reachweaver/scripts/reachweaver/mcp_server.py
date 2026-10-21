@@ -64,7 +64,9 @@ WITHHELD_COMMANDS = {"credentials-audit": "reads credential values (never prints
 NEVER_EXPOSED = frozenset({
     "approve", "review", "unapprove", "publish", "resume", "reconcile", "reconnect", "approval-mode", "connect",
     "connect-check", "account-kit", "update", "schedule", "cancel", "pause", "disconnect", "mcp-serve", "ui",
-    "share", "data-purge", "metrics-fetch", "engagement-fetch", "sources-scan", "postiz-check"})
+    "share", "data-purge", "metrics-fetch", "engagement-fetch", "sources-scan", "postiz-check",
+    # 2026-10-21: the owner's own statement that he published a post and read these numbers; a client never makes it
+    "posted"})
 # Flags no tool offers: network switches, human attestations and overrides, and output-format flags (the
 # server always asks for JSON itself).
 WITHHELD_FLAGS = frozenset({

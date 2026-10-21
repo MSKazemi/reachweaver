@@ -59,7 +59,8 @@ class ViewTests(Base):
     def test_nothing_yet_points_at_the_browser_composer_and_creates_nothing(self):
         view = self.view()
         self.assertEqual(view["schema"], "reachweaver.next.v1")
-        self.assertEqual([a["kind"] for a in view["actions"]], ["first_post", "save_idea"])
+        self.assertEqual([a["kind"] for a in view["actions"]], ["first_post", "save_idea", "record_post"])
+        self.assertEqual(view["actions"][2]["command"], "reachweaver posted LINK --likes N")
         self.assertEqual(view["actions"][0]["command"], "reachweaver share --web --open")
         self.assertTrue(view["read_only"])
         self.assertFalse(self.state.exists())

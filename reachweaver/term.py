@@ -42,7 +42,7 @@ def set_plain(value: bool) -> None:
 STYLES = {"red": "31", "green": "32", "yellow": "33", "blue": "34", "grey": "90", "bold": "1"}
 # Post status -> colour. needs_review is the one a human must act on.
 STATUS_COLOUR = {"draft": "grey", "approved": "blue", "scheduled": "blue", "sending": "yellow",
-                 "needs_review": "red", "published": "green", "cancelled": "grey"}
+                 "needs_review": "red", "published": "green", "cancelled": "grey", "published_manual": "green"}
 
 
 def enabled(stream) -> bool:

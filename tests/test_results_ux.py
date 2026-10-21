@@ -81,7 +81,7 @@ class ReportTests(Base):
         top = [line for line in lines if line.startswith("  1.") or line.startswith("  2.")]
         self.assertIn(glaze, top[0])
         self.assertIn(thread, top[1])
-        self.assertIn("(no account recorded)", top[0])
+        self.assertIn("posted by you (no account)", top[0])
         self.assertIn(f"reachweaver metrics {quiet} --likes N", text)  # the post with no numbers yet
         self.assertIn("insights compares results about 7 days after posting", text)
         self.assertNotIn("{", text)
@@ -139,7 +139,7 @@ class ShowTests(Base):
         self.assertIn("RESULTS", sheet)
         self.assertIn("95 likes, 7 replies", sheet)
         self.assertIn("source 'entered-by-hand'", sheet)
-        self.assertIn("(no account recorded) on instagram", sheet)
+        self.assertIn("posted by you (no account) on instagram", sheet)
         self.assertIn("Posted by hand", sheet)
 
     def test_a_post_without_numbers_says_how_to_add_them(self):
@@ -212,7 +212,7 @@ class InsightsTests(Base):
         self.assertEqual(note["record_again_around"],
                          (NOW - timedelta(hours=30) + timedelta(hours=168)).date().isoformat())
         text = insights.render_text(report)
-        self.assertIn("(no account recorded) (bluesky)", text)
+        self.assertIn("posted by you (no account) (bluesky)", text)
         self.assertNotIn("account unknown", text)
         self.assertIn("You recorded results 20 hours after posting; insights compares results about 7 days after "
                       "posting. Record again around", text)

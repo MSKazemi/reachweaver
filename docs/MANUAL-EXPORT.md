@@ -180,11 +180,26 @@ Any future adapter needs its own security review and must keep human approval, d
 
 ## After you post a package by hand
 
-`manual-export` cannot see what you do with the package. Once you have posted it yourself, record it with `reachweaver mark-shared --platform P --video FILE --text "..."`, so the [repeat guard](REPEAT-GUARD.md) warns you if the same video or wording is about to go out again on that platform.
+`manual-export` cannot see what you do with the package. Once you have posted it yourself, record it from its link with `reachweaver posted LINK --likes N` (see [below](#measure-posts-you-shared-by-hand)), or with `reachweaver mark-shared --platform P --video FILE --text "..." --url LINK` to also remember the video file, so the [repeat guard](REPEAT-GUARD.md) warns you if the same video or wording is about to go out again on that platform.
 
 ## Measure posts you shared by hand
 
-Add the link of the post you published (and, if you like, the account and the time you posted it):
+The short way is one command with the link to your post and the numbers you see in the app:
+
+```bash
+reachweaver posted https://bsky.app/profile/you.bsky.social/post/3kabc --likes 12 --replies 3 --reposts 2
+reachweaver posted https://www.instagram.com/p/ABC123/ --likes 40 --views 900 --at yesterday --text "Behind the scenes"
+```
+
+- **Network.** Taken from the link's address: bsky.app (Bluesky), instagram.com, linkedin.com, tiktok.com, youtube.com and youtu.be, threads.net and threads.com, x.com and twitter.com, facebook.com, t.me (Telegram), dev.to, reddit.com, pinterest.com, hashnode.com and hashnode.dev, and the `server` of a Mastodon account in your accounts file. For any other address ReachWeaver asks you for `--platform` (with the list of names); it never guesses and never opens the link.
+- **Account.** The account in your accounts file whose handle the link names, else your only account on that network. If you have several and the link does not say which, it asks for `--account` and lists them. With none, the post is recorded as posted by you without an account, and the output says so.
+- **Numbers.** `--likes`, `--replies`, `--reposts` and `--views` are stored as you typed them (source `entered-by-hand`, observed now). A number you leave out stays unknown, never 0. A wrong value stops the command before anything is written.
+- **Update later.** Run `posted` with the same link and new numbers: it adds them to the post you already recorded ("Updated numbers for ... on Bluesky") instead of recording it twice. This also works for a post ReachWeaver sent.
+- **Text.** `--text` is optional. Without it, reports name the post by a short form of its link, and the [repeat guard](REPEAT-GUARD.md) has no wording to compare later drafts with; add `--text` (or use `mark-shared` with `--file`, `--image` or `--video`) when you want that check.
+
+`posted` makes the same `published_manual` record as `mark-shared --url` below, with the same limits: it can never be approved, scheduled or sent.
+
+The longer way, `mark-shared`, also records images, videos and links for the repeat guard. Add the link of the post you published (and, if you like, the account and the time you posted it):
 
 ```bash
 reachweaver mark-shared --platform mastodon --account my-masto \

@@ -27,10 +27,16 @@ REPORT = "reachweaver report --since 30d --format markdown"
 REPORT_WEEK = "reachweaver report --week"
 NEXT = "reachweaver next"
 INSIGHTS = "reachweaver insights"
+POSTED = "reachweaver posted LINK --likes N"
 
 
 def _step(label: str, command: str | None = None, note: str | None = None) -> dict:
     return {"label": label, "command": command, "note": note}
+
+
+def _posted_step() -> dict:
+    return _step("Posted something yourself? Record it from its link, with its numbers", POSTED,
+                 "Run it again later with new numbers to update them. Only writes a note on this computer.")
 
 
 def _share_steps() -> list[dict]:
@@ -101,9 +107,9 @@ def _hand_posting_guide(db: str | Path | None, database: Path) -> dict | None:
     if posts:
         steps.append(_step("How your posts did this week", REPORT_WEEK,
                            "A short summary at your terminal; exact numbers from your own records only."))
+    steps.append(_posted_step())
     steps.append(_step("Write another post in your browser and post it by hand", SHARE_WEB,
-                       "After posting, record it so it counts: reachweaver mark-shared --platform NAME --text '...' "
-                       "--url LINK"))
+                       "After posting, record it from its link with 'reachweaver posted' so it counts."))
     steps += [step for step in _no_accounts_steps() if step["command"] not in (SHARE_WEB, SHARE_GUIDE)]
     return {"state": "posting_by_hand", "summary": "You post by hand (no accounts file yet): " + ", ".join(facts) + ".",
             "steps": steps}
@@ -228,6 +234,8 @@ def _build_guide(db: str | Path | None, accounts_path: str | None) -> dict:
         steps.append(_placeholder_step(placeholders, accounts_file))
     if open_ideas:
         steps.append(_ideas_step(open_ideas))
+    if counts.get("published") or counts.get("published_manual"):
+        steps.append(_posted_step())
     if snapshots:
         steps.append(_step(f"See how your posts did ({snapshots} metric snapshot(s) recorded)", REPORT,
                            "Exact numbers from your own records only; a missing number stays unknown."))

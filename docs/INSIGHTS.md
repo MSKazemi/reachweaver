@@ -32,7 +32,7 @@ Only results you recorded yourself:
 - `import-metrics --csv FILE`: a native analytics export.
 - `metrics POST_ID --likes N --replies N --reposts N`: one snapshot by hand, from the app's own insights (recorded now with source `entered-by-hand` unless you give `--observed-at` and `--source`).
 
-When a post has results but none at the matched age (for example you recorded them the day after posting), the text says so plainly: "You recorded results 20 hours after posting; insights compares results about 7 days after posting. Record again around 2026-10-27 or use --age-hours 25." The date is the post's 7-day mark (in `--timezone`); when it has already passed only the `--age-hours` hint is given. The JSON carries the same facts as `cohorts[].results_at_other_ages`. A cohort without an account (a post recorded by hand without `--account`) is shown as "(no account recorded)".
+When a post has results but none at the matched age (for example you recorded them the day after posting), the text says so plainly: "You recorded results 20 hours after posting; insights compares results about 7 days after posting. Record again around 2026-10-27 or use --age-hours 25." The date is the post's 7-day mark (in `--timezone`); when it has already passed only the `--age-hours` hint is given. The JSON carries the same facts as `cohorts[].results_at_other_ages`. A cohort without an account (a post recorded by hand without `--account`) is shown as "posted by you (no account)".
 
 With too little data the command exits 0 and says how to get more. When the database does not exist yet it says so and does not create it.
 

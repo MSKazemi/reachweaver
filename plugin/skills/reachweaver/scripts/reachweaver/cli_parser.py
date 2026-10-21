@@ -350,6 +350,20 @@ def make_parser() -> argparse.ArgumentParser:
                         "'YYYY-MM-DD HH:MM' (your computer's time zone) or ISO 8601 with a timezone; with --url "
                         "this is the post's send time for report --since and insights")
     p.add_argument("--note", default="", help="A short label for yourself")
+    p = sub.add_parser("posted", help="Record a post you made by hand from its link, with its numbers if you have "
+                       "them, in one step; run it again with new numbers to update them; local, never sends")
+    p.add_argument("url", nargs="?", metavar="URL", help="The link of your post (copy it from the app's share menu)")
+    for key in ("likes", "replies", "reposts", "views"):
+        p.add_argument("--" + key, metavar="N",
+                       help=f"{key.capitalize()} you see now: a count, or unknown / suppressed / not_available / "
+                            "delayed / estimated:N")
+    p.add_argument("--text", help="The post text (optional; reports show its first words)")
+    p.add_argument("--at", metavar="WHEN",
+                   help="When you posted it (default: now): now, today, yesterday, YYYY-MM-DD, 'YYYY-MM-DD HH:MM' "
+                        "(your computer's time zone) or ISO 8601 with a timezone")
+    p.add_argument("--account", help="Your account id, when several accounts on that network could have posted it")
+    p.add_argument("--platform", help="The network, when the link's address does not say (e.g. your own "
+                                      "Mastodon server that is not in your accounts file)")
     p = sub.add_parser("disconnect", help="Stop publishing to one account on this installation (#38): tighten-only, local; "
                        "lists the credential variable names and the steps to revoke at the provider; revokes nothing itself")
     p.add_argument("--account", required=True, help="One account id from local ignored config")
@@ -642,7 +656,8 @@ def make_parser() -> argparse.ArgumentParser:
     sub.add_parser("resume", help="Explicitly lift the emergency stop")
     p = sub.add_parser("metrics", help="Record one post's numbers (likes, replies...) that you read in the "
                                         "platform's insights or a native export")
-    p.add_argument("post_id")
+    p.add_argument("post_id", nargs="?", help="The post id ('reachweaver list' shows them); for a post you made "
+                                              "by hand, 'reachweaver posted LINK --likes N' needs no id")
     p.add_argument("--observed-at", default="now", metavar="WHEN",
                    help="When you read the numbers (default: now): now, today, yesterday, YYYY-MM-DD, "
                         "'YYYY-MM-DD HH:MM' (your computer's time zone) or ISO 8601 with a timezone")

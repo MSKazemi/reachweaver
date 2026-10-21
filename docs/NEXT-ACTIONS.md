@@ -9,18 +9,18 @@ For a creator the everyday question is simpler than a ranked review, so `reachwe
 1. **Safety first** (only when present): a send that ended in an unknown state (`dead-letter`), a stalled send (`queue-health`), an approval that no longer matches its post (`review`), a missed schedule, or the emergency stop.
 2. **Drafts waiting** -> `reachweaver review` (your own approval loop; nothing is sent by looking).
 3. **Posts due for their 7-day numbers**: a post 6 to 30 days old with no numbers from day 6 on -> the exact `reachweaver metrics POST_ID --likes N --replies N --reposts N` line (and how many more are due).
-4. **Each open idea by name** (oldest first) -> `reachweaver share --platform <your usual networks> --text '<the idea>'`. "Usual networks" are the ones you posted on most in the last 90 days (posts sent, posts recorded with `mark-shared`), at most three, that `share` accepts and that are not human-only. The idea is quoted with `shlex.quote`, so it is one shell argument whatever it contains. With no posting history yet, or an idea over 280 characters, the step is the browser composer (`share --web --open`). `share` only writes a copy-ready package; nothing is posted.
+4. **Each open idea by name** (oldest first) -> `reachweaver share --platform <your usual networks> --text '<the idea>'`. "Usual networks" are the ones you posted on most in the last 90 days (posts sent, posts recorded with `posted` or `mark-shared`), at most three, that `share` accepts and that are not human-only. The idea is quoted with `shlex.quote`, so it is one shell argument whatever it contains. With no posting history yet, or an idea over 280 characters, the step is the browser composer (`share --web --open`). `share` only writes a copy-ready package; nothing is posted.
 5. **Days since you last posted** on each network you use (`Instagram 8 days ago, Bluesky yesterday`), with the composer when one network has been quiet for 7 days or more.
 6. **The strongest "what works for you" line** from `insights`, when your own results support one (an observation to test, not a cause).
 
-Ideas fill the slots the other steps leave, and at least one idea is shown when you have any. With nothing recorded yet it points at the browser composer and `idea add`.
+Ideas fill the slots the other steps leave, and at least one idea is shown when you have any. With nothing recorded yet it points at the browser composer, `idea add` and `reachweaver posted LINK --likes N` (record a post you made by hand from its link, with its numbers, in one step); while no post is recorded the footer repeats that last line.
 
 ```bash
 reachweaver next
 reachweaver next --json     # schema reachweaver.next.v1
 ```
 
-`--json` keys (stable within `reachweaver.next.v1`; keys may be added, never renamed): `schema`, `generated_at`, `actions[]` (`rank`, `kind` = `safety` | `drafts` | `results_due` | `idea` | `rhythm` | `what_works` | `first_post` | `save_idea`, `text`, `command` or null, `note` or null, `evidence`), `counts` (`open_ideas`, `posts_recorded`, `drafts`, `results_due`), `usual_networks`, `warnings`, `read_only` (always true), `note`.
+`--json` keys (stable within `reachweaver.next.v1`; keys may be added, never renamed): `schema`, `generated_at`, `actions[]` (`rank`, `kind` = `safety` | `drafts` | `results_due` | `idea` | `rhythm` | `what_works` | `first_post` | `save_idea` | `record_post`, `text`, `command` or null, `note` or null, `evidence`), `counts` (`open_ideas`, `posts_recorded`, `drafts`, `results_due`), `usual_networks`, `warnings`, `read_only` (always true), `note`.
 
 `next` reads the ideas inbox and an **existing** database (`mode=ro` plus query-only; a missing one is never created, an older one is never migrated). It drafts, approves, schedules and sends nothing, and it is not a prediction of reach: the order is the fixed rule above. Because it prints your idea text and the first words of your posts, `mcp-serve` does not offer it as a tool (`mcp_server.WITHHELD_COMMANDS`); `suggest --json` stays counts-only.
 

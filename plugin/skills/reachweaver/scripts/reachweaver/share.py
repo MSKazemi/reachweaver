@@ -451,7 +451,9 @@ def _readme(packages: list[tuple[str, dict]], files: list[Path]) -> str:
     lines += [
         "Keep each platform's community rules in mind; do not send bulk unsolicited posts.",
         "No password, session cookie or token is required for this handoff.",
-        "For repeat-post tracking after a manual post, see 'reachweaver mark-shared'.", "",
+        "After you post, record it (and later its numbers) from the link to your post: "
+        "reachweaver posted LINK --likes N. Reports then count it; add --text \"...\" and later "
+        "drafts are also checked against its wording. This only writes a note on your computer.", "",
     ]
     return "\n".join(lines)
 
@@ -598,4 +600,5 @@ def _run(args, skipped: list[str]) -> int:
     print(f"Prepared {len(packages)} private manual packages in {out}")
     print("Start with: " + str(out / "OPEN-FIRST.md"))
     print("NOT PUBLISHED: open each social app and share manually after review.")
+    print("After you post, record it: reachweaver posted LINK --likes N")
     return 0
