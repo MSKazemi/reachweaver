@@ -22,7 +22,7 @@ Your browser should open an address starting with http://127.0.0.1. If it doesn'
 
 **Do not share that session URL.** It contains a random authorization token in the URL fragment. ReachWeaver does not store credentials, cookies or posting tokens for this feature.
 
-**Start from an idea or a text.** `reachweaver share --web --open --idea idea-0a1b2c3d` starts the draft with that open idea's text (the ideas inbox is only read; `reachweaver next` prints this command for each idea), and `--text "..."` does the same with your own words. If the composer already holds a post, nothing is replaced: the terminal says so and the page asks whether to use the text as your caption. Both name the idea by its first words (*Use your idea “Behind the scenes of the speckled mug glaze…” as the caption instead?*), never by its id.
+**Start from an idea or a text.** `reachweaver share --web --open --idea idea-0a1b2c3d` starts the draft with that open idea's text (the ideas inbox is only read; `reachweaver next` prints this command for each idea), and `--text "..."` does the same with your own words. If the composer already holds a post you have not saved, nothing is replaced: the terminal says so and the page asks, at the top of the editor (scrolled into view, with focus on **Use it as my caption**), whether to use the text as your caption; **Keep my draft** leaves it, and Undo brings your caption back. If the editor holds a saved package unchanged (opened or just saved), the idea starts a **new post** with your networks chosen instead, and the page says the saved package is still in **Saved packages**, unchanged. Both name the idea by its first words (*Use your idea “Behind the scenes of the speckled mug glaze…” as the caption instead?*), never by its id.
 
 **On a phone** the brand bar stays at the top while you scroll and, under `studio`, keeps a **Results** link; the short tagline wraps instead of being cut off.
 
@@ -44,7 +44,7 @@ To see how your posts did, run `reachweaver ui` (the read-only dashboard) in a t
 
 ## Look and accessibility
 
-The composer uses the dashboard's colours, font, corner radius and "RW" mark, and follows your system's light or dark setting (`prefers-color-scheme`). The keyboard focus ring has at least 3:1 contrast in both themes; Copied, Saved and Recorded messages go to a screen-reader status region; and on screens narrower than 640 px every button and field is at least 44 px tall. Warnings use plain words, for example *Instagram needs a photo or video. Add it here or attach it in the Instagram app.* instead of the command-line media-manifest wording; the rule behind each message is unchanged.
+The composer uses the dashboard's colours, font, corner radius and "RW" mark, and follows your system's light or dark setting (`prefers-color-scheme`). Under `studio`, the dashboard's **Theme** choice (Settings) travels in the address fragment of its links to the composer (`&theme=dark`, never sent to a server; the two pages are different origins and share no browser storage); the composer keeps it in its own browser storage until the next link brings another choice, and if storage is blocked it follows the system setting. The keyboard focus ring has at least 3:1 contrast in both themes; Copied, Saved and Recorded messages go to a screen-reader status region; and on screens narrower than 640 px every button and field is at least 44 px tall. Warnings use plain words, for example *Instagram needs a photo or video. Add it here or attach it in the Instagram app.* instead of the command-line media-manifest wording; the rule behind each message is unchanged.
 
 ## Your draft is kept, and you can undo
 
@@ -56,7 +56,7 @@ The **Saved packages** section lists every package in state/shares, newest first
 
 - **Open in editor** loads the package back: networks, caption, per-network edits, title, note and attached files. If the editor already holds something, the first click asks you to click again.
 - **Duplicate as new** copies the package into a new one (rechecked against every rule; no network is marked posted in the copy). The copy's name ends in "(copy)", it is listed first with a **New copy** label, and the message names the new folder.
-- After opening a package, preview it, then choose **Save as new package** (always a fresh folder, nothing overwritten) or **Update this package**. Update asks you to confirm, replaces that package's files in one step, and is refused if the package changed since you opened it or if any of its networks is already marked as posted (save as new instead).
+- After opening a package, preview it, then choose **Save as new package** (always a fresh folder, nothing overwritten) or **Update this package**. Update asks you to confirm, replaces that package's files in one step, and is refused if the package changed since you opened it or if any of its networks is already marked as posted (save as new instead). For a package with a network marked as posted the button is disabled with that reason under it, so the confirmation is never offered. Each preview card shows the network's saved state (**Ready to post**, **Posted by you**) only while the editor still holds that package unchanged; after any change it says **Changed, not saved**.
 
 ## Photos and videos
 

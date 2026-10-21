@@ -780,6 +780,19 @@ function command(text) {
 let COMPOSER = null;
 const COMPOSER_URL = /^http:\/\/127\.0\.0\.1:\d{1,5}\/#[A-Za-z0-9_-]{30,}$/;
 function composerHref(ideaId) { return COMPOSER + (ideaId ? "&idea=" + encodeURIComponent(ideaId) : ""); }
+// The composer is another origin (its own port), so it cannot read this page's theme from browser storage: a link to
+// it carries the Settings choice in its fragment ("&theme=dark"), added when the link is followed so a later change
+// counts. The fragment is never sent to a server; the composer keeps the choice and drops it from its address.
+function withTheme(url) {
+  if (!COMPOSER || typeof url !== "string" || !url.startsWith(COMPOSER)) return url;
+  return url.replace(/&theme=[a-z]+/g, "") + "&theme=" + (THEMES.includes(theme) ? theme : "auto");
+}
+function themeOnComposerLink(e) {
+  const a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+  if (a && COMPOSER) { const href = a.getAttribute("href"); if (href && href.startsWith(COMPOSER)) a.setAttribute("href", withTheme(href)); }
+}
+document.addEventListener("click", themeOnComposerLink, true);
+document.addEventListener("auxclick", themeOnComposerLink, true);
 function writeLink(label, ideaId) {
   return h("a", { class: "writebtn", href: COMPOSER ? composerHref(ideaId) : "#/write", rel: COMPOSER ? "noopener noreferrer" : null }, icon("pen"), label);
 }
@@ -1835,7 +1848,7 @@ const PAGES = [["Overview", "#/", "home"], ["Write a new post", "#/write", "pen"
   ["Accounts", "#/accounts", "accounts"], ["Channels", "#/distribution", "channels"], ["Ideas", "#/ideas", "idea"],
   ["Work with Claude", "#/claude", "chat"]];
 let palette = null, palInput = null, palList = null, palItems = [], palSel = 0, palPosts = null, palAt = 0, palOpener = null, palLeaving = false;
-function palGo(target) { palLeaving = true; palette.close(); if (COMPOSER && target.startsWith(COMPOSER)) location.assign(target); else location.hash = target; }
+function palGo(target) { palLeaving = true; palette.close(); if (COMPOSER && target.startsWith(COMPOSER)) location.assign(withTheme(target)); else location.hash = target; }
 // Esc or closing without a choice puts focus back where it was (the Ctrl K button or the field you were in).
 function palReturn() {
   if (palLeaving) { palLeaving = false; return; }
