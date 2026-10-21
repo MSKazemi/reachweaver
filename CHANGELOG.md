@@ -6,7 +6,6 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
-
 ### Added
 
 - **`platform-risk` (new, read-only): how much of your reach depends on one platform.** Per account, per persona and overall, the share of your recorded reach per platform: `--metric views|impressions` at a matched post age (`--age-hours`, default 168; nearest exact snapshot, windowed ones skipped, never summed), else the latest exact value labelled `latest_not_age_matched`. When a platform in a scope has no measured post, the scope falls back to post counts (published posts plus recorded manual shares) and says `FALLBACK`. Concentration: top-platform share, HHI (0-1 and points) and effective platforms, with `concentrated`/`few`/`spread` labels that are editorial thresholds. Owned channels (`site`, `blog`, `newsletter`, `email`, `--owned ID`, owner-stated `--owned-reach NAME=N`/`--owned-posts NAME=N`) give an owned share. Advice lines are hypotheses with a way to check them; `--site`/`--setup` reuse `social-web-plan`'s canonical home. `--json` (kind `reachweaver.platform-risk` v1). Database opened `mode=ro`, never created; no network, queue or send path. Guide: [docs/PLATFORM-RISK.md](docs/PLATFORM-RISK.md).
