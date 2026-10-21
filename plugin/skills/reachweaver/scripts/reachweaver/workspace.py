@@ -341,9 +341,8 @@ def next_steps(root: Path, networks: list[str] | None, accounts_created: bool) -
         return [f"Next: {go}replace the example accounts with yours: reachweaver account-add bluesky (fills the "
                 "bluesky example in place); repeat for each network you use."]
     if networks:
-        lines = [f"Placeholders added for: {', '.join(networks)} (not real accounts yet). Fill each in:"]
-        lines += [f"  reachweaver account-add {network}" for network in networks]
-        return [f"Next: {go}" + lines[0]] + lines[1:]
+        return ([f"Placeholders added for: {', '.join(networks)} (not real accounts yet). Next: {go}fill each in:"]
+                + [f"  reachweaver account-add {network}" for network in networks])
     return [f"No accounts yet. Next: {go}reachweaver account-add bluesky (or instagram, mastodon...; public "
             "details only), or post by hand right away: reachweaver share --guide"]
 
