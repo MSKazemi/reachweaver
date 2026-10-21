@@ -37,6 +37,7 @@ SERVER = "https://social.example.org"
 MASTO = {"id": "my-masto", "platform": "mastodon", "env_prefix": "REACHWEAVER_MM_MASTO", "server": SERVER,
          "handle": "owner"}
 BSKY = {"id": "my-bsky", "platform": "bluesky", "env_prefix": "REACHWEAVER_MM_BSKY", "handle": "owner.bsky.social"}
+# A mock token, so a live run would reach the (mocked) adapter if it ever selected a by-hand record.
 ENV = {**LIVE_ENV, "REACHWEAVER_MM_MASTO_TOKEN": "mock-masto-token"}
 DID = "did:plc:abcdefghijklmnopqrstuvwx"
 TEXT = "We shipped the offline importer today; notes and thanks are in the changelog."
