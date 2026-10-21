@@ -1,0 +1,291 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-10-21",
+  "decision_type": "sourced_protocol_facts_and_editorial_hypotheses",
+  "note": "Open social web snapshot keyed by distribution_registry.json platform ids. Every protocol, federation, bridge and identity fact quotes an official page fetched on checked_on. Recommendations built from it (canonical home, duplicate reach) are editorial hypotheses, not reach forecasts. A platform missing here has no open protocol recorded; that is not a verified absence.",
+  "protocols": [
+    {
+      "id": "activitypub",
+      "label": "ActivityPub (the fediverse)",
+      "network": "fediverse",
+      "sources": [
+        {"url": "https://docs.joinmastodon.org/spec/activitypub/", "quote": "A decentralized social networking protocol based upon the ActivityStreams 2.0 data format and JSON-LD.", "checked_on": "2026-10-21"},
+        {"url": "https://join-lemmy.org/docs/introduction.html", "quote": "The fediverse (“federated universe”) is the name for all instances that can communicate with each other over ActivityPub and the World Wide Web.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "atproto",
+      "label": "AT Protocol (the Atmosphere)",
+      "network": "atmosphere",
+      "sources": [
+        {"url": "https://atproto.com/", "quote": "The AT Protocol is a data network.", "checked_on": "2026-10-21"},
+        {"url": "https://fed.brid.gy/docs", "quote": "Bridgy Fed is a decentralized social network bridge. It connects the fediverse, the web, and the Atmosphere (Bluesky).", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "nostr",
+      "label": "Nostr",
+      "network": "nostr",
+      "sources": [
+        {"url": "https://github.com/nostr-protocol/nostr", "quote": "Nostr - Notes and Other Stuff Transmitted by Relays", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "farcaster",
+      "label": "Farcaster",
+      "network": "farcaster",
+      "sources": [
+        {"url": "https://github.com/farcasterxyz/protocol", "quote": "Farcaster is a protocol for building decentralized social apps.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "matrix",
+      "label": "Matrix",
+      "network": "matrix",
+      "sources": [
+        {"url": "https://matrix.org/", "quote": "An open network for secure, decentralised communication", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "diaspora_federation",
+      "label": "diaspora* federation protocol",
+      "network": "diaspora",
+      "sources": [
+        {"url": "https://diaspora.github.io/diaspora_federation/", "quote": "The purpose of this document is to specify the communications that go on between diaspora* servers (and other servers supporting this protocol).", "checked_on": "2026-10-21"}
+      ]
+    }
+  ],
+  "platforms": [
+    {
+      "id": "mastodon",
+      "protocol": "activitypub",
+      "federation": "native",
+      "federation_note": "Every Mastodon server speaks ActivityPub; people on other fediverse servers can follow the account directly.",
+      "identity_checks": ["mastodon_link_verification", "fediverse_creator"],
+      "sources": [
+        {"url": "https://join-lemmy.org/docs/introduction.html", "quote": "That includes all Lemmy servers, but also other implementations: Mastodon (microblogging) PeerTube (videos)", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "bluesky",
+      "protocol": "atproto",
+      "federation": "native",
+      "federation_note": "Bluesky is built on the AT Protocol. It does not speak ActivityPub itself; reaching the fediverse needs an opt-in bridge such as Bridgy Fed.",
+      "identity_checks": ["bluesky_domain_handle"],
+      "sources": [
+        {"url": "https://docs.bsky.app/", "quote": "Backed by AT Protocol.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "threads",
+      "protocol": "activitypub",
+      "federation": "opt_in",
+      "federation_note": "Fediverse sharing is an account setting the owner turns on; Meta's June 25, 2024 update called it a beta, for users 18 and up with public profiles. Its current status was not re-verified.",
+      "identity_checks": ["fediverse_creator"],
+      "sources": [
+        {"url": "https://about.fb.com/news/2023/07/introducing-threads-new-app-text-sharing/", "quote": "Threads users who turn on sharing to the fediverse can see and like replies from people on other servers, like Mastodon, directly in Threads.", "checked_on": "2026-10-21"},
+        {"url": "https://about.fb.com/news/2023/07/introducing-threads-new-app-text-sharing/", "quote": "To turn on sharing to the fediverse, go to your Account Settings, tap on Fediverse sharing (Beta) and follow the instructions.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "ghost",
+      "protocol": "activitypub",
+      "federation": "native",
+      "federation_note": "Ghost 6 builds ActivityPub distribution into the publication. Whether a given Ghost site runs version 6 and has the feature on was not checked.",
+      "identity_checks": ["fediverse_creator"],
+      "sources": [
+        {"url": "https://ghost.org/changelog/6/", "quote": "Distribution is now built-in.", "checked_on": "2026-10-21"},
+        {"url": "https://ghost.org/changelog/6/", "quote": "Now they're built directly into Ghost on top of an open protocol called ActivityPub.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "flipboard",
+      "protocol": "activitypub",
+      "federation": "rollout",
+      "federation_note": "Flipboard federated accounts in phases starting in December 2023. Whether a particular Flipboard account is federated today is unverified.",
+      "identity_checks": ["fediverse_creator"],
+      "sources": [
+        {"url": "https://about.flipboard.com/inside-flipboard/flipboard-begins-to-federate/", "quote": "Today we are beginning to open Flipboard to the Fediverse, a rapidly emerging part of the Web that includes social services like Mastodon, Threads, Pixelfed, Firefish and PeerTube, all built on a revolutionary open protocol called ActivityPub.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "pixelfed",
+      "protocol": "activitypub",
+      "federation": "native",
+      "federation_note": "Photo sharing on the fediverse.",
+      "identity_checks": ["fediverse_creator"],
+      "sources": [
+        {"url": "https://about.flipboard.com/inside-flipboard/flipboard-begins-to-federate/", "quote": "social services like Mastodon, Threads, Pixelfed, Firefish and PeerTube, all built on a revolutionary open protocol called ActivityPub", "checked_on": "2026-10-21"},
+        {"url": "https://github.com/pixelfed/pixelfed", "quote": "Topics activitypub federation fediverse", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "lemmy",
+      "protocol": "activitypub",
+      "federation": "native",
+      "federation_note": "Federated link aggregation and discussion communities; community rules apply per instance.",
+      "identity_checks": [],
+      "sources": [
+        {"url": "https://join-lemmy.org/docs/introduction.html", "quote": "Lemmy uses a standardized, open protocol to implement federation which is called ActivityPub.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "misskey",
+      "protocol": "activitypub",
+      "federation": "native",
+      "federation_note": "Misskey servers federate over ActivityPub.",
+      "identity_checks": ["fediverse_creator"],
+      "sources": [
+        {"url": "https://misskey-hub.net/en/docs/about-misskey/", "quote": "Misskey was not always a decentralized service, but became decentralized through the adoption of ActivityPub in 2018.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "peertube",
+      "protocol": "activitypub",
+      "federation": "native",
+      "federation_note": "PeerTube channels can be followed from other ActivityPub platforms.",
+      "identity_checks": ["fediverse_creator"],
+      "sources": [
+        {"url": "https://joinpeertube.org/", "quote": "It's based on ActivityPub to connect with tools like Mastodon for example.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "nostr",
+      "protocol": "nostr",
+      "federation": "native",
+      "federation_note": "Posts go to relays the user chooses. Bridgy Fed does not support Nostr (its docs say it is being considered).",
+      "identity_checks": [],
+      "sources": [
+        {"url": "https://github.com/nostr-protocol/nostr", "quote": "Nostr - Notes and Other Stuff Transmitted by Relays", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "farcaster",
+      "protocol": "farcaster",
+      "federation": "native",
+      "federation_note": "Farcaster apps share one protocol. Bridgy Fed does not support Farcaster (its docs say it is being considered).",
+      "identity_checks": [],
+      "sources": [
+        {"url": "https://github.com/farcasterxyz/protocol", "quote": "Farcaster is a protocol for building decentralized social apps.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "matrix",
+      "protocol": "matrix",
+      "federation": "native",
+      "federation_note": "Federated chat rooms, not a broadcast feed; the distribution registry keeps Matrix rooms human-only.",
+      "identity_checks": [],
+      "sources": [
+        {"url": "https://matrix.org/", "quote": "An open network for secure, decentralised communication", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "diaspora",
+      "protocol": "diaspora_federation",
+      "federation": "native",
+      "federation_note": "diaspora* pods federate with their own protocol. Whether a pod also speaks ActivityPub was not checked.",
+      "identity_checks": [],
+      "sources": [
+        {"url": "https://diaspora.github.io/diaspora_federation/", "quote": "The purpose of this document is to specify the communications that go on between diaspora* servers (and other servers supporting this protocol).", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "minds",
+      "protocol": "activitypub",
+      "federation": "unverified",
+      "federation_note": "Minds' own home page claims ActivityPub interoperability for its Networks product. Whether an ordinary Minds account federates, and whether by default, is unverified.",
+      "identity_checks": [],
+      "sources": [
+        {"url": "https://www.minds.com/", "quote": "Interoperable with web2 and web3 protocols like ActivityPub, RSS, DNS, Bitcoin, Ethereum, Stripe and more.", "checked_on": "2026-10-21"}
+      ]
+    }
+  ],
+  "bridges": [
+    {
+      "id": "bridgy_fed",
+      "label": "Bridgy Fed",
+      "connects": ["web", "fediverse", "atmosphere"],
+      "opt_in": true,
+      "mode": "mirror_existing_account",
+      "mode_note": "Bridgy Fed mirrors one existing account into the other networks under a new bridged handle. It does not copy posts between two accounts you already have, so a native Mastodon account and a bridged Bluesky account are two separate presences in the fediverse.",
+      "enable": {
+        "atmosphere": "Log in at fed.brid.gy and click Enable, or follow @ap.brid.gy on Bluesky. The account then appears in the fediverse as @[handle]@bsky.brid.gy.",
+        "fediverse": "Log in at fed.brid.gy and click Enable, or follow @bsky.brid.gy@bsky.brid.gy from the fediverse account and accept its follow back.",
+        "web": "Enter the site at fed.brid.gy. Fediverse users then find it as @[domain]@web.brid.gy (or @[domain]@[domain] / @[domain]@fed.brid.gy)."
+      },
+      "disable": "Block the Bridgy Fed bot for the network you want to leave: @bsky.brid.gy@bsky.brid.gy on the fediverse, @ap.brid.gy on Bluesky.",
+      "not_supported": ["nostr", "farcaster"],
+      "sources": [
+        {"url": "https://fed.brid.gy/docs", "quote": "Bridgy Fed is opt in.", "checked_on": "2026-10-21"},
+        {"url": "https://fed.brid.gy/docs", "quote": "Bridgy Fed doesn't cross-post (ie copy posts) between separate accounts. Instead, it federates, or mirrors, your existing accounts into other networks.", "checked_on": "2026-10-21"},
+        {"url": "https://fed.brid.gy/docs", "quote": "Can I use this to bridge two existing accounts that I already have? Sorry, no, Bridgy Fed doesn't support this.", "checked_on": "2026-10-21"},
+        {"url": "https://fed.brid.gy/docs", "quote": "Alternatively, you can bridge your account by following @ap.brid.gy on the Atmosphere.", "checked_on": "2026-10-21"},
+        {"url": "https://fed.brid.gy/docs", "quote": "Bridgy Fed currently supports the web, fediverse, and the Atmosphere (Bluesky). We're considering adding more networks, including Farcaster and Nostr.", "checked_on": "2026-10-21"}
+      ]
+    }
+  ],
+  "identity_checks": [
+    {
+      "id": "fediverse_creator",
+      "label": "fediverse:creator author tag on your article pages",
+      "action": "Add <meta name=\"fediverse:creator\" content=\"@you@your.server\"> to the <head> of pages you publish, so Mastodon credits your fediverse account when the link is shared. Mastodon shows the exact code under Preferences > Public profile > Verification > Author attribution.",
+      "sources": [
+        {"url": "https://blog.joinmastodon.org/2024/07/highlighting-journalism-on-mastodon/", "quote": "The handle can be any fediverse account, not just Mastodon. That includes Flipboard, Threads, WordPress (with the ActivityPub plugin installed), PeerTube, Pixelfed, and many others.", "checked_on": "2026-10-21"},
+        {"url": "https://docs.joinmastodon.org/user/profile/", "quote": "This is possible by including a fediverse:creator tag in the HTML code of the websites where your work is published.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "mastodon_link_verification",
+      "label": "Verified link (rel=\"me\") between your site and your Mastodon profile",
+      "action": "Put your site's HTTPS URL in the Mastodon profile metadata and link back from the site to the profile with rel=\"me\"; Mastodon then shows a verification checkmark next to that link.",
+      "sources": [
+        {"url": "https://docs.joinmastodon.org/user/profile/", "quote": "If you put an HTTPS link in your profile metadata, Mastodon checks if that link resolves to a web page that links back to your Mastodon profile with a special rel=me attribute.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "bluesky_domain_handle",
+      "label": "Your own domain as your Bluesky handle",
+      "action": "In Bluesky: Settings > Account > Handle > I have my own domain, then add the _atproto TXT record it shows (did=did:plc:...) at your DNS host and click Verify DNS Record.",
+      "sources": [
+        {"url": "https://bsky.social/about/blog/4-28-2023-domain-handle-tutorial", "quote": "On Bluesky, you can set your website as your username. This is one form of verification on Bluesky.", "checked_on": "2026-10-21"},
+        {"url": "https://bsky.social/about/blog/4-28-2023-domain-handle-tutorial", "quote": "Set the domain: _atproto Set the type: TXT", "checked_on": "2026-10-21"}
+      ]
+    }
+  ],
+  "home_options": [
+    {
+      "id": "ghost",
+      "label": "Ghost 6 site or newsletter (ActivityPub built in)",
+      "reaches": ["web", "fediverse"],
+      "sources": [
+        {"url": "https://ghost.org/changelog/6/", "quote": "Distribution is now built-in.", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "wordpress_activitypub",
+      "label": "WordPress site with the ActivityPub plugin",
+      "reaches": ["web", "fediverse"],
+      "sources": [
+        {"url": "https://wordpress.org/plugins/activitypub/", "quote": "With the ActivityPub plugin installed, your WordPress blog itself functions as a federated profile", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "bridgy_fed_web",
+      "label": "Any web site bridged with Bridgy Fed (opt-in)",
+      "reaches": ["web", "fediverse", "atmosphere"],
+      "sources": [
+        {"url": "https://fed.brid.gy/docs", "quote": "Bridged web sites appear in the fediverse as either @[domain]@[domain], @[domain]@web.brid.gy, or @[domain]@fed.brid.gy", "checked_on": "2026-10-21"}
+      ]
+    },
+    {
+      "id": "plain",
+      "label": "Owned web site without a protocol connection",
+      "reaches": ["web"],
+      "sources": []
+    }
+  ],
+  "canonical_home_policy": {
+    "status": "editorial_hypothesis",
+    "rationale": "Publish the full piece first at an address you control (your site, newsletter or ActivityPub blog), then share it on the networks. An owned address keeps working if a network changes its rules or algorithm, and with ActivityPub (Ghost 6, the WordPress plugin) or Bridgy Fed it can also be followed from the fediverse and Bluesky. This is a planning heuristic, not a measured reach result."
+  }
+}

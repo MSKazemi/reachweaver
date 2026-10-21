@@ -160,6 +160,7 @@ Several drafts waiting? `reachweaver review` walks them one by one in your termi
 | Post to a network ReachWeaver cannot send to | [Manual export](docs/MANUAL-EXPORT.md) |
 | Plan a campaign from evidence | [Schemas](docs/SCHEMAS.md), [campaign preview](docs/CAMPAIGN-PREVIEW.md), [claim grounding](docs/CLAIM-GROUNDING.md), [release to draft](docs/RELEASE-TO-DRAFT.md), [review packets](docs/REVIEW-PACKET.md) |
 | Pick channels for a region or goal | `reachweaver distribution-plan`, [global strategy](docs/GLOBAL-DISTRIBUTION-2026-10-08.md) |
+| Reach the fediverse and Bluesky without double posting | `reachweaver social-web-plan`, [open social web](docs/OPEN-SOCIAL-WEB.md) |
 | Measure what worked | [Attribution](docs/ATTRIBUTION.md), [growth experiments](docs/GROWTH-EXPERIMENTS.md), [weekly report example](docs/WEEKLY-REPORT-EXAMPLE.md) |
 | Run it unattended on a server | [Worker operations](docs/WORKER-OPERATIONS.md) |
 | Understand how it works inside | [Architecture](docs/ARCHITECTURE.md), [security policy](docs/SECURITY.md) |
@@ -350,6 +351,7 @@ reachweaver signal-brief --scan SCAN.json --signal-id ID --brand B --out CAMPAIG
 reachweaver release-brief (--release RELEASE.json | --changelog CHANGELOG.md --version X.Y.Z) [--repo OWNER/NAME] --out NEW_DIR [--brand B --accounts A] [--objective O] [--campaign ID] [--json]  offline: a saved GitHub release (gh api ... > release.json) -> NEW campaign folder + brief.md; release text is untrusted data; BLOCKED until you write and verify; workflow template in examples/github-workflows/ (docs/RELEASE-TO-DRAFT.md)
 reachweaver capabilities [--platform P] [--json] [--max-age-days 120]  offline capability/API-approval registry (docs/PLATFORMS.md)
 reachweaver distribution-plan --region R --goal G [--limit N] [--date D --timezone TZ] [--json]  offline worldwide channel hypotheses; never schedules or posts
+reachweaver social-web-plan [--setup FILE] [--presence P]... [--bridged ID]... [--fediverse-sharing ID]... [--site URL [--site-kind K]] [--json]  offline open social web map: protocols, bridges, canonical home, duplicate reach, identity checklist; never sends (docs/OPEN-SOCIAL-WEB.md)
 reachweaver account-advisor [--region R] [--goal G] [--format F] [--weekly-hours N] [--limit N] [--existing ID]... [--setup ID [--brand B] [--audience A] [--language L]] [--json]  offline shortlist of platforms to start, from the distribution registry; --setup prints the official start page, the steps you do yourself and a coaching prompt for a normal Claude chat that never opens the site; creates and connects no account (docs/ACCOUNT-ADVISOR.md)
 reachweaver profile [--init [--persona ID]...] [--show] [--check] [--set PATH=VALUE]... [--handle PLATFORM:PERSONA=NAME[:STATUS]]...  your private profile (personas, a username per network, sign-up details); local file, never holds passwords (docs/PERSONAS-AND-ACCOUNT-KIT.md)
 reachweaver account-route --platform P [--persona ID] [--json]  which account and username to use for a persona on a network, and which account to switch to; offline

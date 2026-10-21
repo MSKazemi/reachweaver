@@ -117,6 +117,22 @@ def _accounts(args):
         raise
 
 
+def _social_web_plan(args) -> int:
+    """Offline open social web map (social_web.py): reads public account metadata only; no queue, no network."""
+    from . import social_web
+    try:
+        accounts, state = load_accounts(args.social_accounts or args.accounts), "loaded"
+    except ValidationError as exc:
+        if not str(exc).startswith("Missing "):
+            raise
+        accounts, state = {}, "missing"
+    plan = social_web.build_plan(accounts, setup=social_web.load_setup(args.setup), bridged=args.bridged,
+                                 presence=args.presence, fediverse_sharing=args.fediverse_sharing,
+                                 site_url=args.site, site_kind=args.site_kind, accounts_file=state)
+    print(json.dumps(plan, indent=2, ensure_ascii=False) if args.json else social_web.render_text(plan))
+    return 0
+
+
 def journal_statuses() -> tuple[str, ...]:
     return _JOURNAL_STATUSES
 
@@ -1527,6 +1543,8 @@ def execute(args) -> int:
     if args.command in ("voice-profile", "voice-check"):  # database only through connect_readonly; never written
         from .voice import run_command as run_voice
         return run_voice(args)
+    if args.command == "social-web-plan":
+        return _social_web_plan(args)
     if args.command == "account-advisor":
         from .account_advisor import advise as advise_accounts, render_text as advisor_render
         plan = advise_accounts(region=args.region, goal=args.goal, content_format=args.format,

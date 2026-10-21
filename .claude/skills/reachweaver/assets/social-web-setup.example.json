@@ -1,0 +1,13 @@
+{
+  "schema": "reachweaver.social-web-setup.v1",
+  "note": "Synthetic example. Everything here is your own statement about your setup; ReachWeaver does not check it online.",
+  "site": {"url": "https://example.org", "kind": "ghost"},
+  "presence": [
+    {"platform": "pixelfed", "id": "my-pixelfed", "handle": "@example@pixelfed.example"}
+  ],
+  "bridges": [
+    {"bridge": "bridgy_fed", "account": "my-bluesky"}
+  ],
+  "fediverse_sharing": [],
+  "identity": {"fediverse_creator": false, "mastodon_link_verification": true}
+}
