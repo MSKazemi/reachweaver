@@ -12,6 +12,11 @@ It is ``mark-shared --url`` plus ``metrics`` for a person who just posted in an 
   ``published_manual`` record as ``mark-shared --url``: it can never be approved, scheduled or sent). A link that
   is already recorded (by hand or by a ReachWeaver send) is not recorded again: the numbers are ADDED to that post
   with ``storage.store_metrics`` (source ``entered-by-hand``, observed now), which is how you update them later.
+* **When**: ``--at``; without it a person at a terminal is asked (Enter = today) and a script gets now, with the
+  output saying "posted today (DATE) — if not, run again with --at yesterday".
+* **Corrections** (2026-10-21): ``--at``, ``--text`` or ``--account`` again on a link recorded BY HAND corrects
+  that ``published_manual`` record (``storage.correct_manual_publish``: same row, still never sendable, one
+  ``manual_publish_corrected`` event). A post ReachWeaver sent (``published``) is never changed: only numbers.
 * Metric values are checked before anything is written, so a bad value leaves the database unchanged.
 
 It never writes the send queue, never approves and never contacts a network.
@@ -176,8 +181,72 @@ def _numbers_line(values: dict, sent: datetime | None, observed: datetime) -> st
     return line
 
 
+WHEN_PROMPT = "When did you post it? [today] (e.g. yesterday, 2026-10-19): "
+WHEN_ATTEMPTS = 3
+
+
+def ask_when() -> str | None:
+    """At a terminal without ``--at``: when the post went up. ``None`` (Enter, today or now) means now."""
+    from .when import parse_when
+    for _ in range(WHEN_ATTEMPTS):
+        try:
+            answer = input(WHEN_PROMPT).strip()
+        except EOFError:
+            raise ValidationError("Input ended. Nothing recorded") from None
+        if answer.casefold() in ("", "today", "now"):
+            return None
+        try:
+            return parse_when(answer, what="That date")
+        except ValidationError as exc:
+            print(f"{exc}. Try again (Enter means today).")
+    raise ValidationError("No usable date given. Nothing recorded; add --at yesterday (or --at YYYY-MM-DD)")
+
+
+def _interactive() -> bool:
+    import sys
+
+    from . import term
+    return term.interactive(sys.stdin) and term.interactive(sys.stdout)
+
+
+def _correct(db, post, url: str, platform: str, args, accounts: dict, placeholders) -> list[str]:
+    """``posted LINK --at/--text/--account`` on a link already recorded: the lines to print.
+
+    A post recorded BY HAND (``published_manual``) is corrected (``storage.correct_manual_publish``); a post
+    ReachWeaver sent keeps its record and the person is told that only numbers can be added."""
+    from . import results
+    from .storage import correct_manual_publish, is_manual
+    if not is_manual(post):
+        return ["ReachWeaver sent this post itself, so its time, text and account stay as recorded; only its "
+                "numbers can be added."]
+    posted_at = None
+    if args.at is not None:
+        from .when import parse_when
+        posted_at = parse_when(args.at, what="--at")
+    account_id = None
+    extra: dict = {}
+    if args.account is not None:
+        account_id, _ = pick_account(platform, url, accounts, args.account, placeholders)
+        from .metrics_fetch import platform_id_from_url
+        extra["remote_id"] = platform_id_from_url(platform, url, accounts.get(account_id) if account_id else None)
+    changed = correct_manual_publish(db, post["id"], posted_at=posted_at, content=args.text,
+                                     account_id=account_id, **extra)["changed"]
+    lines = []
+    if "send_started_at" in changed:
+        old, new = (results.to_time(value) for value in changed["send_started_at"])
+        was = f" (was {results.local_date(old)})" if old else ""
+        lines.append(f"Corrected: posted {results.local_date(new) if new else 'now'}{was}.")
+    if "content" in changed:
+        lines.append(f"Corrected the text: \"{results.first_words(args.text or '')}\".")
+    if "account_id" in changed:
+        lines.append(f"Corrected the account: {account_id}.")
+    if not lines:
+        lines.append("The date, text and account were already as given; nothing to correct.")
+    return lines
+
+
 def run(args, accounts: dict, placeholders: list[str]) -> int:
-    """The ``posted`` command. Prints 2-4 plain lines and the next step."""
+    """The ``posted`` command. Prints 2-5 plain lines and the next step."""
     from . import results
     from .storage import (_atomic, connect, find_manual_duplicate, get_post, manual_url_problem, parse_utc,
                           record_manual_publish, store_metrics, utc_now)
@@ -206,29 +275,44 @@ def run(args, accounts: dict, placeholders: list[str]) -> int:
     name = results.platform_name(platform)
     again = f"reachweaver posted {shlex.quote(url)} --likes N"
     observed = parse_utc(utc_now())
+    corrections = args.text is not None or args.at is not None or args.account is not None
     with connect(args.db) as db:
         existing = find_manual_duplicate(db, platform, url)
         if existing is not None:
             post = get_post(db, existing)
-            label = _label(name, post["content"] or "", url)
-            if not values:
-                print(f"Already recorded: {label} (post {existing}). Nothing changed.")
+            if not values and not corrections:
+                print(f"Already recorded: {_label(name, post['content'] or '', url)} (post {existing}). "
+                      "Nothing changed.")
                 print(f"Add its numbers: {again} --replies N --reposts N --views N")
+                if post["status"] == "published_manual":  # only a by-hand record can be corrected
+                    print(f"Posted on another day? Correct it: reachweaver posted {shlex.quote(url)} --at yesterday")
                 return 0
-            with _atomic(db):
-                store_metrics(db, existing, observed, results.HAND_ENTERED_SOURCE, **values)
-            print(f"Updated numbers for {label}.")
-            print(_numbers_line(values, results.to_time(post["send_started_at"]),
-                                datetime.fromisoformat(observed)))
-            if args.text is not None or args.at is not None or args.account is not None:
-                print("The post itself was already recorded, so --text, --at and --account were not changed.")
+            fixed = _correct(db, post, url, platform, args, accounts, placeholders) if corrections else []
+            post = get_post(db, existing)
+            label = _label(name, post["content"] or "", url)
+            if values:
+                with _atomic(db):
+                    store_metrics(db, existing, observed, results.HAND_ENTERED_SOURCE, **values)
+            print(f"Updated numbers for {label}." if values else f"Updated {label}.")
+            for line in fixed:
+                print(line)
+            sent = results.to_time(post["send_started_at"])
+            if values:
+                print(_numbers_line(values, sent, datetime.fromisoformat(observed)))
+            elif args.at is not None and sent is not None and post["status"] == "published_manual" and \
+                    results.hours_between(sent, datetime.fromisoformat(observed)) < results.DUE_AFTER_HOURS:
+                again = results.local_date(sent + timedelta(hours=results.MATCH_AGE_HOURS))
+                print(f"For the 7-day comparison, record its numbers around {again}.")
             print(f"Next: {NEXT_STEP}")
             return 0
     account_id, account_note = pick_account(platform, url, accounts, args.account, placeholders)
     posted_at = None
+    asked = False
     if args.at is not None:
         from .when import parse_when
         posted_at = parse_when(args.at, what="--at")
+    elif _interactive():
+        posted_at, asked = ask_when(), True
     from .metrics_fetch import platform_id_from_url
     remote_id = platform_id_from_url(platform, url, accounts.get(account_id) if account_id else None)
     content = args.text or ""
@@ -239,7 +323,11 @@ def run(args, accounts: dict, placeholders: list[str]) -> int:
             with _atomic(db):
                 store_metrics(db, made["post_id"], observed, results.HAND_ENTERED_SOURCE, **values)
         sent = results.to_time(get_post(db, made["post_id"])["send_started_at"])
-    when = results.local_date(sent) if sent else "now"
+    day = results.local_date(sent) if sent else "now"
+    if posted_at is None:  # "today": say so, and when nobody was asked, how to correct it
+        when = f"today ({day})" + ("" if asked else " — if not, run again with --at yesterday")
+    else:
+        when = day
     who = f" as {account_id}" if account_id else ""
     print(f"Recorded {_label(name, content, url)}, posted {when}{who} (post {made['post_id']}). "
           "Only noted on this computer; nothing was posted or sent.")
@@ -251,3 +339,4 @@ def run(args, accounts: dict, placeholders: list[str]) -> int:
         print(f"No numbers yet. When you have them: {again} --replies N --reposts N --views N")
     print(f"Next: {NEXT_STEP}")
     return 0
+

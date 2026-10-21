@@ -217,7 +217,8 @@ def render_text(result: dict, posts: list[dict] | None = None, *, window_label: 
         summary += " · " + " · ".join(totals)
     if ranked:
         best = ranked[0]
-        summary += (f" · best: \"{best['first_words']}\" on {res.platform_name(best['platform'])} "
+        where = f" on {res.platform_name(best['platform'])}" if best.get("titled", True) else ""  # label names it
+        summary += (f" · best: {res.quoted_title(best)}{where} "
                     f"({res.numbers_text(best['numbers'], ('likes', 'replies', 'reposts'))})")
     lines = [summary, ""]
     width = max(8, *(len(res.platform_name(p)) for p in platforms))
@@ -231,7 +232,7 @@ def render_text(result: dict, posts: list[dict] | None = None, *, window_label: 
         lines += ["", "Top posts by interactions (likes + replies + reposts recorded):"]
         for number, row in enumerate(ranked[:TOP_POSTS], 1):
             when = (row["posted_at"] or "")[:10]
-            lines.append(f"  {number}. {row['interactions']:>5}  \"{row['first_words']}\"  "
+            lines.append(f"  {number}. {row['interactions']:>5}  {res.quoted_title(row)}  "
                          f"{res.platform_name(row['platform'])}, {res.account_label(row['account_id'], handles)}, {when}  "
                          f"[{row['post_id']}]")
     missing = [row for row in posts if row["observed_at"] is None]
@@ -240,7 +241,7 @@ def render_text(result: dict, posts: list[dict] | None = None, *, window_label: 
                   f"  {res.metrics_command(missing[0]['post_id'])}"]
     if due:
         lines += ["", f"Ready for their 7-day numbers ({len(due)}):"]
-        lines += [f"  \"{item['first_words']}\" ({res.platform_name(item['platform'])}, posted "
+        lines += [f"  {res.quoted_title(item)} ({res.platform_name(item['platform'])}, posted "
                   f"{item['days_since_posting']} days ago): {item['command']}" for item in due[:TOP_POSTS]]
     if early:
         lines += ["", early]

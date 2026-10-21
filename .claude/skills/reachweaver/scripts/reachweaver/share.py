@@ -65,8 +65,8 @@ TIPS = {
 }
 TIP_LABEL = "Tip (from ReachWeaver's sourced notes; a suggestion, not a promise of reach): "
 YOUTUBE_TITLE_SHARE = 'YouTube needs a video title: add --title "…"'
-MEDIA_CHECK_NOTE = ("Media header checks ran offline from --attach; alt text, captions, rights and consent "
-                    "were not checked (a media manifest with media-check covers those)")
+MEDIA_CHECK_NOTE = ("These checks read only the file header, on this computer; alt text, captions, rights and "
+                    "consent are yours to check")
 
 
 def api_text_platforms() -> tuple[str, ...]:
@@ -135,6 +135,8 @@ def _guided(args) -> list[str]:
     human = _human_only()
     if any(p not in human for p in selected) and args.text is None and args.file is None:
         args.text = _ask_caption()
+    elif args.guide and args.text is not None and any(p not in human for p in selected):
+        args.text = _keep_or_edit_caption(args.text)  # share --guide --text '<idea>' (from `next`): a prefill
     if any(p not in human for p in selected) and not args.attach:
         attach = _ask_attachment()
         if attach is not None:
@@ -143,8 +145,37 @@ def _guided(args) -> list[str]:
         print("For communities, you write the final post yourself. Only short notes are prepared.")
         args.note = [_ask("One short reminder or idea: ")]
     if "youtube" in selected and not args.title:
-        args.title = _ask("YouTube video title: ")
+        args.title = _ask_youtube_title()
     return selected
+
+
+YOUTUBE_TITLE_PROMPT = "YouTube video title (required for YouTube; Enter skips YouTube): "
+YOUTUBE_GUIDE_SKIP = "YouTube skipped (no title). Run reachweaver share --guide again and choose only YouTube to add it."
+
+
+def _ask_youtube_title() -> str | None:
+    """The title YouTube requires; an empty answer asks once more, a second one skips YouTube (None)."""
+    title = _ask(YOUTUBE_TITLE_PROMPT)
+    if not title:
+        print("YouTube needs a title: the caption becomes its description. Type one, or press Enter again to skip "
+              "YouTube.")
+        title = _ask(YOUTUBE_TITLE_PROMPT)
+    return title or None
+
+
+def _keep_or_edit_caption(text: str) -> str:
+    """``share --guide --text``: show the given caption and ask to keep it (Enter) or write a new one."""
+    print("Your caption:")
+    for line in text.splitlines() or [""]:
+        print("  " + line)
+    for _ in range(GUIDE_ATTEMPTS):
+        answer = _ask("Keep this caption? [Y = keep / e = edit]: ").casefold()
+        if answer in ("", "y", "yes", "k", "keep"):
+            return text
+        if answer in ("e", "edit", "n", "no"):
+            return _ask_caption()
+        print("Press Enter to keep it, or type e to write a new one.")
+    raise ValidationError("No answer. Nothing was written")
 
 
 GUIDE_ATTEMPTS = 5  # wrong answers in a row before the guide stops (nothing is written)
@@ -271,8 +302,13 @@ def media_findings(files: list[Path], platforms: list[str]) -> dict[str, list[di
     return findings
 
 
+MEDIA_NOT_READ = "some details could not be checked from the file header (that's normal)"
+
+
 def _media_lines(rows: list[dict]) -> list[str]:
-    """Plain warnings for the package: each file, what was found and what was not checked."""
+    """Plain warnings for the package: per file, only the problems found (and sourced advice), else that none was
+    found, plus one line when some details could not be read. The checker's field names are never shown
+    (2026-10-21 UX re-measure: "moov_before_mdat" and "size unknown" read as errors next to "no problem")."""
     lines = []
     for row in rows:
         name = Path(row["path"]).name
@@ -280,15 +316,16 @@ def _media_lines(rows: list[dict]) -> list[str]:
         if row["kind"] is None:
             lines.append(f"Media {name}: " + "; ".join(row["notes"]))
             continue
-        shape = (f"{detected['width']}x{detected['height']}" if detected["width"] != "unknown" else "size unknown")
-        if row["kind"] == "video":
-            shape += (f", {detected['duration_seconds']}s" if detected["duration_seconds"] != "unknown"
-                      else ", duration unknown")
-        head = f"Media {name} ({detected['container']}, {shape})"
+        known = []
+        if detected["width"] != "unknown" and detected["height"] != "unknown":
+            known.append(f"{detected['width']}x{detected['height']}")
+        if row["kind"] == "video" and detected["duration_seconds"] != "unknown":
+            known.append(f"{detected['duration_seconds']}s")
+        head = f"Media {name}" + (f" ({', '.join(known)})" if known else "")
         for note in row["notes"]:
             lines.append(f"{head}: {note}")
         if row["table"] is None:
-            lines.append(f"{head}: no sourced {row['kind']} limits for this network in ReachWeaver; check the "
+            lines.append(f"{head}: ReachWeaver has no sourced {row['kind']} limits for this network; check the "
                          "app's own requirements")
             continue
         suffix = MEDIA_TABLE_NOTES.get(row["table"], "")
@@ -297,10 +334,9 @@ def _media_lines(rows: list[dict]) -> list[str]:
         for advice in row["advice"]:
             lines.append(f"Media advice{suffix}: {advice}")
         if not row["problems"] and not row["advice"]:
-            lines.append(f"{head}: no problem found against the sourced {row['table']} {row['kind']} limits{suffix}")
+            lines.append(f"{head}: no problem found{suffix}")
         if row["not_checked"]:
-            lines.append(f"{head}: not checked (no sourced value or unreadable header): "
-                         + ", ".join(row["not_checked"]))
+            lines.append(f"{head}: {MEDIA_NOT_READ}")
     return lines
 
 
@@ -481,11 +517,15 @@ def split_blocked(packages: list[tuple[str, dict]], errors: list[str]
     return ready, blocked
 
 
-def skip_lines(blocked: list[tuple[str, str, list[str]]]) -> list[str]:
-    """One line per skipped network with its fix: ``YouTube skipped: add --title "…" and run again with ...``"""
+def skip_lines(blocked: list[tuple[str, str, list[str]]], *, guided: bool = False) -> list[str]:
+    """One line per skipped network with its fix: ``YouTube skipped: add --title "…" and run again with ...``
+    (in the guide, which asks for the title instead of taking flags: ``YOUTUBE_GUIDE_SKIP``)."""
     lines = []
     for platform, label, messages in blocked:
         again = f"run again with --platform {platform}"
+        if messages == [YOUTUBE_TITLE_SHARE] and guided:
+            lines.append(YOUTUBE_GUIDE_SKIP)
+            continue
         if messages == [YOUTUBE_TITLE_SHARE]:
             lines.append(f'{label} skipped: add --title "…" and {again}')
             continue
@@ -562,12 +602,14 @@ def _run(args, skipped: list[str]) -> int:
     if errors and partial is None:
         print("BLOCKED. No files were written:", file=sys.stderr)
         for error in errors:
+            if guided and error == f"youtube: {YOUTUBE_TITLE_SHARE}":  # the guide asks; it takes no flags
+                error = "youtube: YouTube needs a video title. Run reachweaver share --guide again and type one"
             print(" - " + error, file=sys.stderr)
         return 2
     if partial is not None:
         packages, blocked = partial
         print(f"SKIPPED {len(blocked)} network(s); the other {len(packages)} are prepared below:", file=sys.stderr)
-        for line in skip_lines(blocked):
+        for line in skip_lines(blocked, guided=guided):
             print(" - " + line, file=sys.stderr)
         skipped.extend(platform for platform, _, _ in blocked)
     print("Review the handoff plan:")

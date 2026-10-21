@@ -180,7 +180,8 @@ class RecordTests(Base):
                                               material={"text": "", "images": [], "video": None, "links": []})
         self.assertEqual(found, [])
         code, out, _ = self.cli("report", "--format", "text")
-        self.assertIn("instagram.com/…/SyntheticIG1", out)
+        self.assertIn("Instagram post of ", out)  # network and day, not a link fragment (UX 2026-10-21)
+        self.assertNotIn("SyntheticIG1", out)
         self.assertIn("posted by you (no account)", out)
 
     def test_bad_values_and_bad_links_write_nothing(self):

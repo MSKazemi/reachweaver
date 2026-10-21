@@ -12,7 +12,9 @@ Fixed order (a rule, not a prediction of reach):
 3. ``results_due``: a post 6..30 days old with no numbers from day 6 on -> the exact ``reachweaver metrics`` line.
 4. ``idea``: each open idea BY NAME (oldest first) -> ``reachweaver share --web --open --idea <id>``: the browser
    composer with that idea as the caption (the note names your usual networks; a copy-ready package, never a send).
-   The command carries the idea id, never its text, and the inbox is only read.
+   That command carries the idea id, never its text, and the inbox is only read. Its ``alternative`` is the
+   terminal guide, ``reachweaver share --guide --text '<idea>'``, which shows the idea as the caption to keep or
+   edit (2026-10-21).
 5. ``rhythm``: days since you last posted on each network you use.
 6. ``what_works``: the strongest "what works for you" line from ``insights`` (an observation, not a cause).
 
@@ -36,6 +38,7 @@ MAX_ACTIONS = 5
 KINDS = ("safety", "drafts", "results_due", "idea", "rhythm", "what_works", "first_post", "save_idea", "record_post")
 IDEA_TITLE = 60
 SHARE_WEB = "reachweaver share --web --open"
+SHARE_GUIDE = "reachweaver share --guide"
 POSTED = "reachweaver posted LINK --likes N"
 STALE_DAYS = 7
 
@@ -56,6 +59,15 @@ def idea_command(idea_id: str) -> str:
     return f"{SHARE_WEB} --idea {shlex.quote(idea_id)}"
 
 
+def guide_command(text: str) -> str:
+    """The terminal alternative: the share guide with the idea offered as the caption to keep or edit. Text that
+    holds a control or text-direction character is left out (never put such text in a shell command)."""
+    flat = " ".join(text.split())
+    if not flat or results.has_control(flat):
+        return SHARE_GUIDE
+    return f"{SHARE_GUIDE} --text {shlex.quote(flat)}"
+
+
 def _idea_actions(open_ideas: list[dict], networks: list[str]) -> list[dict]:
     out = []
     for item in open_ideas:
@@ -64,8 +76,10 @@ def _idea_actions(open_ideas: list[dict], networks: list[str]) -> list[dict]:
         where = (" for " + ", ".join(results.platform_name(p) for p in networks)) if networks else " per network"
         note = (f"Opens the composer in your browser with this idea as your caption; it makes a ready-to-paste "
                 f"version{where} that you post yourself. Nothing is sent.")
-        out.append(_action("idea", f"Write a post from your idea \"{title}\"", idea_command(item["id"]), note,
-                           idea_id=item["id"]))
+        action = _action("idea", f"Write a post from your idea \"{title}\"", idea_command(item["id"]), note,
+                         idea_id=item["id"])
+        action["alternative"] = {"label": "Or in the terminal", "command": guide_command(item["text"])}
+        out.append(action)
     return out
 
 
@@ -160,7 +174,7 @@ def build_next(db: str | Path | None, *, now: datetime | None = None, limit: int
     if not actions:
         actions = [_action("first_post", "Write a post in your browser and get a ready-to-paste version for each "
                                          "network", SHARE_WEB, "Runs only on your computer; you post it yourself."),
-                   _action("save_idea", "Or save an idea to post about later", "reachweaver idea add 'Your idea'"),
+                   _action("save_idea", "Or save an idea to post about later", "reachweaver idea 'Your idea'"),
                    _action("record_post", "Posted something yourself? Record it from its link, with its numbers",
                            POSTED, "Only writes a note on this computer; reports and this list then count it.")]
     for rank, item in enumerate(actions, 1):
@@ -191,8 +205,10 @@ def _from_database(con: sqlite3.Connection, now: datetime, counts: dict) -> tupl
         more = f" (and {len(due) - 1} more: 'reachweaver report --week' lists them)" if len(due) > 1 else ""
         out.append(_action(
             "results_due",
-            f"Add the 7-day numbers of your {results.platform_name(first['platform'])} post "
-            f"\"{first['first_words']}\" (posted {first['days_since_posting']} days ago){more}",
+            (f"Add the 7-day numbers of your {results.platform_name(first['platform'])} post "
+             f"\"{first['first_words']}\"" if first.get("titled", True) else
+             f"Add the 7-day numbers of your {first['first_words']}")
+            + f" (posted {first['days_since_posting']} days ago){more}",
             first["command"], "Copy the counts from the app's insights; leave out any you cannot see (unknown is "
                               "not zero).", post_id=first["post_id"], posts_due=len(due)))
     rhythm = _rhythm_action(results.last_posted(con), now, networks)
@@ -230,6 +246,8 @@ def render_text(view: dict) -> str:
             lines.append(f"     {item['command']}")
         if item["note"]:
             lines.append(f"     {item['note']}")
+        if item.get("alternative"):
+            lines.append(f"     {item['alternative']['label']}: {item['alternative']['command']}")
     lines += [*(f"Note: {w}" for w in view["warnings"]), ""]
     if not counts["posts_recorded"] and not any(item["kind"] == "record_post" for item in view["actions"]):
         lines.append("Posted something yourself? Record it from its link: " + POSTED)

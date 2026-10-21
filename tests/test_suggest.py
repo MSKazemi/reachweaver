@@ -203,7 +203,7 @@ class BareSuggestTests(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertIn("What to do next", out)  # the same plain view as `reachweaver next`
         self.assertIn("reachweaver share --web --open", out)
-        self.assertIn("reachweaver idea add", out)
+        self.assertIn("reachweaver idea 'Your idea'", out)  # short for idea add (UX 2026-10-21)
         self.assertFalse(self.state.exists())
         code, out, _ = self.run_cli("--json")
         self.assertEqual(code, 0)

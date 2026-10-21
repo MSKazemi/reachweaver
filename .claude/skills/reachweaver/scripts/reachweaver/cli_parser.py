@@ -83,8 +83,11 @@ def _add_review_parsers(sub, optout_help: str) -> None:
 
 def _add_idea_and_statusline_parsers(sub) -> None:
     """``idea`` (ideas inbox, reachweaver/ideas.py) and ``statusline`` (reachweaver/statusline.py)."""
-    p = sub.add_parser("idea", help="Ideas inbox: capture 'post about this later' notes (add, list, drop) and promote "
-                       "one to a NEW blocked campaign scaffold; never creates a draft, approval or send")
+    p = sub.add_parser("idea", help="Ideas inbox: save a post idea for later with reachweaver idea \"text\" (the same "
+                       "as idea add); list, drop or promote one to a NEW blocked campaign scaffold; never creates a "
+                       "draft, approval or send",
+                       description="Save a post idea for later: reachweaver idea \"text\" (short for idea add "
+                                   "\"text\"). Then list, drop or promote it. Nothing is drafted, queued or sent.")
     actions = p.add_subparsers(dest="idea_action", required=True, metavar="ACTION")
     q = actions.add_parser("add", help="Add an open idea (text up to 2000 characters)")
     q.add_argument("text", help="The idea, in a sentence or two")
@@ -144,7 +147,7 @@ class _TopParser(argparse.ArgumentParser):
 
     def parse_args(self, args=None, namespace=None):  # type: ignore[override]
         self._seen_argv = list(sys.argv[1:] if args is None else args)  # for the unknown-flag hint in error()
-        return super().parse_args(args, namespace)
+        return super().parse_args(idea_shorthand(self._seen_argv) if self.prog == "reachweaver" else args, namespace)
 
     def error(self, message):
         import re
@@ -156,11 +159,31 @@ class _TopParser(argparse.ArgumentParser):
             hint = f" Did you mean: {', '.join(close)}?" if close else ""
             message = f"unknown command '{found.group(1)}'.{hint} 'reachweaver --help all' lists every command by task"
         elif message.startswith("unrecognized arguments: "):
+            # Only the error and its hint: the full usage block buried the "Did you mean" line (UX 2026-10-21);
+            # the hint names the command's --help.
             message, usage_of = _unrecognized_hint(self, message)
+            self.exit(2, f"{usage_of.prog}: error: {message}\n")
         else:
             message = _invalid_choice_hint(message)
         usage_of.print_usage(sys.stderr)
         self.exit(2, f"{usage_of.prog}: error: {message}\n")
+
+
+IDEA_ACTIONS = ("add", "list", "drop", "promote")
+_GLOBAL_WITH_VALUE = ("--db", "--accounts", "--profile", "--home")
+
+
+def idea_shorthand(argv: list[str]) -> list[str]:
+    """``reachweaver idea "text"`` is ``reachweaver idea add "text"``: the word after ``idea`` is not one of its
+    actions (nor a help flag), so it is the idea itself. Global options before the command are skipped; anything
+    else is returned unchanged."""
+    index = 0
+    while index < len(argv) and argv[index].startswith("-"):
+        flag = argv[index]
+        index += 2 if flag in _GLOBAL_WITH_VALUE else 1
+    if index + 1 < len(argv) and argv[index] == "idea" and argv[index + 1] not in (*IDEA_ACTIONS, "-h", "--help"):
+        return [*argv[:index + 1], "add", *argv[index + 1:]]
+    return list(argv)
 
 
 def _subparsers_action(parser: argparse.ArgumentParser) -> argparse._SubParsersAction:
@@ -236,7 +259,7 @@ def make_parser() -> argparse.ArgumentParser:
                         help="Show the everyday commands; --help all lists every command by task, "
                              "--help COMMAND shows one command's options")
     parser.add_argument("--version", dest="show_version", action="store_true",
-                        help="Print the installed version (the same as the version command) and exit")
+                        help="Print the installed version number (the same as the version command) and exit")
     parser.add_argument("--db", help="Local persistent SQLite database path (defaults to state/reachweaver.sqlite)")
     parser.add_argument("--accounts", help="Accounts config path (defaults to config/accounts.json)")
     parser.add_argument("--profile", help="Profile knowledge base path (defaults to config/profile.json in the workspace); "
@@ -250,8 +273,10 @@ def make_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=False, metavar="COMMAND", help=argparse.SUPPRESS)
     optout_help = "Opt-out list JSON (default $REACHWEAVER_OPTOUT or config/optout.json if present)"
     sub.add_parser("init", help="Initialize local database (not an online account)")
-    p = sub.add_parser("version", help="Print the installed ReachWeaver version and install kind; offline")
-    p.add_argument("--json", action="store_true", help="Machine-readable result")
+    p = sub.add_parser("version", help="Print the installed ReachWeaver version; --verbose adds the install kind; "
+                       "offline")
+    p.add_argument("--verbose", action="store_true", help="Also print the install kind and skill folder")
+    p.add_argument("--json", action="store_true", help="Machine-readable result (always has the install kind)")
     _add_idea_and_statusline_parsers(sub)
     p = sub.add_parser("update", help="Check GitHub Releases for a newer ReachWeaver skill bundle (--check, default), "
                        "print a one-line cached --notice, or --apply it; HTTPS GET to github.com only")
@@ -357,11 +382,14 @@ def make_parser() -> argparse.ArgumentParser:
         p.add_argument("--" + key, metavar="N",
                        help=f"{key.capitalize()} you see now: a count, or unknown / suppressed / not_available / "
                             "delayed / estimated:N")
-    p.add_argument("--text", help="The post text (optional; reports show its first words)")
+    p.add_argument("--text", help="The post text (optional; reports show its first words). Again on a post you "
+                                  "recorded by hand: corrects its text")
     p.add_argument("--at", metavar="WHEN",
-                   help="When you posted it (default: now): now, today, yesterday, YYYY-MM-DD, 'YYYY-MM-DD HH:MM' "
-                        "(your computer's time zone) or ISO 8601 with a timezone")
-    p.add_argument("--account", help="Your account id, when several accounts on that network could have posted it")
+                   help="When you posted it: now, today, yesterday, YYYY-MM-DD, 'YYYY-MM-DD HH:MM' (your computer's "
+                        "time zone) or ISO 8601 with a timezone. Without it a terminal asks (Enter = today); a "
+                        "script gets now. Again on a post you recorded by hand: corrects its date")
+    p.add_argument("--account", help="Your account id, when several accounts on that network could have posted it; "
+                                     "again on a post you recorded by hand: corrects it")
     p.add_argument("--platform", help="The network, when the link's address does not say (e.g. your own "
                                       "Mastodon server that is not in your accounts file)")
     p = sub.add_parser("disconnect", help="Stop publishing to one account on this installation (#38): tighten-only, local; "

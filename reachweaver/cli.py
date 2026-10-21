@@ -2338,7 +2338,13 @@ def execute(args) -> int:
         root = skill_root()
         info = {"version": __version__, "install_kind": install_kind(),
                 "skill_path": str(root) if root else None}
-        print(json.dumps(info, indent=2) if args.json else f"reachweaver {__version__} ({info['install_kind']})")
+        if args.json:
+            print(json.dumps(info, indent=2))
+        else:  # the number only; where it is installed is detail for --verbose (and doctor)
+            print(f"reachweaver {__version__}")
+            if getattr(args, "verbose", False):
+                print(f"install kind: {info['install_kind']}"
+                      + (f"\nskill folder: {info['skill_path']}" if info["skill_path"] else ""))
         return 0
     if args.command == "update":
         from . import updater
@@ -2750,13 +2756,13 @@ def execute(args) -> int:
                 elif args.status:
                     print(f"No {args.status} posts. See them all: reachweaver list")
                 else:
-                    print("No posts yet. Create a draft: reachweaver draft --account ACCOUNT --text 'Your text'\n"
+                    print(f"{EMPTY_LIST}\n"
                           "Posted something yourself? Record it from its link: reachweaver posted LINK --likes N")
             else:
                 for row in rows:
                     print(" | ".join(str(row[k] or "") for k in row.keys()))
                 if not rows:  # stdout stays empty for parsers; the note goes to stderr
-                    print("No posts" + (f" with status {args.status}" if args.status else ""), file=sys.stderr)
+                    print(f"No posts with status {args.status}" if args.status else EMPTY_LIST, file=sys.stderr)
         elif args.command == "show":
             post = get_post(db,args.post_id)
             shown = build_post_view(db, post, _optional_account(args, post["account_id"], post["platform"]))
@@ -3178,6 +3184,9 @@ def execute(args) -> int:
         return 0
 
 
+EMPTY_LIST = "No posts yet. Write one: reachweaver studio --open (or reachweaver share --guide)"
+
+
 def _run_report(args, report_window: str | None) -> int:
     """``report``: an existing database opened read-only (mode=ro + query_only). A missing database prints the
     empty report plus a friendly note on stderr and is never created; an older schema is never migrated."""
@@ -3290,13 +3299,12 @@ def main(argv=None) -> int:
     try:
         parsed = make_parser().parse_args(argv)
         if parsed.show_version:  # `reachweaver --version` prints exactly what `reachweaver version` prints
-            parsed.command, parsed.json = "version", False
+            parsed.command, parsed.json, parsed.verbose = "version", False, False
         home.activate(parsed.home if parsed.command != "workspace" or parsed.init is None else None, Path.cwd())
         if parsed.command is None:  # bare `reachweaver`: where you are and what to type next, not a usage error
             from .start import build_guide, render as render_guide
             guide = build_guide(parsed.db, parsed.accounts)
-            print(render_guide(guide))
-            print("\nEveryday commands: reachweaver --help   Every command, by task: reachweaver --help all")
+            print(render_guide(guide))  # ends with the everyday verbs and where --help is
             return 1 if guide["state"] in ("accounts_invalid", "database_unreadable") else 0
         status = execute(parsed)
         sys.stdout.flush()  # a reader that left early (`| head`) surfaces here, inside the handlers below
