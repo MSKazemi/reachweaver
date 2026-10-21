@@ -31,6 +31,11 @@ from reachweaver.storage import (add_post, approval_binding_problem, approval_pa
 ROOT = Path(__file__).resolve().parents[1]
 
 
+class TerminalText(io.StringIO):
+    def isatty(self):
+        return True
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()
@@ -50,7 +55,8 @@ class Base(unittest.TestCase):
         return code, out.getvalue(), err.getvalue()
 
     def init(self):
-        code, out, err = self.cli(self.top, "workspace", "--init", str(self.ws))
+        # These tests draft for the example accounts, so they ask for them; the default starts empty.
+        code, out, err = self.cli(self.top, "workspace", "--init", str(self.ws), "--with-examples")
         self.assertEqual(code, 0, err)
         return out
 
@@ -61,6 +67,58 @@ class Base(unittest.TestCase):
             if approved:
                 transition(db, pid, "approve", approver="tester", approval_channel="cli_flag", ai_label="not_needed")
         return pid
+
+
+class NoPretendAccounts(Base):
+    """`workspace --init` starts with no example accounts unless asked (--with-examples, or names in a terminal)."""
+
+    def test_default_init_writes_an_empty_accounts_list_and_says_what_to_type(self):
+        code, out, err = self.cli(self.top, "workspace", "--init", str(self.ws))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads((self.ws / "config/accounts.json").read_text(encoding="utf-8")), {"accounts": []})
+        self.assertIn("No accounts yet. Next:", out)
+        self.assertIn("reachweaver account-add bluesky", out)
+        self.assertIn("reachweaver share --guide", out)
+        self.assertNotIn("example", (self.ws / "secrets.env.example").read_text(encoding="utf-8").split("\n", 2)[2])
+        code, _, err = self.cli(self.ws, "doctor")
+        self.assertEqual(code, 0, err)
+
+    def test_a_terminal_answer_seeds_only_the_named_networks(self):
+        with patch("sys.stdin", TerminalText("blusky\nbluesky, instagram\n")):
+            code, out, err = self.cli(self.top, "workspace", "--init", str(self.ws))
+        self.assertEqual(code, 0, err)
+        self.assertIn("Unknown network 'blusky'. Did you mean bluesky?", out)
+        entries = json.loads((self.ws / "config/accounts.json").read_text(encoding="utf-8"))["accounts"]
+        self.assertEqual([(a["id"], a["platform"]) for a in entries], [("my-bluesky", "bluesky"),
+                                                                       ("my-instagram", "instagram")])
+        self.assertIn("Placeholders added for: bluesky, instagram", out)
+        self.assertIn("  reachweaver account-add instagram", out)
+        code, out, err = self.cli(self.ws, "account-add", "instagram", "--handle", "maker")
+        self.assertEqual(code, 0, err)
+        self.assertIn("Filling in the example entry my-instagram", out)
+
+    def test_enter_skips_and_with_examples_keeps_the_old_four(self):
+        with patch("sys.stdin", TerminalText("\n")):
+            self.assertEqual(self.cli(self.top, "workspace", "--init", str(self.ws))[0], 0)
+        self.assertEqual(json.loads((self.ws / "config/accounts.json").read_text(encoding="utf-8")), {"accounts": []})
+        other = self.top / "other"
+        code, out, err = self.cli(self.top, "workspace", "--init", str(other), "--with-examples")
+        self.assertEqual(code, 0, err)
+        ids = [a["id"] for a in json.loads((other / "config/accounts.json").read_text(encoding="utf-8"))["accounts"]]
+        self.assertEqual(ids, ["my-bluesky", "my-mastodon", "my-telegram-channel", "my-linkedin"])
+        self.assertIn("account-add bluesky (fills the bluesky example in place)", out)
+        code, _, err = self.cli(self.top, "workspace", "--with-examples")
+        self.assertEqual(code, 2)
+        self.assertIn("--with-examples only works with --init", err)
+
+    def test_an_existing_accounts_file_is_kept_and_not_asked_about(self):
+        (self.ws / "config").mkdir(parents=True)
+        (self.ws / "config/accounts.json").write_text('{"accounts": []}\n', encoding="utf-8")
+        with patch("sys.stdin", TerminalText("bluesky\n")):
+            code, out, err = self.cli(self.top, "workspace", "--init", str(self.ws))
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("Which networks", out)
+        self.assertIn("kept    config/accounts.json", out)
 
 
 class TheMarkerAndTheLayout(Base):

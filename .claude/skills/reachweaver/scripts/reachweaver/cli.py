@@ -105,17 +105,8 @@ from .cli_parser import make_parser  # noqa: F401  (re-exported: tests and tools
 
 
 def _accounts(args):
-    try:
-        return load_accounts(args.accounts)
-    except ValidationError as exc:
-        if not str(exc).startswith("Missing "):
-            raise
-        # Skill-only installs have no config/ folder; point at the bundled example.
-        example = Path(__file__).resolve().parents[2] / "assets" / "accounts.example.json"
-        if not Path("config/accounts.example.json").exists() and example.is_file():
-            raise ValidationError(f"{exc} Skill install: copy {example} to config/accounts.json "
-                                  "in your project (no secrets).") from None
-        raise
+    # A missing file says what to type next (account-add, workspace --init); see accounts.missing_accounts_message.
+    return load_accounts(args.accounts)
 
 
 def _social_web_plan(args) -> int:
@@ -1649,6 +1640,9 @@ def execute(args) -> int:
     if args.command == "account-add":
         from .account_add import run as run_account_add
         return run_account_add(args)
+    if args.command == "account-remove":  # accounts.json only (.bak kept); database counted read-only
+        from .account_add import run_remove
+        return run_remove(args)
     if args.command == "discovery-plan":
         from .discovery import add_your_results, check_file as discovery_check_file, render_text as discovery_render
         from .storage import connect_readonly, database_path, schema_gaps
@@ -1870,7 +1864,10 @@ def execute(args) -> int:
         return 2 if instance is not None and not instance["ok"] else 0
     if args.command == "workspace" and args.init is not None:
         from . import workspace as ws_report
-        made = ws_report.init_workspace(args.init.expanduser().resolve())
+        root = args.init.expanduser().resolve()
+        networks = None if args.with_examples else (
+            [] if args.json or (root / "config" / "accounts.json").exists() else ws_report.ask_networks())
+        made = ws_report.init_workspace(root, networks)
         if args.json:
             print(json.dumps(made, indent=2))
         else:
@@ -1882,7 +1879,11 @@ def execute(args) -> int:
             print("Everything that is yours now lives in this one folder. To use it, `cd` into it (or pass --home). "
                   "To move to another computer, copy the whole folder, then run `reachweaver workspace --repair --apply` there. "
                   "Credentials are never stored here; see secrets.env.example for the names.")
+            for line in ws_report.next_steps(root, networks, "config/accounts.json" in made["created"]):
+                print(line)
         return 0
+    if args.command == "workspace" and args.with_examples:
+        raise ValidationError("--with-examples only works with --init (reachweaver workspace --init DIR --with-examples)")
     if args.command == "workspace" and (args.gather or args.repair):
         from . import workspace as ws_report
         if home.root() is None:
@@ -3125,6 +3126,8 @@ def main(argv=None) -> int:
     parsed = None
     try:
         parsed = make_parser().parse_args(argv)
+        if parsed.show_version:  # `reachweaver --version` prints exactly what `reachweaver version` prints
+            parsed.command, parsed.json = "version", False
         home.activate(parsed.home if parsed.command != "workspace" or parsed.init is None else None, Path.cwd())
         if parsed.command is None:  # bare `reachweaver`: where you are and what to type next, not a usage error
             from .start import build_guide, render as render_guide
@@ -3155,11 +3158,12 @@ def main(argv=None) -> int:
         if isinstance(exc, BrokenPipeError) and _stdout_closed():  # `reachweaver ... | head`: the reader left
             return 141
         from .privacy import redact  # last line of defence: a library message may quote a secret
-        print(f"ERROR: {redact(str(exc))}",file=sys.stderr)
-        _json_error(parsed, exc, redact(str(exc)))
+        from .cli_help import error_hint, file_error_message
+        message = redact(file_error_message(exc, parsed) or str(exc))
+        print(f"ERROR: {message}",file=sys.stderr)
+        _json_error(parsed, exc, message)
         from . import term
         if term.interactive(sys.stderr):  # a person at a terminal gets the next step; scripts see only ERROR:
-            from .cli_help import error_hint
             hint = error_hint(str(exc))
             if hint:
                 print(hint, file=sys.stderr)

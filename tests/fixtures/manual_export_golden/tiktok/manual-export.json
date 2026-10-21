@@ -9,7 +9,7 @@
   "preflight": {
     "errors": [],
     "warnings": [
-      "no media manifest supplied: video not validated; attach the file yourself and run media-check before posting"
+      "This post needs a video: attach it in the app. ReachWeaver has not checked the file (share --attach FILE or media-check MANIFEST checks it first)"
     ]
   },
   "content": {
@@ -217,6 +217,6 @@
     "Run media-check on the media you attach (alt text, captions, rights, limits).",
     "Make each decision yourself in the native app: privacy_level, interactions, commercial_content, ai_generated_label. Nothing is pre-selected.",
     "Confirm rights, consent and disclosure for all text and media.",
-    "If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver records nothing from this package."
+    "If you post it, copy the post's link from the app and keep it: that link is the proof the post exists. ReachWeaver records nothing from this package."
   ]
 }

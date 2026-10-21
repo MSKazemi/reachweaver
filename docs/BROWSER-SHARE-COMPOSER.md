@@ -70,7 +70,7 @@ It is refused, with nothing recorded, when the link is not one http(s) link, whe
 
 ## LinkedIn, Bluesky, Mastodon and Telegram
 
-These networks are in the list too, marked "Copy and post yourself · or connect it to send from ReachWeaver". The composer prepares copy-ready text for them exactly as for the others and never sends. Each preview card says: *Copy and post it yourself; to send it from ReachWeaver instead, connect the account and use draft → review.* A caption that is too long for a network is shortened at a word boundary for that network only, and its card says so; edit it there if you prefer your own cut.
+These networks are in the list too, marked "Copy and post yourself · or connect it to send from ReachWeaver". The composer prepares copy-ready text for them exactly as for the others and never sends. Each preview card says: *Copy and post it yourself; to send it from ReachWeaver instead, connect the account and use draft → review.* A caption that is too long for a network is shortened for that network only (at a sentence end when possible, else at a word; a closing link is kept), and its card says what was removed; edit it there if you prefer your own cut.
 
 ## Human-only groups
 

@@ -69,7 +69,8 @@ class Base(unittest.TestCase):
 
 
 class DedicatedPackagesUnchanged(Base):
-    """The five sourced packages are byte-identical to golden files written before C2."""
+    """The five sourced packages are byte-identical to the golden files (first written before C2; regenerated
+    only for deliberate wording changes, such as the plain-language checklists of 2026-10-21)."""
 
     def test_library_output_matches_golden_bytes(self):
         for platform in MANUAL_PLATFORMS:
@@ -158,7 +159,7 @@ class OrdinaryManualDestination(Base):
         self.assertEqual(package["registry"]["capability"]["reachweaver_adapter"], "none")
         notes = [n["note"] for n in package["limits"]["capability_registry_notes"]]
         self.assertIn("Up to 4 photos, 1 GIF or 1 video per post", notes)
-        self.assertIn("keep the native post URL", package["checklist"][-1])
+        self.assertIn("copy the post's link from the app and keep it", package["checklist"][-1])
         self.assertIn("records nothing", package["checklist"][-1])
 
     def test_destination_without_an_official_source_gets_no_url(self):
@@ -362,7 +363,8 @@ class MediaManifest(Base):
     def test_without_manifest_media_is_flagged_not_assumed(self):
         package = build_package("x", dict(minimal_variant("x"), format="video"))
         self.assertFalse(package["media"]["validated"])
-        self.assertTrue(any("not validated" in w for w in package["preflight"]["warnings"]))
+        self.assertIn("This post needs a video: attach it in the app. ReachWeaver has not checked the file",
+                      package["preflight"]["warnings"][0])
         self.assertTrue(any("Run media-check" in s for s in package["checklist"]))
 
 

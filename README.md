@@ -73,7 +73,7 @@ Write one caption, select social networks, preview all drafts and save private h
 
 ### Easiest option: Share a post without connecting an account
 
-You can prepare captions for Instagram, Threads, TikTok, YouTube, LinkedIn, Bluesky, Mastodon, Telegram and many other networks, then paste them in the apps yourself. Each network gets its own copy, shortened at a word boundary (and clearly marked SHORTENED) only when it is over that network's limit, and an attached photo or video is checked offline against the sizes, durations and aspect ratios ReachWeaver has sources for. No JSON, password, account connection, subscription or API key is required:
+You can prepare captions for Instagram, Threads, TikTok, YouTube, LinkedIn, Bluesky, Mastodon, Telegram and many other networks, then paste them in the apps yourself. Each network gets its own copy, shortened at a sentence end or a word, keeping a closing link (and clearly marked SHORTENED, with what was removed) only when it is over that network's limit, and an attached photo or video is checked offline against the sizes, durations and aspect ratios ReachWeaver has sources for. No JSON, password, account connection, subscription or API key is required:
 
 ```bash
 python3 -m reachweaver share --guide
@@ -231,7 +231,7 @@ reachweaver init                         local DB initialization
 reachweaver doctor                       check account mapping / missing env names
 reachweaver credentials-audit [--history FILE] [--json]  offline credential hygiene: names only, never values; exit 1 on findings
 reachweaver workspace [--json]  read-only: what lives in this folder (config, database, approval ledger, archive) and what does not (credentials, the installed skill); database integrity, ledger consistency, credential NAMES missing here, attachment files missing, changed or outside the folder, a secrets file sitting in it; exit 1 when copying would not work (docs/MOVING.md)
-reachweaver workspace --init [DIR]  create the one-folder layout (config/, state/, media/, logs/, marker file, README, secrets.env.example); never overwrites or moves existing files
+reachweaver workspace --init [DIR] [--with-examples]  create the one-folder layout (config/, state/, media/, logs/, marker file, README, secrets.env.example); config/accounts.json starts empty (in a terminal it asks which networks to add placeholders for; --with-examples seeds the four example accounts); never overwrites or moves existing files
 reachweaver workspace --gather [--apply]  copy attachments of unsent posts that live outside media/ into media/ (hash-verified) and point the records at the copies; dry run unless --apply
 reachweaver workspace --repair [--apply]  after copying the folder to a new computer: find attachments again in media/ by size and SHA-256 and fix the recorded paths; approval hashes stay identical; dry run unless --apply
 reachweaver --home DIR ...  global option: use this workspace folder (default: the nearest folder with a .reachweaver-workspace file at or above the current one)
@@ -314,7 +314,7 @@ reachweaver youtube-detach POST_ID         #22: remove the video from a YouTube 
 reachweaver youtube-analytics [--account ID] [--post-id ID]  #22: read-only sampling report over stored metric snapshots of published YouTube videos; labels exact / sampled / suppressed / delayed / not_available / unknown, never invents a view count, fetches nothing (docs/YOUTUBE.md#analytics-sampling-report)
 reachweaver manual-export --platform threads|instagram|facebook|youtube|tiktok|<any other manual_only id> --variant F [--media MANIFEST] [--account-meta F] --out DIR [--json]  creator-ready package + checklist; other manual_only destinations get a generic package (limits unknown unless a registry records them; human-only ones get a write-it-yourself notes form); never sends (docs/MANUAL-EXPORT.md)
 reachweaver manual-export-batch --file BATCH.json --out DIR [--json]  1-25 manual-export items preflighted as a whole (one blocking error writes nothing), one package folder each plus a manifest with the SHA-256 of every exact-text file; human-only destinations refused; an item's `at` is advisory, never scheduled (docs/MANUAL-EXPORT.md#batch-of-manual-packages)
-reachweaver share [--platform P,...] (--text T | --file F) [--note N]... [--title T] [--format F] [--attach FILE]... [--media MANIFEST] [--out DIR] [--preview] [--no-shorten] [--list] [--guide] [--web [--open] [--port N]]  offline copy-ready package per network (including Bluesky, Mastodon, Telegram and LinkedIn, copy-only); a caption over a network's limit is shortened at a word boundary and marked SHORTENED; --attach files get offline header checks against sourced limits; human-only venues get notes only; never writes the database or sends (docs/EASY-SHARING.md)
+reachweaver share [--platform P,...] (--text T | --file F) [--note N]... [--title T] [--format F] [--attach FILE]... [--media MANIFEST] [--out DIR] [--preview] [--no-shorten] [--list] [--guide] [--web [--open] [--port N]]  offline copy-ready package per network (including Bluesky, Mastodon, Telegram and LinkedIn, copy-only); a caption over a network's limit is shortened at a sentence end or a word (a closing link is kept) and marked SHORTENED with what was removed; "link in bio" is flagged where links in the post work; --attach files get offline header checks against sourced limits; human-only venues get notes only; never writes the database or sends (docs/EASY-SHARING.md)
 reachweaver delivery-options [--platform ID] [--json]  offline route per distribution-registry channel: official API adapter (the four mock-tested ones), manual package, human-only notes form or unsupported, with the exact manual-export command; connects, posts and schedules nothing
 reachweaver campaign-stage --file F --brand B [--optout F]    idempotently create draft posts only
 reachweaver experiment-evaluate --file F       analyze paired native metrics; no causal claim
@@ -369,6 +369,7 @@ reachweaver social-web-plan [--setup FILE] [--presence P]... [--bridged ID]... [
 reachweaver account-advisor [--region R] [--goal G] [--format F] [--weekly-hours N] [--limit N] [--existing ID]... [--setup ID [--brand B] [--audience A] [--language L]] [--json]  offline shortlist of platforms to start, from the distribution registry; --setup prints the official start page, the steps you do yourself and a coaching prompt for a normal Claude chat that never opens the site; creates and connects no account (docs/ACCOUNT-ADVISOR.md)
 reachweaver profile [--init [--persona ID]...] [--show] [--check] [--set PATH=VALUE]... [--handle PLATFORM:PERSONA=NAME[:STATUS]]...  your private profile (personas, a username per network, sign-up details); local file, never holds passwords (docs/PERSONAS-AND-ACCOUNT-KIT.md)
 reachweaver account-add PLATFORM [--handle H] [--server URL] [--field KEY=VALUE]... [--id ID] [--persona ID] [--env-prefix P] [--dry-run]  offline: append one public account entry to accounts.json (asks in a terminal for what is missing), validated by the normal loader; refuses duplicates and example placeholders, fills an unedited example entry in place, keeps accounts.json.bak, applies the wrong-account guard; never asks for or stores a secret, prints the variable names to set and points to connect --guide
+reachweaver account-remove ID [--dry-run] [--yes]  offline: remove one entry from accounts.json (asks in a terminal, elsewhere needs --yes; keeps accounts.json.bak); never touches credentials, the database, approvals or disconnect state; posts recorded for the account are kept and counted
 reachweaver account-route --platform P [--persona ID] [--json]  which account and username to use for a persona on a network, and which account to switch to; offline
 reachweaver account-kit --platform P... [--persona ID] [--questions] [--out NEW_DIR --approve-plan SHA256] [--json]  offline: one plan and one approval write sign-up details (in the platform's language) for accounts you create yourself; creates no account
 reachweaver draft|check|approve ... --persona ID  refuse an account that belongs to another persona and name the one to switch to (default: preferences.default_persona)
@@ -440,7 +441,7 @@ ReachWeaver is on [PyPI](https://pypi.org/project/reachweaver/), and every relea
 
 ```bash
 pipx install reachweaver          # or: python3 -m pip install reachweaver
-reachweaver version
+reachweaver version               # or: reachweaver --version
 # the same file from the GitHub release:
 pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.15.0/reachweaver-0.15.0-py3-none-any.whl"
 ```

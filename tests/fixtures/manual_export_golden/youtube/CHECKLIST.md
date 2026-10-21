@@ -1,12 +1,12 @@
 # YouTube manual export checklist
 
-Status: `manual_export_not_published`
+Status: Not posted yet. Nothing was sent, uploaded or scheduled.
 
 MANUAL EXPORT ONLY. ReachWeaver has not sent, uploaded, scheduled or shared anything on YouTube. This package is not evidence that a post exists. The account holder decides whether to post it, in the platform's own app.
 
 ## Warnings
 
-- no media manifest supplied: video not validated; attach the file yourself and run media-check before posting
+- This post needs a video: attach it in the app. ReachWeaver has not checked the file (share --attach FILE or media-check MANIFEST checks it first)
 
 ## Exact text
 
@@ -44,11 +44,11 @@ A short tour of ReachWeaver.
 - [ ] Run media-check on the media you attach (alt text, captions, rights, limits).
 - [ ] Make each decision yourself in the native app: privacy_status, made_for_kids, altered_or_synthetic_content. Nothing is pre-selected.
 - [ ] Confirm rights, consent and disclosure for all text and media.
-- [ ] If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver records nothing from this package.
+- [ ] If you post it, copy the post's link from the app and keep it: that link is the proof the post exists. ReachWeaver records nothing from this package.
 
-## Why this is manual
+## Why you post this yourself
 
-Registry status `requires-review`, adapter `none`, verified 2026-10-08. youtube video is api_gated; publish refused (fail closed)
+ReachWeaver cannot post to YouTube; you post it yourself in the app. (Capability registry: status `requires-review`, no ReachWeaver adapter, checked 2026-10-08.)
 
 ## Sourced platform facts
 

@@ -92,8 +92,11 @@ class AccountAddTests(unittest.TestCase):
         code, out, err = self.cli("bluesky", "--handle", "second.bsky.social", "--dry-run")
         self.assertEqual(code, 0, err)
         self.assertIn("DRY RUN", out)
-        self.assertIn('"id": "my-bluesky-2"', out)
-        self.assertIn('"env_prefix": "REACHWEAVER_MY_BLUESKY_2"', out)
+        self.assertIn("Account name:      my-bluesky-2 (what you type after --account)", out)
+        self.assertIn("Credential prefix: REACHWEAVER_MY_BLUESKY_2", out)
+        self.assertIn("Network:           Bluesky", out)
+        self.assertIn("Handle:            second.bsky.social", out)
+        self.assertNotIn('"id":', out, "plain lines, not raw JSON")
         self.assertIn("persona", out, "two accounts on one network: suggest a persona")
         self.assertEqual(self.accounts.read_bytes(), before)
         self.assertFalse(self.accounts.with_name("accounts.json.bak").exists())
@@ -185,10 +188,96 @@ class AccountAddTests(unittest.TestCase):
         self.assertNotIn("Filling in", out, "an edited entry is never replaced")
         self.assertIn("my-bluesky-2", out)
 
+    def test_interactive_confirmation_defaults_to_yes_and_names_the_next_step(self):
+        prompts: list[str] = []
+        answers = TerminalText("maker.bsky.social\n\n")
+        with patch("builtins.input", side_effect=lambda prompt: (prompts.append(prompt), answers.readline().strip())[1]):
+            code, out, err = self.cli("bluesky", stdin=answers)
+        self.assertEqual(code, 0, err)
+        self.assertTrue(prompts[-1].endswith("[Y/n]: "), prompts)
+        self.assertEqual(load_accounts(self.accounts)["my-bluesky"]["handle"], "maker.bsky.social")
+        self.assertIn("Next: reachweaver connect --guide --account my-bluesky", out)
+        self.assertIn("reachweaver share --platform bluesky", out)
+
     def test_output_and_file_never_hold_a_secret_shaped_field(self):
         self.assertEqual(self.cli("linkedin", "--field", "person_id=abc123", "--field", "linkedin_version=202610")[0], 0)
         stored = json.loads(self.accounts.read_text(encoding="utf-8"))["accounts"][0]
         self.assertEqual(sorted(stored), ["env_prefix", "id", "linkedin_version", "person_id", "platform"])
+
+
+class AccountRemoveTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.accounts = self.root / "config" / "accounts.json"
+        self.db = self.root / "state.sqlite"
+        self.accounts.parent.mkdir(parents=True)
+        self.accounts.write_text(json.dumps({"accounts": [
+            {"id": "my-bluesky", "platform": "bluesky", "env_prefix": "REACHWEAVER_RM_BSKY", "handle": "maker.bsky.social"},
+            {"id": "my-mastodon", "platform": "mastodon", "env_prefix": "REACHWEAVER_RM_MASTODON",
+             "server": "https://mastodon.example", "handle": "maker"}]}, indent=2), encoding="utf-8")
+
+    def cli(self, *args, stdin=None):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with NetworkGuard() as guard, contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), \
+                patch("sys.stdin", stdin or io.StringIO("")):
+            code = main(["--db", str(self.db), "--accounts", str(self.accounts), "account-remove", *args])
+            self.assertEqual(guard.attempts, [])
+        return code, stdout.getvalue(), stderr.getvalue()
+
+    def test_removes_one_entry_keeps_a_backup_and_touches_nothing_else(self):
+        before = self.accounts.read_bytes()
+        env = {"REACHWEAVER_RM_BSKY_IDENTIFIER": "maker.bsky.social"}
+        with patch.dict(os.environ, env):
+            code, out, err = self.cli("my-bluesky", "--yes")
+            self.assertEqual(os.environ["REACHWEAVER_RM_BSKY_IDENTIFIER"], "maker.bsky.social")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(list(load_accounts(self.accounts)), ["my-mastodon"])
+        self.assertEqual(self.accounts.with_name("accounts.json.bak").read_bytes(), before)
+        self.assertIn("Removed account my-bluesky (Bluesky)", out)
+        self.assertIn("Not touched: credentials, the database, approvals and disconnect state", out)
+        self.assertIn("REACHWEAVER_RM_BSKY_IDENTIFIER", out)
+        self.assertFalse(self.db.exists(), "account-remove never creates a database")
+
+    def test_unknown_id_dry_run_and_missing_confirmation_write_nothing(self):
+        before = self.accounts.read_bytes()
+        code, _, err = self.cli("my-blusky", "--yes")
+        self.assertEqual(code, 2)
+        self.assertIn("Unknown account 'my-blusky'", err)
+        self.assertIn("my-bluesky, my-mastodon", err)
+        code, out, _ = self.cli("my-bluesky", "--dry-run")
+        self.assertEqual(code, 0)
+        self.assertIn("DRY RUN", out)
+        code, _, err = self.cli("my-bluesky")
+        self.assertEqual(code, 2)
+        self.assertIn("add --yes", err)
+        self.assertEqual(self.accounts.read_bytes(), before)
+        self.assertFalse(self.accounts.with_name("accounts.json.bak").exists())
+
+    def test_terminal_confirmation_defaults_to_no(self):
+        before = self.accounts.read_bytes()
+        with patch("builtins.input", return_value=""):
+            code, out, _ = self.cli("my-bluesky", stdin=TerminalText(""))
+        self.assertEqual(code, 0)
+        self.assertIn("Cancelled", out)
+        self.assertEqual(self.accounts.read_bytes(), before)
+        with patch("builtins.input", return_value="y"):
+            code, out, _ = self.cli("my-bluesky", stdin=TerminalText(""))
+        self.assertEqual(code, 0)
+        self.assertEqual(list(load_accounts(self.accounts)), ["my-mastodon"])
+
+    def test_posts_of_the_account_are_kept_and_counted(self):
+        from reachweaver.storage import add_post, connect
+        with connect(str(self.db)) as db:
+            add_post(db, "my-bluesky", "bluesky", "A draft that stays")
+        size = self.db.stat().st_size
+        code, out, err = self.cli("my-bluesky", "--yes")
+        self.assertEqual(code, 0, err)
+        self.assertIn("1 post(s) in the local database belong to my-bluesky. They are kept", out)
+        self.assertEqual(self.db.stat().st_size, size)
+        with connect(str(self.db)) as db:
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM posts WHERE account_id='my-bluesky'").fetchone()[0], 1)
 
 
 if __name__ == "__main__":

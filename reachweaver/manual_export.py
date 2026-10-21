@@ -30,9 +30,33 @@ from .privacy import write_private_file
 from .storage import utc_now
 
 STATUS = "manual_export_not_published"
+# Plain words for the people who read CHECKLIST.md; the machine fields (status, api_capability.reason) keep
+# their codes in manual-export.json.
+STATUS_PLAIN = "Not posted yet. Nothing was sent, uploaded or scheduled."
+KEEP_LINK = ("If you post it, copy the post's link from the app and keep it: that link is the proof the post "
+             "exists. ReachWeaver records nothing from this package.")
+MEDIA_NOT_CHECKED = "ReachWeaver has not checked the file"
+YOUTUBE_TITLE_MISSING = ("YouTube needs a video title (platform_options.title in the variant); the text is the "
+                         "description")
 PACKAGE_KIND = "reachweaver.manual-export.v1"
 SEND_PATH = None  # Asserted in tests: this module can never send, upload or share.
 VERIFIED_DATE = "2026-10-08"
+
+
+def media_unchecked(label: str, platform: str, required: list[str]) -> str:
+    """A format that needs media, without a checked file: say what to attach, in plain words.
+
+    Instagram's own fact (``FACTS['instagram']['media_required']``, sourced) makes it "a photo or video";
+    elsewhere the need comes from the chosen format, not from a platform rule.
+    """
+    if platform == "instagram":
+        need = f"{label} needs a photo or video"
+    else:
+        what = {"image": "a photo", "video": "a video"}.get(required[0], "photos or videos") \
+            if len(required) == 1 else "photos or videos"
+        need = f"This post needs {what}"
+    return (f"{need}: attach it in the app. {MEDIA_NOT_CHECKED} (share --attach FILE or media-check MANIFEST "
+            "checks it first)")
 MANUAL_PLATFORMS = ("facebook", "instagram", "threads", "tiktok", "youtube")
 LABELS = {"facebook": "Facebook Pages", "instagram": "Instagram", "threads": "Threads",
           "tiktok": "TikTok", "youtube": "YouTube"}
@@ -381,8 +405,7 @@ def platform_preflight(platform: str, variant: object,
     elif platform == "youtube":
         title = options.get("title")
         if not isinstance(title, str) or not title.strip():
-            errors.append("YouTube needs platform_options.title (the video title); variant.text is the "
-                          "description")
+            errors.append(YOUTUBE_TITLE_MISSING)
         else:
             _check_text_common(title, errors, "YouTube title")
             if len(title) > 100:
@@ -462,8 +485,7 @@ def _media_section(platform: str, fmt: str | None, manifest, base_dir) -> tuple[
                                         + ", ".join(MEDIA_TARGETS[platform]) + "); run media-check MANIFEST"}
     if manifest is None:
         if required:
-            warnings.append(f"no media manifest supplied: {', '.join(required)} not validated; attach the file "
-                            "yourself and run media-check before posting")
+            warnings.append(media_unchecked(LABELS[platform], platform, required))
         return section, errors, warnings
     if isinstance(manifest, (str, Path)):
         path = Path(manifest)
@@ -670,15 +692,14 @@ def _checklist(package: dict) -> list[str]:
         steps.append("Make each decision yourself in the native app: "
                      + ", ".join(d["id"] for d in package["human_decisions"]) + ". Nothing is pre-selected.")
     steps.append("Confirm rights, consent and disclosure for all text and media.")
-    steps.append("If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver "
-                 "records nothing from this package.")
+    steps.append(KEEP_LINK)
     return steps
 
 
 def render_markdown(package: dict) -> str:
     label = package["platform_label"]
     lines = [f"# {label} manual export checklist", "",
-             f"Status: `{package['status']}`", "", package["notice"], ""]
+             f"Status: {STATUS_PLAIN}", "", package["notice"], ""]
     if package["preflight"]["errors"]:
         lines += ["## Blocking errors", ""] + [f"- {e}" for e in package["preflight"]["errors"]] + [""]
     if package["preflight"]["warnings"]:
@@ -707,9 +728,12 @@ def render_markdown(package: dict) -> str:
         lines.append("")
     lines += ["## Checklist", ""] + [f"- [ ] {step}" for step in package["checklist"]] + [""]
     api = package["api_capability"]
-    lines += ["## Why this is manual", "",
-              f"Registry status `{api['registry_status']}`, adapter `{api['reachweaver_adapter']}`, verified "
-              f"{api['verified_date']}. {api['reason']}", ""]
+    lines += ["## Why you post this yourself", "",
+              f"ReachWeaver cannot post to {package['platform_label']}; you post it yourself in the app. "
+              f"(Capability registry: status `{api['registry_status']}`, "
+              + ("no ReachWeaver adapter" if api["reachweaver_adapter"] in (None, "none") else
+                 f"adapter `{api['reachweaver_adapter']}`")
+              + f", checked {api['verified_date']}.)", ""]
     lines += ["## Sourced platform facts", ""]
     for key, fact in package["platform_facts"].items():
         value = fact["value"] if fact["value"] is not None else fact["status"]

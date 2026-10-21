@@ -216,8 +216,11 @@ class EverydayHelpTests(unittest.TestCase):
         self.assertTrue(grouped["mark-shared"].startswith("Draft and approve"))
 
     def test_error_hints(self):
-        self.assertIn("accounts.example.json", cli_help.error_hint("Missing config/accounts.json. Copy it"))
+        self.assertIn("account-add bluesky", cli_help.error_hint("Missing config/accounts.json: no accounts yet"))
+        self.assertIn("share --guide", cli_help.error_hint("Missing config/accounts.json: no accounts yet"))
         self.assertIn("list", cli_help.error_hint("Unknown post id: x"))
+        self.assertIn("share --list", cli_help.error_hint("Unknown network 'blusky'. Did you mean bluesky?"))
+        self.assertIn("--title", cli_help.error_hint('YouTube needs a video title: add --title "…"'))
         self.assertIsNone(cli_help.error_hint("something unrelated"))
 
 
