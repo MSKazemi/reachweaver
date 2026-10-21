@@ -55,7 +55,7 @@ class StateTests(StartBase):
         guide = self.guide()
         self.assertEqual(guide["state"], "no_accounts_file")
         commands = self.commands(guide)
-        self.assertEqual(commands[:3], [start.SHARE_WEB, start.SHARE_GUIDE, "reachweaver workspace --init ."])
+        self.assertEqual(commands[:3], [start.STUDIO, start.SHARE_GUIDE, "reachweaver workspace --init ."])
         self.assertFalse(any(c.startswith("cp ") for c in commands), "no example file here to copy")
         self.assertIn("Easiest", guide["steps"][0]["label"])
         self.assertEqual(commands[-1], "reachweaver account-add bluesky")
@@ -79,7 +79,7 @@ class StateTests(StartBase):
         self.assertNotIn("edit config/accounts.json", guide["summary"])  # said once, in the step
         labels = [s["label"] for s in guide["steps"]]
         self.assertIn("4 account(s) still use example placeholders — edit config/accounts.json", labels)
-        self.assertEqual(self.commands(guide)[:2], [start.SHARE_WEB, start.SHARE_GUIDE])
+        self.assertEqual(self.commands(guide)[:2], [start.STUDIO, start.SHARE_GUIDE])
         self.assertFalse((self.base / "state" / "reachweaver.sqlite").exists())
 
     def test_placeholder_accounts_never_become_the_draft_suggestion(self):
@@ -265,7 +265,7 @@ class CommandTests(StartBase):
         self.assertTrue(catalog.owner_runs(start.REVIEW))
         self.assertTrue(catalog.owner_runs(start.SHARE_WEB))
         self.assertFalse(catalog.owner_runs(start.REPORT))
-        self.assertLessEqual({start.REVIEW, start.SHARE_WEB, start.REPORT, "reachweaver idea list --status open"}, seen)
+        self.assertLessEqual({start.REVIEW, start.STUDIO, start.REPORT, "reachweaver idea list --status open"}, seen)
 
 
 class StaticTests(unittest.TestCase):

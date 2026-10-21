@@ -1103,7 +1103,7 @@ async function viewPosted(params) {
     h("div", { class: "filters" }, acc, listSearch(list, "Search what was posted ( / )", d.shown, d.truncated ? " (newest " + d.shown + " only)" : "")),
     list.length ? rows(list) :
       empty(account ? "Nothing posted from this account yet" : "Nothing posted yet", h("span", null, "Posted it yourself? Record it with ",
-        h("code", null, "reachweaver mark-shared --platform PLATFORM --url URL"), ". Export the record with ", h("code", null, "reachweaver journal --format markdown"), "."), "posted"),
+        h("code", null, "reachweaver posted LINK --likes N"), ". Export the record with ", h("code", null, "reachweaver journal --format markdown"), "."), "posted"),
     h("p", { class: "note" }, d.note)];
 }
 
@@ -1190,7 +1190,7 @@ async function viewResults(params) {
     h("td", null, p.account || "account unknown", h("div", { class: "muted" }, pf(p.platform))),
     h("td", null, snapshotCell(p.latest, d.metrics, barKey, max))))) :
     empty("Nothing published yet", h("span", null, "Results appear here once a post is published and you record its numbers. Posted it yourself? Make it measurable with ",
-      h("code", null, "reachweaver mark-shared --platform PLATFORM --url URL --text '...'"), "."), "results"));
+      h("code", null, "reachweaver posted LINK --likes N"), "."), "results"));
   if (d.posts.length && !d.with_snapshot) out.push(h("div", { class: "card" }, h("h2", { class: "ct" }, "Record results in your terminal"),
     command("reachweaver metrics POST_ID --likes 4 --views 120"),
     h("p", { class: "note" }, "Or import a native export with reachweaver import-metrics --csv FILE. Bluesky and Mastodon public counters: reachweaver metrics-fetch --online.")));

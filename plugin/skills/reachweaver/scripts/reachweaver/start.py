@@ -21,6 +21,7 @@ from .ui_data import open_database
 
 EXAMPLE_ACCOUNTS = "config/accounts.example.json"
 SHARE_WEB = "reachweaver share --web --open"
+STUDIO = "reachweaver studio --open"  # dashboard + composer in one process, linked to each other
 SHARE_GUIDE = "reachweaver share --guide"
 REVIEW = "reachweaver review"
 REPORT = "reachweaver report --since 30d --format markdown"
@@ -40,9 +41,10 @@ def _posted_step() -> dict:
 
 
 def _share_steps() -> list[dict]:
-    return [_step("Easiest: write one post in your browser and get a ready-to-paste version for each network",
-                  SHARE_WEB, "Runs only on your computer; you post it in each app yourself. "
-                             "No account, password or social network is contacted."),
+    return [_step("Easiest: open ReachWeaver in your browser: write a post, get a ready-to-paste version for each "
+                  "network, and later see how it did", STUDIO,
+                  "Runs only on your computer; you post it in each app yourself. No account, password or social "
+                  "network is contacted. Only the composer: " + SHARE_WEB),
             _step("Or answer a few questions in the terminal instead", SHARE_GUIDE,
                   "Guided manual handoff; nothing is published.")]
 
@@ -72,7 +74,7 @@ def _placeholder_step(placeholders: list[str], accounts_file: Path) -> dict:
 
 def _ideas_step(count: int) -> dict:
     return _step(f"{count} saved idea(s) in your inbox: pick one to write next", "reachweaver idea list --status open",
-                 f"'{NEXT}' names each one with a ready command that makes a copy-ready post for your networks.")
+                 f"'{NEXT}' names each one with a command that opens the browser composer with that idea as your caption.")
 
 
 def _hand_posting_guide(db: str | Path | None, database: Path) -> dict | None:

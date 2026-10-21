@@ -931,7 +931,7 @@ button { font-family: inherit; }
      return row;
    }
    if (network.human_only) {
-     row.appendChild(text("p", "You write and post this one yourself. To keep it in your history, run reachweaver mark-shared in the terminal.", "hint"));
+     row.appendChild(text("p", "You write and post this one yourself. To keep it in your history, run reachweaver posted LINK in the terminal after you post it.", "hint"));
      return row;
    }
    if (!network.measurable) {

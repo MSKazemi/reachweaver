@@ -200,7 +200,7 @@ class ContextTests(Base):
         for item in doc["accounts"]["items"]:
             self.assertTrue(item["placeholder"], item["id"])
             self.assertLessEqual({"id", "platform", "adapter", "state", "persona", "missing"}, set(item))
-        self.assertTrue(any(step["command"] == "reachweaver share --web --open" and step["owner_runs"]
+        self.assertTrue(any(step["command"] == "reachweaver studio --open" and step["owner_runs"]
                             for step in doc["next_actions"]))
         code, text, _ = self.run_cli("context")
         self.assertIn("still an example placeholder", text)

@@ -169,7 +169,7 @@ def next_view(guide: dict) -> dict:
     from .start import SHARE_WEB  # start imports this module: a late import avoids the cycle
     steps = [dict(s, owner_only=bool(s.get("command") and owner_runs(s["command"])),
                   opens=step_opens(s.get("command")))
-             for s in guide["steps"] if s.get("command") != "reachweaver ui"]
+             for s in guide["steps"] if s.get("command") not in ("reachweaver ui", "reachweaver studio --open")]
     waiting = guide.get("state") not in ("empty", "idle")
     write = {"label": WRITE_LABEL, "command": SHARE_WEB,
              "note": "Opens a page on this computer that turns one post into a ready-to-paste version for each "
