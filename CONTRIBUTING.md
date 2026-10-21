@@ -61,6 +61,18 @@ Tests must run with mocked HTTP and NO real social credentials, and must never p
 
 Prefer building fake tokens at runtime (string concatenation) so no allowlist entry is needed. Never allowlist a value that has ever been a real credential — revoke it at the provider and rewrite the fixture. `python3 scripts/secret_scan.py --list-patterns` shows the pattern ids.
 
+## Documentation website
+
+[mskazemi.com/reachweaver](https://mskazemi.com/reachweaver/) is built from the Markdown in this repository; edit the Markdown, never the generated pages. `scripts/build_docs_site.py` copies the public guides into `website/src/content/docs/` (front matter, rewritten links, one page per release, the command reference from the real parser, `llms.txt`), then Astro Starlight builds the site. Only `website/src/content/docs/index.mdx`, `faq.mdx` and `404.md` are written by hand. A new file in `docs/` gets a page automatically; add it to `SECTIONS` in the script to choose its sidebar group. Building needs Node.js 22.23 or newer; the Python side stays dependency-free.
+
+```bash
+make site          # generate the content, npm ci, build website/dist (fails on a broken link or anchor)
+make site-check    # titles, descriptions, canonicals, sitemap, structured data, no links to private files
+make site-dev      # live preview at http://localhost:4321/reachweaver/
+```
+
+`.github/workflows/docs-site.yml` runs the same steps on every pull request and deploys to GitHub Pages from `main`.
+
 ## Pull requests and issues
 
 The pull request template asks for test evidence (command and output), documentation updates, a security evaluation of the approval, dry-run, emergency-stop, credential-isolation and ambiguous-send rules, and platform-registry updates where relevant. Use the issue templates for bugs, features and platform adapters; adapters need official documentation URLs, a verification date, the account type and the platform's approval requirements. Report vulnerabilities privately as described in [docs/SECURITY.md](docs/SECURITY.md#reporting-a-vulnerability-private), never in a public issue. Public PRs must not contain secrets, unlicensed third-party skill prose, browser cookies, session files, private analytics or copyrighted media.

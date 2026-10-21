@@ -1,0 +1,71 @@
+---
+// Home-page hero. The preview card is real output from the quickstart (docs/QUICKSTART.md) on the example account:
+// a Bluesky draft, its offline check and the digest an approval would bind. Nothing was sent.
+import { LinkButton } from '@astrojs/starlight/components';
+
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, actions = [] } = data.hero || {};
+---
+
+<div class="rw-hero">
+	<div class="rw-hero-copy">
+		<h1 id="_top" data-page-title set:html={title} />
+		{tagline && <p class="rw-tagline" set:html={tagline} />}
+		<div class="rw-actions">
+			{
+				actions.map(({ link, text, variant, icon }) => (
+					<LinkButton href={link} variant={variant} icon={icon?.name}>
+						{text}
+					</LinkButton>
+				))
+			}
+		</div>
+		<div class="rw-install">
+			<code id="rw-install-cmd">pip install reachweaver</code>
+			<button type="button" class="rw-copy" data-copy="pip install reachweaver" aria-label="Copy the install command">Copy</button>
+		</div>
+		<p class="rw-install-note">Python 3.11 or newer. No other dependencies. Or install the Claude Code plugin.</p>
+	</div>
+
+	<figure class="rw-preview" aria-label="Example: a draft checked and waiting for approval">
+		<div class="rw-term" aria-hidden="true">
+			<p><span class="rw-prompt">$</span> reachweaver draft --account my-bluesky --file post.txt</p>
+			<p class="rw-out">Created draft f5d0a469 for my-bluesky; not published</p>
+			<p><span class="rw-prompt">$</span> reachweaver check f5d0a469</p>
+			<p class="rw-out">OK</p>
+		</div>
+		<div class="rw-post">
+			<div class="rw-post-head">
+				<span class="rw-network">Bluesky</span>
+				<span class="rw-handle">example.bsky.social</span>
+				<span class="rw-count">222 / 300</span>
+			</div>
+			<p class="rw-post-text">
+				Better operations come from reproducible evidence, not just promising demos.
+			</p>
+			<p class="rw-post-text">
+				We are turning our engineering lessons into short, testable examples. What is the hardest part of
+				making infrastructure automation trustworthy?
+			</p>
+			<div class="rw-post-foot">
+				<span class="rw-seal">Waiting for your approval</span>
+				<span class="rw-digest">approval binds sha256 c87655ea…2b936</span>
+			</div>
+		</div>
+		<figcaption>Real quickstart output on the example account. Nothing was sent.</figcaption>
+	</figure>
+</div>
+
+<script>
+	for (const button of document.querySelectorAll<HTMLButtonElement>('.rw-copy')) {
+		button.addEventListener('click', async () => {
+			try {
+				await navigator.clipboard.writeText(button.dataset.copy ?? '');
+				button.textContent = 'Copied';
+				setTimeout(() => (button.textContent = 'Copy'), 1600);
+			} catch {
+				button.textContent = 'Select and copy';
+			}
+		});
+	}
+</script>

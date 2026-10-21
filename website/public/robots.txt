@@ -1,0 +1,7 @@
+# ReachWeaver documentation. Search engines and AI answer engines are welcome to read and cite every page.
+# Note: crawlers only honour robots.txt at the domain root (https://mskazemi.com/robots.txt), which lives in the
+# MSKazemi/mskazemi.github.io repository and lists the sitemap below. This copy documents intent.
+User-agent: *
+Allow: /
+
+Sitemap: https://mskazemi.com/reachweaver/sitemap-index.xml

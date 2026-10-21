@@ -1,0 +1,74 @@
+---
+title: Approval-first social publishing for Claude Code
+description: Open-source Claude Code skill and Python CLI that drafts and checks social posts for each network and sends only the exact text you approve.
+template: splash
+editUrl: false
+next: false
+hero:
+  title: Share your real work. Send only what you approved.
+  tagline: ReachWeaver is an open-source Claude Code skill and command line. It turns a release, a paper or a demo into posts that fit each network, shows you exactly what would be sent, and sends nothing until you approve that exact text.
+  actions:
+    - text: Try it in 10 minutes
+      link: /reachweaver/start/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: Install
+      link: /reachweaver/start/install/
+      variant: secondary
+    - text: Source on GitHub
+      link: https://github.com/MSKazemi/reachweaver
+      icon: github
+      variant: minimal
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+## How a post travels
+
+Every step runs on your own computer. The gold step is yours alone: nothing after it can happen without you.
+
+<ol class="rw-journey">
+  <li><strong>Find the angle</strong><p>Start from something real you made. ReachWeaver suggests who might care and which networks suit them.</p></li>
+  <li><strong>Draft for each network</strong><p>A LinkedIn post is not a Bluesky post. Each draft fits its network's length, links and conventions.</p></li>
+  <li><strong>Check it</strong><p>Length, links, placeholders, repeats of something you already posted, and claims that need a source.</p></li>
+  <li class="rw-gate"><strong>You approve the exact text</strong><p>Approval is tied to that text and that account. Change one letter and it no longer counts.</p></li>
+  <li><strong>Rehearse the send</strong><p>Every command is a dry run by default: it prints what would be sent and contacts no one.</p></li>
+  <li><strong>Send, or post it yourself</strong><p>Live sending needs three deliberate switches. For networks without an adapter you get a ready package to post by hand.</p></li>
+  <li><strong>Learn from real numbers</strong><p>Import your own results to see what worked for you. Hypotheses, never promises of reach.</p></li>
+</ol>
+
+## What it will never do
+
+- Post without your approval of that exact text.
+- Store your passwords. Credentials stay in your own environment and are read only at the moment of sending.
+- Buy views, fake engagement, scrape, bypass CAPTCHAs or mass-message strangers.
+- Write for Hacker News or Reddit. Those stay human-only.
+- Resend a post when it is unsure whether the first attempt worked. It stops and asks you to look.
+
+ReachWeaver has no account or server of its own and makes no AI model calls itself: inside Claude Code, the research and writing happen in your own Claude session. Read the [security checklist](/reachweaver/publishing/security-checklist/) and the [privacy notice](/reachweaver/project/privacy/).
+
+## Which platforms work today
+
+<table class="rw-status">
+  <thead><tr><th>Platform</th><th>Status</th><th>What that means</th></tr></thead>
+  <tbody>
+    <tr><td>Bluesky, Mastodon</td><td><span class="rw-badge works">Works</span></td><td>Text posts. One real post each was sent on 2026-10-11, with first-party receipts.</td></tr>
+    <tr><td>Telegram, LinkedIn</td><td><span class="rw-badge built">Built</span></td><td>Tested against simulated servers only. No real send yet: try a test account first.</td></tr>
+    <tr><td>Threads, Facebook Pages, Instagram, YouTube, TikTok</td><td><span class="rw-badge manual">By hand</span></td><td>ReachWeaver prepares a package and a checklist; you post in the app.</td></tr>
+    <tr><td>X, Pinterest, DEV, Hashnode, Chinese platforms and more</td><td><span class="rw-badge manual">By hand</span></td><td>Drafts, research plans and copy-ready captions.</td></tr>
+    <tr><td>Reddit, Hacker News</td><td><span class="rw-badge human">Human-only</span></td><td>You write and post. ReachWeaver writes nothing for them.</td></tr>
+  </tbody>
+</table>
+
+The dated, sourced detail is in the [platform matrix](/reachweaver/publishing/platform-matrix/).
+
+## Pick your route
+
+<CardGrid>
+  <LinkCard title="Quickstart, no account" href="/reachweaver/start/quickstart/" description="Ten minutes from clone to a safe preview. Nothing can be published." />
+  <LinkCard title="Share a post in your browser" href="/reachweaver/start/browser-share-composer/" description="Write one caption, pick networks, copy each version and post it yourself." />
+  <LinkCard title="Use it with Claude Code" href="/reachweaver/start/claude-code/" description="Install the plugin and describe what you want. You keep every approval." />
+  <LinkCard title="Command reference" href="/reachweaver/reference/cli/" description="Every reachweaver command with its usage and options, grouped by task." />
+</CardGrid>
+
+New to the words? The [glossary](/reachweaver/start/glossary/) explains them, and the [FAQ](/reachweaver/faq/) answers the common questions.

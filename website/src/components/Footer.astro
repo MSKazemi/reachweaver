@@ -1,0 +1,21 @@
+---
+import Default from '@astrojs/starlight/components/Footer.astro';
+import { AUTHOR, GITHUB, PYPI, VERSION } from '../site.mjs';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<Default><slot /></Default>
+<div class="rw-footer">
+	<nav aria-label="Project links">
+		<a href={GITHUB}>GitHub</a>
+		<a href={PYPI}>PyPI</a>
+		<a href={`${base}/project/changelog/`}>Changelog{VERSION ? ` (v${VERSION})` : ''}</a>
+		<a href={`${base}/llms.txt`}>llms.txt</a>
+		<a href={`${GITHUB}/blob/main/LICENSE`}>Apache-2.0</a>
+	</nav>
+	<p>
+		Built by <a href={AUTHOR.url} rel="author">{AUTHOR.name}</a>. ReachWeaver is independent open-source
+		software, not affiliated with Anthropic or any social platform.
+	</p>
+</div>

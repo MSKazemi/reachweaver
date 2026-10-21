@@ -1,0 +1,53 @@
+---
+title: ReachWeaver FAQ
+description: "Answers to common questions about ReachWeaver, the open-source Claude Code skill for approval-first social publishing: cost, platforms, safety, data."
+sidebar:
+  label: FAQ
+editUrl: https://github.com/MSKazemi/reachweaver/edit/main/website/src/content/docs/faq.mdx
+---
+
+{/* Every answer restates what the linked guide says; keep them in step when a guide changes. */}
+
+## What is ReachWeaver?
+
+ReachWeaver is an open-source Claude Code skill and Python command line for social media publishing about your real work. It helps you find the angle, write a draft that fits each network, check it, preview exactly what would be sent, and send it only after you approve that exact text. It is released under the Apache-2.0 license. See the [overview](/reachweaver/start/overview/).
+
+## Does ReachWeaver post automatically?
+
+No. ReachWeaver never posts without your approval of the exact text, and every command is a dry run by default. A live send needs the `--live` flag plus the `REACHWEAVER_ALLOW_LIVE=1` and `REACHWEAVER_ENV=prod` settings, all set on purpose by the owner. If you change one letter after approving, the approval no longer counts. See the [security checklist](/reachweaver/publishing/security-checklist/).
+
+## Which social networks does ReachWeaver support?
+
+Text posts to Bluesky and Mastodon work, with one real post each sent on 2026-10-11. Adapters for Telegram channels and LinkedIn personal profiles are built and tested against simulated servers, with no real send yet. For Threads, Facebook Pages, Instagram, YouTube, TikTok, X, Chinese platforms and many others, ReachWeaver prepares a package or a caption that you post by hand. Reddit and Hacker News stay human-only. See the [platform matrix](/reachweaver/publishing/platform-matrix/).
+
+## Is ReachWeaver free?
+
+Yes. ReachWeaver is free, open-source software, and its commands run on your own computer. Inside Claude Code, the research and writing happen in your own Claude session on the subscription you already have; ReachWeaver itself makes no model calls and needs no API key. Social platforms set their own API terms. See [using ReachWeaver with Claude Code](/reachweaver/start/claude-code/) and [free automatic publishing](/reachweaver/publishing/free-publishing/).
+
+## Do I need an account to try it?
+
+No. The [quickstart](/reachweaver/start/quickstart/) takes about ten minutes, uses example accounts and cannot publish anything. The [browser share composer](/reachweaver/start/browser-share-composer/) prepares captions for many networks without any account connection, password or API key.
+
+## How do I install ReachWeaver?
+
+You need Python 3.11 or newer; ReachWeaver has no other dependencies. Install the Claude Code plugin with `/plugin marketplace add MSKazemi/reachweaver` and `/plugin install reachweaver@reachweaver`, or the command line with `pipx install reachweaver` or `pip install reachweaver`. See [how to install](/reachweaver/start/install/).
+
+## Where does my data go?
+
+ReachWeaver runs on your own computer and keeps its records in a local database. It has no account or server of its own, and the project does not intentionally collect telemetry. Credentials stay in your own environment and are read only at the moment of sending. See the [privacy notice](/reachweaver/project/privacy/) and the [data lifecycle](/reachweaver/project/privacy-lifecycle/).
+
+## Will ReachWeaver make my posts go viral?
+
+No, and it never promises reach. It helps you post useful, accurate content where your audience is, and learn from the numbers you import yourself. Missing numbers are shown as unknown, never as zero. It never buys views, fakes engagement, scrapes or mass-messages strangers. See [what works for you](/reachweaver/grow/insights/).
+
+## What happens if a send fails halfway?
+
+ReachWeaver never resends a post when it is unsure whether the first attempt worked. That account is held until you check the real account and run `reconcile`. `reachweaver pause` stops all publishing at once. See [troubleshooting](/reachweaver/start/troubleshooting/).
+
+## Is ReachWeaver affiliated with Anthropic or a social network?
+
+No. ReachWeaver is independent open-source software. It is not affiliated with Anthropic or any of the platforms it supports. Read the [disclaimer](/reachweaver/project/disclaimer/).
+
+## How can I contribute or report a problem?
+
+Read the [contributing guide](/reachweaver/project/contributing/) and open an issue on [GitHub](https://github.com/MSKazemi/reachweaver/issues). Report security problems privately, as described in [report a vulnerability](/reachweaver/project/report-a-vulnerability/).
