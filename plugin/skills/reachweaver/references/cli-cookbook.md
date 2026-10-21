@@ -177,6 +177,8 @@ Then the owner, in their own terminal: `approve POST_ID`, and only on the produc
 | `engagement-triage` | Comment triage + reply/issue DRAFTS; no send path | `INPUT`, `--docs-map`, `--out`, `--issues-dir`, `--json` |
 | `engagement-queue` | Aging/SLA review queue over an engagement export | `INPUT`, `--docs-map`, `--sla`, `--json` |
 | `followup-suggest` | Owner-set metric thresholds -> follow-up briefs + next commands for review; never likes, replies, DMs or drafts | `--rules F`, `--account ID`, `--since DATE`, `--state F`, `--record`, `--optout F`, `--json` |
+| `engage-scout` | Ranked daily shortlist of conversations to join + an angle each (never reply text); human-only venues are read-it-yourself; never posts | `--config F`, `--input F`, `--online` (**online**, GET only), `--platform P`, `--limit N`, `--state F`, `--record STATE`, `--optout F`, `--now`, `--json` |
+| `engage-log` | Owner marks a scout item replied/skipped; weekly correlational readout | `--state F`, `--mark ID`, `--replied`, `--with-link`, `--skipped`, `--at`, `--readout`, `--outcomes F`, `--weeks N`, `--json` |
 
 ## Data, privacy and schemas
 

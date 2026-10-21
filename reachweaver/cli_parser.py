@@ -9,7 +9,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import confirmation, followups, repeat_guard
+from . import confirmation, engage_scout, followups, repeat_guard
 from .account_advisor import FORMATS as ADVISOR_FORMATS
 from .attribution import ATTRIBUTION_SOURCES, CAMPAIGN_TYPES
 from .campaigns import OBJECTIVES
@@ -796,6 +796,7 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--sla", action="append", metavar="LABEL=HOURS", help="Override one label's overdue target in hours; repeatable")
     p.add_argument("--json", action="store_true", help="Print the full machine-readable queue")
     followups.add_parser(sub)  # followup-suggest (reachweaver/followups.py)
+    engage_scout.add_parser(sub)  # engage-scout, engage-log (reachweaver/engage_scout.py)
     p = sub.add_parser("data-export", help="Offline JSON export of your local DB with secret-looking text redacted")
     p.add_argument("--out", type=Path, help="NEW owner-only (0600) file; default prints to stdout")
     p = sub.add_parser("data-purge", help="Retention purge plan (dry run); --apply deletes/minimizes local rows only")

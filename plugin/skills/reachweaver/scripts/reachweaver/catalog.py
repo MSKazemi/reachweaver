@@ -164,6 +164,10 @@ COMMANDS: dict[str, dict] = {
     "engagement-fetch": _c(NW, note="network only with --online"),
     "engagement-triage": _c(W, note="writes draft files only with --out/--issues-dir"),
     "engagement-queue": _c(R),
+    "engage-scout": _c(NW, note="network only with --online (GET, no credential); never posts, replies, likes or "
+                                "follows; only --record writes its private state file; never opens the database"),
+    "engage-log": _c(W, note="--mark writes only the private state file; --readout only reads; never opens the "
+                             "database"),
     "followup-suggest": _c(W, note="database mode=ro; suggestions only (never likes, replies or drafts); only --record writes its --state file"),
     # Data, privacy and schemas
     "archive": _c(W),

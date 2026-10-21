@@ -1,0 +1,7 @@
+{
+  "_comment": "SYNTHETIC response in the app.bsky.actor.getProfiles shape; invented DIDs and counts.",
+  "profiles": [
+    {"did": "did:plc:synthaaaaaaaaaaaaaaaaaaa", "handle": "synthetic-one.bsky.social", "followersCount": 2500, "followsCount": 300, "postsCount": 900},
+    {"did": "did:plc:synthbbbbbbbbbbbbbbbbbbb", "handle": "synthetic-two.bsky.social", "followersCount": 120}
+  ]
+}

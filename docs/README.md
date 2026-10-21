@@ -59,6 +59,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 | Decide what to do next | [Next actions](NEXT-ACTIONS.md), [weekly report example](WEEKLY-REPORT-EXAMPLE.md) |
 | Handle replies and comments | [Engagement](ENGAGEMENT.md) |
 | Follow up when a post passes a milestone (suggestions only) | [Follow-up suggestions](FOLLOWUPS.md) |
+| Find conversations to join in your own words (never posts) | [Engagement scout](ENGAGE-SCOUT.md) |
 
 ## 5. I run ReachWeaver on a server or manage data
 

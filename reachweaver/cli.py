@@ -2048,6 +2048,12 @@ def execute(args) -> int:
     if args.command == "followup-suggest":  # database mode=ro only; --record writes only the --state file
         from .followups import run_cli as run_followups
         return run_followups(args)
+    if args.command == "engage-scout":  # never opens the database; GETs only with --online; --record writes state
+        from .engage_scout import run_scout_cli
+        return run_scout_cli(args)
+    if args.command == "engage-log":  # never opens the database; --mark writes only the --state file
+        from .engage_scout import run_log_cli
+        return run_log_cli(args)
     if args.command == "statusline":  # read-only; home was activated by main()
         from .statusline import render as render_statusline
         print(render_statusline(args.db, None, activate=False))

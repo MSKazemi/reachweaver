@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "kind": "reachweaver.engage-scout-config",
+  "description": "Example config for reachweaver engage-scout. It finds conversations you could join in your own words. Nothing is posted, replied to, liked or followed. Replace the placeholder handles with your own.",
+  "projects": [
+    {
+      "id": "reachweaver",
+      "name": "ReachWeaver",
+      "link": "https://github.com/MSKazemi/reachweaver",
+      "topics": [
+        "social publishing CLI",
+        "Claude Code skills",
+        "Claude Code plugins",
+        "approval-gated automation",
+        "open-source growth"
+      ],
+      "keywords": [
+        "claude code",
+        "cross-posting",
+        "human in the loop",
+        "bluesky api",
+        "mastodon api",
+        "social media scheduler"
+      ],
+      "provides": [
+        "cross-posting",
+        "social media scheduler",
+        "approval workflow",
+        "claude code skill",
+        "post to bluesky and mastodon"
+      ]
+    }
+  ],
+  "hashtags": ["opensource", "claudecode", "cli"],
+  "search_terms": ["claude code skill", "cross-posting", "human in the loop"],
+  "platforms": ["bluesky", "mastodon", "github", "x", "linkedin", "threads", "reddit", "youtube", "stackoverflow", "hackernews"],
+  "mastodon_server": "https://mastodon.social",
+  "owner_handles": {
+    "github": "MSKazemi",
+    "bluesky": "your-handle.bsky.social",
+    "mastodon": "your-handle@mastodon.social"
+  },
+  "quiet_accounts": [],
+  "daily_cap": 7,
+  "link_cap": {"links": 1, "per_replies": 10},
+  "same_account_days": 7,
+  "audience_band": {"min_followers": 1000, "max_followers": 50000},
+  "min_relevance": 0.2,
+  "max_age_hours": {"default": 24, "github": 168},
+  "per_source_limit": 25
+}

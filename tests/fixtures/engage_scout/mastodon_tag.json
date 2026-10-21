@@ -1,0 +1,31 @@
+[
+  {
+    "id": "900000000000000001", "created_at": "2026-10-21T10:30:00.000Z", "visibility": "public", "reblog": null,
+    "url": "https://mastodon.example/@synth/900000000000000001", "uri": "https://mastodon.example/users/synth/statuses/900000000000000001",
+    "replies_count": 0, "reblogs_count": 0, "favourites_count": 1, "spoiler_text": "",
+    "content": "<p>How do I add a human in the loop to my <a href=\"https://mastodon.example/tags/opensource\">#opensource</a> cross-posting script?</p>",
+    "account": {"id": "1", "username": "synth", "acct": "synth", "bot": false, "discoverable": true, "noindex": false, "followers_count": 900}
+  },
+  {
+    "id": "900000000000000002", "created_at": "2026-10-21T10:00:00.000Z", "visibility": "public",
+    "reblog": {"id": "800000000000000001"}, "url": "https://mastodon.example/@booster/900000000000000002",
+    "content": "", "account": {"id": "2", "username": "booster", "acct": "booster", "bot": false, "followers_count": 10}
+  },
+  {
+    "id": "900000000000000003", "created_at": "2026-10-21T09:00:00.000Z", "visibility": "public", "reblog": null,
+    "url": "https://other.example/@private_person/3", "replies_count": 0,
+    "content": "<p>cross-posting with a human in the loop?</p>",
+    "account": {"id": "3", "username": "private_person", "acct": "private_person@other.example", "bot": false, "discoverable": false, "noindex": true, "followers_count": 5000}
+  },
+  {
+    "id": "900000000000000004", "created_at": "2026-10-21T09:30:00.000Z", "visibility": "public", "reblog": null,
+    "url": "https://mastodon.example/@feedbot/4", "replies_count": 0,
+    "content": "<p>New #opensource cross-posting human in the loop release</p>",
+    "account": {"id": "4", "username": "feedbot", "acct": "feedbot", "bot": true, "discoverable": true, "followers_count": 3000}
+  },
+  {
+    "id": "900000000000000005", "created_at": "2026-10-21T09:45:00.000Z", "visibility": "unlisted", "reblog": null,
+    "url": "https://mastodon.example/@quiet/5", "content": "<p>cross-posting</p>",
+    "account": {"id": "5", "username": "quiet", "acct": "quiet", "bot": false, "followers_count": 40}
+  }
+]
