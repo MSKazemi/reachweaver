@@ -149,6 +149,7 @@ COMMANDS: dict[str, dict] = {
     "landing-check": _c(NR, note="network only with --online"),
     "utm-link": _c(R),
     "creative-preflight": _c(R),
+    "ai-label-check": _c(R, note="advisory; --post-id opens the database read-only; never blocks, approves or sends"),
     "media-check": _c(R),
     "media-storyboard": _c(W),
     "media-cutlist": _c(R),

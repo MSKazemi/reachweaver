@@ -1527,6 +1527,9 @@ def execute(args) -> int:
     if args.command in ("voice-profile", "voice-check"):  # database only through connect_readonly; never written
         from .voice import run_command as run_voice
         return run_voice(args)
+    if args.command == "ai-label-check":  # advisory; --post-id opens the database read-only; never blocks or sends
+        from .ai_labels import run_command as run_ai_labels
+        return run_ai_labels(args)
     if args.command == "account-advisor":
         from .account_advisor import advise as advise_accounts, render_text as advisor_render
         plan = advise_accounts(region=args.region, goal=args.goal, content_format=args.format,

@@ -32,7 +32,7 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
         "experiment-simulate")),
     ("Audit profiles and content", ("profile-audit", "post-audit", "seo-destinations", "seo-content-check",
                                     "landing-check", "utm-link", "creative-preflight", "voice-profile", "voice-check",
-                                    "media-check", "media-storyboard", "media-cutlist")),
+                                    "ai-label-check", "media-check", "media-storyboard", "media-cutlist")),
     ("Research channels and sources", ("distribution-plan", "discovery-plan", "sources-scan", "signal-brief",
                                        "release-brief")),
     ("Creator amplification (offline, owner review)", ("creator-match", "creator-kit", "creator-coverage")),

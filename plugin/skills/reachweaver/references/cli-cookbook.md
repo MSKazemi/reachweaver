@@ -159,6 +159,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `voice-profile` | Statistics of how the owner writes, from their own past posts; writes one NEW private file, stores no post text | `--from F` or `--from-db`, `--account ID`, `--platform P`, `--out NEW`, `--json` |
 | `voice-check` | Advisory: draft vs the owner's voice profile and a heuristic stock-AI-phrase list; never blocks, rewrite flagged lines yourself | `--profile F`, `--text T`/`--file F`/`--post-id ID`, `--platform P`, `--json` |
 | `media-check` | Media manifest: headers, limits, alt text, captions, rights | `MANIFEST`, `--json` |
+| `ai-label-check` | Advisory: per target platform, is an AI-content label required / recommended / not required / unknown, what to tick natively, cited source; optional EU AI Act Art. 50 note (secondary source, not legal advice); never blocks | `--file F`/`--post-id ID`, `--platform P`, `--media MANIFEST`, `--authorship A`, `--eu`, `--public-interest yes\|no`, `--editorial-review yes\|no`, `--json` |
 | `media-storyboard` | Brief -> vertical-video storyboard, SRT, manifest; generates no media | `--campaign F`, `--out DIR`, `--check`, `--duration`, `--aspect`, `--json` |
 | `media-cutlist` | One master video -> per-platform cut list + suggested ffmpeg | `PLAN`, `--json` |
 
