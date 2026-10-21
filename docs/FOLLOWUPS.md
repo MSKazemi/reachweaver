@@ -15,7 +15,13 @@ reachweaver followup-suggest --rules config/followup-rules.json --json --since 2
 reachweaver followup-suggest --rules config/followup-rules.json --state state/followups-state.json --record
 ```
 
-Flags: `--rules FILE` (required), `--account ID` (only that account's posts), `--since DATE` (only posts published at or after an ISO 8601 time with a timezone), `--state FILE` and `--record` (dedupe, see below), `--optout FILE` (default `$REACHWEAVER_OPTOUT` or `config/optout.json` if present), `--now ISO` (fixed time for snapshot ages) and `--json`. It uses the global `--db` and `--accounts`.
+Flags: `--rules FILE` (optional, see below), `--account ID` (only that account's posts), `--since DATE` (only posts published at or after an ISO 8601 time with a timezone), `--state FILE` and `--record` (dedupe, see below), `--optout FILE` (default `$REACHWEAVER_OPTOUT` or `config/optout.json` if present), `--now ISO` (fixed time for snapshot ages) and `--json`. It uses the global `--db` and `--accounts`.
+
+## Without `--rules`: thresholds from your own results
+
+`reachweaver followup-suggest` with no `--rules` decides what "took off" means for each account from that account's own results. The threshold is `ceil(2 x median)` interactions (likes + replies + reposts, all exact in one snapshot), using the median at the matched age of about 7 days (168 h +/- 24 h, [insights method](INSIGHTS.md#where-your-results-are-used)). A post is compared only against snapshots from the same source, taken no later than 192 h after posting. The output starts with "Thresholds derived from your own results" and shows each account as `derived from your N posts: 2 x median M = T`. Each brief repeats that basis, and the JSON carries `derived_thresholds`. The derived kind is `recap_thread`. The rule id is `took-off-ACCOUNT`, so `--state`/`--record` dedupe works as usual.
+
+When an account has fewer than 10 posts with a result, has a median of 0, or is on a human-only platform, it gets no rule and the reason is shown. If no account qualifies, the command exits 0 with a friendly message: pass `--rules FILE`, or record results first. In that case `--json` gives `"status": "too_little_data"`. `--rules FILE` replaces the derived rules completely.
 
 ## Rules file
 

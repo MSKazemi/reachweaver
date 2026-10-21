@@ -183,7 +183,7 @@ Before any work starts, confirm the owner has a **Pinterest business account**, 
 
 ## Periodic update process
 
-1. **Cadence:** re-verify every entry at least every 120 days, and immediately before building an adapter or running a pilot. `reachweaver capabilities` warns when an entry's `verified_date` is older than `--max-age-days` (default 120), and `reachweaver registry-age` reports the age of every dated fact in all five research registries ([Registry freshness](#registry-freshness)).
+1. **Cadence:** re-verify every entry at least every 120 days, and immediately before building an adapter or running a pilot. `reachweaver capabilities` warns when an entry's `verified_date` is older than `--max-age-days` (default 120), and `reachweaver registry-age` reports the age of every dated fact in all nine research registries ([Registry freshness](#registry-freshness)).
 2. **Sources:** use official provider pages only (developer docs, terms, pricing, help centre). Third-party blogs may suggest what to check, but a registry value never rests on them. If a fact cannot be confirmed, set it to `unknown`, which fails closed.
 3. **Edit:** update `reachweaver/platform_registry.json`, including `verified_date`, `verification_basis` and `sources`. A stated rate limit needs an HTTPS `source`; exact numbers go in `rate_limits.facts` with an `accessed` date, and anything the official page does not state goes in `rate_limits.not_published`. Then mirror the table and notes here.
 4. **Gate:** run `python3 scripts/sync_skill.py` and then `python3 -m unittest discover -s tests -v`. CI re-validates the registry, checks the bundle is byte-identical and fails on any missing platform, field, enum, date or HTTPS source.
@@ -191,7 +191,14 @@ Before any work starts, confirm the owner has a **Pinterest business account**, 
 
 ## Registry freshness
 
-Five bundled registries state dated platform facts: `platform_registry.json` (capabilities; `verified_date` and `rate_limits.accessed`), `distribution_registry.json` (each channel's `checked_on`), `discovery_registry.json` (each guidance source's `checked_on`), `profile_audit_registry.json` (each platform's `evidence.checked_on` and each sourced field limit's `checked_on`) and `signup_registry.json` (only a snapshot `reviewed_on`, which its entries use and say so with `date_basis: registry_reviewed_on`). One policy applies to all of them (`reachweaver/freshness.py`):
+Nine bundled registries state dated platform facts. The first five: `platform_registry.json` (capabilities; `verified_date` and `rate_limits.accessed`), `distribution_registry.json` (each channel's `checked_on`), `discovery_registry.json` (each guidance source's `checked_on`), `profile_audit_registry.json` (each platform's `evidence.checked_on` and each sourced field limit's `checked_on`) and `signup_registry.json` (only a snapshot `reviewed_on`, which its entries use and say so with `date_basis: registry_reviewed_on`). Three more registries have been included since 2026-10-21:
+
+- `ai_search_registry.json` (`ai-search`): each crawler, page-signal, measurement and limitation evidence `checked_on`, keyed by lowercased crawler token or `web`.
+- `ai_disclosure_registry.json` (`ai-disclosure`): each cited source's `checked_on` per platform or jurisdiction; uncited sources go under `general`. Its snapshot date field is `checked_on`.
+- `social_web_registry.json` (`social-web`): each source `checked_on` of protocols, platforms, bridges, identity checks and home options, keyed by entry id.
+- `platform_risk_registry.json` (`platform-risk`): each source `checked_on` of the risk flags and market notices, keyed by platform.
+
+One policy applies to all nine (`reachweaver/freshness.py`):
 
 | Status | Age of the checked date | Meaning |
 | --- | --- | --- |

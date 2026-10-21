@@ -3,6 +3,9 @@
 No network, cookies, social accounts, hidden algorithms, publishing, scheduling or
 claims of predicted impressions. This is an editorial ranking of *relevance* only.
 A dated owner observation of a trend is NOT a first-party API verification.
+
+When a local database exists, ``add_your_results`` reads it strictly read-only (``insights``) and shows the
+owner's own matched-age results per recommended tag next to the ranking; it never changes the ranking.
 """
 from __future__ import annotations
 
@@ -326,6 +329,35 @@ def build_discovery_plan(raw: object) -> dict:
     }
 
 
+YOUR_RESULTS_POLICY = (
+    "Shown next to each tag, never folded into editorial_relevance_score: the ranking stays the documented "
+    "lexical-relevance rule. Small per-tag samples, tags chosen for posts that were already promising, and "
+    "topics that move with the tag make a tag's past median a weak guide, so the owner reads the evidence "
+    "and decides; an experiment tests it.")
+
+
+def add_your_results(plan: dict, con, *, account_id: str | None = None, now=None) -> dict:
+    """Add ``your_results`` to a plan: per recommended tag, the owner's own matched-age results (read-only).
+
+    ``con`` is a read-only connection, or None when there is no database. The plan's ranking, scores and
+    quotas are never changed (``score_adjustment`` is always None; see ``YOUR_RESULTS_POLICY``).
+    """
+    base = {"score_adjustment": None, "policy": YOUR_RESULTS_POLICY}
+    if con is None:
+        plan["your_results"] = {**base, "status": "no_database",
+                                "note": "No local database, so your own results are not shown."}
+    elif plan["surface"] != "hashtags":
+        plan["your_results"] = {**base, "status": "not_applicable",
+                                "note": "Only hashtags in your post text are measured; this platform uses "
+                                        f"{plan['surface'].replace('_', ' ')}."}
+    else:
+        from .insights import tag_evidence
+        tags = [item["tag"] for item in plan["recommended"]]
+        plan["your_results"] = {**base, **tag_evidence(con, tags, platform=plan["platform"], account_id=account_id,
+                                                       now=now)}
+    return plan
+
+
 def check_file(path: Path) -> dict:
     if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_INPUT_BYTES:
         raise ValidationError("discovery-plan input must be a regular JSON file <=250 KB; no symlinks")
@@ -340,8 +372,20 @@ def render_text(plan: dict) -> str:
     lines = [f"{plan['status']}: {plan['platform']} ({plan['surface']})",
              f"Audience: {plan['audience']}; region {plan['region']}; as of {plan['as_of']}",
              f"Editorial tags: {len(plan['recommended'])} (not a reach prediction)"]
+    mine = plan.get("your_results") or {}
+    cohorts = mine.get("cohorts", []) if mine.get("status") == "ok" else []
     for s in plan["recommended"]:
         lines.append(f"  {s['tag']} [{s['category']}]: {s['reason']} ({s['basis']})")
+        for cohort in cohorts:
+            item = next((t for t in cohort["tags"] if t["tag"] == s["tag"]), None)
+            if item is not None:
+                lines.append(f"    your results ({cohort['account_id']}): {item['text']}")
+    if cohorts:
+        lines.append(f"  Your results: {mine['unit']} about {mine['post_age_hours']} h after posting; "
+                     f"{mine['label']}. Order and scores above are unchanged.")
+    elif mine.get("status") == "no_results":
+        lines.append("  Your results: no published posts on this platform have a result at about 7 days yet "
+                     "(see 'insights' for how to record them).")
     for skip in plan["skipped"]:
         lines.append(f"  SKIP {skip['tag']}: {skip['reason']}")
     for warn in plan["warnings"]:

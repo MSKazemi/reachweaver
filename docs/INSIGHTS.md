@@ -104,3 +104,17 @@ disclaimer        one sentence
 ## Using it from other views
 
 `reachweaver.insights.top_insights(con, account_id=None, platform=None, since=None)` returns the same lines (without bootstrap intervals, so it is fast) and `[]` when there is not enough data. The read-only dashboard (`reachweaver ui`) shows them on the **Results** page under "What works for you".
+
+## Where your results are used
+
+Every command below that recommends something shows your own results next to its fixed rule. They all use the same method as `insights` with its defaults: interactions (likes + replies + reposts) at the matched age of 168 h (+/- 24 h), the snapshot source with the most matched posts, one account at a time, and groups of at least 5 posts against at least 5 others before a difference is called an `observation`. Smaller groups say `too little data`. No bootstrap interval is computed here, so run `insights` for the full report. They all read the database only (`SELECT`). None of them changes a score, slot, approval, schedule or send path, and nothing is fed back automatically.
+
+| Command | What it shows | What it never does |
+|---|---|---|
+| `discovery-plan` | `your_results`: for each recommended tag, how your posts carrying it did (n, median against the rest, strength). Tags match the lowercased hashtags in the post text. Use `--account ID` to show one account. The database is read only when it already exists. | It never changes `editorial_relevance_score`, the order or the quotas. `score_adjustment` is always `null`. See [why](DISCOVERY-OPTIMIZATION.md#your-own-results-next-to-each-tag). |
+| `followup-suggest` without `--rules` | One "took off" rule per account: `ceil(2 x your median)` interactions, compared only against snapshots from the same source taken no later than 192 h after posting. Each one is labelled "derived from your N posts". It needs at least 10 posts with a result. Below that, or with a median of 0, it prints a friendly next step and suggests nothing. | It invents no threshold. Human-only platforms get no rule. `--rules FILE` replaces the derived rules completely. |
+| `experiment-next` | `--readout FILE` / `--readout-dir DIR` read saved `experiment-readout --json` files. `experiment-readout` and `experiment-evaluate` store nothing themselves, so save their JSON output. Labels and directions are copied unchanged. Each experiment counts once (the readout with the most usable pairs), and an id that is already in `--results` keeps that entry. | It never relabels a readout. |
+| `suggest` (with a database) | P3 `what_works_for_you` items from `top_insights`, marked `observational_only`, each with its n and medians. It also adds one P3 `research_freshness` item when a bundled registry fact is aging or stale (`freshness.warning_line`). | P3 sorts after every safety, blocker and measurement item. |
+| `calendar-plan` (proposals only) | `your_results`: your results by 6-hour block and weekday in `--timezone`, the blocks that did better (`better_blocks`), and the block each proposed slot falls in, with your own n and median. It appears only when at least one of your posts has a result. | The entries keep the planner's slots. `--apply` output and the scheduling path are untouched. To try a better block, pass it yourself as `--slot` or `--explore-slot`. |
+
+These are observations from your own past posts, not causes. Test one before you change a habit (see [Test a line before acting on it](#test-a-line-before-acting-on-it)).

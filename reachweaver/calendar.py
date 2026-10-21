@@ -308,6 +308,30 @@ def propose_calendar(
     return result
 
 
+def your_results_for(con, proposal: dict, *, account_id: str, platform: str, audience_timezone: str,
+                     now: datetime | None = None) -> dict | None:
+    """The owner's own results by 6-hour block and weekday, shown next to the proposed slots (read-only).
+
+    Advisory only: the entries, their times and ``apply_calendar`` never read it. Returns None when no
+    published post of this account has a matched-age result yet, so the proposal stays unchanged.
+    """
+    from .insights import time_evidence  # lazy: insights -> timing_analysis -> calendar
+    used: list[tuple[int, time]] = []
+    for row in proposal.get("entries", []):
+        local = datetime.fromisoformat(row["scheduled_local"])
+        key = (local.weekday(), local.time().replace(tzinfo=None))
+        if key not in used:
+            used.append(key)
+    evidence = time_evidence(con, account_id=account_id, platform=platform, timezone_name=audience_timezone,
+                             slots=sorted(used), now=now)
+    if not evidence["posts_with_result"]:
+        return None
+    evidence["slots_unchanged"] = ("The proposed entries above use the planner's slots; your results are shown "
+                                   "next to them, never used to pick them. To try a better block, pass it as "
+                                   "--slot or --explore-slot yourself.")
+    return evidence
+
+
 def apply_calendar(con, proposal: dict, *, now: datetime | None = None) -> dict:
     """Atomically queue *already approved* posts only on supported local adapters.
 

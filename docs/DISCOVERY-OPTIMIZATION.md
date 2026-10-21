@@ -28,4 +28,17 @@ Guidance also covers X, Bluesky, Mastodon, Facebook Pages and DEV. Other catalog
 
 Choose an account, audience and format. Pre-register one meaningful difference between two valuable posts (for example first-frame demonstration, truthful hook or title). Publish only after the account owner reviews the exact text, media and destination. At a fixed observation age such as seven days, compare owner-provided first-party metrics: retained viewing, meaningful visits, saves and qualified clicks. Do not claim that a tag caused a change without a sound experiment. Keep missing metrics unknown, not zero.
 
+### Your own results next to each tag
+
+When the local database already exists, `discovery-plan` opens it read-only. It never creates or migrates the database. For each recommended tag, `your_results` shows how your own published posts with that hashtag did at about 7 days, compared with your posts without it: n, median against the rest, and `observation` or `too little data` (the [insights method](INSIGHTS.md#where-your-results-are-used)). Every account on the plan's platform is shown separately, or only `--account ID`. The text output adds a `your results (ACCOUNT): ...` line under each tag.
+
+The ranking does not use these numbers. `editorial_relevance_score`, the order and the category quotas stay the documented lexical-relevance rule, and `score_adjustment` is always `null`. We chose to show the evidence instead of re-ranking for four reasons:
+
+- A per-tag median from a few posts moves in coarse steps.
+- People tend to put a tag on posts that already looked promising.
+- A tag moves together with its topic, so the tag is not the cause.
+- A silent score change would hide all of this from you.
+
+Read the evidence, decide, and test a tag with a preregistered experiment before you rely on it. Platforms that use topic labels or keywords show `not_applicable`, because only hashtags in the post text are measured. With no database, `no_database` is shown.
+
 This CLI makes no network request, does not log in, acquire tokens, post, schedule or call a paid LLM API. It does not promise millions of views. Provider documentation and manual trend observations must be checked again when used.

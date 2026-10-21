@@ -213,6 +213,16 @@ In `storage.claim_sending`, optional `max_per_24h` and `min_gap_minutes` are che
 
 `reachweaver/insights.py` (CLI `insights`) compares the owner's own published top-level posts within one cohort (account x platform x exact snapshot `source`; accounts are never pooled and sources never mixed). Each post's result is read with `baseline_eval.matched_snapshot`, the nearest-age, exact-source, non-windowed snapshot rule shared with `baseline-eval` (refactored out of `_matched_rate`, behaviour unchanged); a post without one is excluded and counted, never zero. The default metric is `interactions` (likes + replies + reposts, all exact in one snapshot), the counters every recording path has. Features are derived locally from the stored row (send time in `--timezone`, text, attachment columns via `timing_analysis.post_format`); each feature value is compared as median of the group vs median of the rest, labelled `too little data` below `--min-posts` (default 5) and `observation` otherwise, with an optional seeded bootstrap interval (`baseline_eval.bootstrap_independent`). Up to three lines per account are phrased as hypotheses that point to the `experiment-*` commands; groups that are mostly the same posts are folded together. The CLI branch opens the database with `connect_readonly` after a `schema_gaps` check and only runs `SELECT`; it imports no publisher, approval or network code. `top_insights()` is the hook for other views; the read-only dashboard's Results page uses it. See [INSIGHTS.md](INSIGHTS.md).
 
+**Learning loops.** `insights._analyze` also returns each cohort's per-post rows, and is otherwise the same as `analyze`. Three read-only helpers expose the same matched-age evidence (default method, no bootstrap) to other commands:
+
+- `tag_evidence` is used by `discovery.add_your_results`, from `discovery-plan`.
+- `time_evidence` is used by `calendar.your_results_for`, from a `calendar-plan` proposal only.
+- `typical_results` is used by `followups.derive_rules`, from `followup-suggest` without `--rules`.
+
+`suggest.build_suggestions` turns `top_insights` lines into P3 `what_works_for_you` items. `growth_readout.results_from_readouts` turns saved `experiment-readout --json` files into `experiment-next` results.
+
+None of these paths writes the database or feeds a score, slot, approval or schedule. `discovery-plan` and `report` open the database with `connect_readonly` only when it exists. `report` no longer goes through `connect`, so it never creates or migrates a database.
+
 ## Experiment readout invariants (v0.2)
 
 - Declared experiment plan fixes the primary and guardrail metrics, denominator, age/tolerance window, decision thresholds and minimum number of pairs. Plan timestamp is self-reported; for stronger auditability, store a timestamped/signed pre-publication copy.

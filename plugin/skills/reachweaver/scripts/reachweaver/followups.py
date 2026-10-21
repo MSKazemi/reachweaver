@@ -7,6 +7,10 @@ reaches an owner-set threshold, it prints a short *brief* for a follow-up (a tha
 recap, an adaptation for another configured account, a manual pin/feature note, or a longer write-up idea) and the
 exact next commands of the normal flow (``draft`` -> ``show`` -> the owner's own ``approve``; or ``idea add``).
 
+Without ``--rules`` the thresholds come from the owner's own results (``derive_rules``): per account, 2 x the median
+likes + replies + reposts at about 7 days (``insights``' matched-age rule, at least 10 posts with a result), labelled
+"derived from your N posts". Too little data gives a friendly next step, never a guessed threshold.
+
 What it never does, by construction (there is no import of a publisher, approval or send function here, and
 ``SEND_PATH = None`` is asserted in tests):
 
@@ -69,6 +73,14 @@ MAX_POSTS = 5000
 NOTE_MAX = 280
 THRESHOLD_MAX = 10 ** 12
 WITHIN_HOURS_MAX = 24 * 366
+# Without --rules: one "took off" rule per account, derived from that account's own matched-age results
+# (docs/INSIGHTS.md "Where your results are used"). Not owner-settable here; --rules overrides it entirely.
+DERIVED_METRIC = "interactions"  # likes + replies + reposts, exact in one snapshot (as insights)
+DERIVED_MULTIPLIER = 2
+DERIVED_MIN_POSTS = 10
+DERIVED_AGE_HOURS = 168
+DERIVED_TOLERANCE_HOURS = 24
+DERIVED_KIND = "recap_thread"
 
 
 def human_only_platforms() -> frozenset[str]:
@@ -196,6 +208,60 @@ def load_rules(path: str | Path) -> list[dict]:
     return validate_rules(data)
 
 
+def derive_rules(con, *, now: datetime, account_id: str | None = None) -> tuple[list[dict], dict]:
+    """Default "took off" rules from the owner's OWN results, used only when ``--rules`` is omitted. SELECT only.
+
+    Per account x platform (``insights.typical_results``: matched age 168 h +/- 24 h, one snapshot source, exact
+    counts only): threshold = ceil(2 x the median interactions), compared against posts' exact interactions from
+    that same source no later than 192 h after posting. Fewer than ``DERIVED_MIN_POSTS`` posts with a result, a
+    median of 0, or a human-only platform gives no rule for that account, and says why.
+    """
+    from math import ceil
+
+    from .insights import typical_results
+    blocked = human_only_platforms()
+    rules: list[dict] = []
+    accounts: list[dict] = []
+    used: set[str] = set()
+    for cohort in typical_results(con, account_id=account_id, now=now):
+        n, middle = cohort["posts_with_result"], cohort["median"]
+        entry = {"account_id": cohort["account_id"], "platform": cohort["platform"], "source": cohort["source"],
+                 "posts_with_result": n, "median": middle, "threshold": None}
+        if cohort["platform"] in blocked:
+            entry.update(status="human_only_platform", text="human-only or moderator-only platform: no follow-up")
+        elif n < DERIVED_MIN_POSTS:
+            entry.update(status="too_little_data",
+                         text=f"{n} of your posts have a result at about 7 days; {DERIVED_MIN_POSTS} are needed")
+        elif not middle:
+            entry.update(status="median_zero", text=f"your typical post had 0 {DERIVED_METRIC} at about 7 days, "
+                                                    "so 'twice the usual' means nothing yet; pass --rules FILE")
+        else:
+            threshold = max(1, ceil(DERIVED_MULTIPLIER * middle))
+            slug = re.sub(r"[^a-z0-9-]", "-", cohort["account_id"].lower())
+            rule_id = ("took-off-" + slug)[:63].rstrip("-")
+            if rule_id in used:
+                rule_id = (rule_id[:50] + "-" + re.sub(r"[^a-z0-9-]", "-", cohort["platform"]))[:63]
+            used.add(rule_id)
+            basis = (f"Threshold derived from your {n} posts: {DERIVED_MULTIPLIER} x your median of {middle:g} "
+                     f"{DERIVED_METRIC} (likes + replies + reposts) about 7 days after posting, source "
+                     f"'{cohort['source']}'. An observation, not a cause.")
+            entry.update(status="derived", threshold=threshold, rule_id=rule_id,
+                         text=f"derived from your {n} posts: {DERIVED_MULTIPLIER} x median {middle:g} = {threshold}")
+            rules.append({"id": rule_id, "metric": DERIVED_METRIC, "threshold": threshold, "kind": DERIVED_KIND,
+                          "within_hours": DERIVED_AGE_HOURS + DERIVED_TOLERANCE_HOURS,
+                          "platforms": [cohort["platform"]], "accounts": [cohort["account_id"]],
+                          "target_platforms": None, "link": None, "note": None, "source": cohort["source"],
+                          "derived_from": basis})
+        accounts.append(entry)
+    info = {"basis": "derived_from_your_own_results", "metric": DERIVED_METRIC, "multiplier": DERIVED_MULTIPLIER,
+            "post_age_hours": DERIVED_AGE_HOURS, "age_tolerance_hours": DERIVED_TOLERANCE_HOURS,
+            "within_hours": DERIVED_AGE_HOURS + DERIVED_TOLERANCE_HOURS, "min_posts": DERIVED_MIN_POSTS,
+            "kind": DERIVED_KIND, "accounts": accounts,
+            "note": ("'Took off' = at least twice this account's own median at the same post age. Pass --rules FILE "
+                     "to set your own thresholds instead.")}
+    return rules, info
+
+
 # --------------------------------------------------------------------- dedupe state
 
 def load_state(path: str | Path | None) -> dict:
@@ -296,18 +362,35 @@ def _hours(delta: timedelta) -> float:
     return round(delta.total_seconds() / 3600, 1)
 
 
-def _observation(snapshots: list, metric: str, deadline: datetime | None) -> tuple[dict | None, str | None]:
-    """The latest exact observation of ``metric`` (no later than ``deadline``) and, when there is none, the
-    status of the latest non-exact one (``estimated``, ``suppressed``...) so the skip can say why."""
+def _state(row, metric: str) -> tuple[str, int | None]:
+    """``metric_states`` for one metric; ``interactions`` (derived rules only) is exact only when likes, replies
+    and reposts are all exact in the same snapshot, and is then their sum."""
+    states = metric_states(row)
+    if metric != DERIVED_METRIC:
+        return states[metric]
+    parts = [states[name] for name in ("likes", "replies", "reposts")]
+    if all(label == "exact" and value is not None for label, value in parts):
+        return "exact", sum(value or 0 for _, value in parts)
+    other = next((label for label, _ in parts if label not in ("exact", "unknown")), "unknown")
+    return other, None
+
+
+def _observation(snapshots: list, metric: str, deadline: datetime | None,
+                 source: str | None = None) -> tuple[dict | None, str | None]:
+    """The latest exact observation of ``metric`` (no later than ``deadline``; only snapshots of ``source`` when
+    given) and, when there is none, the status of the latest non-exact one (``estimated``, ``suppressed``...) so
+    the skip can say why."""
     best, other = None, None
     for row in snapshots:  # oldest first, so the last match wins
+        if source is not None and row["source"] != source:
+            continue
         try:
             observed = _dt(row["observed_at"])
         except ValidationError:
             continue
         if deadline is not None and observed > deadline:
             continue
-        label, value = metric_states(row)[metric]
+        label, value = _state(row, metric)
         if label == "exact":
             best = {"value": value, "observed_at": observed, "source": row["source"],
                     "window_start": row["window_start"], "window_end": row["window_end"]}
@@ -441,7 +524,7 @@ def build_suggestions(con, rules: list[dict], *, now: datetime, account_id: str 
                     counts["no_exact_value"] += 1
                     continue
                 deadline = posted + timedelta(hours=rule["within_hours"])
-            hit, other = _observation(snaps[post["id"]], rule["metric"], deadline)
+            hit, other = _observation(snaps[post["id"]], rule["metric"], deadline, rule.get("source"))
             if hit is None:
                 counts["no_exact_value"] += 1
                 if other is not None:
@@ -462,6 +545,8 @@ def build_suggestions(con, rules: list[dict], *, now: datetime, account_id: str 
                                              targets=targets, accounts_known=accounts is not None)
             if rule["note"]:
                 brief += f" Owner note: {rule['note']}"
+            if rule.get("derived_from"):
+                brief += f" {rule['derived_from']}"
             suggestions.append({
                 "label": LABEL, "post_id": post["id"], "account_id": post["account_id"],
                 "platform": post["platform"], "campaign": post["campaign"] or None, "posted_at": post["posted_at"],
@@ -484,6 +569,33 @@ def build_suggestions(con, rules: list[dict], *, now: datetime, account_id: str 
                      "sent, liked, replied to or messaged. Each suggestion is a brief for a human-reviewed draft.")}
 
 
+def _derived_lines(info: dict | None) -> list[str]:
+    if not info:
+        return []
+    lines = ["Thresholds derived from your own results (no --rules given): 'took off' = "
+             f"{info['multiplier']} x your median {info['metric']} about {info['post_age_hours']} h after posting."]
+    lines += [f"- {a['account_id']} ({a['platform']}): {a['text']}" for a in info["accounts"]]
+    return lines
+
+
+TOO_LITTLE_DATA = (
+    "Not enough of your own results yet to say what 'took off' means for you.",
+    "Either pass --rules FILE with your own thresholds (examples/followup-rules.example.json), or record results "
+    "for at least 10 published posts per account about 7 days after posting:",
+)
+
+
+def render_too_little(report: dict) -> str:
+    """Text for a derived-thresholds run that found no account with enough results (nothing to compare)."""
+    from .insights import HOW_TO_GET_DATA
+    lines = list(TOO_LITTLE_DATA) + [f"  - {item}" for item in HOW_TO_GET_DATA]
+    accounts = (report.get("derived_thresholds") or {}).get("accounts", [])
+    if accounts:
+        lines += ["", "Per account:"] + [f"- {a['account_id']} ({a['platform']}): {a['text']}" for a in accounts]
+    lines += ["", report["note"]]
+    return "\n".join(lines)
+
+
 def render_text(report: dict) -> str:
     counts = report["counts"]
     lines = [f"Follow-up suggestions ({LABEL})",
@@ -491,6 +603,7 @@ def render_text(report: dict) -> str:
              f"{counts['rules']} rule(s); below threshold {counts['below_threshold']}, no exact value "
              f"{counts['no_exact_value']}, no snapshot {counts['no_snapshot']}, human-only skipped "
              f"{counts['human_only_platform']}, already suggested {counts['already_suggested']}."]
+    lines += _derived_lines(report.get("derived_thresholds"))
     for item in report["suggestions"]:
         age = item["snapshot_age_hours"]
         lines += ["", f"- {item['post_id']} [{item['platform']} / {item['account_id']}] rule {item['rule_id']} "
@@ -518,8 +631,10 @@ def add_parser(sub) -> None:
     p = sub.add_parser("followup-suggest", help="Read-only: when a published post's exact metric crosses an owner-set "
                        "threshold, suggest a follow-up for human review (brief + next commands); never likes, "
                        "replies, DMs, reposts, drafts or sends")
-    p.add_argument("--rules", required=True, type=Path, metavar="FILE",
-                   help="Owner rules JSON (see examples/followup-rules.example.json)")
+    p.add_argument("--rules", type=Path, metavar="FILE",
+                   help="Owner rules JSON (see examples/followup-rules.example.json). Default: one 'took off' rule "
+                        "per account derived from your own results (2 x your median likes + replies + reposts at "
+                        "about 7 days, at least 10 posts with a result)")
     p.add_argument("--account", metavar="ID", help="Only posts of this account")
     p.add_argument("--since", metavar="DATE",
                    help="Only posts published at or after this ISO 8601 time with timezone (e.g. 2026-10-01T00:00:00Z)")
@@ -547,24 +662,41 @@ def run_cli(args) -> int:
     now = _dt(args.now) if args.now else datetime.now(timezone.utc)
     if args.since:
         parse_utc(args.since)
-    rules = load_rules(args.rules)
+    rules = load_rules(args.rules) if args.rules is not None else None
     state = load_state(args.state)
     optout = load_optout(args.optout)
     accounts, accounts_error = None, None
-    if any(rule["kind"] == "cross_post" for rule in rules):
+    if rules is not None and any(rule["kind"] == "cross_post" for rule in rules):
         try:
             accounts = load_accounts(args.accounts)
         except ValidationError as exc:
             accounts_error = str(exc)
     database = database_path(args.db)
+    derived = None
     with connect_readonly(database) as db:
         gaps = schema_gaps(db, ("posts", "metric_snapshots", "event_log"))
         if gaps:
             raise ValidationError(f"{database} predates this version's schema (missing {', '.join(gaps)}); "
                                   "followup-suggest is read-only and never migrates. Run 'reachweaver init' once "
                                   "to upgrade it, then retry")
-        report = build_suggestions(db, rules, now=now, account_id=args.account, since=args.since, optout=optout,
-                                   accounts=accounts, accounts_error=accounts_error, state=state)
+        if rules is None:  # no --rules: thresholds derived from this account's own results
+            rules, derived = derive_rules(db, now=now, account_id=args.account)
+        report = None
+        if rules:
+            report = build_suggestions(db, rules, now=now, account_id=args.account, since=args.since,
+                                       optout=optout, accounts=accounts, accounts_error=accounts_error, state=state)
+    if report is None:  # derived mode with too little data: a friendly next step, not an error
+        report = {"schema_version": OUTPUT_SCHEMA, "generated_at": now.isoformat(timespec="seconds"),
+                  "label": LABEL, "status": "too_little_data", "derived_thresholds": derived,
+                  "suggestions": [], "message": " ".join(TOO_LITTLE_DATA),
+                  "note": "Read-only: the database was opened mode=ro and nothing was drafted, approved, "
+                          "scheduled or sent."}
+        if args.record:
+            report["state_recorded"] = 0
+        print(json.dumps(report, indent=2, ensure_ascii=False) if args.json else render_too_little(report))
+        return 0
+    if derived is not None:
+        report["derived_thresholds"] = derived
     if args.record:
         report["state_recorded"] = write_state(args.state, state, report["suggestions"], now)
     print(json.dumps(report, indent=2, ensure_ascii=False) if args.json else render_text(report))

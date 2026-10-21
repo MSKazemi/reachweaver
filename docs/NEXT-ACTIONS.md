@@ -84,7 +84,9 @@ Rank using an explicit **policy and evidence hierarchy**, not pseudo-scientific 
 | P0 | Privacy or unresolved remote publication uncertainty | User opt-out, `needs_review`, stale `sending`, active emergency pause |
 | P1 | Confirmed operational/blocking concern | Reapproval or overdue schedule, owner-reported missing core profile field, SEO canonical duplication, human-response-needed technical question |
 | P2 | Actionable optimization or missing measurement evidence | Missing native metrics, owner-flagged weak hook/CTA, noncritical field improvement, one ongoing experiment awaiting more data |
-| P3 | Investigation/test hypothesis after safety and known fixes | Check SEO live indexing independently, preregister an experiment, build first snapshot baseline |
+| P3 | Investigation/test hypothesis after safety and known fixes | Check SEO live indexing independently, preregister an experiment, build first snapshot baseline, a "What works for you" observation, re-verify aging research |
+
+**What works for you.** When `suggest` reads a database (bare `suggest` or `--include-db`), it adds up to three P3 `what_works_for_you` items per account from [`insights`](INSIGHTS.md#where-your-results-are-used). Each one says "try more of" or "try less of" a feature, gives the n and the medians of the group and the rest, and is marked `observational_only`. The next step is always to test it with a preregistered experiment, never to treat it as a cause. **Research freshness.** When a bundled registry fact is aging or stale, `suggest` adds one P3 `research_freshness` item with the `freshness.warning_line` text and points to `reachweaver registry-age`. Nothing is added when everything is fresh.
 
 The JSON response exposes the source, evidence counts, owner/source confidence classification, missing coverage and explicit human-review requirement. Every `next_step` is static and does **not** quote untrusted comment text, display social handles, tokens or private SEO URLs. Records are sorted deterministically within priority; **this order is a workflow convenience, not a measure of growth impact.**
 

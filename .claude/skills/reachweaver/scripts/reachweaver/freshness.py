@@ -1,9 +1,10 @@
 """Offline age report for the bundled research registries (registry freshness).
 
-ReachWeaver ships five dated research snapshots. Each states platform facts that drift: API
+ReachWeaver ships nine dated research snapshots. Each states platform facts that drift: API
 capabilities, native scheduling, discovery guidance, profile fields and limits, sign-up
-expectations. This module reads only those bundled files and reports how old each dated fact is,
-so no command silently relies on a stale one.
+expectations, AI-search crawler controls, AI-disclosure rules, open-social-web protocol facts and platform-risk flags.
+This module reads only those bundled files and reports how old each dated fact is, so no command
+silently relies on a stale one.
 
 One threshold policy for every registry (days between the checked date and ``today``):
 
@@ -44,6 +45,10 @@ REGISTRY_FILES = {
     "discovery": "discovery_registry.json",
     "profile-audit": "profile_audit_registry.json",
     "signup": "signup_registry.json",
+    "ai-search": "ai_search_registry.json",
+    "ai-disclosure": "ai_disclosure_registry.json",
+    "social-web": "social_web_registry.json",
+    "platform-risk": "platform_risk_registry.json",
 }
 # Registries name some platforms differently; facts are grouped per platform under one key.
 ALIASES = {"facebook_pages": "facebook", "dev": "devto", "hacker_news": "hackernews",
@@ -149,9 +154,85 @@ def _signup_facts(data: dict, today: date) -> list[dict]:
             for key in sorted(data.get("platforms", {}))]
 
 
+def _evidence_list(value: object) -> list[dict]:
+    return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+
+def _ai_search_facts(data: dict, today: date) -> list[dict]:
+    """Crawler controls per crawler token (lowercased); page signals, measurement and the limitation as ``web``."""
+    out = []
+    limitation = data.get("limitation")
+    if isinstance(limitation, dict):
+        out.append(_fact("ai-search", "web", "limitation", limitation.get("checked_on"),
+                         limitation.get("source_url"), today))
+    for crawler in data.get("crawlers", []):
+        for evidence in _evidence_list(crawler.get("evidence")):
+            out.append(_fact("ai-search", str(crawler.get("token", "unknown")).lower(),
+                             f"crawler {crawler.get('token')} ({crawler.get('operator')})", evidence.get("checked_on"),
+                             evidence.get("source_url"), today))
+    for group, label in (("page_signals", "page signal"), ("measurement", "measurement")):
+        for entry in data.get(group, []):
+            for evidence in _evidence_list(entry.get("evidence")):
+                out.append(_fact("ai-search", "web", f"{label}: {entry.get('id')}", evidence.get("checked_on"),
+                                 evidence.get("source_url"), today))
+    return out
+
+
+def _ai_disclosure_facts(data: dict, today: date) -> list[dict]:
+    """One fact per platform (or jurisdiction) and each source it cites; uncited sources as ``general``."""
+    raw = data.get("sources")
+    sources: dict = raw if isinstance(raw, dict) else {}
+
+    def _source(sid: str) -> dict:
+        found = sources.get(sid)
+        return found if isinstance(found, dict) else {}
+
+    out: list[dict] = []
+    cited: set[str] = set()
+    owners = [*sorted((data.get("platforms") or {}).items()), *sorted((data.get("jurisdictions") or {}).items())]
+    for key, entry in owners:
+        ids = sorted({sid for field, value in entry.items() if field.endswith("_source") and isinstance(value, list)
+                      for sid in value if isinstance(sid, str)})
+        for sid in ids:
+            cited.add(sid)
+            source = _source(sid)
+            out.append(_fact("ai-disclosure", key, f"AI disclosure source: {sid}", source.get("checked_on"),
+                             source.get("url"), today))
+    for sid in sorted(set(sources) - cited):
+        source = _source(sid)
+        out.append(_fact("ai-disclosure", "general", f"AI disclosure source: {sid}", source.get("checked_on"),
+                         source.get("url"), today))
+    return out
+
+
+def _social_web_facts(data: dict, today: date) -> list[dict]:
+    """Every quoted source of protocols, platforms, bridges, identity checks and home options, keyed by its id."""
+    out = []
+    for group, label in (("protocols", "protocol"), ("platforms", "open social web entry"), ("bridges", "bridge"),
+                         ("identity_checks", "identity check"), ("home_options", "home option")):
+        for entry in data.get(group, []):
+            for source in _evidence_list(entry.get("sources")):
+                out.append(_fact("social-web", str(entry.get("id", "unknown")), f"{label}: {entry.get('id')}",
+                                 source.get("checked_on"), source.get("url"), today))
+    return out
+
+
+def _platform_risk_facts(data: dict, today: date) -> list[dict]:
+    """Every quoted source of the risk flags and market notices, keyed by the platform each one is about."""
+    out = []
+    for group, label in (("flags", "risk flag"), ("market_notices", "market notice")):
+        for entry in data.get(group, []):
+            name = entry.get("id") or f"{entry.get('platform')}@{entry.get('market')}"
+            for source in _evidence_list(entry.get("sources")):
+                out.append(_fact("platform-risk", str(entry.get("platform", "general")), f"{label}: {name}",
+                                 source.get("checked_on"), source.get("url"), today))
+    return out
+
+
 EXTRACTORS: dict[str, Callable[[dict, date], list[dict]]] = {
     "capabilities": _capability_facts, "distribution": _distribution_facts, "discovery": _discovery_facts,
-    "profile-audit": _profile_facts, "signup": _signup_facts,
+    "profile-audit": _profile_facts, "signup": _signup_facts, "ai-search": _ai_search_facts,
+    "ai-disclosure": _ai_disclosure_facts, "social-web": _social_web_facts, "platform-risk": _platform_risk_facts,
 }
 
 
@@ -169,6 +250,18 @@ def _load(name: str) -> dict:
     if name == "profile-audit":
         from .profile_audit import load_registry as load_profile
         return load_profile()
+    if name == "ai-search":
+        from .ai_visibility import load_registry as load_ai_search
+        return load_ai_search()
+    if name == "ai-disclosure":
+        from .ai_labels import load_registry as load_ai_disclosure
+        return load_ai_disclosure()
+    if name == "social-web":
+        from .social_web import load_registry as load_social_web
+        return load_social_web()
+    if name == "platform-risk":
+        from .platform_risk import load_registry as load_platform_risk
+        return load_platform_risk()
     from .account_kit import load_registry as load_signup, validate_registry as validate_signup
     data = load_signup()
     errors = validate_signup(data)
@@ -217,7 +310,7 @@ def build_report(today: date | None = None, *, registry: str | None = None, plat
             loader = (loaders or {}).get(name)
             data = loader() if loader else _load(name)
             facts = EXTRACTORS[name](data, current)
-            row["reviewed_on"] = data.get("reviewed_on")
+            row["reviewed_on"] = data.get("reviewed_on") or data.get("checked_on")  # ai-disclosure: checked_on
         except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
             facts = []
             row["error"] = str(exc) or type(exc).__name__

@@ -52,7 +52,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `show` | Exact text, account and platform preview of `POST_ID` | `POST_ID` |
 | `journal` | What was posted, when, where, with files and hashes | `--post-id`, `--platform`, `--account`, `--since`, `--until`, `--all-statuses`, `--format table/json/markdown/csv`, `--out`, `--verify-files` |
 | `capabilities` | Platform capability/API-approval registry; never grants permission | `--platform P`, `--json`, `--max-age-days N` |
-| `registry-age` | Age of every dated platform fact in the five bundled research registries: fresh, aging (>60 days), stale (>120 days) or undated; exit 0; offline. Before quoting a platform fact, re-verify an aging, stale or undated one at its official source | `--registry NAME`, `--platform P`, `--all`, `--as-of YYYY-MM-DD`, `--json` |
+| `registry-age` | Age of every dated platform fact in the nine bundled research registries (incl. ai-search, ai-disclosure, social-web, platform-risk): fresh, aging (>60 days), stale (>120 days) or undated; exit 0; offline. Before quoting a platform fact, re-verify an aging, stale or undated one at its official source | `--registry NAME`, `--platform P`, `--all`, `--as-of YYYY-MM-DD`, `--json` |
 | `completion` | Print a bash/zsh completion script; the owner loads it | `bash` or `zsh` |
 
 ## Draft and approve (nothing is sent)
@@ -92,7 +92,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `resume` | **OWNER**: lift the emergency stop | none |
 | `reconcile` | **OWNER**: human-confirm an uncertain send after checking the real account; never blind-retry | `POST_ID`, `--published --remote-id ID --remote-url URL` or `--not-published`, `--force` |
 | `approval-mode` | Show the approval safeguards; **OWNER** tightens them; never turn confirmation off | `--confirmation tty_hash_prefix`, `--require-key`, `--require-identity`, `--max-age-hours N` |
-| `calendar-plan` | Propose audience-local times | `--account ID`, `--timezone TZ`, `--start DATE`, `--days N`, `--slot 'Wed@16:00'`, `--audience-activity CSV`, `--explore-share F`, `--include-drafts`, `--post-id`, `--market tiktok@US` (sourced flag only; slots unchanged); `--apply` (queues approved posts locally) is the owner's decision |
+| `calendar-plan` | Propose audience-local times; with results in the DB, `your_results` shows your own better 6-hour blocks next to the slots (observation with n; never picks a slot) | `--account ID`, `--timezone TZ`, `--start DATE`, `--days N`, `--slot 'Wed@16:00'`, `--audience-activity CSV`, `--explore-share F`, `--include-drafts`, `--post-id`, `--market tiktok@US` (sourced flag only; slots unchanged); `--apply` (queues approved posts locally) is the owner's decision |
 | `calendar-gaps` | Empty and overloaded slots in the local queue | `--account ID`, `--timezone TZ`, `--start`, `--days`, `--max-per-day`, `--min-spacing-hours`, `--timing-source`, `--timing-metric`, `--json` |
 | `connect-check` | **online**: non-publishing identity check of one account | `--account ID`, `--online` |
 | `postiz-check` | **online**, read-only Postiz integration listing or receipt lookup | `--account ID`, `--online`, `--post-id` |
@@ -127,7 +127,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `metrics` | Record one snapshot from a native export | `POST_ID`, `--observed-at`, `--source`, `--views`, `--impressions`, `--likes`, `--replies`, `--clicks`, `--window-start`, `--window-end` |
 | `import-metrics` | Native-analytics CSV, all rows or none; cells count/unknown/suppressed/not_available/delayed/estimated:N | `--csv FILE` |
 | `metrics-fetch` | **online**, read-only public Bluesky/Mastodon counters; never posts | `--online`, `--dry-run`, `--account`, `--post-id`, `--max-posts` |
-| `report` | Coverage-aware analytics; exact values only | `--format json/markdown/csv`, `--since 7d/30d/24h/YYYY-MM-DD` (posts sent in the window) |
+| `report` | Coverage-aware analytics; exact values only; opens the DB read-only and never creates a missing one | `--format json/markdown/csv`, `--since 7d/30d/24h/YYYY-MM-DD` (posts sent in the window) |
 | `youtube-analytics` | Sampling report over stored YouTube snapshots; fetches nothing | `--account`, `--post-id` |
 | `timing-evaluate` | Per-account matched-age outcomes; not optimal-time proof | `--account`, `--timezone`, `--source`, `--metric`, `--denominator`, `--stratify format/campaign`, `--since`, `--until` |
 | `baseline-eval` | Personalized slots/arms vs the generic baseline; bootstrap CI, non-causal | `--account`, `--timezone`, `--since`, `--until`, `--source`, `--metric`, `--denominator`, `--slot exploit:Tue@09:00`, `--campaign-arm`, `--readout`, `--attribution`, `--attribution-source analytics/ga4`, `--json` |
@@ -136,7 +136,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `attribution-report` | UTM/referrer join of local analytics exports; not causal | `--analytics`, `--github-traffic`, `--ga4-csv`, `--gsc-csv`, `--json` |
 | `pilot-report` | Per-arm readout of an owner field-pilot CSV log | `--log CSV`, `--min-weeks`, `--json` |
 | `peer-benchmark` | Compare with peers' public counters copied by hand | `--file F`, `--platform`, `--include-individuals`, `--json` |
-| `suggest` | Ranked review of profile, posts, SEO, engagement, queue; bare `suggest` reads an existing DB query-only plus the open-ideas count, and prints next steps when there is nothing | `--snapshot F`, `--metrics-csv F`, `--owner-authorized`, `--engagement-export`, `--seo-briefs`, `--experiments`, `--include-db`, `--json` |
+| `suggest` | Ranked review of profile, posts, SEO, engagement, queue; bare `suggest` reads an existing DB query-only plus the open-ideas count, and prints next steps when there is nothing; with a DB it adds P3 "What works for you" items from `insights`, plus a research-freshness item when a registry fact is aging or stale | `--snapshot F`, `--metrics-csv F`, `--owner-authorized`, `--engagement-export`, `--seo-briefs`, `--experiments`, `--include-db`, `--json` |
 | `weekly-digest` | `suggest` (+ report) as one private Markdown file; never sent | `--out F`, `--snapshot F`, `--include-db` |
 
 ## Experiments
@@ -147,7 +147,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `experiment-verify` | Detect post-hoc edits by recomputing the hash | `PLAN`, `--hash sha256:H` |
 | `experiment-evaluate` | Matched-age, non-causal readout of post pairs | `--file F` |
 | `experiment-readout` | Verify a preregistration, map arms to posts, label the readout | `--prereg F`, `--posts F`, `--hash`, `--attribution`, `--json` |
-| `experiment-next` | Next dimension from prior classified results | `--results F`, `--json` |
+| `experiment-next` | Next dimension from prior classified results: a hand-made list and/or saved `experiment-readout --json` files (labels used unchanged) | `--results F`, `--readout F` (repeat), `--readout-dir DIR`, `--json` |
 | `experiment-simulate` | SIMULATED label distribution for a seeded synthetic run | `--seed`, `--pairs`, `--lift`, `--noise`, `--trials`, `--json` |
 
 ## Audit profiles and content
@@ -176,7 +176,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 |---|---|---|
 | `distribution-plan` | Regional channel research + hypothetical timing; never schedules | `--region R`, `--goal contributors/adoption/awareness/collaboration`, `--limit`, `--date`, `--timezone` (needed for `global` with a date), `--market US/global/tiktok@US` (sourced market flag; ranking unchanged), `--json` |
 | `social-web-plan` | Open social web map: which accounts are on ActivityPub / AT Protocol / Nostr / Farcaster, bridges (Bridgy Fed, opt-in), canonical-home hypothesis, duplicate-reach warnings, identity checklist, gaps; reads accounts metadata only, never the queue | `--accounts A`, `--setup FILE`, `--presence PLATFORM`, `--bridged ID`, `--fediverse-sharing ID`, `--site URL`, `--site-kind ghost/wordpress_activitypub/bridgy_fed_web/plain`, `--json` |
-| `discovery-plan` | Platform discovery and topic/hashtag ideas; no reach forecast | `--file F`, `--json` |
+| `discovery-plan` | Platform discovery and topic/hashtag ideas; no reach forecast. With an existing DB (read-only) each tag shows your own results (n, median vs the rest); the ranking never changes | `--file F`, `--account ID`, `--json` |
 | `sources-scan` | Rank opt-in GitHub/feed/changelog/DOI signals | `--config F`, `--online` (**online**), `--state F`, `--mark-seen`, `--top N`, `--json` |
 | `signal-brief` | One signal -> NEW campaign scaffold + brief; never stages | `--scan F`, `--signal-id ID`, `--brand B`, `--out F`, `--objective`, `--json` |
 | `release-brief` | Saved GitHub release JSON or CHANGELOG section -> NEW campaign folder + brief.md; BLOCKED until written; never stages | `--release F` or `--changelog F --version X.Y.Z`, `--repo OWNER/NAME`, `--out NEW_DIR`, `--brand B`, `--accounts A`, `--objective`, `--campaign ID`, `--json` |
@@ -186,7 +186,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `engagement-fetch` | Plan only; **online** read-only public replies/quotes; never replies | `--online`, `--out F`, `--account`, `--post-id`, `--quotes` |
 | `engagement-triage` | Comment triage + reply/issue DRAFTS; no send path | `INPUT`, `--docs-map`, `--out`, `--issues-dir`, `--json` |
 | `engagement-queue` | Aging/SLA review queue over an engagement export | `INPUT`, `--docs-map`, `--sla`, `--json` |
-| `followup-suggest` | Owner-set metric thresholds -> follow-up briefs + next commands for review; never likes, replies, DMs or drafts | `--rules F`, `--account ID`, `--since DATE`, `--state F`, `--record`, `--optout F`, `--json` |
+| `followup-suggest` | Owner-set metric thresholds -> follow-up briefs + next commands for review; never likes, replies, DMs or drafts. Without `--rules`: "took off" = 2 x your own median interactions at ~7 days (10+ posts with a result), labelled "derived from your N posts" | `--rules F` (optional), `--account ID`, `--since DATE`, `--state F`, `--record`, `--optout F`, `--json` |
 | `engage-scout` | Ranked daily shortlist of conversations to join + an angle each (never reply text); human-only venues are read-it-yourself; never posts | `--config F`, `--input F`, `--online` (**online**, GET only), `--platform P`, `--limit N`, `--state F`, `--record STATE`, `--optout F`, `--now`, `--json` |
 | `engage-log` | Owner marks a scout item replied/skipped; weekly correlational readout | `--state F`, `--mark ID`, `--replied`, `--with-link`, `--skipped`, `--at`, `--readout`, `--outcomes F`, `--weeks N`, `--json` |
 
