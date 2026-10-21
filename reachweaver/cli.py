@@ -1393,15 +1393,16 @@ def execute(args) -> int:
         prior = load_results(args.results) if args.results is not None else []
         if not isinstance(prior, list):
             raise ValidationError("results must be a list of classified experiment results")
-        sources = None
+        readout_sources = None
         if args.readout or args.readout_dir is not None:  # saved 'experiment-readout --json' files, read-only
             from .growth_readout import results_from_readouts
-            known = {item.get("experiment_id") for item in prior if isinstance(item, dict)}
-            read, sources = results_from_readouts(args.readout, args.readout_dir, known)
+            listed_ids = {str(item["experiment_id"]) for item in prior
+                          if isinstance(item, dict) and isinstance(item.get("experiment_id"), str)}
+            read, readout_sources = results_from_readouts(args.readout, args.readout_dir, listed_ids)
             prior = prior + [{k: r[k] for k in ("experiment_id", "dimension", "label", "direction")} for r in read]
         result = next_hypotheses(prior)
-        if sources is not None:  # key only when readouts were read: the --results-only output is unchanged
-            result["sources"] = sources
+        if readout_sources is not None:  # key only when readouts were read: the --results-only output is unchanged
+            result["sources"] = readout_sources
         print(json.dumps(result, indent=2) if args.json else render_next(result))
         return 0
     if args.command == "experiment-simulate":

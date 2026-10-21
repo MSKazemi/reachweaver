@@ -409,7 +409,8 @@ def results_from_readouts(files: list[Path] | None = None, folder: Path | None =
         experiment_id, dimension, label = data.get("experiment_id"), data.get("dimension"), data.get("label")
         if not isinstance(experiment_id, str) or dimension not in DIMENSIONS or label not in LABELS:
             raise ValidationError(f"{path}: readout needs experiment_id, a known dimension and a known label")
-        usable = data.get("pairs_usable") if type(data.get("pairs_usable")) is int else 0
+        raw_pairs = data.get("pairs_usable")
+        usable: int = raw_pairs if isinstance(raw_pairs, int) and not isinstance(raw_pairs, bool) else 0
         entry = {"experiment_id": experiment_id, "dimension": dimension, "label": label,
                  "direction": data.get("direction"), "readout_file": path.name, "pairs_usable": usable}
         if experiment_id in (known_ids or set()):

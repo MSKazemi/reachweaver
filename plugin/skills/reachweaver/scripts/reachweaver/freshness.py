@@ -179,19 +179,26 @@ def _ai_search_facts(data: dict, today: date) -> list[dict]:
 
 def _ai_disclosure_facts(data: dict, today: date) -> list[dict]:
     """One fact per platform (or jurisdiction) and each source it cites; uncited sources as ``general``."""
-    sources = data.get("sources") if isinstance(data.get("sources"), dict) else {}
-    out, cited = [], set()
+    raw = data.get("sources")
+    sources: dict = raw if isinstance(raw, dict) else {}
+
+    def _source(sid: str) -> dict:
+        found = sources.get(sid)
+        return found if isinstance(found, dict) else {}
+
+    out: list[dict] = []
+    cited: set[str] = set()
     owners = [*sorted((data.get("platforms") or {}).items()), *sorted((data.get("jurisdictions") or {}).items())]
     for key, entry in owners:
         ids = sorted({sid for field, value in entry.items() if field.endswith("_source") and isinstance(value, list)
                       for sid in value if isinstance(sid, str)})
         for sid in ids:
             cited.add(sid)
-            source = sources.get(sid) if isinstance(sources.get(sid), dict) else {}
+            source = _source(sid)
             out.append(_fact("ai-disclosure", key, f"AI disclosure source: {sid}", source.get("checked_on"),
                              source.get("url"), today))
     for sid in sorted(set(sources) - cited):
-        source = sources[sid] if isinstance(sources[sid], dict) else {}
+        source = _source(sid)
         out.append(_fact("ai-disclosure", "general", f"AI disclosure source: {sid}", source.get("checked_on"),
                          source.get("url"), today))
     return out

@@ -369,8 +369,8 @@ def _state(row, metric: str) -> tuple[str, int | None]:
     if metric != DERIVED_METRIC:
         return states[metric]
     parts = [states[name] for name in ("likes", "replies", "reposts")]
-    if all(label == "exact" for label, _ in parts):
-        return "exact", sum(value for _, value in parts)
+    if all(label == "exact" and value is not None for label, value in parts):
+        return "exact", sum(value or 0 for _, value in parts)
     other = next((label for label, _ in parts if label not in ("exact", "unknown")), "unknown")
     return other, None
 
