@@ -4,7 +4,11 @@ No external CSS, JavaScript, fonts, images, analytics or network requests.
 The browser only talks to the loopback ReachWeaver ShareServer. All user
 captions, package names and account names are inserted with textContent,
 never HTML markup. There is no Publish, approve or schedule control:
-"Mark as posted" only records a post the owner already published by hand.
+"Mark as posted" only records a post the owner already published by hand
+(with the account its link names, and optionally the numbers the app shows);
+"Update numbers" adds a hand-entered snapshot to such a record. The owner's
+own networks (accounts.json, read-only) are listed first and preselected on a
+fresh draft. On phones the brand bar is sticky and keeps the Results link.
 
 The look mirrors the read-only dashboard (ui_assets.APP_CSS): the same colour
 tokens (accent #0b6e69, dark mode by prefers-color-scheme), system font stack,
@@ -61,13 +65,15 @@ a { color: var(--accent); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .skip { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--accent-ink); padding: 10px 14px; z-index: 50; }
-.skip:focus { left: 8px; top: 8px; }
+.skip:focus { left: 8px; top: 8px; display: inline-flex; align-items: center; min-height: 44px; }
 .hidden { display: none !important; }
 code, kbd { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; overflow-wrap: anywhere; }
 
-/* ---- header: brand bar + hero (one line on phones) */
-header { background: var(--panel); border-bottom: 1px solid var(--line); }
+/* ---- header: brand bar (a compact sticky bar on phones, with the Results link) + hero */
+header, .herowrap { background: var(--panel); }
+.herowrap { border-bottom: 1px solid var(--line); }
 .topbar { max-width: 1160px; margin: auto; padding: 10px 24px; display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.results .short { display: none; }
 .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 16px; }
 .mark { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; font-weight: 800;
   background: var(--accent); color: var(--accent-ink); font-size: 12px; letter-spacing: .5px; flex: none; }
@@ -127,6 +133,14 @@ button { font-family: inherit; }
 .small:hover, .secondary:hover { border-color: var(--accent); }
 .small:disabled { opacity: .5; cursor: not-allowed; }
 .network-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 330px; overflow: auto; padding: 3px; }
+.netgroup { grid-column: 1 / -1; margin: 4px 0 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); }
+.numbers { border: 0; padding: 0; margin: 10px 0 0; min-width: 0; }
+.numbers legend { font-weight: 650; font-size: 13px; padding: 0; margin: 0 0 6px; }
+.numgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.numgrid label { margin: 0 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.numgrid input { display: block; width: 100%; min-height: 44px; padding: 9px 10px; border: 1px solid var(--field-line); border-radius: 10px;
+  background: var(--panel); color: var(--ink); font: inherit; }
+.chip.copy { background: var(--info-bg); color: var(--info); }
 .network { text-align: left; display: flex; flex-direction: column; gap: 2px; min-height: 58px; border: 1px solid var(--line); background: var(--panel);
   border-radius: 10px; padding: 9px 11px; cursor: pointer; color: var(--ink); font: inherit; }
 .network:hover { border-color: var(--accent); }
@@ -193,12 +207,17 @@ button { font-family: inherit; }
 .page-foot .cmdline { margin-top: 0; }
 .no-preview { padding: 24px 0; color: var(--muted); text-align: center; font-size: 14px; }
 @media (max-width: 820px) {
-  .topbar { padding: 8px 14px; }
+  header { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid var(--line); }
+  .topbar { padding: 6px 14px; flex-wrap: nowrap; }
   .results { display: none; }
-  .hero { padding: 0 14px 8px; display: flex; gap: 8px; align-items: baseline; white-space: nowrap; overflow: hidden; }
-  .tagline { font-size: 14px; font-weight: 700; letter-spacing: 0; margin: 0; flex: none; }
+  .results.has-link { display: flex; flex: none; }
+  .results.has-link .long { display: none; }
+  .results.has-link .short { display: inline; }
+  .results .results-link { padding: 8px 12px; }
+  .hero { padding: 6px 14px 10px; }
+  .tagline { font-size: 14px; font-weight: 700; letter-spacing: 0; margin: 0; }
   .lede, .security { display: none; }
-  .hero::after { content: "Private and local · nothing is posted for you"; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+  .hero::after { content: "Private and local · nothing is posted for you"; display: block; font-size: 13px; color: var(--muted); }
   main { padding: 12px 14px 48px; }
   .layout { grid-template-columns: 1fr; gap: 14px; }
   .panel { padding: 16px; }
@@ -214,7 +233,10 @@ button { font-family: inherit; }
   .small { padding: 8px 12px; }
   textarea { min-height: 150px; }
   .write-explain { display: none; }
+  .netlist a { display: inline-flex; align-items: center; min-height: 44px; }
+  .numgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+@media (max-width: 480px) { .brand .word { display: none; } h1::before { content: none; } }
 @media (max-width: 400px) { .network-options { grid-template-columns: 1fr; } .review { padding: 13px; } }
 @media (prefers-reduced-motion: no-preference) { button { transition: background-color .15s, border-color .15s; } }
 </style>
@@ -223,16 +245,18 @@ button { font-family: inherit; }
 <a class="skip" href="#caption">Skip to the caption</a>
 <header>
 <div class="topbar">
-  <span class="brand"><span class="mark" aria-hidden="true">RW</span><span>ReachWeaver</span></span>
+  <span class="brand"><span class="mark" aria-hidden="true">RW</span><span class="word">ReachWeaver</span></span>
   <h1>Write a post</h1>
   <span class="results" id="results-top"></span>
 </div>
+</header>
+<div class="herowrap">
 <div class="hero">
   <p class="tagline">One story. Many places.</p>
   <p class="lede">Write once, pick your networks, check each version, then copy it into each app yourself.</p>
   <span class="security">Private and local · No login · No automatic posting</span>
 </div>
-</header>
+</div>
 <main>
 <nav aria-label="Progress">
 <ol class="progress" id="progress">
@@ -324,7 +348,7 @@ button { font-family: inherit; }
   <div class="review-head">
     <div>
       <h2 id="packages-title">Saved packages</h2>
-      <p class="explain">Open one to edit it again, duplicate it, or mark a network as posted after you posted it yourself.</p>
+      <p class="explain">Open one to edit it again, duplicate it, or mark a network as posted after you posted it yourself, with the numbers the app shows.</p>
     </div>
     <button id="refresh" class="secondary" type="button">Refresh</button>
   </div>
@@ -363,6 +387,9 @@ button { font-family: inherit; }
  let catalog = [];
  let accounts = [];
  let ledgerIds = {};
+ let yourNetworks = [];  // composer ids of the workspace's own accounts (accounts.json): listed first, preselected
+ let accountSelects = [];  // the open "Which account?" pickers, refilled when the account list changes
+ let justCopied = null;  // the package "Duplicate as new" just made
  let filter = "popular";
  let previewValid = false;
  let savedClean = false;
@@ -442,6 +469,13 @@ button { font-family: inherit; }
  }
  function resultsLine(id) {
    const box = el(id);
+   box.classList.toggle("has-link", Boolean(dashboardUrl));
+   if (dashboardUrl && id === "results-top") {  // phones: a short "Results" in the sticky bar
+     const link = resultsLink("");
+     link.append(text("span", "See how your posts did", "long"), text("span", "Results", "short"));
+     box.replaceChildren(link);
+     return;
+   }
    if (dashboardUrl) { box.replaceChildren(resultsLink("See how your posts did")); return; }
    box.replaceChildren(text("span", "See how your posts did: run "), text("code", RESULTS_CMD));
    box.appendChild(copyButton("Copy", RESULTS_CMD, "Copy the command " + RESULTS_CMD));
@@ -515,7 +549,7 @@ button { font-family: inherit; }
    const hint = el("next-hint");
    hint.replaceChildren(text("b", at === -1 ? "Done: " : "Next: "));
    hint.appendChild(document.createTextNode(at === -1 ?
-     "posted and recorded. When you have numbers, record them to see how it did." : STEPS[at][1]));
+     "posted and recorded. Add the numbers the app shows with “Update numbers” under Saved packages." : STEPS[at][1]));
  }
  function setSaved(label, kind) {
    const node = el("saved");
@@ -637,28 +671,47 @@ button { font-family: inherit; }
    scheduleSave();
    showMessage("Undid the last change.", true);
  }
+ // "Your networks" (the workspace's own accounts) first, then Popular or All networks.
  function renderNetworks() {
    const q = el("search").value.trim().toLowerCase();
+   const mine = new Set(yourNetworks);
    const choices = catalog.filter(p =>
-      (filter === "all" || p.featured || selected.has(p.id)) &&
+      (filter === "all" || p.featured || mine.has(p.id) || selected.has(p.id)) &&
       (p.label.toLowerCase().includes(q) || p.id.toLowerCase().includes(q))
    );
    const items = el("networks");
    items.replaceChildren();
    if (!choices.length) {items.appendChild(text("p","No matching networks. Try “All networks”.","hint"));return;}
-   for(const p of choices) {
-     const node = button("", "network");
-     node.setAttribute("aria-pressed", selected.has(p.id) ? "true" : "false");
-     node.appendChild(text("strong", p.label));
-     node.appendChild(text("span",p.human_only ? "You write the post · notes only" :
-       p.api_capable ? "Copy and post yourself (can also be connected)" : "Copy and post yourself"));
-     node.addEventListener("click",function(){
-       if (!toggleNetwork(p)) return;
-       const again = Array.from(el("networks").querySelectorAll(".network")).find(n => n.firstChild.textContent === p.label);
-       if (again) again.focus();
-     });
-     items.appendChild(node);
-   }
+   const first = yourNetworks.map(id => choices.find(p => p.id === id)).filter(Boolean);
+   const rest = choices.filter(p => !mine.has(p.id));
+   if (first.length) items.appendChild(text("p", "Your networks", "netgroup"));
+   first.concat(rest).forEach(function(p, index) {
+     if (first.length && index === first.length && rest.length)
+       items.appendChild(text("p", filter === "all" ? "All networks" : "Popular", "netgroup"));
+     items.appendChild(networkButton(p));
+   });
+ }
+ function networkButton(p) {
+   const node = button("", "network");
+   node.setAttribute("aria-pressed", selected.has(p.id) ? "true" : "false");
+   node.appendChild(text("strong", p.label));
+   node.appendChild(text("span",p.human_only ? "You write the post · notes only" :
+     p.api_capable ? "Copy and post yourself (can also be connected)" : "Copy and post yourself"));
+   node.addEventListener("click",function(){
+     if (!toggleNetwork(p)) return;
+     const again = Array.from(el("networks").querySelectorAll(".network")).find(n => n.firstChild.textContent === p.label);
+     if (again) again.focus();
+   });
+   return node;
+ }
+ // A fresh draft starts with your own networks chosen (you can remove any); the draft then remembers the choice.
+ function preselectYours() {
+   const known = new Set(catalog.map(p => p.id));
+   const ids = yourNetworks.filter(id => known.has(id)).slice(0, 10);
+   if (!ids.length || selected.size) return false;
+   for (const id of ids) selected.add(id);
+   conditionalFields(); invalidate(); renderNetworks();
+   return true;
  }
  function sizeLabel(bytes) {
    return bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + " MiB" : Math.max(1, Math.round(bytes / 1024)) + " KiB";
@@ -847,8 +900,10 @@ button { font-family: inherit; }
  async function duplicate(pkg) {
    try {
      const result = await api("/api/package/duplicate", {package:pkg.name});
-     showIn("pkg-status", "Duplicated as: " + result.package.display_name + " (in " + result.package.folder +
-       "). Nothing was uploaded or published.", true);
+     justCopied = result.package.name;
+     showIn("pkg-status", "Duplicated as a new package: " + result.package.display_name + " (in " +
+       result.package.folder + "). It is listed first, marked “New copy”; the original is unchanged. " +
+       "Nothing was uploaded or published.", true);
      announce("Duplicated as " + result.package.display_name + ".");
      loadPackages();
    } catch(e) {
@@ -871,6 +926,108 @@ button { font-family: inherit; }
    const ledger = network.ledger || ledgerIds[network.id] || network.id;
    return accounts.filter(a => a.platform === ledger);
  }
+ // The account list is read again when the page comes back into view and before Mark as posted, so an account
+ // added to accounts.json while the page was open shows up without a reload.
+ async function refreshAccounts() {
+   try {
+     const data = await api("/api/accounts", {});
+     const before = JSON.stringify(accounts);
+     accounts = data.accounts || [];
+     ledgerIds = data.ledger_ids || {};
+     yourNetworks = Array.isArray(data.your_networks) ? data.your_networks.filter(id => typeof id === "string") : [];
+     if (JSON.stringify(accounts) !== before) {
+       accountSelects = accountSelects.filter(s => s.select.isConnected);
+       for (const s of accountSelects) fillAccounts(s.select, s.network);
+     }
+     renderNetworks();
+   } catch(e) { /* keep the list we have; the server checks the account again */ }
+ }
+ // "Not sure / skip", then this network's accounts. A choice that still exists is kept; with exactly one account
+ // and no choice yet, that one is chosen (you can still change it or skip).
+ function fillAccounts(select, network) {
+   const mine = accountsFor(network);
+   const keep = select.value;
+   select.replaceChildren(text("option", "Not sure / skip"));
+   select.firstChild.value = "";
+   for (const a of mine) {
+     const option = text("option", a.name ? a.id + " · " + a.name : a.id);
+     option.value = a.id;
+     select.appendChild(option);
+   }
+   if (keep && mine.some(a => a.id === keep)) select.value = keep;
+   else if (mine.length === 1 && !select.dataset.touched) select.value = mine[0].id;
+   select.closest(".pickacct").classList.toggle("hidden", !mine.length);
+ }
+ // As soon as a valid link is typed, choose the account the link names (the server reads it from accounts.json the
+ // same way `reachweaver posted` does), unless you picked one yourself.
+ async function accountFromLink(network, fields) {
+   const link = normalizeLink(fields.url.value);
+   if (!link || !fields.account || fields.account.dataset.touched) return;
+   try {
+     const ledger = network.ledger || ledgerIds[network.id] || network.id;
+     const data = await api("/api/link-account", {platform:ledger, url:link});
+     if (fields.account.dataset.touched) return;
+     if (data.account_id && Array.from(fields.account.options).some(o => o.value === data.account_id)) {
+       fields.account.value = data.account_id;
+       fields.account.dataset.auto = "1";
+       fields.accountHint.textContent = "Chosen from the link: " + data.account_id + ".";
+     } else if (fields.account.dataset.auto) {  // a new link that names none of them: back to the default
+       delete fields.account.dataset.auto;
+       fields.account.value = "";
+       fillAccounts(fields.account, network);
+       fields.accountHint.textContent = "";
+     }
+   } catch(e) { /* the server resolves it again when you record */ }
+ }
+ // Likes, Replies, Reposts, Views: optional whole numbers as the app shows them. null = left empty.
+ const NUMBER_KEYS = [["likes", "Likes"], ["replies", "Replies"], ["reposts", "Reposts"], ["views", "Views"]];
+ function numbersFieldset(base, legend) {
+   const box = document.createElement("fieldset");
+   box.className = "numbers";
+   box.appendChild(text("legend", legend));
+   const grid = document.createElement("div");
+   grid.className = "numgrid";
+   const inputs = {};
+   for (const [key, label] of NUMBER_KEYS) {
+     const cell = document.createElement("div");
+     const input = document.createElement("input");
+     input.type = "number"; input.min = "0"; input.max = "1000000000"; input.step = "1"; input.inputMode = "numeric";
+     input.id = base + "-" + key;
+     const lab = text("label", label);
+     lab.setAttribute("for", input.id);
+     cell.appendChild(lab); cell.appendChild(input);
+     grid.appendChild(cell);
+     inputs[key] = input;
+   }
+   box.appendChild(grid);
+   return {box:box, inputs:inputs};
+ }
+ // {likes: 12, ...} from the filled fields only; throws a plain message for anything but a whole number.
+ function readNumbers(inputs) {
+   const out = {};
+   for (const [key, label] of NUMBER_KEYS) {
+     const raw = inputs[key].value.trim();
+     if (inputs[key].validity && inputs[key].validity.badInput) throw new Error(label + " must be a whole number, as the app shows it.");
+     if (!raw) continue;
+     if (!/^\d{1,10}$/.test(raw) || Number(raw) > 1000000000) throw new Error(label + " must be a whole number from 0 to 1,000,000,000.");
+     out[key] = Number(raw);
+   }
+   return out;
+ }
+ function numbersSentence(numbers) {
+   return NUMBER_KEYS.filter(k => numbers[k[0]] !== undefined).map(k => numbers[k[0]] + " " + k[1].toLowerCase()).join(", ");
+ }
+ // After numbers are kept: see them in Results (studio), else the command that opens the dashboard.
+ function resultsAfter(statusId, message, network) {
+   if (dashboardUrl) {
+     showIn(statusId, message, true);
+     el(statusId).appendChild(document.createElement("br"));
+     el(statusId).appendChild(resultsLink("See it in your results"));
+   } else {
+     showIn(statusId, message + "\nSee it in your results: run " + RESULTS_CMD, true,
+       [{label:"Copy command", value:RESULTS_CMD, aria:"Copy the command that opens your results"}]);
+   }
+ }
  async function markPosted(pkg, network, fields) {
    const link = normalizeLink(fields.url.value);
    if (!link) {
@@ -885,17 +1042,25 @@ button { font-family: inherit; }
    fields.error.classList.add("hidden");
    fields.record.disabled = true;
    try {
+     const numbers = readNumbers(fields.numbers);
+     await refreshAccounts();  // an account added since the page opened can be checked and named now
      const at = fields.when.value ? new Date(fields.when.value) : null;
      if (at && isNaN(at.getTime())) throw new Error("The posted time is not a valid date.");
      const body = {package:pkg.name, platform:network.id, url:link, posted_at: at ? at.toISOString() : null};
      if (fields.account && fields.account.value) body.account_id = fields.account.value;
+     if (Object.keys(numbers).length) body.numbers = numbers;
      const result = await api("/api/mark-posted", body);
      if (current.package === pkg.name) current.state = result.package;
-     const who = result.posted.account_id ? " (" + result.posted.account_id + ")" : "";
-     showIn("pkg-status", "Recorded as posted by you on " + network.label + who + ".\nNext: when you have numbers, run " +
-       result.next + "\n(replace N with the numbers the app shows; the time defaults to now)", true,
-       [{label:"Copy command", value:result.next, aria:"Copy the metrics command for " + network.label}]);
-     if (dashboardUrl) el("pkg-status").appendChild(resultsLink("See it in your results"));
+     const posted = result.posted;
+     const who = posted.account_id ? " for " + posted.account_id + (posted.account_from === "link" ? " (from the link)" : "") : "";
+     const said = "Recorded as posted by you on " + network.label + who + ". Nothing was posted or sent.";
+     if (posted.numbers && Object.keys(posted.numbers).length) {
+       resultsAfter("pkg-status", said + "\nNumbers kept: " + numbersSentence(posted.numbers) + " (entered by hand, as of now).", network);
+     } else {
+       showIn("pkg-status", said + "\nNo numbers yet. When the app shows them, use “Update numbers” below, or run " +
+         result.next + " (replace N; add --replies N --reposts N --views N as you like)", true,
+         [{label:"Copy command", value:result.next, aria:"Copy the command that adds numbers for " + network.label}]);
+     }
      announce("Recorded as posted on " + network.label + ".");
      if (previewData.length) renderPreview(previewData);
      loadPackages();
@@ -905,6 +1070,45 @@ button { font-family: inherit; }
      fields.error.textContent = e.message || "Nothing was recorded.";
      fields.error.classList.remove("hidden");
    }
+ }
+ // "Update numbers" on a network marked as posted here: a new hand-entered snapshot for that post only.
+ function updateNumbersForm(pkg, network, row, line) {
+   const open = button("Update numbers", "small");
+   open.setAttribute("aria-label", "Update the numbers for " + network.label);
+   const form = document.createElement("div");
+   form.className = "markform hidden";
+   const nums = numbersFieldset("nums-" + pkg.name + "-" + network.id, "Likes, Replies, Reposts, Views — as the app shows them now");
+   const error = text("p", "", "field-error hidden");
+   const actions = document.createElement("div");
+   actions.className = "actions";
+   const saveBtn = button("Save numbers", "primary");
+   const cancel = button("Cancel", "secondary");
+   actions.appendChild(saveBtn); actions.appendChild(cancel);
+   form.appendChild(nums.box); form.appendChild(error);
+   form.appendChild(text("p", "Kept on this computer as entered by hand, as of now. Nothing is posted or sent.", "hint"));
+   form.appendChild(actions);
+   open.addEventListener("click", function(){ form.classList.remove("hidden"); open.classList.add("hidden"); nums.inputs.likes.focus(); });
+   cancel.addEventListener("click", function(){ form.classList.add("hidden"); open.classList.remove("hidden"); open.focus(); });
+   saveBtn.addEventListener("click", async function(){
+     error.classList.add("hidden");
+     try {
+       const numbers = readNumbers(nums.inputs);
+       if (!Object.keys(numbers).length) throw new Error("Type at least one number first.");
+       saveBtn.disabled = true;
+       const result = await api("/api/numbers", {package:pkg.name, platform:network.id, numbers:numbers});
+       resultsAfter("pkg-status", "Numbers kept for " + network.label + ": " + numbersSentence(result.numbers) +
+         " (entered by hand, as of now). Nothing was posted or sent.", network);
+       announce("Numbers kept for " + network.label + ".");
+       form.classList.add("hidden"); open.classList.remove("hidden");
+       for (const key in nums.inputs) nums.inputs[key].value = "";
+     } catch(e) {
+       error.textContent = e.message || "Nothing was recorded.";
+       error.classList.remove("hidden");
+     }
+     saveBtn.disabled = false;
+   });
+   line.appendChild(open);
+   row.appendChild(form);
  }
  function networkRow(pkg, network) {
    const row = document.createElement("li");
@@ -928,6 +1132,7 @@ button { font-family: inherit; }
        info.appendChild(link);
      }
      row.appendChild(info);
+     if (network.measurable) updateNumbersForm(pkg, network, row, line);
      return row;
    }
    if (network.human_only) {
@@ -952,31 +1157,32 @@ button { font-family: inherit; }
    error.id = base + "-error";
    url.setAttribute("aria-describedby", error.id);
    form.appendChild(urlLabel); form.appendChild(url); form.appendChild(error);
-   const fields = {url:url, error:error, account:null, when:null, record:null};
-   const mine = accountsFor(network);
-   if (mine.length) {
-     const accountLabel = text("label", "Which account? (optional)");
-     const select = document.createElement("select");
-     select.id = base + "-account";
-     accountLabel.setAttribute("for", select.id);
-     select.appendChild(text("option", "Not sure / skip"));
-     select.firstChild.value = "";
-     for (const a of mine) {
-       const option = text("option", a.name ? a.id + " · " + a.name : a.id);
-       option.value = a.id;
-       select.appendChild(option);
-     }
-     // Exactly one of your accounts on this network: it is chosen for you (you can still change it or skip).
-     if (mine.length === 1) select.value = mine[0].id;
-     form.appendChild(accountLabel); form.appendChild(select);
-     fields.account = select;
-   }
+   const fields = {url:url, error:error, account:null, accountHint:null, when:null, record:null, numbers:null};
+   // Which account: always built, shown only when this network has accounts (the list can change while open).
+   const pick = document.createElement("div");
+   pick.className = "pickacct";
+   const accountLabel = text("label", "Which account? (optional)");
+   const select = document.createElement("select");
+   select.id = base + "-account";
+   accountLabel.setAttribute("for", select.id);
+   const accountHint = text("p", "", "hint");
+   accountHint.id = base + "-account-hint";
+   select.setAttribute("aria-describedby", accountHint.id);
+   select.addEventListener("change", function(){ select.dataset.touched = "1"; accountHint.textContent = ""; });
+   pick.appendChild(accountLabel); pick.appendChild(select); pick.appendChild(accountHint);
+   form.appendChild(pick);
+   fields.account = select; fields.accountHint = accountHint;
+   fillAccounts(select, network);
+   accountSelects.push({select:select, network:network});
    const whenLabel = text("label", "When you posted it (optional, your local time)");
    const when = document.createElement("input");
    when.type = "datetime-local"; when.id = base + "-at";
    whenLabel.setAttribute("for", when.id);
    form.appendChild(whenLabel); form.appendChild(when);
    fields.when = when;
+   const nums = numbersFieldset(base, "Likes, Replies, Reposts, Views — optional, as shown in the app");
+   form.appendChild(nums.box);
+   fields.numbers = nums.inputs;
    const actions = document.createElement("div");
    actions.className = "actions";
    const record = button("Record as posted", "primary");
@@ -985,15 +1191,22 @@ button { font-family: inherit; }
    actions.appendChild(record); actions.appendChild(cancel);
    form.appendChild(text("p", "Adds it to your history as posted by you, so you can track it. Nothing is posted or sent.", "hint"));
    form.appendChild(actions);
+   let linkTimer = null;
    url.addEventListener("blur", function(){
      const fixed = normalizeLink(url.value);
      if (fixed && fixed !== url.value.trim()) url.value = fixed;
+     accountFromLink(network, fields);
    });
    url.addEventListener("input", function(){
      if (url.getAttribute("aria-invalid")) { url.removeAttribute("aria-invalid"); error.classList.add("hidden"); }
+     if (linkTimer) clearTimeout(linkTimer);
+     linkTimer = setTimeout(function(){ accountFromLink(network, fields); }, 300);
    });
    url.addEventListener("keydown", function(event){ if (event.key === "Enter") markPosted(pkg, network, fields); });
-   open.addEventListener("click", function(){ form.classList.remove("hidden"); open.classList.add("hidden"); url.focus(); });
+   open.addEventListener("click", function(){
+     form.classList.remove("hidden"); open.classList.add("hidden"); url.focus();
+     refreshAccounts();
+   });
    cancel.addEventListener("click", function(){ form.classList.add("hidden"); open.classList.remove("hidden"); open.focus(); });
    record.addEventListener("click", function(){ markPosted(pkg, network, fields); });
    line.appendChild(open);
@@ -1002,6 +1215,7 @@ button { font-family: inherit; }
  }
  function renderPackages(list) {
    lastPackages = list;
+   accountSelects = [];
    const box = el("packages");
    box.replaceChildren();
    if (!list.length) {
@@ -1015,6 +1229,7 @@ button { font-family: inherit; }
      head.className = "review-head";
      head.appendChild(text("h3", pkg.display_name || pkg.created || pkg.name));
      if (pkg.name === current.package) head.appendChild(text("span", "In the editor", "chip here"));
+     if (pkg.name === justCopied) head.appendChild(text("span", "New copy", "chip copy"));
      card.appendChild(head);
      const count = pkg.networks.length;
      card.appendChild(text("small", count + (count === 1 ? " network" : " networks") +
@@ -1088,7 +1303,10 @@ button { font-family: inherit; }
    el("caption").value="";el("title").value="";el("notes").value="";
    counter(); conditionalFields(); invalidate(); renderNetworks(); renderMedia(); updateEditing();
    undoStack.length = 0; stable = snapshot(); el("undo").disabled = true;
-   api("/api/draft/clear", {}).then(function(){ setSaved("Cleared", "ok"); }).catch(function(e){
+   api("/api/draft/clear", {}).then(function(){
+     setSaved("Cleared", "ok");
+     if (preselectYours()) { stable = snapshot(); scheduleSave(); progress(); }  // a fresh draft: your networks
+   }).catch(function(e){
      setSaved("Not saved", "bad"); showMessage(e.message || "The draft could not be cleared.", false);
    });
    renderPackages(lastPackages);
@@ -1113,9 +1331,10 @@ button { font-family: inherit; }
  // Text from an idea (studio's "Write a post from this idea") or from `share --web --text/--idea`. An empty editor
  // takes it at once; an unsaved draft is never replaced without your click, and Undo brings it back.
  function useText(value, label) {
-   if (!hasContent() && !current.package) {
+   if (!el("caption").value.trim() && !media.length && !el("notes").value.trim() && !current.package) {
      setCaption(value);
-     showMessage("Started from " + label + ". Pick your networks next. Nothing is posted for you.", true);
+     showMessage("Started from " + label + (selected.size ? ". Your networks are chosen; preview when you are ready." :
+       ". Pick your networks next.") + " Nothing is posted for you.", true);
      el("caption").focus();
      return;
    }
@@ -1139,9 +1358,26 @@ button { font-family: inherit; }
    if (pendingOffer) { useText(pendingOffer.text, pendingOffer.label); return; }
    if (!ideaWanted) return;
    api("/api/idea", {idea:ideaWanted}).then(function(data){
-     useText(data.idea.text, "idea " + data.idea.id);
+     useText(data.idea.text, ideaLabel(data.idea.text));
    }).catch(function(e){ showMessage(e.message || "The idea could not be read.", false); });
  }
+ // An idea is named by its own first words (about 60 characters), never by its id.
+ function ideaLabel(value) {
+   let words = String(value || "").split(/\s+/).join(" ").trim();
+   if (words.length > 60) {
+     const cut = words.slice(0, 61), space = cut.lastIndexOf(" ");
+     words = (space >= 30 ? cut.slice(0, space) : cut.slice(0, 60)).replace(/[ .,;:-]+$/, "") + "…";
+   }
+   return "your idea “" + words + "”";
+ }
+ let lastAccountCheck = 0;
+ function accountsAgain() {
+   if (!ready || document.visibilityState !== "visible" || Date.now() - lastAccountCheck < 2000) return;
+   lastAccountCheck = Date.now();
+   refreshAccounts();
+ }
+ document.addEventListener("visibilitychange", accountsAgain);
+ window.addEventListener("focus", accountsAgain);
  api("/api/catalog").then(function(data){
    catalog = data.platforms;
    if (typeof data.dashboard === "string" && DASHBOARD_URL.test(data.dashboard)) {
@@ -1150,6 +1386,12 @@ button { font-family: inherit; }
      resultsLine("results-foot");
    }
    conditionalFields();
+   renderNetworks();
+   return api("/api/accounts", {}).catch(function(){ return {accounts:[], ledger_ids:{}, your_networks:[]}; });
+ }).then(function(data){
+   accounts = data.accounts || [];
+   ledgerIds = data.ledger_ids || {};
+   yourNetworks = Array.isArray(data.your_networks) ? data.your_networks.filter(id => typeof id === "string") : [];
    renderNetworks();
    return api("/api/draft/load", {});
  }).then(function(data){
@@ -1162,13 +1404,13 @@ button { font-family: inherit; }
    }
    updateEditing();
    ready = true;
-   showMessage(data.draft ? "Your draft is back. No social network is connected." :
-               "Ready. No social network is connected; nothing is posted for you.",true);
+   // A fresh draft (no networks chosen, no package open) starts with your own networks; the draft keeps the choice.
+   const preselected = !current.package && preselectYours();
+   if (preselected) { stable = snapshot(); scheduleSave(); }
+   showMessage((data.draft ? "Your draft is back. No social network is connected." :
+               "Ready. No social network is connected; nothing is posted for you.") +
+               (preselected ? " Your networks are chosen; tap one to remove it." : ""), true);
    if (data.offer && typeof data.offer.text === "string") pendingOffer = {text:data.offer.text, label:String(data.offer.label || "your text")};
-   return api("/api/accounts", {}).catch(function(){ return {accounts:[], ledger_ids:{}}; });
- }).then(function(data){
-   accounts = data.accounts || [];
-   ledgerIds = data.ledger_ids || {};
    return api("/api/packages", {});
  }).then(function(data){
    if (current.package) current.state = data.packages.find(p => p.name === current.package) || null;

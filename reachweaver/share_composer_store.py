@@ -454,10 +454,14 @@ def _short_date(when: datetime) -> str:
     return f"{when.day} {when.strftime('%b %H:%M')}"
 
 
-def display_name(text: object, note: object, when: datetime) -> str:
-    """A readable package name such as "Our first speckled mugs… · 21 Oct 19:30". Display only: the folder keeps
-    its strict ``share-YYYYMMDD-HHMMSS-<hex>`` name."""
-    return f"{display_title(text, note)} · {_short_date(when)}"
+COPY_SUFFIX = " (copy)"
+
+
+def display_name(text: object, note: object, when: datetime, *, copy: bool = False) -> str:
+    """A readable package name such as "Our first speckled mugs… · 21 Oct 19:30" ("… (copy) · …" for a duplicate,
+    so the two packages never share one name). Display only: the folder keeps its strict
+    ``share-YYYYMMDD-HHMMSS-<hex>`` name."""
+    return f"{display_title(text, note)}{COPY_SUFFIX if copy else ''} · {_short_date(when)}"
 
 
 def _valid_display(value: object) -> bool:
@@ -576,12 +580,13 @@ def media_into_store(pkg: Path) -> list[dict]:
 
 
 def write_package(packages: list[tuple[str, dict]], media: list[tuple[Path, str]], editor: dict,
-                  *, update: str | None = None, expected_revision: str | None = None) -> Path:
+                  *, update: str | None = None, expected_revision: str | None = None, copy: bool = False) -> Path:
     """Stage the whole package privately, then rename it into place.
 
     New (``update`` None): a fresh ``share-...`` name; an existing folder is never touched. Update: the named
     package is replaced only if its revision still equals ``expected_revision`` and no network in it is marked
-    posted; otherwise :class:`Conflict` and nothing changes. The caller holds the server's write lock.
+    posted; otherwise :class:`Conflict` and nothing changes. ``copy`` (Duplicate as new) adds " (copy)" to the
+    display name. The caller holds the server's write lock.
     """
     from .share import _readme, write_one
     base = shares_dir()
@@ -620,7 +625,8 @@ def write_package(packages: list[tuple[str, dict]], media: list[tuple[Path, str]
         saved = dict(clean_editor(editor, fields=_EDITOR_FIELDS), media=names)
         write_private_file(stage / EDITOR_FILE, json.dumps(saved, ensure_ascii=False, indent=2) + "\n")
         now = datetime.now()
-        shown = display_name(saved.get("text"), saved.get("note"), _folder_time(old.name) if old else now)
+        shown = display_name(saved.get("text"), saved.get("note"), _folder_time(old.name) if old else now,
+                             copy=copy and old is None)
         write_private_file(stage / INFO_FILE, json.dumps({"display_name": shown}, ensure_ascii=False) + "\n")
         if old is None:
             target = base / ("share-" + now.strftime("%Y%m%d-%H%M%S") + "-" + secrets.token_hex(6))
@@ -681,6 +687,159 @@ def list_accounts(accounts: str | Path | None = None) -> list[dict]:
             for account_id, raw in sorted(loaded.items())]
 
 
+def configured_networks(accounts: str | Path | None = None) -> list[str]:
+    """The composer network ids of the workspace's own accounts (example placeholders left out), in accounts.json
+    order, for "Your networks". Read-only; a missing or invalid accounts file means none."""
+    from .accounts import load_accounts, placeholder_accounts
+    try:
+        loaded = load_accounts(accounts)
+    except (ValidationError, OSError, ValueError, UnicodeError):
+        return []
+    skip = set(placeholder_accounts(loaded))
+    composer_id = {ledger: share_id for share_id, ledger in LEDGER_ID.items()}
+    out: list[str] = []
+    for account_id, raw in loaded.items():
+        platform = composer_id.get(str(raw.get("platform")), str(raw.get("platform")))
+        if account_id not in skip and platform not in out:
+            out.append(platform)
+    return out
+
+
+def account_from_link(ledger: str, url: str, loaded: dict, placeholders: Iterable[str] = ()) -> str | None:
+    """The one configured (non-placeholder) ``ledger`` account whose handle the post link names, else None.
+
+    The same match as ``reachweaver posted`` (``posted.pick_account``): ``posted.handle_in_url`` reads the handle
+    from the link's shape, ``posted.account_handles`` lists an account's handles, and a Mastodon account must also
+    be on the link's server. No clue in the link, or two accounts with that handle: None (nothing is guessed)."""
+    from .posted import account_handles, handle_in_url, host_of
+    named = handle_in_url(ledger, url)
+    if not named:
+        return None
+    host, skip = host_of(url), set(placeholders)
+    matched = [i for i, a in loaded.items() if a.get("platform") == ledger and i not in skip
+               and (ledger != "mastodon" or host_of(str(a.get("server") or "")) == host)
+               and named in account_handles(a)]
+    return matched[0] if len(matched) == 1 else None
+
+
+def link_account(ledger: object, url: object, accounts: str | Path | None = None) -> str | None:
+    """Read-only: the account a post link names (``account_from_link``), for the page to preselect. Anything that
+    is not a known platform id and one plausible link gives None; a missing accounts file gives None."""
+    from .accounts import load_accounts, placeholder_accounts
+    from .policy import PLATFORMS
+    from .storage import manual_url_problem
+    if not isinstance(ledger, str) or ledger not in PLATFORMS or not isinstance(url, str) or manual_url_problem(url):
+        return None
+    try:
+        loaded = load_accounts(accounts)
+    except (ValidationError, OSError, ValueError, UnicodeError):
+        return None
+    return account_from_link(ledger, url.strip(), loaded, placeholder_accounts(loaded))
+
+
+def resolve_account(account_id: object, ledger: str, label: str, url: str,
+                    accounts: str | Path | None = None) -> tuple[str | None, str | None]:
+    """``(account id or None, "chosen" | "link" | None)`` for Mark as posted.
+
+    A chosen account is checked by :func:`check_account`. With no choice ("Not sure / skip"), the account the link
+    names (:func:`account_from_link`, as ``reachweaver posted`` does) is used and reported as ``"link"``. A chosen
+    account that the link contradicts is refused before any write: the link names another configured account, or
+    a handle the chosen account does not have (when the chosen account lists handles)."""
+    from .accounts import load_accounts, placeholder_accounts
+    from .posted import account_handles, handle_in_url
+    chosen = check_account(account_id, ledger, label, accounts)
+    named = handle_in_url(ledger, url)
+    if not named:
+        return chosen, "chosen" if chosen else None
+    try:
+        loaded = load_accounts(accounts)
+    except (ValidationError, OSError, ValueError, UnicodeError):
+        return chosen, "chosen" if chosen else None  # a chosen account was already checked against the file
+    from_link = account_from_link(ledger, url, loaded, placeholder_accounts(loaded))
+    if chosen is None:
+        return (from_link, "link") if from_link else (None, None)
+    shown = _plain_words(named)[:100]
+    if from_link is not None and from_link != chosen:
+        raise ValidationError(f"The link is a post by @{shown}, which is your account {from_link}, not {chosen}. "
+                              f"Choose {from_link} (or “Not sure / skip”) and record it again. Nothing was recorded.")
+    handles = account_handles(loaded[chosen])
+    if handles and named not in handles:
+        raise ValidationError(f"The link is a post by @{shown}, not by {chosen}. Check the link, or choose “Not "
+                              "sure / skip”. Nothing was recorded.")
+    return chosen, "chosen"
+
+
+# --- numbers typed from the app ("Likes, Replies, Reposts, Views") ----------------------------------------------
+
+NUMBER_FIELDS = ("likes", "replies", "reposts", "views")
+MAX_NUMBER = 10 ** 9
+
+
+def clean_numbers(obj: object, *, required: bool = False) -> dict[str, int]:
+    """The numbers the page sent, strictly: a JSON object with only likes/replies/reposts/views, each a whole number
+    from 0 to 1,000,000,000 or null (skipped). No strings, decimals, booleans or other keys. ``required``: at least
+    one. Checked before anything is written."""
+    if obj is None:
+        obj = {}
+    if not isinstance(obj, dict):
+        raise ValidationError("The numbers must be a JSON object. Nothing was recorded.")
+    unknown = set(obj) - set(NUMBER_FIELDS)
+    if unknown:
+        raise ValidationError("Unexpected numbers: " + ", ".join(sorted(map(str, unknown))[:5])
+                              + ". Use likes, replies, reposts and views. Nothing was recorded.")
+    out: dict[str, int] = {}
+    for key in NUMBER_FIELDS:
+        value = obj.get(key)
+        if value is None:
+            continue
+        if type(value) is not int or not 0 <= value <= MAX_NUMBER:
+            raise ValidationError(f"{key.capitalize()} must be a whole number from 0 to 1,000,000,000 (as the app "
+                                  "shows it). Nothing was recorded.")
+        out[key] = value
+    if required and not out:
+        raise ValidationError("Type at least one number (likes, replies, reposts or views). Nothing was recorded.")
+    return out
+
+
+def _store_numbers(con: Any, post_id: str, numbers: dict[str, int]) -> str:
+    """``storage.store_metrics`` with source ``entered-by-hand``, observed now; returns the observation time."""
+    from .results import HAND_ENTERED_SOURCE
+    from .storage import _atomic, parse_utc, store_metrics, utc_now
+    observed = parse_utc(utc_now())
+    with _atomic(con):
+        store_metrics(con, post_id, observed, HAND_ENTERED_SOURCE, **numbers)
+    return observed
+
+
+def record_numbers(name: object, platform: object, numbers: object, db: str | None) -> dict:
+    """Add the numbers the owner read in the app to a network this composer marked as posted (its POSTED.json).
+
+    Only that post: its id must name a ``published_manual`` row of the same platform and link in the history
+    database (a record made by hand, never a ReachWeaver send). Numbers are checked first; a refusal writes
+    nothing. The only write is ``storage.store_metrics`` (a metric snapshot); no post changes state."""
+    from .storage import MANUAL_STATUS, connect
+    pkg = package_path(name)
+    if not isinstance(platform, str) or platform not in _network_dirs(pkg):
+        raise ValidationError("That network is not in this package.")
+    values = clean_numbers(numbers, required=True)
+    record = posted_record(pkg, platform)
+    if record is None:
+        raise ValidationError("Mark this network as posted first: numbers are kept only for a post you recorded "
+                              "here. Nothing was recorded.")
+    post_id = record.get("post_id")
+    if not isinstance(post_id, str) or not re.fullmatch(r"[0-9a-f]{16}", post_id):
+        raise ValidationError("This package's posted record is damaged, so no numbers were kept.")
+    ledger = LEDGER_ID.get(platform, platform)
+    with connect(db) as con:
+        row = con.execute("SELECT status, platform, remote_url FROM posts WHERE id=?", (post_id,)).fetchone()
+        if row is None or row["status"] != MANUAL_STATUS or row["platform"] != ledger \
+                or row["remote_url"] != record.get("url"):
+            raise ValidationError("Numbers are kept here only for a post you recorded by hand from this package; "
+                                  "this one does not match your history, so nothing was recorded.")
+        observed = _store_numbers(con, post_id, values)
+    return {"post_id": post_id, "numbers": values, "observed_at": observed}
+
+
 def check_account(account_id: object, ledger: str, label: str, accounts: str | Path | None = None) -> str | None:
     """None (no account chosen), or an account id that exists in accounts.json for this network's platform."""
     from .accounts import ACCOUNT_ID, load_accounts
@@ -703,17 +862,20 @@ def check_account(account_id: object, ledger: str, label: str, accounts: str | P
 
 
 def mark_posted(name: object, platform: object, url: object, posted_at: object, db: str | None,
-                account_id: object = None, accounts: str | Path | None = None) -> dict:
+                account_id: object = None, accounts: str | Path | None = None, numbers: object = None) -> dict:
     """Record that the owner published one network of a saved package BY HAND, via record_manual_publish.
 
     Refused before any write: an unknown package or network, a human-only venue, a network the history database
-    cannot measure, a network already marked, or an ``account_id`` that is not in accounts.json for this network's
-    platform. record_manual_publish's own refusals (bad link, duplicate link, a future time, no material) come
-    back as ValidationError with the CLI flag names replaced by plain words.
+    cannot measure, a network already marked, an ``account_id`` that is not in accounts.json for this network's
+    platform or that the link contradicts (:func:`resolve_account`; with no account chosen, the one the link names
+    is used), a bad link, or bad ``numbers`` (:func:`clean_numbers`). record_manual_publish's own refusals
+    (duplicate link, a future time, no material) come back as ValidationError with the CLI flag names replaced by
+    plain words. Numbers, when given, are stored for the new post only (``storage.store_metrics``, entered by hand).
     """
     from .repeat_guard import sha256_file
+    from .results import has_control
     from .share import _human_only
-    from .storage import connect, parse_utc, record_manual_publish, utc_now
+    from .storage import connect, manual_url_problem, parse_utc, record_manual_publish, utc_now
     pkg = package_path(name)
     if not isinstance(platform, str) or platform not in _network_dirs(pkg):
         raise ValidationError("That network is not in this package.")
@@ -728,26 +890,39 @@ def mark_posted(name: object, platform: object, url: object, posted_at: object, 
     if posted_at is not None and (not isinstance(posted_at, str) or len(posted_at) > 64):
         raise ValidationError("The posted time must be an ISO 8601 date with a timezone.")
     export = _export(pkg, platform)
-    account = check_account(account_id, ledger, str(export.get("platform_label") or platform), accounts)
+    values = clean_numbers(numbers)
+    link = url if isinstance(url, str) else ""  # record_manual_publish refuses an empty link
+    problem = manual_url_problem(link)
+    if problem:
+        raise ValidationError(_plain(problem))
+    if has_control(link):
+        raise ValidationError("The link contains control or text-direction characters; copy it again from the app's "
+                              "share menu. Nothing was recorded.")
+    account, account_from = resolve_account(account_id, ledger, str(export.get("platform_label") or platform),
+                                            link.strip(), accounts)
     content = export.get("content") or {}
     text: str = content["text"] if isinstance(content.get("text"), str) else ""
-    link = url if isinstance(url, str) else ""  # record_manual_publish refuses an empty link
     files = _package_media(pkg)
     images = [sha256_file(p) for p in files if media_kind(p.name) == "image"]
     videos = [sha256_file(p) for p in files if media_kind(p.name) == "video"]
+    observed = None
     try:
         when = parse_utc(posted_at) if posted_at else utc_now()
         with connect(db) as con:
             made = record_manual_publish(con, platform=ledger, url=link, account_id=account, content=text,
                                          images=images, video=videos[0] if videos else None,
                                          posted_at=posted_at or None)
+            if values:
+                observed = _store_numbers(con, made["post_id"], values)
     except ValidationError as exc:
         raise ValidationError(_plain(str(exc))) from None
     record = {"post_id": made["post_id"], "shared_id": made["shared_id"], "status": made["status"],
               "provenance": made["provenance"], "label": POSTED_LABEL, "platform": ledger, "account_id": account,
-              "url": link.strip(), "posted_at": when, "recorded_at": utc_now()}
+              "account_from": account_from, "url": link.strip(), "posted_at": when, "recorded_at": utc_now(),
+              "numbers": values, "numbers_observed_at": observed}
     try:
-        write_private_file(_inside(pkg, platform) / POSTED_FILE, json.dumps(record, indent=2) + "\n")
+        kept = {k: v for k, v in record.items() if k not in ("numbers", "numbers_observed_at")}  # numbers live in the database
+        write_private_file(_inside(pkg, platform) / POSTED_FILE, json.dumps(kept, indent=2) + "\n")
     except OSError:
         raise ValidationError(f"Recorded in your history as post {made['post_id']} (posted by hand), but the "
                               "package folder could not be marked; check its permissions.") from None

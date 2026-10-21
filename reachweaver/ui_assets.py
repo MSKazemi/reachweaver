@@ -138,7 +138,7 @@ html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink);
   font: 15px/1.5 var(--rw-font); }
 .skip { position: absolute; left: -999px; top: 0; background: var(--accent); color: var(--accent-ink); padding: 8px 12px; z-index: 50; }
-.skip:focus { left: 8px; top: 8px; }
+.skip:focus { left: 8px; top: 8px; display: inline-flex; align-items: center; min-height: var(--tap); }
 a { color: var(--accent); }
 :focus-visible { outline: 3px solid var(--info); outline-offset: 2px; border-radius: 4px; }
 .ico { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; vertical-align: -3px; }
@@ -477,7 +477,7 @@ a.fx:hover { text-decoration: underline; }
 .tops { margin: 10px 0 0; padding-left: 20px; } .tops li { margin: 0 0 8px; overflow-wrap: anywhere; }
 .postid { display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 4px; }
 .postid code { font-size: 12px; }
-.writecta { display: flex; align-items: center; gap: 10px; margin: 0 4px 8px; padding: 9px 12px; border-radius: 10px;
+.writecta { display: flex; align-items: center; gap: 10px; margin: 0 4px 8px; padding: 9px 12px; border-radius: 10px; min-height: var(--tap);
   background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 600; }
 .writecta:hover { background: var(--accent-strong); }
 .side nav a.writecta[aria-current="page"] { background: var(--accent-strong); color: var(--accent-ink); }
@@ -825,23 +825,36 @@ function refreshBadges() { api("attention").then(applyBadges).catch(() => { /* b
 // "Your next step": one action chosen by the same logic as `reachweaver start`, then at most three others.
 // A step this browser can do itself is a link: writing a post (the composer, when `studio` runs it) and your ideas
 // (this dashboard's Ideas page). Everything else, including every owner-only command, stays a command to copy.
+// The ideas step's note names commands; in the browser the Ideas page has a "Write a post from this idea" link per idea
+// under `studio`, and a command per idea alone.
+const IDEAS_NOTE_STUDIO = "Pick one and write it in the composer.";
+const IDEAS_NOTE_ALONE = "Pick one on the Ideas page: each has a command that opens it in the composer.";
 function stepBlock(step, lead) {
   const link = step.opens === "composer" && COMPOSER ? writeLink("Open the composer") :
     step.opens === "ideas" ? h("a", { class: "tap", href: "#/ideas" }, "See your ideas") : null;
+  const note = step.opens === "ideas" ? (COMPOSER ? IDEAS_NOTE_STUDIO : IDEAS_NOTE_ALONE) : step.note;
   return [h(lead ? "p" : "div", { class: lead ? "lead" : null }, step.label),
     link ? h("div", { class: "linkline" }, link) : step.command ? command(step.command) : null,
     step.owner_only && !link ? h("div", { class: "note" }, h("span", { class: "who you" }, "You run this"), " in your own terminal; Claude never does.") : null,
-    step.note ? h("div", { class: "note" }, step.note) : null];
+    note ? h("div", { class: "note" }, note) : null];
 }
+// One "Write a new post" on the Overview. When the next step is a terminal command (approving drafts stays in your
+// terminal), the card itself offers what the browser can do: "Or write a new post". Then the "Also" list and the
+// page-top button leave it out. Returns [card, whether the card holds a write link].
 function nextStepCard(guide, att) {
   // Drafts or uncertain sends are already the step itself: the Queue link is only added when it says something new.
   const covered = guide.state === "drafts" || guide.state === "needs_review";
   const waiting = att && att.total && !covered ? h("p", { class: "note" }, h("a", { class: "tap", href: "#/queue" },
     att.total + (att.total === 1 ? " post is" : " posts are") + " waiting for you: open the Queue")) : null;
-  return h("section", { class: "card nextstep", "aria-labelledby": "nextstep-h" },
-    h("h2", { class: "ct", id: "nextstep-h" }, "Your next step"), stepBlock(guide.primary, true),
-    guide.secondary.length ? [h("h3", { class: "olabel" }, "Also"), h("ul", { class: "alsosteps" }, guide.secondary.map(st => h("li", null, stepBlock(st))))] : null,
+  const primary = guide.primary, writes = primary.opens === "composer" && Boolean(COMPOSER);
+  const terminal = primary.opens !== "composer" && primary.opens !== "ideas" && Boolean(primary.command);
+  const also = guide.secondary.filter(st => st.opens !== "composer");
+  const orWrite = terminal ? h("div", { class: "linkline orwrite" }, h("span", { class: "muted" }, "Not at your terminal?"), writeLink("Or write a new post")) : null;
+  const card = h("section", { class: "card nextstep", "aria-labelledby": "nextstep-h" },
+    h("h2", { class: "ct", id: "nextstep-h" }, "Your next step"), stepBlock(primary, true), orWrite,
+    also.length ? [h("h3", { class: "olabel" }, "Also"), h("ul", { class: "alsosteps" }, also.map(st => h("li", null, stepBlock(st))))] : null,
     waiting);
+  return [card, writes || terminal];
 }
 // The per-status numbers live once, in the "All posts" card; waiting drafts once, in "Your next step".
 function countsSentence(counts) {
@@ -924,9 +937,10 @@ async function viewOverview() {
   applyBadges(att);
   // Top to bottom: what is wrong (only when something really is), the one next step, what is coming and what went out.
   // Every list the old Overview repeated (drafts, owner commands, activity) is one tap away on Queue and Work with Claude.
+  const [next, cardWrites] = nextStepCard(guide, att);
   return [h("div", { class: "overtop" }, h("div", null, h("h1", null, "Overview"),
-      h("p", { class: "lede" }, countsSentence(counts), " Checked ", when(s.observed_at), ".")), writeLink("Write a new post")),
-    statusBanner(s), nextStepCard(guide, att),
+      h("p", { class: "lede" }, countsSentence(counts), " Checked ", when(s.observed_at), ".")), cardWrites ? null : writeLink("Write a new post")),
+    statusBanner(s), next,
     h("div", { class: "grid2" }, lateCard("Coming up", comingNodes), lateCard("Recently posted", recentNodes)),
     statusCard(counts), askCard(), detailsSection(s)];
 }
