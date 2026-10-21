@@ -12,17 +12,29 @@ from __future__ import annotations
 import os
 from unittest.mock import patch
 
-from reachweaver import connections, publishers, sendgate
+from reachweaver import connections, publishers, send_options, sendgate
 from reachweaver.connections import VerifiedConnection
 
 LIVE_ENV = {"REACHWEAVER_ALLOW_LIVE": "1", "REACHWEAVER_ENV": "prod"}
 
 
 def grant(account, content, post_id, media=None) -> None:
-    """Record a claim for exactly this call (as ``claim_sending`` would, with in-range live caps)."""
+    """Record a claim for exactly this call (as ``claim_sending`` would, with in-range live caps).
+
+    The claim carries the account's current send-options fingerprint, as the claim of a row approved with
+    this account would (sheet items 5/9); ``tests/test_send_options_binding.py`` covers a differing one."""
     if isinstance(account, dict) and isinstance(content, str) and isinstance(post_id, str):
         sendgate.register_claim(post_id, account_id=account.get("id"), platform=account.get("platform"),
-                                content=content, media=media, max_per_24h=1, min_gap_minutes=60)
+                                content=content, media=media, max_per_24h=1, min_gap_minutes=60,
+                                send_options=send_options.fingerprint(account))
+
+
+def bound_send_options(accounts_path, account_id: str) -> str | None:
+    """What ``reachweaver approve`` binds for ``account_id`` (sheet items 5/9): the send-options fingerprint
+    of the entry as ``load_accounts`` normalizes it. Suites that approve through ``storage.transition``
+    pass it as ``send_options=`` so their Mastodon and Postiz rows are approved the way the CLI approves."""
+    from reachweaver.accounts import load_accounts
+    return send_options.fingerprint(load_accounts(accounts_path).get(account_id))
 
 
 def publish(account, content, post_id, **kwargs):

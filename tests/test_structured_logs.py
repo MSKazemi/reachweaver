@@ -27,6 +27,7 @@ from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 from test_no_network import NetworkGuard
+from gate_support import bound_send_options
 
 from reachweaver import accounts as accounts_module
 from reachweaver.cli import main
@@ -204,7 +205,9 @@ class _Workspace(unittest.TestCase):
         with connect(str(self.db)) as con:
             def approved(key, account, platform, text):
                 ids[key] = add_post(con, account, platform, text, "s11")
-                transition(con, ids[key], "approve", approver="test-owner")
+                # Sheet items 5/9: bind the account's send options as `reachweaver approve` does.
+                transition(con, ids[key], "approve", approver="test-owner",
+                           send_options=bound_send_options(self.config, account))
                 # created_at is second-resolution; spread it so the due order is fixed.
                 con.execute("UPDATE posts SET created_at=? WHERE id=?",
                             (f"2026-10-01T00:00:{len(ids):02d}+00:00", ids[key]))

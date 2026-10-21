@@ -40,7 +40,10 @@ def record_for(plan: dict) -> dict:
 
 def publish(con, *, sent: datetime, clicks=None, saves=20, impressions=1000,
             account="my-bluesky", platform="bluesky", text="Distinct observation") -> str:
-    post = add_post(con, account, platform, f"{text} {sent.isoformat()} {clicks}")
+    # Distinct wording per post: this fixture publishes several posts on one account and is not about
+    # repeats; the send-time repeat guard (sheet item 1) refuses an exact copy of a published post.
+    serial = con.execute("SELECT COUNT(*) FROM posts").fetchone()[0] + 1
+    post = add_post(con, account, platform, f"{text} {sent.isoformat()} {clicks} number {serial}")
     transition(con, post, "approve")
     claim_sending(con, post, sent.isoformat())
     finish_send(con, post, "remote-id", "https://example.com/post")

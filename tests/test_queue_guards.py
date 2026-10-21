@@ -35,7 +35,10 @@ class GuardedOutbox(unittest.TestCase):
         ]}), encoding="utf-8")
 
     def add(self, db, account="my-bluesky", platform="bluesky"):
-        pid = add_post(db, account, platform, "Useful evidence-backed technical note")
+        # Distinct wording per post: these budget fixtures are not repeats, and the send-time repeat guard
+        # (sheet item 1) would otherwise refuse the second identical copy before the budget is reached.
+        count = db.execute("SELECT COUNT(*) FROM posts").fetchone()[0]
+        pid = add_post(db, account, platform, f"Useful evidence-backed technical note number {count + 1}")
         transition(db, pid, "approve")
         return pid
 

@@ -37,8 +37,10 @@ from .accounts import ACCOUNT_ID
 from .health import sanitize_error_code
 from .policy import PLATFORMS, ValidationError
 from .privacy import redact, structured_log
-from .storage import BINDING_MEDIA_CHANGED, BINDING_MISMATCH, BINDING_MISSING, BINDING_UNAVAILABLE, COOLDOWN_REFUSAL
+from .storage import (BINDING_MEDIA_CHANGED, BINDING_MISMATCH, BINDING_MISSING, BINDING_UNAVAILABLE, COOLDOWN_REFUSAL,
+                      REPEAT_REFUSAL)
 from .identity import IDENTITY_MISMATCH, IDENTITY_MISSING
+from .send_options import SEND_OPTIONS_CHANGED, SEND_OPTIONS_MISSING
 
 SCHEMA_VERSION = 1
 EVENTS = ("run_start", "gate_refused", "post_skipped", "post_claimed", "post_published",
@@ -55,6 +57,7 @@ SKIP_REASONS = (
     "cooldown",                   # provider cooldown after a 429 (issue #11, including a shared scope)
     "account_disconnected",       # the owner ran `disconnect` for this account (issue #38)
     "unresolved_send_hold",       # another post of the account is needs_review or sending (issue #41)
+    "repeat_of_shared_material",  # exact repeat of material this account shared or may have shared (sheet item 1)
     "session_budget",             # Bluesky createSession local budget exhausted (#11)
     "capability_refused",         # capability registry refused text publish
     "credentials_missing",        # credential variables absent (names are not logged)
@@ -71,7 +74,7 @@ OUTCOMES = ("completed", "error")
 SEND_CLASSES = ("certain_not_sent", "likely_not_created", "ambiguous", "unknown")
 BUDGET_CODES = ("account_rolling_24h_send_attempt_cap_reached", "account_minimum_send_attempt_gap_not_elapsed")
 BINDING_CODES = (BINDING_MISSING, BINDING_MISMATCH, BINDING_UNAVAILABLE, BINDING_MEDIA_CHANGED,
-                IDENTITY_MISMATCH, IDENTITY_MISSING)
+                IDENTITY_MISMATCH, IDENTITY_MISSING, SEND_OPTIONS_MISSING, SEND_OPTIONS_CHANGED)
 COUNT_KEYS = ("due", "skipped", "claimed", "published", "needs_review")
 
 _POST_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -150,6 +153,8 @@ def claim_refusal_reason(exc: BaseException) -> str:
         return "cooldown"
     if text.startswith(BINDING_CODES):
         return "rebind_required"
+    if text.startswith(REPEAT_REFUSAL):
+        return "repeat_of_shared_material"
     if text.startswith("Global emergency pause"):
         return "paused"
     return "claim_refused"

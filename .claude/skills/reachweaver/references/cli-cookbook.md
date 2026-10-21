@@ -60,7 +60,7 @@ Then the owner, in their own terminal: `approve POST_ID`, and only on the produc
 | `check` | Validate a draft before approval | `POST_ID`, `--persona ID`, `--optout F`, `--sources CONFIG` |
 | `repeat-check` | Same file, wording or link already shared on this platform? | `--post-id ID`, or `--platform P` with `--text`/`--file`/`--image`/`--video`/`--link`; `--days N`, `--json` |
 | `mark-shared` | Record what the owner posted by hand (local ledger only) | `--platform P`, `--account`, `--text`, `--file`, `--image`, `--video`, `--link`, `--url`, `--at`, `--note` |
-| `approve` | **OWNER**: approve the exact current text; binds a payload hash | `POST_ID`, `--persona`, `--approver`, `--verify-identity --online`, `--allow-repeat` (only when re-sharing is intended) |
+| `approve` | **OWNER**: approve the exact current text; binds a payload hash (plus a Mastodon account's visibility/language/spoiler_text, a Postiz account's server/integration, and `--allow-repeat` when given) | `POST_ID`, `--persona`, `--approver`, `--verify-identity --online`, `--allow-repeat` (only when re-sharing is intended) |
 | `unapprove` | Approved/scheduled post back to draft; binding cleared | `POST_ID` |
 | `cancel` | Draft/approved/scheduled post will never be sent | `POST_ID` |
 | `schedule` | Due time for an approved post; a worker still has to publish | `POST_ID`, `--at 2026-10-15T09:00:00+02:00` |
@@ -194,7 +194,7 @@ Then the owner, in their own terminal: `approve POST_ID`, and only on the produc
 
 ## Notes that apply across commands
 
-- **Repeats.** `approve` refuses a blocking repeat unless the owner passes `--allow-repeat`; never suggest it unless the owner says re-sharing is intended. Offer `mark-shared` after a by-hand post.
+- **Repeats.** `approve` refuses a blocking repeat unless the owner passes `--allow-repeat`; never suggest it unless the owner says re-sharing is intended. The send refuses an exact repeat again (`repeat_of_shared_material`), so of two approved copies only one goes out unless the other was approved with `--allow-repeat`. Offer `mark-shared` after a by-hand post.
 - **Moving.** The workspace is `config/` and `state/` (with `state/approval-ledger.jsonl`); it holds no credentials, which are re-set on the new computer. Never suggest copying a secrets file. Details: `docs/MOVING.md`, `docs/JOURNAL.md`.
 - **Adapters.** Only Bluesky, Mastodon, Telegram and LinkedIn (personal profile) have enabled text adapters; Threads, Facebook Page, Instagram, YouTube, TikTok, Mastodon images and replies are mock-tested and registry-refused until the owner records a live receipt. Everything else is manual export. See `references/publishing.md`.
 - **Examples.** The bundled campaign and experiment JSON are format demonstrations with placeholders, never auto-approved; real brand and account profiles stay private, outside public Git trees.

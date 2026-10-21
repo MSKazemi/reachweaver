@@ -23,7 +23,7 @@ from reachweaver.cli import main
 from reachweaver.ops_metrics import collect
 from reachweaver.policy import ValidationError
 from reachweaver.publishers import PublishError, bluesky_record, mastodon_status_payload
-from gate_support import publish  # noqa: E402
+from gate_support import bound_send_options, publish  # noqa: E402
 from reachweaver.replies import (
     ReplyRefused, canonical_target, load_target, parse_reply_ref, stricter_visibility, target_problems,
     verify_reply_target,
@@ -151,7 +151,8 @@ class Base(unittest.TestCase):
 
     def approved_reply(self, db, account_id, platform, target, text="Thanks! The docs map is in docs/ENGAGEMENT.md."):
         pid = add_post(db, account_id, platform, text, reply_target=canonical_target(target))
-        transition(db, pid, "approve")
+        # Sheet items 5/9: bind the account's send options as `reachweaver approve` does.
+        transition(db, pid, "approve", send_options=bound_send_options(self.config, account_id))
         return pid
 
 

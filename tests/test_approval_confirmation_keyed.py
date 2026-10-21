@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from reachweaver import confirmation, postiz
+from reachweaver import confirmation, postiz, send_options
 from reachweaver.accounts import NON_ACCOUNT_CREDENTIALS, load_accounts
 from reachweaver.cli import main
 from reachweaver.health import build_health
@@ -645,7 +645,8 @@ class ConfirmationPostizTests(Base):
         account = load_accounts(config)["pz-blue"]
         with connect(self.db) as db, patch.dict(os.environ, {}, clear=True):
             pid = add_post(db, "pz-blue", "bluesky", "Release notes https://example.org/r")
-            transition(db, pid, "approve")
+            # Sheet items 5/9: bind the account's send options as `reachweaver approve` does.
+            transition(db, pid, "approve", send_options=send_options.fingerprint(account))
             confirmation.enable(db)
             with patch("reachweaver.postiz.verify_integration") as preflight, \
                     patch("reachweaver.publishers.publish") as sent, contextlib.redirect_stdout(io.StringIO()), \

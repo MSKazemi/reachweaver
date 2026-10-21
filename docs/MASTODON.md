@@ -43,7 +43,9 @@ The command exits 2 when your pinned `max_characters` exceeds the instance value
 
 `show POST_ID` is the offline preview and makes no request. For Mastodon its `platform_preview` lists the exact `server`, `handle`, `visibility`, `language`, `spoiler_text`, `counted_length`, `text_limit` and the `idempotency_key`.
 
-`approve` binds the account, platform, exact text, schedule, source URL and campaign, plus the SHA-256 of any attached image. `visibility`, `language` and `spoiler_text` are read from the account file when the post is sent, and `show` displays the values that would be used, so run `show` again after any change to the account file and before `publish --live`.
+`approve` binds the account, platform, exact text, schedule, source URL and campaign, plus the SHA-256 of any attached image, **and the account's `visibility`, `language` and `spoiler_text`** (a fingerprint of the three effective values, `visibility` defaulting to `public`, under the tag `approval/options-1`; approve prints `Bound send options: visibility=... language=... spoiler_text=...`). If you change any of them in the account file after approval, `publish --live` refuses the post before any request with `approval_send_options_changed_reapproval_required`; it stays approved, and either restoring the approved values or re-approving (`unapprove`, `show`, `approve`) lets it go. An unchanged account sends exactly the bound values. `show` prints the values and whether they still match (`approval.send_options`). `approve` refuses a Mastodon post whose account entry cannot be loaded (`approval_send_options_unavailable`), because there would be nothing to bind.
+
+**Upgrade note.** A Mastodon post approved with ReachWeaver 0.12.0 or earlier carries no such fingerprint and is not grandfathered: `publish --live` refuses it with `approval_send_options_missing_reapproval_required`, and `health`, `queue-health` and the dry run list it. Re-approve it once: `unapprove POST_ID`, `show POST_ID`, `approve POST_ID` (then `schedule` again if it was scheduled). Replies were already covered: their visibility is part of the bound reply target.
 
 ## How a send ends
 

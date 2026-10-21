@@ -22,7 +22,7 @@ from reachweaver.cli import main
 from reachweaver.connections import check_connection, mastodon_instance_limits
 from reachweaver.policy import ValidationError, mastodon_text_limit, validate_post
 from reachweaver.publishers import PublishError, bluesky_record, publish_bluesky, publish_mastodon
-from gate_support import publish  # noqa: E402
+from gate_support import bound_send_options, publish  # noqa: E402
 from reachweaver.richtext import (
     TID_PATTERN, bluesky_facets, deterministic_tid, grapheme_count, graphemes,
     mastodon_length, unlinked_mentions,
@@ -354,7 +354,8 @@ class MastodonAdapterTests(unittest.TestCase):
         self.assertIn("limit is 20", err)
         with connect(self.db) as db:  # bypass draft validation to test the live preflight
             pid = add_post(db, "masto", "mastodon", "y" * 25)
-            transition(db, pid, "approve")
+            # Sheet items 5/9: bind the account's send options as `reachweaver approve` does.
+            transition(db, pid, "approve", send_options=bound_send_options(self.config, "masto"))
         with patch.dict(os.environ, {**MASTO_ENV, "REACHWEAVER_ALLOW_LIVE": "1", "REACHWEAVER_ENV": "prod"}), \
                 patch("reachweaver.publishers._send_http") as network:
             code, out, _ = self.cli("publish", "--live", "--post-id", pid)

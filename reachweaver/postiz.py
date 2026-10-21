@@ -331,8 +331,10 @@ def run_live_send(con, post, account: dict, *, max_per_24h: int, min_gap_minutes
     from .ratelimit import (AMBIGUOUS, FLOOR_SECONDS, PREFLIGHT_MAX_RETRIES, classify_send_failure,
                             cooldown_scopes, is_rate_limited, preflight_retries, preflight_with_backoff,
                             record_rate_limit)
+    from .send_options import fingerprint as send_options_fingerprint
     from .storage import (active_provider_cooldown, approval_payload_sha256, binding_refusal,
-                          check_approval_binding, claim_sending, cooldown_refusal, is_paused, uncertain_send)
+                          check_approval_binding, claim_sending, cooldown_refusal, is_paused, repeat_refusal,
+                          repeat_send_problem, uncertain_send)
     floor = FLOOR_SECONDS if cooldown_floor_seconds is None else cooldown_floor_seconds
     retries = preflight_retries(BACKEND, PREFLIGHT_MAX_RETRIES if preflight_max_retries is None
                                 else preflight_max_retries)
@@ -351,7 +353,9 @@ def run_live_send(con, post, account: dict, *, max_per_24h: int, min_gap_minutes
               f"(details: reachweaver check {pid})")
         return 2
     # Approval binding (#7): before the identity preflight; claim_sending re-checks under lock.
-    problem = check_approval_binding(con, pid)
+    # Sheet item 9: the bound Postiz server and integration must be the ones this account names now.
+    options_fingerprint = send_options_fingerprint(account)
+    problem = check_approval_binding(con, pid, send_options_fingerprint=options_fingerprint)
     if problem:
         print(f"BLOCKED {pid}: {binding_refusal(problem, pid)}; no social post sent")
         return 2
@@ -370,6 +374,11 @@ def run_live_send(con, post, account: dict, *, max_per_24h: int, min_gap_minutes
         print(f"SKIPPED {pid}: {cooldown_refusal(cooldown)}; not claimed, post stays {post['status']}, "
               "no request sent")
         return 2
+    # Repeat guard at send time (sheet item 1): no network; claim_sending re-checks under its lock.
+    repeat = repeat_send_problem(con, post)
+    if repeat:
+        print(f"SKIPPED {pid}: {repeat_refusal(pid, repeat)}; not claimed, no request sent")
+        return 2
     try:  # Everything here is read-only or local: the approved post stays eligible.
         problems = validate_post(post["platform"], post["content"])
         if problems:
@@ -387,7 +396,7 @@ def run_live_send(con, post, account: dict, *, max_per_24h: int, min_gap_minutes
     try:
         claimed = claim_sending(con, pid, max_per_24h=max_per_24h, min_gap_minutes=min_gap_minutes,
                                 expected_sha256=approval_payload_sha256(post),  # the exact text sent below
-                                cooldown_scopes=scopes)
+                                cooldown_scopes=scopes, send_options_fingerprint=options_fingerprint)
     except ValidationError as exc:
         print(f"BLOCKED {pid}: {exc}; no social post sent")
         return 2

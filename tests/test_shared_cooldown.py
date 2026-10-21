@@ -20,6 +20,7 @@ from unittest.mock import patch
 
 from test_no_network import NetworkGuard
 from test_rate_limits import MARKER, SESSION, Wire, http
+from gate_support import bound_send_options
 
 from reachweaver import ratelimit
 from reachweaver.accounts import load_accounts
@@ -101,7 +102,8 @@ class SharedBase(unittest.TestCase):
         platform = next(a["platform"] for a in ACCOUNTS if a["id"] == account)
         with connect(self.db) as db:
             pid = add_post(db, account, platform, text)
-            transition(db, pid, "approve")
+            # Sheet items 5/9: bind the account's send options (Postiz server + integration) as `approve` does.
+            transition(db, pid, "approve", send_options=bound_send_options(self.config, account))
         return pid
 
     def cli(self, *argv, env=ENV):
@@ -194,21 +196,23 @@ class SharedPostizCooldownTests(SharedBase):
     def test_claim_sending_under_lock_consults_group_scope(self):
         """Pre-claim gate passed (or a library caller skipped it); the claim itself refuses."""
         b, b2 = self.approved("pz-b", "Note B"), self.approved("pz-b", "Note B two")
+        # Sheet item 9: the sender names the account it sends with; a bound row without it fails closed earlier.
+        options = bound_send_options(self.config, "pz-b")
         with connect(self.db) as db:
             record_provider_cooldown(db, "pz-a", now_s(600), "default", stage="send", scope=ACME)
             # Caller-supplied scopes, no recorded membership.
             with self.assertRaisesRegex(ValidationError, "account_provider_cooldown_active.*recorded_by=pz-a"):
-                claim_sending(db, b, cooldown_scopes=(ACME,))
+                claim_sending(db, b, cooldown_scopes=(ACME,), send_options_fingerprint=options)
             # A library caller that omits the scopes is covered by the recorded membership.
             sync_cooldown_scopes(db, {"pz-a": (ACME,), "pz-b": (ACME,)})
             with self.assertRaisesRegex(ValidationError, "account_provider_cooldown_active"):
-                claim_sending(db, b2)
+                claim_sending(db, b2, send_options_fingerprint=options)
             for pid in (b, b2):
                 self.assertEqual(get_post(db, pid)["status"], "approved")
             self.assertEqual(db.execute("SELECT COUNT(*) FROM event_log WHERE action='send_claimed'").fetchone()[0], 0)
             # Without scope or membership the claim is per-account, exactly as before.
             sync_cooldown_scopes(db, {"pz-b": ()})
-            self.assertTrue(claim_sending(db, b))
+            self.assertTrue(claim_sending(db, b, send_options_fingerprint=options))
             with self.assertRaises(ValidationError):
                 claim_sending(db, b2, cooldown_scopes="postiz-workspace:acme")  # a str is not a tuple
 

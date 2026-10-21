@@ -95,7 +95,10 @@ class HealthTestBase(unittest.TestCase):
                                 env=BSKY_ENV if env is None else env, **kwargs)
 
     def approved(self, db, account="h-bluesky", platform="bluesky", text="Evidence-backed release note"):
-        pid = add_post(db, account, platform, text)
+        # Distinct wording per post: this fixture publishes several posts on one account and is not about
+        # repeats; the send-time repeat guard (sheet item 1) refuses an exact copy of a published post.
+        serial = db.execute("SELECT COUNT(*) FROM posts").fetchone()[0] + 1
+        pid = add_post(db, account, platform, f"{text} number {serial}")
         transition(db, pid, "approve")
         return pid
 

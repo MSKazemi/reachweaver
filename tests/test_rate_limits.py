@@ -23,6 +23,7 @@ from urllib.error import HTTPError
 
 from test_no_network import NetworkGuard
 
+from gate_support import bound_send_options
 from hold_support import claim as claim_sending
 from reachweaver import ratelimit
 from reachweaver.caps import (
@@ -201,7 +202,8 @@ class RateLimitBase(unittest.TestCase):
         platform = next(a["platform"] for a in ACCOUNTS if a["id"] == account)
         with connect(self.db) as db:
             pid = add_post(db, account, platform, text)
-            transition(db, pid, "approve")
+            # Sheet items 5/9: bind the account's send options as `reachweaver approve` does (Mastodon, Postiz).
+            transition(db, pid, "approve", send_options=bound_send_options(self.config, account))
             if schedule:
                 transition(db, pid, "schedule", schedule)
         return pid
