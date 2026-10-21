@@ -246,7 +246,7 @@ class HealthReportTests(HealthTestBase):
         report = self.health()
         fresh = report["global"]["registry_freshness"]
         self.assertEqual(set(fresh["registries"]), {"capabilities", "distribution", "discovery", "profile-audit", "signup",
-                                                    "ai-search", "ai-disclosure", "social-web"})
+                                                    "ai-search", "ai-disclosure", "social-web", "platform-risk"})
         self.assertEqual(fresh["counts"]["stale"], 0)
         row = report["accounts"][0]
         self.assertEqual(row["research_freshness"]["status"], "fresh")

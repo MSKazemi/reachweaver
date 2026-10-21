@@ -94,6 +94,9 @@ def _synthetic(today: date) -> dict:
                                "home_options": [],
                                "platforms": [{"id": "mastodon", "sources": [
                                    {"url": "https://example.org/m", "checked_on": ago(3)}]}]},
+        "platform-risk": lambda: {"reviewed_on": ago(0), "market_notices": [],
+                                  "flags": [{"id": "api_cost", "platform": "reddit", "sources": [
+                                      {"url": "https://example.org/r", "checked_on": ago(70)}]}]},
     }
 
 
@@ -144,6 +147,8 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(rows["ai-disclosure"]["counts"], {"fresh": 1, "aging": 0, "stale": 1, "undated": 0})
         self.assertEqual(rows["ai-disclosure"]["reviewed_on"], today.isoformat())  # its date field is checked_on
         self.assertEqual(rows["social-web"]["counts"], {"fresh": 1, "aging": 0, "stale": 0, "undated": 0})
+        self.assertEqual(rows["platform-risk"]["counts"], {"fresh": 0, "aging": 1, "stale": 0, "undated": 0})
+        self.assertEqual(report["platforms"]["reddit"]["registries"], ["platform-risk"])
         self.assertEqual(report["platforms"]["testbot"]["status"], "aging")
         self.assertEqual(report["platforms"]["tiktok"]["registries"], ["ai-disclosure"])
         self.assertEqual(report["platforms"]["general"]["status"], "stale")
@@ -199,6 +204,7 @@ class ReportTests(unittest.TestCase):
         loaders["ai-search"] = lambda: {"reviewed_on": today.isoformat(), "crawlers": []}
         loaders["ai-disclosure"] = lambda: {"checked_on": today.isoformat(), "sources": {}, "platforms": {}}
         loaders["social-web"] = lambda: {"reviewed_on": today.isoformat(), "platforms": []}
+        loaders["platform-risk"] = lambda: {"reviewed_on": today.isoformat(), "flags": [], "market_notices": []}
         self.assertIsNone(freshness.warning_line(report=freshness.build_report(today, loaders=loaders)))
         line = freshness.warning_line(report=freshness.build_report(today, loaders=_synthetic(today)))
         self.assertTrue(line.startswith("WARNING: Research facts as of 2030-06-15:"))
@@ -220,7 +226,7 @@ class ReportTests(unittest.TestCase):
         report = freshness.build_report(newest, include_fresh=True)
         self.assertEqual([r["error"] for r in report["registries"]], [None] * len(freshness.REGISTRY_FILES))
         self.assertEqual(len(freshness.REGISTRY_FILES), 9)
-        for name in ("ai-search", "ai-disclosure", "social-web"):  # each bundled file contributes dated facts
+        for name in ("ai-search", "ai-disclosure", "social-web", "platform-risk"):  # each bundled file contributes dated facts
             row = next(r for r in report["registries"] if r["registry"] == name)
             self.assertGreater(row["facts"], 0, name)
             self.assertEqual(row["counts"]["undated"], 0, name)
