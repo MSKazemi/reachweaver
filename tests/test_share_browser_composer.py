@@ -661,8 +661,7 @@ class AccountChoiceTests(ComposerBase):
         threads = next(n for n in data["package"]["networks"] if n["id"] == "threads")
         self.assertEqual(threads["posted"]["account_id"], "owner-threads")
         post_id = data["posted"]["post_id"]
-        self.assertEqual(data["next"], f"reachweaver metrics {post_id} --observed-at TIME --source native-export "
-                                       "--likes N --replies N")
+        self.assertEqual(data["next"], f"reachweaver metrics {post_id} --likes N --replies N")
         from reachweaver.cli_parser import make_parser
         args = make_parser().parse_args(data["next"].split()[1:])  # the suggested command parses as given
         self.assertEqual((args.command, args.post_id, args.likes), ("metrics", post_id, "N"))

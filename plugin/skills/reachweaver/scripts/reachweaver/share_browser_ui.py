@@ -835,7 +835,7 @@ button { font-family: inherit; }
      if (current.package === pkg.name) current.state = result.package;
      const who = result.posted.account_id ? " (" + result.posted.account_id + ")" : "";
      showIn("pkg-status", "Recorded as posted by you on " + network.label + who + ".\nNext: when you have numbers, run " +
-       result.next + "\n(replace N with your counts and TIME with when you read them, e.g. 2026-10-22T09:00:00Z)", true,
+       result.next + "\n(replace N with the numbers the app shows; the time defaults to now)", true,
        [{label:"Copy command", value:result.next, aria:"Copy the metrics command for " + network.label}]);
      announce("Recorded as posted on " + network.label + ".");
      if (previewData.length) renderPreview(previewData);

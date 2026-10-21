@@ -68,7 +68,7 @@ PLAIN_WORDS = (
 )
 _NO_MEDIA = re.compile(r"no media manifest supplied: (?P<kinds>[a-z, ]+) not validated; attach the file yourself "
                        r"and run media-check before posting")
-METRICS_NEXT = "reachweaver metrics {post_id} --observed-at TIME --source native-export --likes N --replies N"
+METRICS_NEXT = "reachweaver metrics {post_id} --likes N --replies N"  # --observed-at defaults to now, --source to entered-by-hand
 
 
 def plain(message: str, label: str = "") -> str:

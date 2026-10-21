@@ -40,7 +40,7 @@ A sidebar starts with **Write a new post** and groups the pages into **Work** (O
 
 **Jump to (Ctrl K or Cmd K):** type part of a page name, a post's text, id, account, platform or campaign, then press Enter. It only moves you to that page or post; the last entry searches everything for what you typed. Esc closes it and puts the focus back where it was.
 
-Card titles are real headings, so a screen reader can jump between them, and a copied command says "Copied" on its button and in a status message. Example times in commands are computed in your browser (tomorrow at 09:00 for `schedule --at`, the current hour for `metrics --observed-at`), never a fixed past date.
+Card titles are real headings, so a screen reader can jump between them, and a copied command says "Copied" on its button and in a status message. Example times in commands are computed in your browser (tomorrow at 09:00 for `schedule --at`), never a fixed past date; `metrics` records the current time unless you pass `--observed-at`.
 
 **Look and feel for other pages.** The colours, corner radius, fonts and wordmark are defined once as brand tokens (`BRAND` and `BRAND_CSS` in `reachweaver/ui_assets.py`: the CSS custom properties `--rw-accent`, `--rw-accent-dark`, `--rw-radius`, `--rw-font`, `--rw-mono` and `--rw-wordmark`), so another local page such as the browser composer can use the same look.
 

@@ -467,7 +467,7 @@ class AssetTests(unittest.TestCase):
         js = ui_assets.APP_JS
         self.assertIsNone(re.search(r"20\d\d-\d\d-\d\dT", js))
         self.assertIn('"reachweaver schedule POST_ID --at " + exampleTime()', js)
-        self.assertIn('--observed-at " + exampleTime(true)', js)
+        self.assertIn('"reachweaver metrics POST_ID --likes 4 --views 120"', js)  # observed-at defaults to now
 
     def test_results_has_a_time_window_and_a_summary_and_sits_in_the_bottom_bar(self):
         html, js = ui_assets.INDEX_HTML, ui_assets.APP_JS

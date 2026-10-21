@@ -569,7 +569,7 @@ const REASON_HELP = {
   credentials_missing: "Some credential environment variables are not set. Only their names are shown here.",
   rolling_budget_exhausted: "The 24-hour send budget for this account is used up.",
   provider_cooldown_active: "The platform asked us to wait; sends for this account are paused until the cooldown ends.",
-  accounts_config_unloadable: "The accounts file could not be loaded. Copy config/accounts.example.json to config/accounts.json.",
+  accounts_config_unloadable: "The accounts file could not be loaded. Add an account with reachweaver account-add bluesky (public details only), or check the file with reachweaver doctor.",
   no_accounts_configured: "No accounts are configured yet. Drafts can still be exported for manual posting.",
   manual_platform_has_queued_posts: "Posts are queued for a platform that is manual-only; post them yourself from the export.",
   registry_entry_stale: "The platform capability research is old. Re-check the platform before relying on it.",
@@ -1145,7 +1145,7 @@ async function viewResults(params) {
     empty("Nothing published yet", h("span", null, "Results appear here once a post is published and you record its numbers. Posted it yourself? Make it measurable with ",
       h("code", null, "reachweaver mark-shared --platform PLATFORM --url URL --text '...'"), "."), "results"));
   if (d.posts.length && !d.with_snapshot) out.push(h("div", { class: "card" }, h("h2", { class: "ct" }, "Record results in your terminal"),
-    command("reachweaver metrics POST_ID --observed-at " + exampleTime(true) + " --source native_export --views 120 --likes 4"),
+    command("reachweaver metrics POST_ID --likes 4 --views 120"),
     h("p", { class: "note" }, "Or import a native export with reachweaver import-metrics --csv FILE. Bluesky and Mastodon public counters: reachweaver metrics-fetch --online.")));
   if (d.truncated) out.push(h("p", { class: "muted" }, "Showing the newest " + d.shown + " published posts."));
   out.push(h("p", { class: "note" }, d.note));
@@ -1397,7 +1397,7 @@ async function viewAccounts() {
         a.credentials_missing.length ? h("div", { class: "note" }, a.credentials_missing.length + " missing (names only): " + a.credentials_missing.join(", ")) : null),
       h("div", { class: "meta" }, h("a", { class: "over", href: "#/queue?account=" + encodeURIComponent(a.id) }, "Queue"), h("a", { href: "#/posted?account=" + encodeURIComponent(a.id) }, "Posted"),
         h("a", { href: "#/results?account=" + encodeURIComponent(a.id) }, "Results"))))) :
-      empty("No accounts configured", "Copy config/accounts.example.json to config/accounts.json.", "accounts")];
+      empty("No accounts yet", "Add one in your terminal: reachweaver account-add bluesky (public details only). Posting by hand needs no account.", "accounts")];
 }
 async function viewDistribution(params) {
   const meta = await api("distribution/markets");

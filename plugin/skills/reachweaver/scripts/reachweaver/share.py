@@ -436,7 +436,8 @@ def run(args) -> int:
                 "browser. Run 'reachweaver share --web [--open]' without caption flags."
             )
         from .share_browser import serve
-        return serve(port=args.port, open_browser=args.open, db=getattr(args, "db", None))
+        return serve(port=args.port, open_browser=args.open, db=getattr(args, "db", None),
+                     accounts=getattr(args, "accounts", None))
     if args.open or args.port:
         raise ValidationError("--open and --port need --web (local browser composer).")
     if args.list:
