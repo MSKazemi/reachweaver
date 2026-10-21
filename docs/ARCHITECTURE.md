@@ -710,13 +710,19 @@ browser --GET /<token>/api/*--> ui_server.Handler  (loopback, token, Host/Origin
    search?q= -> list_posts + shared_entries, substring match in Python (never SQL text); schedule?days=1..62
    suggest -> suggest.build_suggestions(con=...) minus publishing-safety items (already status reasons)
    attention -> ui_data.schedule_view + list_posts: status counts and the posts needing a human, one kind each (nav counts, Needs you)
+   owner-actions -> start.build_guide + attention_view + next_steps: owner-only commands as text, each tagged catalog.owner_runs
+   activity -> event_log (action, time, post's account/platform/excerpt; never the detail) + ideas.load (ideas.json, never created)
+   ideas?status= -> ideas.load: text, tags, state, source HOST only
+   prompts?page=..., prompt?intent=...&text=... -> ui_data.prompt_context (real ids) -> ui_prompts.build_prompt (pure string;
+                     /reachweaver, ids, start commands that are never owner-only, owner-only boundary, stored text quoted
+                     between hash-derived UNTRUSTED DATA markers); nothing is stored, run or sent to a model
    icon.svg -> a static tab icon (shapes only, no script)
                                    |  every document through privacy.redact_value
                                    v
                        JSON; ui_assets.APP_JS inserts it as text (never HTML)
 ```
 
-Modules: `post_view.py` holds the offline views moved out of `cli.py` (`show` and the dashboard share `build_post_view`); `ui_data.py` (read-only data layer), `ui_server.py` (HTTP), `ui_assets.py` (page, CSS, JS as Python strings so `sync_skill.py` ships them in the bundle), `start.py` (state-aware next steps), `show_view.py` (the terminal review sheet and the length/approval-sentence facts the dashboard shares), `term.py` (colour, tables, control-character cleaning), `completion.py` (bash/zsh completion generated from the parser) and `cli_help.py` (grouped command index, error hints; the top-level parser also turns a mistyped command into a short suggestion). `cli_parser.py` builds the whole argument parser (every subcommand, flag and help text; moved out of `cli.py` on 2026-10-20 to keep each file under the plugin directory's 256 KiB limit); `cli.py` re-exports `make_parser` and dispatches, and `scripts/release_gate.py` reads subcommands from both files.
+Modules: `post_view.py` holds the offline views moved out of `cli.py` (`show` and the dashboard share `build_post_view`); `ui_data.py` (read-only data layer), `ui_prompts.py` (the pure prompt builder of the "Work with Claude" page: no model call, no environment read, no file), `ui_server.py` (HTTP), `ui_assets.py` (page, CSS, JS as Python strings so `sync_skill.py` ships them in the bundle), `start.py` (state-aware next steps), `show_view.py` (the terminal review sheet and the length/approval-sentence facts the dashboard shares), `term.py` (colour, tables, control-character cleaning), `completion.py` (bash/zsh completion generated from the parser) and `cli_help.py` (grouped command index, error hints; the top-level parser also turns a mistyped command into a short suggestion). `cli_parser.py` builds the whole argument parser (every subcommand, flag and help text; moved out of `cli.py` on 2026-10-20 to keep each file under the plugin directory's 256 KiB limit); `cli.py` re-exports `make_parser` and dispatches, and `scripts/release_gate.py` reads subcommands from both files.
 
 Invariants:
 
@@ -727,6 +733,7 @@ Invariants:
 - **Untrusted text.** Post text, errors and URLs reach the page only through `textContent`; the CSP forbids inline script/style, remote resources and framing; `tests/test_ui_server.py` rejects `innerHTML`, `eval`, write methods and remote URLs in the assets.
 - **Presentation is not behaviour.** Plain output (not a TTY, or `--plain`) is byte-identical to before; `--json` never passes through `term.py`; hints appear only on a TTY. `term.py` reads no environment variable (so `NO_COLOR` is not honoured): `tests/test_hardening.py` pins every environment read, and widening it is a credential-isolation rule change that needs the owner's security review.
 - **No outbox effect.** Nothing here changes approval, dry-run, emergency stop, credential isolation or reconciliation. Approving or pausing from the dashboard would be a separate security-reviewed proposal and is not implemented.
+- **Claude Code stays in its own app.** The "Work with Claude" page builds prompts for the owner to paste into their own Claude Code session; the dashboard starts no process and calls no model. The composer text travels only as a GET query to the loopback server (not logged, not stored) and comes back inside the prompt. Start commands are refused by `ui_prompts` if `catalog.owner_runs` marks them owner-only, and `tests/test_ui_companion.py` parses every suggested command with the real parser.
 
 Not implemented: any write action in the browser, authentication beyond the URL token, TLS (loopback only), push updates (the page polls only when the opt-in Auto-refresh is on), and a phone-tested layout (the narrow layout was checked in a 400 px frame in desktop Chrome only). The page keeps two preferences (theme, auto-refresh) in `localStorage`, always inside try/catch.
 

@@ -1147,8 +1147,13 @@ def _run_ui(args) -> int:
     """``ui``: serve the read-only dashboard until interrupted (Ctrl-C returns 0)."""
     from .storage import database_path
     from .ui_server import make_server, url_for
+    prefix = ["reachweaver"]  # prompts for Claude Code repeat the global options this dashboard was started with
+    for flag, value in (("--home", getattr(args, "home", None)), ("--db", args.db), ("--accounts", args.accounts)):
+        if value:
+            prefix += [flag, str(value)]
     server = make_server(database_path(args.db), accounts_path=args.accounts,
-                         optout_path=str(args.optout) if args.optout else None, port=args.port)
+                         optout_path=str(args.optout) if args.optout else None, port=args.port,
+                         command_prefix=tuple(prefix))
     url = url_for(server)
     print(f"ReachWeaver dashboard (read-only, loopback only): {url}", flush=True)
     print("The address contains a per-run token; keep it private. Press Ctrl-C to stop.", flush=True)

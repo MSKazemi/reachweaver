@@ -73,6 +73,18 @@ It prints about 2-3 KB of JSON: the version and install kind, the workspace, dat
 
 The skill tells Claude never to run `approve` or `publish --live`, and this repository's own Claude Code settings block both commands outright. A plugin install does not carry those settings, so turn on the terminal check once: `reachweaver approval-mode --confirmation tty_hash_prefix`. After that, `approve` and `publish --live` need a terminal on stdin and stdout and the first 8 characters of the post's hash typed at that terminal; a command run with pipes instead of a terminal, as AI tool sessions usually run them, is refused before anything changes. This is strong friction for an agent, not a cryptographic boundary: a program can open a pseudo-terminal (`script`, `expect`, Python `pty`) and answer the check from its own output. The stronger control is the owner approval key (`approval-mode --require-key`, see [the owner approval key](ACCOUNT-ONBOARDING.md#optional-the-owner-approval-key-7-d7)), held where the agent cannot read it. Approval is yours, for each post.
 
+## The dashboard and Claude Code side by side
+
+Keep Claude Code in its own window (terminal, desktop, IDE or web) and the read-only dashboard in a browser tab next to it:
+
+1. Start the dashboard in your workspace: `reachweaver ui`, then open the address it prints (keep it private).
+2. On **Work with Claude** (or **Ask Claude** on the Overview), type what you want, or pick a ready-made prompt on a post, account, channel or idea, and press **Copy prompt**.
+3. Paste it into Claude Code. The prompt starts with `/reachweaver`, carries the ids from your database and the read-only commands to start with (`reachweaver context --json` first), quotes any stored post or idea text as untrusted data, and repeats the rule that Claude never runs `approve`, `publish --live`, `resume`, `reconcile` or `reconnect` but hands you the command.
+4. Turn on **Auto-refresh** in the dashboard's settings. As Claude drafts, checks and saves ideas, the **Activity** feed and the queue update every 20 seconds.
+5. When something needs you, **Only you can do these** shows the exact command with a Copy button; run it in your own terminal.
+
+The dashboard calls no model and starts no process: it only builds text from your local data. Your Claude Code usage is whatever you send from your own session. Details: [dashboard: Work with Claude](DASHBOARD.md#work-with-claude).
+
 ## Ideas inbox: "post about this later"
 
 Tell Claude "post about this later" and it saves the idea instead of drafting it:

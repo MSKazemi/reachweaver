@@ -31,6 +31,8 @@ INDEX_HTML = r"""<!doctype html>
     <a href="#/" data-route="overview"><span data-icon="home"></span><span class="lbl">Overview</span><span class="count" data-count="overview"></span></a>
     <a href="#/queue" data-route="queue"><span data-icon="queue"></span><span class="lbl">Queue</span><span class="count" data-count="queue"></span></a>
     <a href="#/schedule" data-route="schedule"><span data-icon="calendar"></span><span class="lbl">Schedule</span><span class="count" data-count="schedule"></span></a>
+    <a href="#/ideas" data-route="ideas"><span data-icon="idea"></span><span class="lbl">Ideas</span></a>
+    <a href="#/claude" data-route="claude"><span data-icon="chat"></span><span class="lbl">Work with Claude</span></a>
     <p class="navgroup">Record</p>
     <a href="#/posted" data-route="posted"><span data-icon="posted"></span><span class="lbl">Posted</span></a>
     <a href="#/results" data-route="results"><span data-icon="results"></span><span class="lbl">Results</span></a>
@@ -383,6 +385,55 @@ a.card:hover { border-color: var(--accent); }
 .chan-head { display: flex; gap: 10px; align-items: center; }
 .badges { display: flex; flex-wrap: wrap; gap: 6px; }
 
+/* ---- work with Claude: composer, prompt cards, owner-only cards, activity feed, ideas */
+textarea { font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px;
+  width: 100%; min-width: 0; resize: vertical; display: block; }
+textarea.promptout { font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); color: var(--ink); }
+button.primary { display: inline-flex; align-items: center; gap: 6px; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.composer { display: flex; flex-direction: column; gap: 8px; }
+.composer > label { font-weight: 600; font-size: 14px; }
+.composer .row2 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.composer .row2 label { font-size: 14px; color: var(--muted); }
+.composer .row2 select { flex: 1 1 200px; width: 100%; min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+.grid2 > .card, .composer, .pcard { min-width: 0; }  /* a long option or prompt line must not widen the page */
+.composer details { margin: 0; }
+.olabel { font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
+.composer .olabel { margin: 0 0 4px; }
+.pact { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.copied { font-size: 13px; color: var(--ok); font-weight: 600; }
+.pcards { display: grid; gap: 10px; }
+.pcard { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pcard .pt { display: flex; align-items: center; gap: 8px; } .pcard .pt .ico, .card > .ct > .ico { color: var(--accent); }
+.pcard details { margin: 0; } .pcard summary { font-size: 13px; }
+.pcard .promptout, .row .promptout { margin-top: 6px; }
+.later:empty { display: none; }
+.steps { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 10px; padding: 0; margin: 0 0 16px; counter-reset: step; }
+.steps li { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px 10px 48px; counter-increment: step; font-size: 14px; }
+.steps li::before { content: counter(step); position: absolute; left: 12px; top: 10px; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; font-size: 13px; display: grid; place-items: center; }
+.owners { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 12px; margin: 0 0 14px; align-items: start; }
+.owners > .card { margin: 0; }
+.late .owners { grid-template-columns: 1fr; gap: 10px; } .late .owner { box-shadow: none; padding: 12px 14px; }
+.owner { border-left: 4px solid var(--info); } .owner.t-bad { border-left-color: var(--bad); } .owner.t-warn { border-left-color: var(--warn); }
+.ohead { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 14px; }
+.otext { margin: 6px 0 0; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.why { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0 2px; font-size: 13px; color: var(--muted); }
+.why .ico { width: 16px; height: 16px; margin-top: 1px; color: var(--warn); }
+.ocmd { margin-top: 8px; } .ocmd .olabel { margin: 0; color: var(--ink); }
+.who { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; padding: 0 7px; border-radius: 999px; line-height: 18px; }
+.who.you { background: var(--warn-bg); color: var(--warn); } .who.claude { background: var(--ok-bg); color: var(--ok); }
+.feed { list-style: none; margin: 0; padding: 0; }
+.feed li { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+.feed li:first-child { border-top: 0; padding-top: 2px; }
+.fdot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: var(--line); }
+.feed .t-ok .fdot { background: var(--ok); } .feed .t-bad .fdot { background: var(--bad); } .feed .t-warn .fdot { background: var(--warn); } .feed .t-info .fdot { background: var(--info); }
+.fmain { min-width: 0; font-size: 14px; }
+.fx { display: block; color: var(--ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+a.fx:hover { text-decoration: underline; }
+.tag { font-size: 12px; color: var(--accent-strong); background: var(--accent-soft); border-radius: 999px; padding: 0 8px; }
+.row .pact { margin-top: 6px; } .row details { margin: 4px 0 0; }
+
 /* ---- loading skeleton */
 .sk { border-radius: 8px; background: var(--code-bg); margin: 0 0 12px; }
 .sk.h { height: 30px; width: 220px; } .sk.l { height: 16px; width: 60%; } .sk.b { height: 120px; }
@@ -429,6 +480,7 @@ a.card:hover { border-color: var(--accent); }
   /* A post sheet printed or saved as PDF: the exact text and the approval binding, no controls. */
   :root, :root[data-theme="dark"] { --bg: #fff; --panel: #fff; --ink: #000; --muted: #444; --line: #bbb; --code-bg: #fff; --shadow: none; }
   .top, footer, .pager, .side, .tabs, .scrim, .aside .cmd button, #toast, .skip, button { display: none !important; }
+  .claudecard, .askcard, .pcards { display: none !important; }
   .shell { display: block; }
   main { max-width: none; padding: 0; }
   .post-grid { display: block; }
@@ -527,7 +579,10 @@ const ICONS = {
   settings: ["M4 7h9", "M17 7h3", "M4 17h3", "M11 17h9", "M15 5v4", "M9 15v4"], menu: ["M4 6h16", "M4 12h16", "M4 18h16"],
   more: ["M5 12h.01", "M12 12h.01", "M19 12h.01"], alert: ["M12 4L2 20h20z", "M12 10v4", "M12 17h.01"],
   check: ["M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18z", "M8 12l3 3 5-6"], clock: ["M12 3a9 9 0 1 1 0 18a9 9 0 1 1 0-18z", "M12 7v5l3 2"],
-  external: ["M14 4h6v6", "M20 4l-9 9", "M18 14v6H4V6h6"], back: ["M15 5l-7 7 7 7"], fwd: ["M9 5l7 7-7 7"], stop: ["M6 6h12v12H6z"]
+  external: ["M14 4h6v6", "M20 4l-9 9", "M18 14v6H4V6h6"], back: ["M15 5l-7 7 7 7"], fwd: ["M9 5l7 7-7 7"], stop: ["M6 6h12v12H6z"],
+  idea: ["M9 18h6", "M10 21h4", "M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"],
+  chat: ["M4 5h16v11H9l-5 4z", "M8 9h8", "M8 12h5"], copy: ["M9 9h11v11H9z", "M5 15H4V4h11v1"],
+  lock: ["M6 11h12v9H6z", "M8.5 11V8a3.5 3.5 0 0 1 7 0v3"]
 };
 function icon(name) {
   const svg = document.createElementNS(SVGNS, "svg");
@@ -699,8 +754,10 @@ async function viewOverview() {
         ? h("small", null, "Only credentials are missing: drafting, review and dry runs still work. They are needed for live sends only.") : null,
       !paused && s.overall !== "ok" ? h("small", null, h("a", { href: "#why" }, "Why this status")) : null)));
   out.push(h("div", { class: "grid2" }, needsCard(att), nextCard(guide)));
+  out.push(h("div", { class: "grid2" }, askCard(), lateCard("Your turn in the terminal", ownerNodes, "ownercard")));
   out.push(statusCard(counts));
-  out.push(h("div", { class: "grid2" }, lateCard("Coming up", comingNodes), lateCard("Recently posted", recentNodes)));
+  out.push(h("div", { class: "grid2" }, lateCard("Coming up", comingNodes), lateCard("Recently posted", recentNodes),
+    lateCard("Activity", () => activityNodes(6))));
   out.push(h("h2", { id: "why" }, "Why this status"));
   const groups = new Map();  // one row per (level, code); the accounts it affects are listed together
   for (const r of s.reasons) { const key = r.level + "/" + r.code; if (!groups.has(key)) groups.set(key, { r, accounts: [] }); if (r.account_id) groups.get(key).accounts.push(r.account_id); }
@@ -725,6 +782,17 @@ async function viewOverview() {
   return out;
 }
 
+// The Overview's short way into Claude Code: a compact composer and two ready-made prompts.
+function askCard() {
+  return h("div", { class: "card askcard" }, h("div", { class: "ct" }, icon("chat"), "Ask Claude", h("a", { href: "#/claude" }, "More on the Claude page")),
+    composer({ compact: true, page: "overview" }), h("div", { class: "olabel" }, "Or start from"), pagePrompts("page=overview", true));
+}
+async function ownerNodes() {
+  const d = await api("owner-actions");
+  if (!d.general.length && !d.posts.length) return [];
+  return [h("p", { class: "note" }, "Exact commands for your own terminal. Claude never runs the ones marked “You run this”."), ownerList(d, 2),
+    d.total > 2 ? h("a", { class: "more-link", href: "#/claude" }, "All " + d.total + " on the Claude page") : null];
+}
 // Cards filled after the page is shown, so a slow or failing check never blocks the Overview.
 function lateCard(title, loader, extra) {
   const box = h("div", { class: "card late" + (extra ? " " + extra : "") }, h("strong", null, title), h("div", { class: "sk l" }), h("div", { class: "sk l" }));
@@ -1104,12 +1172,15 @@ function timeline(events) {
 }
 let neighbours = { prev: null, next: null };
 async function viewPost(id) {
-  const [p, list, accts] = await Promise.all([api("posts/" + encodeURIComponent(id)), api("posts"), api("accounts").catch(() => ({ accounts: [] }))]);
+  const [p, list, accts, prompts] = await Promise.all([api("posts/" + encodeURIComponent(id)), api("posts"), api("accounts").catch(() => ({ accounts: [] })),
+    api("prompts?page=post&post=" + encodeURIComponent(id)).catch(() => null)]);
   const ids = list.posts.map(x => x.id), at = ids.indexOf(id);
   neighbours = { prev: at > 0 ? ids[at - 1] : null, next: at >= 0 && at < ids.length - 1 ? ids[at + 1] : null };
   const link = safeLink(p.remote_url), meaning = STATUS_MEANING[p.status] || [p.status, ""];
   const acct = accts.accounts.find(a => a.id === p.account_id && a.platform === p.platform);
-  const first = p.next_steps[0], rest = p.next_steps.slice(1);
+  const first = p.next_steps[0], owner = p.owner_action;
+  const ownerCmds = new Set(owner ? owner.commands.map(c => c.command) : []);
+  const rest = p.next_steps.slice(1).filter(s => !ownerCmds.has(s.command));  // the owner card shows those
   const pager = h("div", { class: "pager" }, h("a", { href: "#/queue" }, icon("back"), "Queue"), h("span", null,
     neighbours.prev ? h("a", { href: postHref(neighbours.prev), title: "Previous post ( [ )" }, icon("back"), "Previous") : null,
     neighbours.prev && neighbours.next ? "  ·  " : null,
@@ -1117,6 +1188,7 @@ async function viewPost(id) {
   const left = [h("div", { class: "card status-card " + p.status },
     h("div", { class: "what" }, h("strong", null, meaning[0]), h("span", null, meaning[1]), (p.status === "approved" || p.status === "scheduled") ? h("div", { class: "note" }, p.approval_summary) : null),
     first ? h("div", { class: "what" }, h("div", null, "Next: " + first.label), command(first.command), first.note ? h("div", { class: "note" }, first.note) : null) : null)];
+  if (owner) left.push(ownerCard(owner, new Set(first ? [first.command] : [])));
   if (p.content_looks_like_secret) left.push(h("div", { class: "warn" }, "This text contains something that looks like a password, token or key. Check it before approving or sending."));
   if (p.length && p.length.state === "over") left.push(h("div", { class: "error" }, "This text is over the platform limit, so it would be refused when sent."));
   if (p.last_error) left.push(h("div", { class: "error" }, "Last error: " + p.last_error));
@@ -1147,7 +1219,9 @@ async function viewPost(id) {
       h("p", { class: "note" }, "From the platform's own analytics as you recorded them; unknown is never shown as zero."));
   } else if (p.status === "published") left.push(h("p", { class: "muted" }, "No results recorded for this post yet. Record them with reachweaver metrics " + p.id + " ..."));
   left.push(h("h2", null, "Timeline"), p.events.length ? h("div", { class: "card" }, timeline(p.events)) : h("p", { class: "muted" }, "No events."));
-  const aside = [rest.length ? h("div", { class: "card" }, h("div", { class: "ct" }, "More commands for your terminal"),
+  const aside = [prompts && prompts.cards.length ? h("div", { class: "card claudecard" }, h("div", { class: "ct" }, icon("chat"), "Work with Claude"),
+      promptCards(prompts.cards, true), h("p", { class: "note" }, h("a", { href: "#/claude?post=" + encodeURIComponent(p.id) }, "Ask something else about this post"))) : null,
+    rest.length ? h("div", { class: "card" }, h("div", { class: "ct" }, "More commands for your terminal"),
       rest.map(s => h("div", null, h("div", { class: "note" }, s.label), command(s.command)))) : null,
     h("div", { class: "card" }, kv({ account: p.account_id, platform: pf(p.platform), campaign: p.campaign ? h("a", { href: "#/campaign?name=" + encodeURIComponent(p.campaign) }, p.campaign) : "none",
       scheduled: when(p.scheduled_at, "not scheduled"), approved: p.approved_at ? when(p.approved_at) : "not approved" }),
@@ -1164,6 +1238,7 @@ async function viewAccounts() {
   return [h("h1", null, "Accounts"), h("p", { class: "lede" }, "Configured accounts. Credential values are never shown."),
     d.error ? h("div", { class: "error" }, d.error) : null,
     h("p", { class: "muted" }, "Credentials are needed only for live sending. Drafting, review and dry runs work without them."),
+    pagePrompts("page=accounts"),
     d.accounts.length ? h("div", { class: "cards" }, d.accounts.map(a => h("div", { class: "card" },
       h("div", { class: "acct" }, avatar(a.handle || a.id, a.platform), h("div", { class: "who" }, h("b", null, a.id), h("span", { class: "muted" }, a.handle || "handle not set"))),
       h("div", { class: "badges" }, h("span", { class: "chip info" }, a.platform), h("span", { class: "chip draft" }, a.adapter + (a.backend ? " (" + a.backend + ")" : "")),
@@ -1189,6 +1264,7 @@ async function viewDistribution(params) {
     src ? h("a", { href: src, rel: "noopener noreferrer", target: "_blank" }, "Official source ", icon("external")) : h("span", { class: "muted" }, "no official source recorded")); });
   return [h("h1", null, "Channels"), h("p", { class: "lede" }, "Offline research hypotheses, not predictions, account connections or publishing permission."),
     h("div", { class: "filters" }, rsel, gsel),
+    pagePrompts("page=distribution&region=" + encodeURIComponent(region) + "&goal=" + encodeURIComponent(goal)),
     h("div", { class: "card" }, h("div", { class: "badges" }, h("span", { class: "chip attention" }, plan.confidence ? String(plan.confidence).replace(/_/g, " ") : "confidence unknown"),
       h("span", { class: "chip draft" }, "reviewed " + (plan.reviewed_on || "unknown")), h("span", { class: "chip draft" }, "audience time zone: " + (plan.audience_timezone || "unknown"))),
       plan.localization_warning ? h("p", { class: "muted" }, plan.localization_warning) : null,
@@ -1198,11 +1274,202 @@ async function viewDistribution(params) {
     plan.guardrails ? h("p", { class: "muted" }, plan.guardrails) : null];
 }
 
+// ---- Work with Claude: prompts for your own Claude Code session. The dashboard calls no model and runs nothing;
+// prompts are built by the server from your local ids (ui_prompts.py) and copied by you.
+const OWNER_TONE = { needs_review: "bad", sending: "warn", approval_expired: "bad", expires_before_due: "warn", approved: "info", draft: "info" };
+const DRAFT_MAX = 4000;
+let composerState = { text: null, about: "" };
+function draftText() { if (composerState.text === null) composerState.text = store("rw-draft") || ""; return composerState.text; }
+function saveDraft(text) { composerState.text = text; store("rw-draft", text.slice(0, DRAFT_MAX)); }
+function copiedLine() { return h("span", { class: "copied", role: "status", "aria-live": "polite" }); }
+function promptBox(text, rows) {
+  const box = h("textarea", { class: "promptout", readonly: true, rows: rows || 10, spellcheck: "false", "aria-label": "Prompt for Claude Code" });
+  box.value = text || "";
+  return box;
+}
+// Copy with the clipboard API; when it is unavailable or refused, select the prompt so Ctrl C / Cmd C copies it.
+function copyPrompt(text, box, live) {
+  const say = msg => { if (live) { live.textContent = ""; live.textContent = msg; } else toast(msg); };
+  const fallback = () => {
+    if (box) { const d = box.closest("details"); if (d) d.open = true; box.focus(); box.select(); }
+    say("Selected: press Ctrl C (Cmd C on a Mac) to copy");
+  };
+  if (!text) { say("Nothing to copy yet"); return; }
+  if (!navigator.clipboard || !navigator.clipboard.writeText) { fallback(); return; }
+  navigator.clipboard.writeText(text).then(() => say("Copied. Paste it into Claude Code."), fallback);
+}
+function copyButton(label, getText, box, live) {
+  const btn = h("button", { type: "button", class: "primary", "aria-label": label }, icon("copy"), "Copy prompt");
+  btn.addEventListener("click", () => copyPrompt(getText(), box, live));
+  return btn;
+}
+// One ready-made prompt: title, what it does, Copy, and the full text to read first.
+function promptCard(card, compact) {
+  const box = promptBox(card.prompt, 12), live = copiedLine();
+  return h("div", { class: "pcard" }, h("div", { class: "pt" }, icon("chat"), h("b", null, card.title)),
+    compact ? null : h("div", { class: "note" }, card.summary),
+    h("div", { class: "pact" }, copyButton("Copy prompt: " + card.title, () => card.prompt, box, live), live),
+    h("details", null, h("summary", null, "Show the prompt"), box));
+}
+function promptCards(cards, compact) { return cards.length ? h("div", { class: "pcards" }, cards.map(c => promptCard(c, compact))) : null; }
+// Filled after the page is shown, so a slow or failing request never blocks the page around it.
+function later(loader) {
+  const box = h("div", { class: "later" }, h("div", { class: "sk l" }));
+  loader().then(nodes => { const kids = [nodes].flat().filter(Boolean); if (!kids.length) box.hidden = true; box.replaceChildren(...kids); })
+    .catch(err => { box.replaceChildren(h("p", { class: "muted" }, "Could not load: " + err.message)); });
+  return box;
+}
+function pagePrompts(query, compact) { return later(async () => promptCards((await api("prompts?" + query)).cards, compact)); }
+// The composer: what you type, plus what it is about, becomes a prompt built from real ids on the server.
+function composer(o) {
+  const id = o.compact ? "askq" : "ask";
+  const ta = h("textarea", { id, class: "asktext", rows: o.compact ? 3 : 5, maxlength: DRAFT_MAX, "aria-describedby": id + "-hint",
+    placeholder: "What should Claude do? For example: tighten my newest draft and check its claims" });
+  ta.value = draftText();
+  let about = null;
+  if (o.choices && o.choices.length > 1) {
+    about = h("select", { id: id + "-about", "aria-label": "What the prompt is about" });
+    let group = null;
+    for (const [value, label, heading] of o.choices) {
+      if (heading && (!group || group.label !== heading)) { group = h("optgroup", { label: heading }); about.append(group); }
+      (heading ? group : about).append(h("option", { value, selected: value === (o.about || "") }, label));
+    }
+    about.addEventListener("change", () => { composerState.about = about.value; build(); });
+  }
+  const out = promptBox("", o.compact ? 7 : 16), live = copiedLine();
+  let timer = null, seq = 0;
+  function build() {
+    const q = new URLSearchParams({ intent: "ask", page: o.page }), text = ta.value.trim(), pick = about ? about.value : (o.about || "");
+    if (text) q.set("text", text.slice(0, DRAFT_MAX));
+    if (pick) { const i = pick.indexOf(":"); q.set(pick.slice(0, i), pick.slice(i + 1)); }
+    const mine = ++seq;
+    return api("prompt?" + q).then(d => { if (mine === seq) out.value = d.prompt; })
+      .catch(err => { if (mine === seq) out.value = "Could not build the prompt: " + err.message; });
+  }
+  ta.addEventListener("input", () => { saveDraft(ta.value); clearTimeout(timer); timer = setTimeout(build, 300); });
+  ta.addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); clearTimeout(timer); build().then(() => copyPrompt(out.value, out, live)); } });
+  const clear = h("button", { type: "button" }, "Clear");
+  clear.addEventListener("click", () => { ta.value = ""; saveDraft(""); build(); ta.focus(); });
+  build();
+  return h("div", { class: "composer" }, h("label", { for: id }, "What do you want?"), ta,
+    h("div", { class: "note", id: id + "-hint" }, "Ctrl Enter (Cmd Enter) copies the prompt. Your words go only to this local dashboard, which builds the prompt and stores nothing; an unsent draft is kept in this browser."),
+    about ? h("div", { class: "row2" }, h("label", { for: about.id }, "About"), about) : null,
+    o.compact ? h("details", null, h("summary", null, "Show the prompt"), out) : h("div", null, h("div", { class: "olabel" }, "Prompt for Claude Code"), out),
+    h("div", { class: "pact" }, copyButton("Copy prompt", () => out.value, out, live), clear, live));
+}
+// Owner-only cards: the exact commands, who runs each, and one line why it is yours.
+function ownerCard(a, skip) {
+  const tone = OWNER_TONE[a.kind] || "info", commands = a.commands || [a];
+  return h("div", { class: "card owner t-" + tone },
+    h("div", { class: "ohead" }, h("span", { class: "chip " + (tone === "info" ? "info" : tone) }, a.title || a.label),
+      skip ? h("span", { class: "muted" }, "Only you can do this") : [a.post_id ? h("a", { href: postHref(a.post_id) }, "Post " + a.post_id) : null,
+        a.platform ? pf(a.platform) : null, a.account_id || null]),
+    a.excerpt ? h("div", { class: "otext" }, a.excerpt) : null,
+    a.looks_like_secret ? h("span", { class: "warnbadge" }, "looks like a secret") : null,
+    h("p", { class: "why" }, icon("lock"), h("span", null, a.why)),
+    commands.filter(c => !skip || !skip.has(c.command)).map(c => h("div", { class: "ocmd" },
+      h("div", { class: "olabel" }, h("span", { class: "who " + (c.owner_only ? "you" : "claude") }, c.owner_only ? "You run this" : "Claude can run this"), " ", a.commands ? c.label : ""),
+      command(c.command), c.note ? h("div", { class: "note" }, c.note) : null)));
+}
+function ownerList(d, max) {
+  const cards = [...d.general.map(g => ownerCard(g)), ...d.posts.slice(0, max || d.posts.length).map(a => ownerCard(a))];
+  return cards.length ? h("div", { class: "owners" }, cards) : null;
+}
+// Activity: the audit log and the ideas inbox, newest first. Auto-refresh (Settings) keeps it following a session.
+function feedList(items) {
+  return h("ol", { class: "feed" }, items.map(e => h("li", { class: "t-" + (e.tone || "none") }, h("span", { class: "fdot", "aria-hidden": "true" }),
+    h("div", { class: "fmain" }, h("div", null, h("b", null, e.label), e.by ? " by " + e.by : "", " · ", h("span", { class: "note" }, when(e.at))),
+      e.excerpt ? h(e.post_id || e.idea_id ? "a" : "span", { class: "fx", href: e.post_id ? postHref(e.post_id) : e.idea_id ? "#/ideas" : null }, e.excerpt) : null,
+      e.looks_like_secret ? h("span", { class: "warnbadge" }, "looks like a secret") : null,
+      metaLine([e.platform ? pf(e.platform) : null, e.account_id, !e.excerpt && e.post_id ? "post " + e.post_id : null, e.idea_id])))));
+}
+function followHint() {
+  if (auto.checked) return h("p", { class: "note" }, "Auto-refresh is on: this follows a Claude Code session every 20 seconds.");
+  const on = h("button", { type: "button", class: "linkbtn" }, "Turn on auto-refresh");
+  on.addEventListener("click", () => { auto.checked = true; auto.dispatchEvent(new Event("change")); toast("Auto-refresh on"); render(); });
+  return h("p", { class: "note" }, "To follow a Claude Code session as it works: ", on, " (every 20 seconds, paused while you type).");
+}
+async function activityNodes(max) {
+  const d = await api("activity");
+  return [d.ideas_error ? h("div", { class: "warn" }, "The ideas inbox could not be read: " + d.ideas_error) : null,
+    d.items.length ? feedList(d.items.slice(0, max || d.items.length)) : h("p", { class: "muted" }, "Nothing recorded yet. Drafts, approvals, sends and ideas appear here."),
+    max && d.items.length > max ? h("a", { class: "more-link", href: "#/claude" }, "All recent activity") : null,
+    max ? null : h("p", { class: "note" }, d.note)];
+}
+function howSteps() {
+  return h("ol", { class: "steps" }, h("li", null, h("b", null, "Say what you want"), h("div", { class: "note" }, "Type it, or pick a ready-made prompt.")),
+    h("li", null, h("b", null, "Copy the prompt"), h("div", { class: "note" }, "It names /reachweaver, the ids and the first commands.")),
+    h("li", null, h("b", null, "Paste it into Claude Code"), h("div", { class: "note" }, "In the terminal, desktop or IDE app, on your own plan.")),
+    h("li", null, h("b", null, "Approve and send yourself"), h("div", { class: "note" }, "Claude hands back owner-only commands; you run them.")));
+}
+async function viewClaude(params) {
+  const asked = ["post", "account", "campaign", "idea"].find(k => params.get(k));
+  const pick = asked ? asked + ":" + params.get(asked) : composerState.about;
+  const [att, accts, camps, ideas, owner] = await Promise.all([api("attention"), api("accounts"), api("campaigns"),
+    api("ideas?status=open"), api("owner-actions")]);
+  applyBadges(att);
+  const choices = [["", "Nothing specific", null]];
+  if (pick && pick.startsWith("post:") && !att.items.some(i => "post:" + i.id === pick)) choices.push([pick, "Post " + pick.slice(5), "This post"]);
+  for (const i of att.items.slice(0, 15)) choices.push(["post:" + i.id, (KIND[i.kind] || [i.kind])[0] + " · " + (i.excerpt || i.id).slice(0, 60), "Posts that need you"]);
+  for (const a of accts.accounts) choices.push(["account:" + a.id, a.id + " (" + a.platform + ")", "Accounts"]);
+  for (const c of camps.campaigns.slice(0, 20)) choices.push(["campaign:" + c.campaign, c.campaign, "Campaigns"]);
+  for (const i of ideas.ideas.slice(0, 20)) choices.push(["idea:" + i.id, i.excerpt.slice(0, 60), "Open ideas"]);
+  if (pick && !choices.some(c => c[0] === pick)) choices.push([pick, pick.replace(":", " "), "Chosen"]);
+  composerState.about = pick || "";
+  const postId = pick && pick.startsWith("post:") ? pick.slice(5) : null;
+  return [h("h1", null, "Work with Claude"),
+    h("p", { class: "lede" }, "Keep Claude Code open in its own app on your subscription. Here you say what you want and copy a precise prompt; this page calls no model and runs nothing."),
+    howSteps(),
+    h("div", { class: "grid2" }, h("div", { class: "card askcard" }, h("div", { class: "ct" }, icon("chat"), "Ask Claude"),
+      composer({ page: "claude", choices, about: composerState.about })),
+    h("div", { class: "card" }, h("div", { class: "ct" }, "Ready-made prompts"),
+      postId ? [h("p", { class: "note" }, "For post ", h("a", { href: postHref(postId) }, postId), ":"), pagePrompts("page=post&post=" + encodeURIComponent(postId))] : null,
+      pagePrompts("page=claude"))),
+    h("h2", null, "Only you can do these", owner.total ? h("span", { class: "count c-warn" }, owner.total) : null),
+    h("p", { class: "muted" }, owner.note),
+    ownerList(owner) || h("div", { class: "card" }, h("div", { class: "allclear" }, icon("check"), "Nothing needs you in the terminal right now.")),
+    owner.truncated ? h("p", { class: "note" }, "Showing the first " + owner.posts.length + "; the Queue lists every post.") : null,
+    h("h2", null, "Activity"), h("div", { class: "card" }, followHint(), later(() => activityNodes()))];
+}
+// ---- Ideas (the inbox from `reachweaver idea`; read-only here)
+const IDEA_CHIP = { open: "info", promoted: "ok", dropped: "draft" };
+function ideaRow(i) {
+  const live = copiedLine(), box = promptBox("", 12);
+  let prompt = null;
+  const fetchPrompt = () => prompt ? Promise.resolve(prompt) : api("prompt?intent=idea&page=ideas&idea=" + encodeURIComponent(i.id)).then(d => { prompt = d.prompt; box.value = prompt; return prompt; });
+  const btn = h("button", { type: "button", class: "primary over", "aria-label": "Copy prompt: promote idea " + i.id + " into a campaign" }, icon("copy"), "Promote with Claude");
+  btn.addEventListener("click", () => fetchPrompt().then(p => copyPrompt(p, box, live)).catch(err => { live.textContent = "Could not build the prompt: " + err.message; }));
+  const show = h("details", null, h("summary", null, "Show the prompt"), box);
+  show.addEventListener("toggle", () => { if (show.open) fetchPrompt().catch(() => { /* the button reports errors */ }); });
+  return row({ search: i.text + " " + i.id + " " + i.tags.join(" "), badge: h("span", { class: "chip " + (IDEA_CHIP[i.status] || "") }, i.status),
+    text: i.excerpt, meta: [i.id, i.tags.map(t => h("span", { class: "tag" }, "#" + t)), i.source_host ? "source: " + i.source_host : null,
+      i.promoted_campaign ? "campaign " + i.promoted_campaign : null],
+    extra: [i.text.length > i.excerpt.length ? h("details", null, h("summary", null, "Full text"), h("pre", { class: "exact" }, i.text)) : null,
+      i.status === "open" ? h("div", { class: "pact" }, btn, live) : null, i.status === "open" ? show : null],
+    right: when(i.created_at) });
+}
+async function viewIdeas(params) {
+  const status = params.get("status") || "";
+  const d = await api("ideas" + (status ? "?status=" + encodeURIComponent(status) : ""));
+  const all = Object.values(d.counts).reduce((a, b) => a + b, 0);
+  const chips = h("div", { class: "chips", role: "group", "aria-label": "Filter by state" }, [["", "all", all], ["open", "open", d.counts.open], ["promoted", "promoted", d.counts.promoted], ["dropped", "dropped", d.counts.dropped]].map(([k, label, n]) => {
+    const b = h("button", { type: "button", class: "chipbtn", "aria-pressed": k === status ? "true" : "false" }, label, h("span", { class: "n" }, n));
+    b.addEventListener("click", () => { location.hash = "#/ideas" + (k ? "?status=" + k : ""); }); return b; }));
+  const list = d.ideas.map(ideaRow);
+  queueRows = list; queueSel = -1;
+  return [h("h1", null, "Ideas"), h("p", { class: "lede" }, "Your \"post about this later\" inbox (ideas.json next to the database). An idea is not a draft: it can never be approved or sent."),
+    d.error ? h("div", { class: "error" }, "The ideas inbox could not be read: " + d.error) : null, chips,
+    list.length ? [h("div", { class: "filters" }, listSearch(list, "Search these ideas ( / )", d.total, d.truncated ? " (newest " + d.ideas.length + " only)" : "")), rows(list)] :
+      empty(status ? "No " + status + " ideas" : "No ideas yet", h("span", null, "Tell Claude \"post about this later\", or run ", h("code", null, "reachweaver idea add \"TEXT\" --tag TAG"), " in your terminal."), "idea"),
+    h("p", { class: "note" }, "Only the host of a source link is shown. Promoting writes a NEW campaign scaffold folder that stays blocked until you finish and verify it; nothing is staged, approved or sent.")];
+}
+
 // ---- router (own-property lookup only: '#/constructor' must not reach Object.prototype)
 const ROUTES = Object.assign(Object.create(null), { "": ["overview", viewOverview], queue: ["queue", viewQueue],
   schedule: ["schedule", viewSchedule], posted: ["posted", viewPosted], results: ["results", viewResults],
   campaigns: ["campaigns", viewCampaigns], campaign: ["campaigns", viewCampaign], search: ["search", viewSearch],
-  accounts: ["accounts", viewAccounts], distribution: ["distribution", viewDistribution] });
+  accounts: ["accounts", viewAccounts], distribution: ["distribution", viewDistribution], ideas: ["ideas", viewIdeas],
+  claude: ["claude", viewClaude] });
 let rendering = 0, lastPath = null, lastFull = null, shownPath = null;
 const scrolls = new Map();  // where each list was scrolled to, so coming back from a post lands on the same row
 function parseHash() {
@@ -1332,7 +1599,8 @@ alerts.checked = store("rw-alerts") === "1" && typeof Notification !== "undefine
 const PAGES = [["Overview", "#/", "home"], ["Queue", "#/queue", "queue"], ["Queue: needs review", "#/queue?status=needs_review", "alert"],
   ["Queue: drafts", "#/queue?status=draft", "queue"], ["Schedule", "#/schedule", "calendar"], ["Schedule: month", "#/schedule?view=month", "calendar"],
   ["Posted", "#/posted", "posted"], ["Results", "#/results", "results"], ["Campaigns", "#/campaigns", "campaigns"],
-  ["Accounts", "#/accounts", "accounts"], ["Channels", "#/distribution", "channels"]];
+  ["Accounts", "#/accounts", "accounts"], ["Channels", "#/distribution", "channels"], ["Ideas", "#/ideas", "idea"],
+  ["Work with Claude", "#/claude", "chat"]];
 let palette = null, palInput = null, palList = null, palItems = [], palSel = 0, palPosts = null, palAt = 0;
 function palGo(target) { palette.close(); location.hash = target; }
 function palMove(i) {
@@ -1373,8 +1641,8 @@ document.getElementById("palettebtn").addEventListener("click", openPalette);
 
 // ---- keyboard shortcuts
 const SHORTCUTS = [["?", "Show this help"], ["Ctrl K", "Jump to a page or post"], ["g then o / q / s / p", "Go to Overview / Queue / Schedule / Posted"],
-  ["g then r / m", "Go to Results / Campaigns"], ["g then a / c", "Go to Accounts / Channels"], ["j / k", "Move down / up in the queue or the posted list"],
-  ["Enter", "Open the selected post"], ["[ / ]", "Previous / next post"], ["/", "Search the queue or the posted list"], ["r", "Refresh"], ["t", "Cycle the theme"], ["Esc", "Close help, leave a field"]];
+  ["g then r / m", "Go to Results / Campaigns"], ["g then a / c", "Go to Accounts / Channels"], ["g then i / w", "Go to Ideas / Work with Claude"], ["j / k", "Move down / up in the queue or the posted list"],
+  ["Enter", "Open the selected post"], ["Ctrl Enter", "In the Claude composer: copy the prompt"], ["[ / ]", "Previous / next post"], ["/", "Search the queue or the posted list"], ["r", "Refresh"], ["t", "Cycle the theme"], ["Esc", "Close help, leave a field"]];
 let helpDialog = null, pendingG = false, gTimer = null;
 function showHelp() {
   if (!helpDialog) {
@@ -1387,7 +1655,7 @@ function showHelp() {
   closeSettings();
   if (typeof helpDialog.showModal === "function" && !helpDialog.open) helpDialog.showModal();
 }
-const GO = Object.assign(Object.create(null), { o: "#/", q: "#/queue", s: "#/schedule", p: "#/posted", r: "#/results", m: "#/campaigns", a: "#/accounts", c: "#/distribution" });
+const GO = Object.assign(Object.create(null), { o: "#/", q: "#/queue", s: "#/schedule", p: "#/posted", r: "#/results", m: "#/campaigns", a: "#/accounts", c: "#/distribution", i: "#/ideas", w: "#/claude" });
 document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "k") { e.preventDefault(); openPalette(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;

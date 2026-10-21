@@ -27,7 +27,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from . import home, start, ui_assets, ui_data
+from . import home, start, ui_assets, ui_data, ui_prompts
 from .accounts import accounts_path as resolve_accounts_path
 from .accounts import load_accounts
 from .distribution import GOALS, build_distribution_plan, load_registry
@@ -39,6 +39,10 @@ LOOPBACK_HOSTS = ("127.0.0.1", "localhost")
 POST_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 FILTER_VALUE = re.compile(r"[A-Za-z0-9_.:@ -]{1,80}")
 CAMPAIGN_NAME = re.compile(r"[^\x00-\x1f\x7f]{1,200}")  # any printable name; used only as a query parameter
+IDEA_ID = re.compile(r"idea-[0-9a-f]{8}")
+# What the owner typed into the composer: printable text plus newlines and tabs. It only becomes part of a prompt
+# string in the response; it is never stored, logged or used as SQL.
+REQUEST_TEXT = re.compile(r"[^\x00-\x08\x0b\x0c\x0e-\x1f\x7f]{1,%d}" % (ui_prompts.REQUEST_MAX * 2))
 SAFETY_TTL = 60  # seconds: the folder check hashes the files of unsent posts, so auto-refresh reuses it briefly
 SECURITY_HEADERS = {
     "Content-Security-Policy": ("default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; "
@@ -61,9 +65,10 @@ class DashboardServer(ThreadingHTTPServer):
     allow_reuse_address = False
 
     def __init__(self, address, handler, *, database: Path, accounts_path: str | None,
-                 optout_path: str | None, token: str):
+                 optout_path: str | None, token: str, command_prefix: tuple[str, ...] = ("reachweaver",)):
         super().__init__(address, handler)
         self.database = database
+        self.command_prefix = tuple(command_prefix)  # how prompts spell commands: the global options `ui` got
         self.accounts_path = accounts_path
         self.optout_path = optout_path
         self.token = token
@@ -77,7 +82,8 @@ class DashboardServer(ThreadingHTTPServer):
 
 
 def make_server(database: str | Path, *, accounts_path: str | None = None, optout_path: str | None = None,
-                host: str = "127.0.0.1", port: int = 0, token: str | None = None) -> DashboardServer:
+                host: str = "127.0.0.1", port: int = 0, token: str | None = None,
+                command_prefix: tuple[str, ...] = ("reachweaver",)) -> DashboardServer:
     """Bind a dashboard server on loopback. Raises ValidationError for a non-loopback host or a
     database that does not exist (this never creates one)."""
     if host not in LOOPBACK_HOSTS:
@@ -94,7 +100,7 @@ def make_server(database: str | Path, *, accounts_path: str | None = None, optou
     token = token or secrets.token_urlsafe(24)
     bind = "127.0.0.1"  # 'localhost' is only accepted as a Host header name, never resolved for binding
     return DashboardServer((bind, port), Handler, database=database, accounts_path=accounts_path,
-                           optout_path=optout_path, token=token)
+                           optout_path=optout_path, token=token, command_prefix=command_prefix)
 
 
 def url_for(server: DashboardServer) -> str:
@@ -189,7 +195,8 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._error(404, "not found")
         except ValidationError as exc:
-            self._error(404 if str(exc).startswith(("Unknown post id", "Unknown campaign")) else 400, str(exc))
+            self._error(404 if str(exc).startswith(("Unknown post id", "Unknown campaign", "Unknown account",
+                                                    "Unknown idea")) else 400, str(exc))
         except (OSError, ValueError, KeyError):
             self._error(500, "internal error reading local state")
 
@@ -293,5 +300,60 @@ class Handler(BaseHTTPRequestHandler):
                 if not CAMPAIGN_NAME.fullmatch(name):
                     raise ValidationError("invalid campaign name")
                 self._json(200, ui_data.campaign_detail(con, name))
+            elif route == "activity":  # the "Work with Claude" companion: everything below is read-only too
+                self._json(200, ui_data.activity_view(con, ui_data.ideas_path_for(server.database)))
+            elif route == "ideas":
+                self._json(200, ui_data.ideas_view(ui_data.ideas_path_for(server.database),
+                                                   status=self._filter(query, "status")))
+            elif route == "owner-actions":
+                guide = start.build_guide(server.database, server.accounts_path)
+                self._json(200, ui_data.owner_actions_view(con, guide["steps"]))
+            elif route == "prompts":
+                page = self._page(query) or "overview"
+                context = self._prompt_context(con, query, page)
+                self._json(200, {"page": page, "cards": ui_prompts.cards_for(page, context,
+                                                                             prefix=server.command_prefix)})
+            elif route == "prompt":
+                intent = (query.get("intent") or ["ask"])[0]
+                if intent not in ui_prompts.INTENTS:
+                    raise ValidationError("unknown prompt intent")
+                text = (query.get("text") or [""])[0]
+                if text and not REQUEST_TEXT.fullmatch(text):
+                    raise ValidationError(f"the request must be printable text of at most {ui_prompts.REQUEST_MAX} "
+                                          "characters")
+                context = self._prompt_context(con, query, self._page(query))
+                try:
+                    built = ui_prompts.build_prompt(intent, context, request=text, prefix=server.command_prefix)
+                except ValueError as exc:  # a missing post or idea for an intent that needs one
+                    raise ValidationError(str(exc)) from None
+                self._json(200, built)
             else:
                 self._error(404, "not found")
+
+    @staticmethod
+    def _page(query: dict) -> str | None:
+        page = (query.get("page") or [""])[0]
+        if page and page not in ui_prompts.PAGES:
+            raise ValidationError("unknown page")
+        return page or None
+
+    def _prompt_context(self, con, query: dict, page: str | None) -> dict:
+        """Ids named in the query, checked against the local database, accounts file and ideas inbox."""
+        post_id = (query.get("post") or [""])[0] or None
+        if post_id is not None and not POST_ID.fullmatch(post_id):
+            raise ValidationError("Unknown post id")
+        idea_id = (query.get("idea") or [""])[0] or None
+        if idea_id is not None and not IDEA_ID.fullmatch(idea_id):
+            raise ValidationError("Unknown idea")
+        campaign = (query.get("campaign") or [""])[0] or None
+        if campaign is not None and not CAMPAIGN_NAME.fullmatch(campaign):
+            raise ValidationError("invalid campaign name")
+        region, goal = self._filter(query, "region"), self._filter(query, "goal")
+        if region is not None and region not in {m["id"] for m in load_registry()["markets"]}:
+            raise ValidationError("unknown region")
+        if goal is not None and goal not in GOALS:
+            raise ValidationError("goal must be one of " + ", ".join(GOALS))
+        accounts, _ = self._accounts()
+        return ui_data.prompt_context(con, accounts, ui_data.ideas_path_for(self.server.database), page=page,
+                                      post_id=post_id, account_id=self._filter(query, "account"), campaign=campaign,
+                                      idea_id=idea_id, region=region, goal=goal)
