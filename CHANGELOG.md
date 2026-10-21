@@ -6,6 +6,8 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-21
+
 Handier, smarter and aware of newer distribution paradigms. A short everyday `--help`, a first run that starts in the browser composer, `report --since`, and a `suggest` that works with no flags. `insights` learns what works from your own results. Every platform fact shows how old it is. `ai-visibility` checks what your own pages tell AI answer engines, `ai-label-check` gives per-platform AI-content label rules, and `social-web-plan` maps your reach across the fediverse, Bluesky and bridges. 125 commands (6 more than 0.13.0, none removed). Everything new is read-only or advisory; no live adapter is added.
 
 ### Added
