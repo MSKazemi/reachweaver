@@ -1869,6 +1869,13 @@ def post_status_counts(con) -> list[dict]:
            GROUP BY account_id, platform, status ORDER BY account_id, platform, status""")]
 
 
+def metric_snapshot_count(con) -> int:
+    """How many metric snapshots are stored; 0 for a database that has no snapshot table yet. Read-only."""
+    if con.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='metric_snapshots'").fetchone() is None:
+        return 0
+    return int(con.execute("SELECT COUNT(*) FROM metric_snapshots").fetchone()[0])
+
+
 def queued_posts(con) -> list[sqlite3.Row]:
     """Approved and scheduled rows (full rows: the caller may check the text, never emit it)."""
     return con.execute("""SELECT * FROM posts WHERE status IN ('approved','scheduled')
@@ -2329,10 +2336,21 @@ def reply_status_counts(con) -> list[dict]:
            GROUP BY account_id, platform, status ORDER BY account_id, platform, status""")]
 
 
-def reply_report(con) -> dict[str, dict]:
-    """Per-platform reply counts by status, kept apart from ``report``'s post totals."""
+def _reply_rows_since(con, since: str) -> list[dict]:
+    """Reply rows (one per post, count 1) whose send started at or after ``since``; drafts never started."""
+    if not has_reply_column(con):
+        return []
+    window_from = datetime.fromisoformat(parse_utc(since))
+    return [{"platform": row["platform"], "status": row["status"], "count": 1} for row in con.execute(
+        """SELECT platform, status, send_started_at FROM posts WHERE reply_target IS NOT NULL AND reply_target<>''
+           ORDER BY platform, status, id""") if _at_or_after(row["send_started_at"], window_from)]
+
+
+def reply_report(con, *, since: str | None = None) -> dict[str, dict]:
+    """Per-platform reply counts by status, kept apart from ``report``'s post totals.
+    With ``since``, only replies whose send started at or after it (as ``report(since=...)``)."""
     out: dict[str, dict] = {}
-    for row in reply_status_counts(con):
+    for row in (reply_status_counts(con) if since is None else _reply_rows_since(con, since)):
         item = out.setdefault(row["platform"], {"published": 0, "by_status": {}})
         item["by_status"][row["status"]] = item["by_status"].get(row["status"], 0) + row["count"]
         if row["status"] == "published":
@@ -2362,9 +2380,67 @@ def _metric_summary() -> dict:
             "status_counts": {label: 0 for label in METRIC_STATUS_LABELS}, "estimated": None}
 
 
-def report(con) -> dict[str, dict]:
+REPORT_SINCE_MAX_DAYS = 3650
+REPORT_SINCE_FORMS = ("a duration such as 24h, 7d or 30d, a date such as 2026-10-01 (midnight UTC), "
+                      "or a time with a timezone such as 2026-10-01T09:00:00+02:00")
+_REPORT_SINCE_RELATIVE = re.compile(r"^([1-9][0-9]{0,5})([hd])$")
+_REPORT_SINCE_DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+
+
+def report_since(value: object, now: str | None = None) -> str:
+    """``report --since``: the window start as a UTC ISO time. Accepts ``24h``/``7d``/``30d`` (before ``now``),
+    ``YYYY-MM-DD`` (midnight UTC) or an ISO 8601 time with a timezone; anything else is a ValidationError."""
+    text = value.strip() if isinstance(value, str) else ""
+    current = datetime.fromisoformat(parse_utc(now or utc_now()))
+    limit = timedelta(days=REPORT_SINCE_MAX_DAYS)
+    match = _REPORT_SINCE_RELATIVE.fullmatch(text)
+    try:
+        if match:
+            amount = int(match.group(1))
+            delta = timedelta(hours=amount) if match.group(2) == "h" else timedelta(days=amount)
+            if delta > limit:
+                raise ValidationError(f"--since must be within {REPORT_SINCE_MAX_DAYS} days")
+            since = current - delta
+        elif _REPORT_SINCE_DATE.fullmatch(text):
+            since = datetime.fromisoformat(text + "T00:00:00+00:00")
+        else:
+            since = datetime.fromisoformat(parse_utc(text))
+    except ValidationError as exc:
+        if str(exc).startswith("--since"):
+            raise
+        raise ValidationError(f"--since {text[:40]!r} is not understood; use {REPORT_SINCE_FORMS}") from None
+    except (ValueError, OverflowError):
+        raise ValidationError(f"--since {text[:40]!r} is not understood; use {REPORT_SINCE_FORMS}") from None
+    if since > current:
+        raise ValidationError("--since must not be in the future")
+    if current - since > limit:
+        raise ValidationError(f"--since must be within {REPORT_SINCE_MAX_DAYS} days")
+    return since.isoformat(timespec="seconds")
+
+
+def _at_or_after(value: object, since: datetime) -> bool:
+    """True when a stored time is at or after ``since``; a missing or unreadable time is outside every window."""
+    if not isinstance(value, str) or not value:
+        return False
+    try:
+        return datetime.fromisoformat(parse_utc(value)) >= since
+    except ValidationError:
+        return False
+
+
+def _latest_snapshot_since(con, post_id: str, since: datetime) -> sqlite3.Row | None:
+    """``latest_snapshot`` restricted to snapshots observed at or after ``since`` (same ordering)."""
+    inside = [row for row in snapshots_for(con, post_id) if _at_or_after(row["observed_at"], since)]
+    return max(inside, key=lambda row: (row["observed_at"], row["id"])) if inside else None
+
+
+def report(con, *, since: str | None = None) -> dict[str, dict]:
     """Per-platform latest-snapshot totals and coverage of published posts; exact values only.
     Replies (issue #17) are left out here and counted by ``reply_report``.
+
+    ``since`` (a UTC ISO time from ``report_since``) keeps only posts sent at or after it (``send_started_at``;
+    a post without one is left out) and, for each, only snapshots observed at or after it. Without it the
+    result is unchanged. Read-only.
 
     The original keys are kept. Each metric key is the sum of EXACT latest values, and is
     ``None`` (unknown) when no post has an exact value, never a fabricated 0.
@@ -2375,7 +2451,10 @@ def report(con) -> dict[str, dict]:
     separately labelled count and sum of platform estimates, or None.
     """
     groups: dict[str, dict] = {}
+    window_from = datetime.fromisoformat(parse_utc(since)) if since is not None else None
     for post in published_posts(con, include_replies=False):  # replies: see reply_report()
+        if window_from is not None and not _at_or_after(post["send_started_at"], window_from):
+            continue
         item = groups.setdefault(post["platform"], {
             "published": 0, "metric_coverage": 0, **{k: 0 for k in METRIC_FIELDS},
             "coverage_by_metric": {k: 0 for k in METRIC_FIELDS},
@@ -2383,7 +2462,8 @@ def report(con) -> dict[str, dict]:
                                 "earliest_window_start": None, "latest_window_end": None},
             "metrics": {k: _metric_summary() for k in METRIC_FIELDS}})
         item["published"] += 1
-        snapshot = latest_snapshot(con, post["id"])
+        snapshot = (latest_snapshot(con, post["id"]) if window_from is None
+                    else _latest_snapshot_since(con, post["id"], window_from))
         for k, (label, value) in metric_states(snapshot).items():
             summary = item["metrics"][k]
             summary["status_counts"][label] += 1

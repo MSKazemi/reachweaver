@@ -26,12 +26,17 @@ SEVERITY = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
 def build_suggestions(
     *, snapshot: dict | None = None, engagement: dict | None = None,
     seo_briefs: dict | None = None, experiments: list | None = None,
-    con=None, limit: int = 10, now: str | None = None,
+    con=None, limit: int = 10, now: str | None = None, open_ideas: int | None = None,
 ) -> dict:
-    """Collect checks from existing modules; never load accounts or mutate state."""
+    """Collect checks from existing modules; never load accounts or mutate state.
+
+    ``open_ideas`` (the count of open ideas in the inbox, read by the caller) is used only when given:
+    bare ``suggest`` passes it; the explicit-input forms do not, so their output is unchanged."""
     if type(limit) is not int or not 1 <= limit <= MAX_ACTIONS:
         raise ValidationError("suggest --limit must be 1..50")
-    if all(x is None for x in (snapshot, engagement, seo_briefs, experiments, con)):
+    if open_ideas is not None and (type(open_ideas) is not int or open_ideas < 0):
+        raise ValidationError("open_ideas must be a non-negative count")
+    if all(x is None for x in (snapshot, engagement, seo_briefs, experiments, con, open_ideas)):
         raise ValidationError("suggest requires at least one --snapshot, --engagement-export, --seo-briefs, --experiments or --include-db input")
     actions: list[dict[str, Any]] = []
     sources: list[str] = []
@@ -253,6 +258,15 @@ def build_suggestions(
                 evidence={"dimension": candidate["dimension"], "rule": candidate["rule"],
                           "prior_results": len(nxt["results"])})
 
+    if open_ideas is not None:  # counts only: idea text is never repeated here
+        sources.append("ideas_inbox_readonly")
+        coverage["ideas"] = {"open": open_ideas}
+        if open_ideas:
+            add("P3", "content", "open_ideas", "Write a post from a saved idea",
+                "List them with 'reachweaver idea list --status open', pick one, and promote it to a campaign "
+                "outline with 'reachweaver idea promote IDEA_ID --campaign NAME --out NEW_DIR'.",
+                source="ideas_inbox", confidence="verified_local_state", evidence={"open_ideas": open_ideas})
+
     # Pre-declared order, not a model trained on engagement data. Sort IDs for stable runs.
     actions.sort(key=lambda x: (SEVERITY[x["priority"]], x["kind"], x["platform"] or "",
                                 x["account_id"] or "", x["signal"]))
@@ -300,4 +314,18 @@ def render_text(result: dict) -> str:
     if not result["actions"]:
         lines.append("No actionable findings from supplied inputs; this does not prove accounts are optimized.")
     lines.append("No API requests, publishing, comments, follows, DMs or database mutations occurred.")
+    return "\n".join(lines)
+
+
+# Bare ``suggest`` (no input flag) with nothing to rank: where to go next instead of an error. Commands only.
+EMPTY_NEXT_STEPS = (
+    {"label": "Write a first post in your browser and post it by hand", "command": "reachweaver share --web --open"},
+    {"label": "Save an idea to post about later", "command": "reachweaver idea add 'Your idea'"},
+    {"label": "See where you are and what to type next", "command": "reachweaver start"},
+)
+
+
+def render_next_steps(steps) -> str:
+    lines = ["Nothing to rank yet. Next:"]
+    lines += [f"  {step['label']}:\n    {step['command']}" for step in steps]
     return "\n".join(lines)

@@ -28,7 +28,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 
 | Command | Purpose | Key flags |
 |---|---|---|
-| `start` | Reads accounts, database and queue; prints the exact next command; runs nothing | `--json` |
+| `start` | Reads workspace, accounts (names example placeholders), database, queue, ideas and snapshots; prints the exact next command (browser composer first, drafts via the owner's `review`); runs nothing | `--json` |
 | `connect` | Status table of configured accounts (credential variable names only); never posts | `--account ID`, `--json`; **OWNER** `--guide` (walkthrough, needs a person at a terminal) |
 | `account-advisor` | Ranked channel shortlist and setup coaching; creates no account | `--region R`, `--goal G`, `--format F`, `--weekly-hours N`, `--existing`, `--setup PLATFORM_ID`, `--json` |
 | `profile` | Private `config/profile.json`: personas, usernames, sign-up details | `--init`, `--persona ID`, `--show`, `--check`, `--set PATH=VALUE`, `--handle PLATFORM:PERSONA=NAME` |
@@ -124,14 +124,14 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `metrics` | Record one snapshot from a native export | `POST_ID`, `--observed-at`, `--source`, `--views`, `--impressions`, `--likes`, `--replies`, `--clicks`, `--window-start`, `--window-end` |
 | `import-metrics` | Native-analytics CSV, all rows or none; cells count/unknown/suppressed/not_available/delayed/estimated:N | `--csv FILE` |
 | `metrics-fetch` | **online**, read-only public Bluesky/Mastodon counters; never posts | `--online`, `--dry-run`, `--account`, `--post-id`, `--max-posts` |
-| `report` | Coverage-aware analytics; exact values only | `--format json/markdown/csv` |
+| `report` | Coverage-aware analytics; exact values only | `--format json/markdown/csv`, `--since 7d/30d/24h/YYYY-MM-DD` (posts sent in the window) |
 | `youtube-analytics` | Sampling report over stored YouTube snapshots; fetches nothing | `--account`, `--post-id` |
 | `timing-evaluate` | Per-account matched-age outcomes; not optimal-time proof | `--account`, `--timezone`, `--source`, `--metric`, `--denominator`, `--stratify format/campaign`, `--since`, `--until` |
 | `baseline-eval` | Personalized slots/arms vs the generic baseline; bootstrap CI, non-causal | `--account`, `--timezone`, `--since`, `--until`, `--source`, `--metric`, `--denominator`, `--slot exploit:Tue@09:00`, `--campaign-arm`, `--readout`, `--attribution`, `--attribution-source analytics/ga4`, `--json` |
 | `attribution-report` | UTM/referrer join of local analytics exports; not causal | `--analytics`, `--github-traffic`, `--ga4-csv`, `--gsc-csv`, `--json` |
 | `pilot-report` | Per-arm readout of an owner field-pilot CSV log | `--log CSV`, `--min-weeks`, `--json` |
 | `peer-benchmark` | Compare with peers' public counters copied by hand | `--file F`, `--platform`, `--include-individuals`, `--json` |
-| `suggest` | Ranked review of profile, posts, SEO, engagement, queue | `--snapshot F`, `--metrics-csv F`, `--owner-authorized`, `--engagement-export`, `--seo-briefs`, `--experiments`, `--include-db`, `--json` |
+| `suggest` | Ranked review of profile, posts, SEO, engagement, queue; bare `suggest` reads an existing DB query-only plus the open-ideas count, and prints next steps when there is nothing | `--snapshot F`, `--metrics-csv F`, `--owner-authorized`, `--engagement-export`, `--seo-briefs`, `--experiments`, `--include-db`, `--json` |
 | `weekly-digest` | `suggest` (+ report) as one private Markdown file; never sent | `--out F`, `--snapshot F`, `--include-db` |
 
 ## Experiments

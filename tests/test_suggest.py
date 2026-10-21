@@ -150,15 +150,27 @@ class SuggestionTests(unittest.TestCase):
             self.assertEqual(code, 2)
             self.assertFalse(dbp.exists())
 
-    def test_cli_missing_input_and_symlink_fail_closed(self):
-        with contextlib.redirect_stderr(io.StringIO()):
-            self.assertEqual(main(["suggest"]),2)
+    def test_cli_symlink_and_bad_flag_combinations_fail_closed(self):
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stderr(io.StringIO()):
+            missing = Path(tmp) / "missing.sqlite"  # explicit flags keep their old refusals
+            self.assertEqual(main(["--db", str(missing), "suggest", "--owner-authorized"]), 2)
+            self.assertFalse(missing.exists())
         with tempfile.TemporaryDirectory() as tmp:
             link = Path(tmp)/"link.json"
             link.symlink_to(SNAP)
             with contextlib.redirect_stderr(io.StringIO()):
                 code=main(["suggest","--snapshot",str(link)])
             self.assertEqual(code,2)
+
+    def test_open_ideas_count_is_an_input_only_when_given(self):
+        self.assertNotIn("ideas", build_suggestions(snapshot=self.snapshot)["source_coverage"])
+        empty = build_suggestions(open_ideas=0)
+        self.assertEqual((empty["actions"], empty["source_coverage"]["ideas"]), ([], {"open": 0}))
+        found = build_suggestions(open_ideas=2)["actions"]
+        self.assertEqual([(a["signal"], a["evidence"]["open_ideas"]) for a in found], [("open_ideas", 2)])
+        for bad in (-1, True, "2"):
+            with self.assertRaises(ValidationError):
+                build_suggestions(open_ideas=bad)
 
     def test_text_output_human_tier_and_limit(self):
         result = build_suggestions(snapshot=self.snapshot, limit=2)
@@ -168,6 +180,65 @@ class SuggestionTests(unittest.TestCase):
         self.assertIn("P2",text)
         self.assertIn("OFFLINE",text)
         self.assertNotIn("Original verified example",text)
+
+
+class BareSuggestTests(unittest.TestCase):
+    """`suggest` with no input flag: the existing database (query-only) plus the ideas inbox; never an error."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.state = Path(tmp.name) / "state"
+        self.db = self.state / "rw.sqlite"
+
+    def run_cli(self, *extra) -> tuple[int, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with patch.object(socket, "create_connection", side_effect=AssertionError("network used")), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(["--db", str(self.db), "suggest", *extra])
+        return code, out.getvalue(), err.getvalue()
+
+    def test_nothing_at_all_prints_next_steps_and_creates_nothing(self):
+        code, out, err = self.run_cli()
+        self.assertEqual(code, 0, err)
+        self.assertIn("Nothing to rank yet. Next:", out)
+        self.assertIn("reachweaver share --web --open", out)
+        self.assertIn("reachweaver idea add", out)
+        self.assertFalse(self.state.exists())
+        code, out, _ = self.run_cli("--json")
+        self.assertEqual(code, 0)
+        doc = json.loads(out)
+        self.assertEqual(doc["schema_version"], "reachweaver.suggestions.v1")
+        self.assertEqual(doc["actions"], [])
+        self.assertEqual([s["command"] for s in doc["next_steps"]][-1], "reachweaver start")
+        self.assertFalse(self.state.exists())
+
+    def test_open_ideas_alone_are_suggested(self):
+        from reachweaver import ideas
+        ideas.add(ideas.inbox_path(self.db), "Post about the field test")
+        code, out, _ = self.run_cli("--json")
+        self.assertEqual(code, 0)
+        doc = json.loads(out)
+        self.assertEqual([a["signal"] for a in doc["actions"]], ["open_ideas"])
+        self.assertNotIn("next_steps", doc)
+        self.assertNotIn("field test", out)  # counts only, never the idea text
+        self.assertFalse(self.db.exists())
+
+    def test_an_existing_database_is_read_query_only_as_with_include_db(self):
+        with connect(str(self.db)) as con:
+            post = add_post(con, "acct", "bluesky", "hello")
+            transition(con, post, "approve", approver="owner")
+            claim_sending(con, post)
+            uncertain_send(con, post, "timeout")
+        before = self.db.read_bytes()
+        code, out, err = self.run_cli("--json")
+        self.assertEqual(code, 0, err)
+        doc = json.loads(out)
+        self.assertIn("existing_local_database_readonly", doc["sources_used"])
+        self.assertEqual(doc["actions"][0]["signal"], "ambiguous_needs_review")
+        self.assertEqual(self.db.read_bytes(), before)
+        _, explicit, _ = self.run_cli("--include-db", "--json")
+        self.assertEqual(json.loads(explicit)["actions"], doc["actions"])
 
 
 if __name__ == "__main__":

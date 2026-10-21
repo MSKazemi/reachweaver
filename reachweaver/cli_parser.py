@@ -568,6 +568,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--format", choices=REPORT_FORMATS, default="json", dest="report_format",
                    help="json (default, unchanged envelope), markdown, or csv (one row per platform and metric; "
                         "spreadsheet-formula cells neutralised)")
+    p.add_argument("--since", metavar="WHEN",
+                   help="Only posts sent in this window and their snapshots observed in it: 24h, 7d, 30d, a date "
+                        "(2026-10-01, midnight UTC) or an ISO time with a timezone. Read-only")
     p = sub.add_parser("youtube-analytics", help="#22: offline sampling report over stored metric snapshots of "
                        "published YouTube videos (exact/sampled/unknown labels); read-only, fetches nothing")
     p.add_argument("--account", help="Only this YouTube account id")
@@ -664,7 +667,8 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--brand", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True, help="New output folder; refuses existing output")
     p.add_argument("--optout", type=Path, help=optout_help)
-    p = sub.add_parser("suggest", help="Read-only ranked human review of profile, posts, SEO, engagement, experiments and local queue")
+    p = sub.add_parser("suggest", help="Read-only ranked human review of profile, posts, SEO, engagement, experiments and local queue; "
+                       "with no input flag it reads an existing local database (query-only) and the ideas inbox")
     p.add_argument("--snapshot", type=Path, help="Owner-supplied profile/post snapshot (local JSON, no remote access)")
     p.add_argument("--metrics-csv", type=Path, help="Optional normalized owner-authorized native post CSV, merged only in memory")
     p.add_argument("--owner-authorized", action="store_true", help="Explicitly confirm the metrics CSV was lawfully exported from your own account")

@@ -412,3 +412,27 @@ def missing_credentials(account: dict) -> list[str]:
     names = account_credential_suffixes(account)
     # Names only. Empty counts as missing, from either source (environment or credentials directory).
     return [account["env_prefix"] + suffix for suffix in names if not credential(account["env_prefix"] + suffix)]
+
+
+# Public identifiers shipped in config/accounts.example.json (copied by `workspace --init`). An account that still
+# carries one was never edited, so `start` and `context` report it instead of counting it as configured.
+# tests/test_start.py keeps this set equal to the identity values of every bundled copy of the example file.
+PLACEHOLDER_VALUES: frozenset[str] = frozenset({
+    "example.bsky.social", "example", "@examplechannel", "examplechannel", "example_bot", "examplePersonId"})
+# Settings, not identities: an unedited value there (server, visibility, API version, date) is a legitimate
+# choice and never marks an account as a placeholder.
+PLACEHOLDER_IGNORED_FIELDS = frozenset({"id", "platform", "env_prefix", "server", "service", "visibility", "language",
+                                        "linkedin_version", "authorization_expires_at", "persona", "backend"})
+_PLACEHOLDER_KEYS = frozenset(value.casefold() for value in PLACEHOLDER_VALUES)
+
+
+def placeholder_fields(account: Mapping) -> list[str]:
+    """Sorted names of one account's identity fields that still hold an example placeholder value."""
+    return sorted(key for key, value in account.items()
+                  if key not in PLACEHOLDER_IGNORED_FIELDS and isinstance(value, str)
+                  and value.strip().casefold() in _PLACEHOLDER_KEYS)
+
+
+def placeholder_accounts(accounts: Mapping[str, Mapping]) -> list[str]:
+    """Ids of loaded accounts that still use an example placeholder, in file order. Pure; reads nothing."""
+    return [account_id for account_id, account in accounts.items() if placeholder_fields(account)]

@@ -184,10 +184,27 @@ class ContextTests(Base):
         accounts = {a["id"]: a for a in doc["accounts"]["items"]}
         self.assertEqual(accounts["a-bsky"]["missing"], [])
         self.assertEqual(accounts["a-masto"]["state"], "needs_credentials")
+        self.assertFalse(accounts["a-bsky"]["placeholder"])
         self.assertEqual(doc["approval"]["confirmation"], "off")
         resume = [s for s in doc["next_actions"] if s["command"] == "reachweaver resume"]
         self.assertTrue(resume and resume[0]["owner_runs"])
         self.assertNotIn(draft, json.dumps(doc["owner_only_commands"]))
+
+    def test_example_placeholder_accounts_are_flagged_without_changing_existing_keys(self):
+        example = Path(__file__).resolve().parents[1] / "config" / "accounts.example.json"
+        self.accounts.write_text(example.read_text(encoding="utf-8"), encoding="utf-8")
+        code, out, _ = self.run_cli("context", "--json")
+        self.assertEqual(code, 0)
+        doc = json.loads(out)
+        self.assertEqual(doc["state"], "no_database")
+        for item in doc["accounts"]["items"]:
+            self.assertTrue(item["placeholder"], item["id"])
+            self.assertLessEqual({"id", "platform", "adapter", "state", "persona", "missing"}, set(item))
+        self.assertTrue(any(step["command"] == "reachweaver share --web --open" and step["owner_runs"]
+                            for step in doc["next_actions"]))
+        code, text, _ = self.run_cli("context")
+        self.assertIn("still an example placeholder", text)
+        self.assertFalse(self.db.exists())
 
     def test_text_mode_is_a_short_summary(self):
         self.accounts.write_text(ACCOUNTS, encoding="utf-8")

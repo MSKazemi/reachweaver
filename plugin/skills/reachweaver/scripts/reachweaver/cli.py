@@ -94,7 +94,8 @@ from .storage import (
     add_post, approval_binding_problem, identity_mode_required, latch_identity_mode, approval_key_mode, approval_payload_sha256, latch_keyed_mode, offline_key_mode,
     binding_refusal, check_approval_binding, claim_sending, connect, cooldown_refusal, finish_send, get_post,
     approval_max_age_hours, approval_rebind_required, is_paused, parse_utc, pending, post_media, post_video, set_approval_max_age_hours,
-    provider_cooldowns, published_text, queue_health, reconcile, record_binding_failure, reply_report, reply_target_text, report, set_paused,
+    provider_cooldowns, published_text, queue_health, reconcile, record_binding_failure, reply_report, reply_target_text, report,
+    report_since, set_paused,
     set_post_media, set_post_video, store_metrics, sync_cooldown_scopes, transition, uncertain_send, utc_now,
     connect_readonly as storage_connect_readonly, database_path as storage_database_path, event as record_event,
     record_shared, repeat_refusal, repeat_send_problem,
@@ -1019,6 +1020,33 @@ READ_ONLY_DB_COMMANDS = ("engagement-fetch", "ops-metrics", "youtube-analytics",
 OPS_METRICS_TABLES = ("posts", "event_log", "settings")
 
 
+def _bare_suggest(args) -> int:
+    """``suggest`` with no input flag: an EXISTING database read-only (as --include-db) plus the open ideas count.
+    A missing database is skipped, never created; with nothing to rank it prints next steps, not an error."""
+    from . import ideas as ideas_inbox
+    from .storage import connect_readonly, database_path
+    from .suggest import EMPTY_NEXT_STEPS, render_next_steps
+    try:
+        open_ideas = ideas_inbox.counts(ideas_inbox.inbox_path(args.db))["open"]
+    except ValidationError as exc:
+        print(f"WARNING: ideas inbox skipped: {exc}", file=sys.stderr)
+        open_ideas = 0
+    database = database_path(args.db)
+    if database.is_file():
+        with connect_readonly(database) as db:
+            result = build_suggestions(con=db, open_ideas=open_ideas, limit=args.limit)
+    else:
+        result = build_suggestions(open_ideas=open_ideas, limit=args.limit)
+    if not result["actions"]:
+        result["next_steps"] = [dict(step) for step in EMPTY_NEXT_STEPS]
+    if args.json:
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+    else:
+        print(render_suggestions(result) + ("\n" + render_next_steps(result["next_steps"])
+                                            if "next_steps" in result else ""))
+    return 0
+
+
 def _execute_read_only(args) -> int:
     from .storage import connect_readonly, database_path, schema_gaps
     database = database_path(args.db)
@@ -1396,6 +1424,10 @@ def execute(args) -> int:
                 print(f"WARNING: {key} verified_date older than {args.max_age_days} days; re-verify official sources")
             print("Registry is research data, not permission; unknown/gated/manual formats fail closed.")
         return 0
+    if args.command == "suggest" and not any((args.snapshot, args.metrics_csv, args.owner_authorized,
+                                              args.engagement_export, args.seo_briefs, args.experiments,
+                                              args.include_db)):
+        return _bare_suggest(args)
     if args.command in ("suggest", "weekly-digest"):
         from .storage import connect_readonly, database_path
         def _bounded(path: Path) -> Path:
@@ -2254,6 +2286,8 @@ def execute(args) -> int:
         return serve_mcp(args)
     if args.command in READ_ONLY_DB_COMMANDS:
         return _execute_read_only(args)
+    # `report --since`: a bad window fails here, before the database is opened.
+    report_window = (report_since(args.since) if args.command == "report" and args.since is not None else None)
     with connect(args.db) as db:
         if args.command == "init":
             print("Initialized local database. No accounts were accessed.")
@@ -2860,10 +2894,14 @@ def execute(args) -> int:
                                              "publish_default_caps": {"max_per_24h": 2, "min_gap_minutes": 60}}
             print(json.dumps(privacy_report, indent=2))
         elif args.command == "report":
-            data = report(db)
+            data = report(db, since=report_window)
             envelope = {"generated_at":utc_now(),"platforms":data,
                         "note":"Coverage varies. Counts are latest-per-post snapshots, not unique people or comparable cross-platform views."}
-            replies = reply_report(db)
+            if report_window is not None:  # key only with --since: the JSON without it is unchanged
+                envelope["window"] = {"since": report_window, "until": envelope["generated_at"],
+                                      "basis": "posts sent at or after 'since'; their latest snapshot observed at or "
+                                               "after 'since'"}
+            replies = reply_report(db, since=report_window)
             if replies:  # issue #17: replies are counted apart from the post totals; key only when present
                 envelope["replies"] = replies
             print(render_report(envelope, args.report_format), end="")

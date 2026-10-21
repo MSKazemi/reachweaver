@@ -5,7 +5,8 @@ It replaces the 4-6 calls a session used to start with (``doctor``, ``start``, `
 
 * version, install kind and whether a plugin SessionStart hook already ran ``update --notice``;
 * paths of the workspace, database, accounts file and profile (paths only, never contents);
-* each account's offline readiness (``connect`` status rows) and persona, with credential variable NAMES only;
+* each account's offline readiness (``connect`` status rows) and persona, with credential variable NAMES only, and
+  ``placeholder``: true when it still carries an example value from ``config/accounts.example.json``;
 * the emergency pause, whether a live send is possible in this shell (booleans, never an environment value),
   the approval safeguards (read without the approval key), post counts by status and the posts waiting for
   the owner (approved but unsent, needs_review, sending, approvals needing re-approval);
@@ -46,6 +47,7 @@ def _ids(rows: list[str]) -> dict:
 def _accounts_section(accounts: dict, error: str | None, profile: dict | None, disconnected: list[str]) -> dict:
     from .capabilities import load_registry
     from .connect_guide import account_rows
+    from .accounts import placeholder_fields
     from .persona_guard import account_persona
     items = []
     if accounts:
@@ -56,7 +58,8 @@ def _accounts_section(accounts: dict, error: str | None, profile: dict | None, d
         for row in account_rows(accounts, registry, disconnected=disconnected):
             items.append({"id": row["account"], "platform": row["platform"], "adapter": row["adapter"],
                           "state": row["state"], "persona": account_persona(accounts[row["account"]], profile),
-                          "missing": list(row["missing"])})
+                          "missing": list(row["missing"]),
+                          "placeholder": bool(placeholder_fields(accounts[row["account"]]))})
     return {"error": error, "items": items}
 
 
@@ -162,7 +165,8 @@ def render_text(context: dict) -> str:
     for item in accounts["items"]:
         lines.append(f"  {item['id']}: {item['platform']}, {item['state'].replace('_', ' ')}"
                      + (f", persona {item['persona']}" if item["persona"] else "")
-                     + (f", missing {', '.join(item['missing'])}" if item["missing"] else ""))
+                     + (f", missing {', '.join(item['missing'])}" if item["missing"] else "")
+                     + (", still an example placeholder (edit the accounts file)" if item.get("placeholder") else ""))
     safety = context["safety"]
     gate = safety["live_gate"]
     pause = {None: "unknown (no database)", True: "ON", False: "off"}[safety["emergency_paused"]]
