@@ -564,6 +564,26 @@ def editor_from_package(pkg: Path) -> dict:
                         fields=_EDITOR_FIELDS)
 
 
+def draft_matches_package(draft: dict | None) -> bool:
+    """Read-only: True when the draft holds a saved package exactly as it is on disk (same revision, editor fields
+    and media names), so the page knows the editor has no unsaved changes. Anything unclear (no package, a package
+    that changed or is damaged, a missing media file) is False: the page then asks before it replaces anything."""
+    if not draft or not draft.get("package"):
+        return False
+    try:
+        pkg = package_path(draft["package"])
+        if draft.get("revision") != revision(pkg):
+            return False
+        saved = editor_from_package(pkg)
+    except (ValidationError, OSError, ValueError, UnicodeError):
+        return False
+    files = [_media_file(m) for m in draft.get("media") or []]
+    if any(f is None for f in files):
+        return False
+    return (all(saved.get(k) == draft.get(k) for k in ("platforms", "text", "title", "note", "overrides"))
+            and [f.name for f in files if f is not None] == saved.get("media"))
+
+
 def media_into_store(pkg: Path) -> list[dict]:
     """Copy a package's media into the draft media store (no symlink followed) so the editor can reuse them."""
     infos = []

@@ -190,6 +190,17 @@ button { font-family: inherit; }
 .confirm { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--warn); background: var(--warn-bg); border-radius: 10px; font-size: 14px;
   display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .confirm span { flex: 1 1 220px; }
+/* An idea offered while the editor holds unsaved changes: at the top of the editor, kept in view while you scroll it */
+.offer { position: sticky; top: 8px; z-index: 20; margin: 0 0 12px; padding: 12px 14px; border: 2px solid var(--warn); background: var(--warn-bg);
+  border-radius: 10px; box-shadow: var(--shadow); font-size: 14px; scroll-margin-top: 16px; }
+.offer p { margin: 0 0 10px; overflow-wrap: anywhere; }
+.offer .actions { margin-top: 0; }
+.offer .primary, .offer .secondary { min-height: 44px; }
+/* The media label and its file field are one tap area */
+.media-drop { display: block; margin: 0; padding: 10px 12px; min-height: 44px; border: 1px dashed var(--field-line); border-radius: 10px;
+  background: var(--panel); cursor: pointer; }
+.media-drop:hover { border-color: var(--accent); }
+.media-drop input[type=file] { margin-top: 6px; border: 0; padding: 0; background: transparent; }
 .media-list { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 6px; }
 .media-list li { display: flex; justify-content: space-between; gap: 10px; align-items: center; background: var(--code-bg); border-radius: 9px; padding: 6px 10px;
   font-size: 13px; min-width: 0; }
@@ -223,6 +234,7 @@ button { font-family: inherit; }
   .panel { padding: 16px; }
   .explain { margin-bottom: 8px; }
   .network-options { max-height: none; overflow: visible; }  /* the list flows in the page; the chips show the choice */
+  .offer { top: var(--sticky-top, 60px); scroll-margin-top: calc(var(--sticky-top, 60px) + 8px); }  /* below the sticky brand bar */
   .page-foot { padding: 0 14px 32px; }
 }
 @media (max-width: 640px) {
@@ -240,6 +252,22 @@ button { font-family: inherit; }
 @media (max-width: 400px) { .network-options { grid-template-columns: 1fr; } .review { padding: 13px; } }
 @media (prefers-reduced-motion: no-preference) { button { transition: background-color .15s, border-color .15s; } }
 </style>
+<script nonce="__CSP_NONCE__">
+// Theme: under `studio` the dashboard's links end in "&theme=auto|light|dark" (its Settings choice). The two pages
+// are different origins, so they share no browser storage: this page keeps the choice in its own (optional, always
+// wrapped) and otherwise follows the system setting. Read before the page draws, so dark never flashes light.
+(function () {
+  "use strict";
+  let choice = null;
+  try { choice = new URLSearchParams(window.location.hash.slice(1).split("&").slice(1).join("&")).get("theme"); } catch(e) { choice = null; }
+  if (["auto", "light", "dark"].indexOf(choice) >= 0) {
+    try { window.localStorage.setItem("rw-theme", choice); } catch(e) { /* storage is a convenience */ }
+  } else {
+    try { choice = window.localStorage.getItem("rw-theme"); } catch(e) { choice = null; }
+  }
+  if (choice === "light" || choice === "dark") document.documentElement.setAttribute("data-theme", choice);
+})();
+</script>
 </head>
 <body>
 <a class="skip" href="#caption">Skip to the caption</a>
@@ -271,6 +299,13 @@ button { font-family: inherit; }
 <div id="announce" class="sr-only" role="status" aria-live="polite"></div>
 <div class="layout">
 <section class="panel" aria-labelledby="write-title">
+ <div id="offer" class="offer hidden" role="alertdialog" aria-labelledby="offer-text">
+   <p id="offer-text"></p>
+   <div class="actions">
+     <button id="offer-yes" class="primary" type="button">Use it as my caption</button>
+     <button id="offer-no" class="secondary" type="button">Keep my draft</button>
+   </div>
+ </div>
  <div class="docbar">
    <span id="editing">New post</span>
    <span class="tools">
@@ -294,8 +329,9 @@ button { font-family: inherit; }
    <p class="hint">Community posts are written by you. ReachWeaver keeps your note, never a prepared promotional post.</p>
  </div>
  <div class="field">
-   <label for="media-input">Photos or videos (optional)</label>
-   <input id="media-input" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,.webm" aria-describedby="media-hint">
+   <label for="media-input" class="media-drop">Photos or videos (optional)
+     <input id="media-input" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,.webm" aria-describedby="media-hint">
+   </label>
    <ul id="media-list" class="media-list" aria-label="Attached files"></ul>
    <p class="hint" id="media-hint">Kept on this computer and copied into the package when you save; never uploaded to a network. Up to 10 files, 256 MiB each.</p>
  </div>
@@ -332,9 +368,10 @@ button { font-family: inherit; }
     </div>
     <div class="save-buttons">
       <button id="save" class="primary" type="button" disabled>Save as new package</button>
-      <button id="update" class="secondary hidden" type="button" disabled>Update this package</button>
+      <button id="update" class="secondary hidden" type="button" disabled aria-describedby="update-why">Update this package</button>
     </div>
   </div>
+  <p id="update-why" class="hint hidden">“Update this package” is off because a network in it is marked as posted, so its files stay exactly as they were. Use “Save as new package” for a changed version.</p>
   <div id="confirm-update" class="confirm hidden" role="alertdialog" aria-labelledby="confirm-text">
     <span id="confirm-text">Replace the saved files of this package with what is in the editor?</span>
     <button id="confirm-yes" class="primary" type="button">Yes, update it</button>
@@ -402,6 +439,10 @@ button { font-family: inherit; }
  let lastChange = 0;
  let confirmOpen = null;
  let lastPackages = [];
+ // The editor content of the open package as it is saved on disk (editorKey()), or null when unknown. The editor
+ // holds the saved package unchanged exactly when editorKey() still equals it.
+ let baseline = null;
+ let offerValue = null;  // the idea text the notice at the top of the editor offers
  const text = function(tag, value, className) {
    const node = document.createElement(tag);
    node.textContent = value;
@@ -522,6 +563,21 @@ button { font-family: inherit; }
    return {selected:Array.from(selected), edits:Array.from(edits), caption:el("caption").value,
            title:el("title").value, notes:el("notes").value, media:media.slice()};
  }
+ // What the editor holds, in a stable order, to tell "the saved package, unchanged" from "changed, not saved".
+ function editorKey() {
+   return JSON.stringify([Array.from(selected).sort(), el("caption").value || null, el("title").value || null,
+     el("notes").value, Array.from(edits).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0), media.map(m => m.id)]);
+ }
+ function isCleanPackage() { return Boolean(current.package) && baseline !== null && editorKey() === baseline; }
+ // A package with a network marked as posted is never changed in place (the server refuses it too).
+ function postedLocked() {
+   return Boolean(current.package && current.state && current.state.networks.some(n => n.state === "posted"));
+ }
+ function updateLock() {
+   const locked = postedLocked();
+   el("update-why").classList.toggle("hidden", !locked);
+   if (locked) { el("update").disabled = true; el("confirm-update").classList.add("hidden"); }
+ }
  // ---- progress: Write -> Choose -> Preview -> Save -> Post, from the real editor state
  const STEPS = [
    ["write", "write your caption, or attach a photo or video."],
@@ -581,6 +637,7 @@ button { font-family: inherit; }
    stable = snapshot();
    el("undo").disabled = !undoStack.length;
    scheduleSave();
+   refreshChips();
    progress();
  }
  function counter() {
@@ -641,6 +698,7 @@ button { font-family: inherit; }
      "Editing: " + ((state && state.display_name) || "a saved package") :
      "New post (not saved as a package yet)";
    el("update").classList.toggle("hidden", !current.package);
+   updateLock();
  }
  function restore(snap) {
    selected.clear();
@@ -748,11 +806,20 @@ button { font-family: inherit; }
      }
    }
  }
+ // A preview card's status follows what the editor holds now: a saved network's state only while the editor still
+ // holds that package unchanged; a new or changed caption is not posted and not saved.
  function networkState(id) {
    const state = current.state;
+   if (state && !isCleanPackage()) return ["Changed, not saved", "chip"];
    const found = state ? state.networks.find(n => n.id === id) : null;
    if (!found) return ["Not saved yet", "chip"];
    return found.state === "posted" ? ["Posted by you", "chip posted"] : ["Ready to post", "chip ready"];
+ }
+ function refreshChips() {
+   for (const chip of el("results").querySelectorAll("[data-net]")) {
+     const state = networkState(chip.dataset.net);
+     chip.textContent = state[0]; chip.className = state[1];
+   }
  }
  function renderPreview(packages) {
    const box = el("results");
@@ -764,7 +831,9 @@ button { font-family: inherit; }
      header.className = "review-head";
      header.appendChild(text("h3",item.label));
      const state = networkState(item.id);
-     header.appendChild(text("span", state[0], state[1]));
+     const chip = text("span", state[0], state[1]);
+     chip.dataset.net = item.id;
+     header.appendChild(chip);
      card.appendChild(header);
      if (item.human_only) {
        card.appendChild(text("p","You write this one yourself in the community. Only your private note is kept."));
@@ -820,7 +889,7 @@ button { font-family: inherit; }
    busy = state;
    el("preview").disabled = state;
    el("save").disabled = state || !previewValid;
-   el("update").disabled = state || !previewValid || !current.package;
+   el("update").disabled = state || !previewValid || !current.package || postedLocked();
  }
  async function preview() {
    if (busy) return;
@@ -843,7 +912,7 @@ button { font-family: inherit; }
    if (previewValid) el("review-title").scrollIntoView({block:"start", behavior:"smooth"});
  }
  async function save(mode) {
-   if (!previewValid || busy) return;
+   if (!previewValid || busy || (mode === "update" && postedLocked())) return;
    el("confirm-update").classList.add("hidden");
    lockBusy(true);
    try {
@@ -851,6 +920,7 @@ button { font-family: inherit; }
        {mode:"update", package:current.package, revision:current.revision, confirm:true} : {mode:"new"};
      const result = await api("/api/prepare", Object.assign(payload(), extra));
      current = {package:result.package.name, revision:result.package.revision, state:result.package};
+     baseline = editorKey();
      previewedKey = JSON.stringify(payload());
      updateEditing();
      renderPreview(previewData);
@@ -885,6 +955,8 @@ button { font-family: inherit; }
      const result = await api("/api/package/open", {package:pkg.name});
      current = {package:result.package.name, revision:result.package.revision, state:result.package};
      applyEditor(result.editor, result.media);
+     baseline = editorKey();
+     hideOffer();
      savedClean = true;
      updateEditing();
      setSaved("Draft saved", "ok");
@@ -1050,7 +1122,7 @@ button { font-family: inherit; }
      if (fields.account && fields.account.value) body.account_id = fields.account.value;
      if (Object.keys(numbers).length) body.numbers = numbers;
      const result = await api("/api/mark-posted", body);
-     if (current.package === pkg.name) current.state = result.package;
+     if (current.package === pkg.name) { current.state = result.package; updateLock(); }
      const posted = result.posted;
      const who = posted.account_id ? " for " + posted.account_id + (posted.account_from === "link" ? " (from the link)" : "") : "";
      const said = "Recorded as posted by you on " + network.label + who + ". Nothing was posted or sent.";
@@ -1278,14 +1350,16 @@ button { font-family: inherit; }
  el("preview").addEventListener("click",preview);
  el("save").addEventListener("click",function(){ save("new"); });
  el("update").addEventListener("click",function(){
-   if (!previewValid || !current.package) return;
+   if (!previewValid || !current.package || postedLocked()) return;  // posted: never offered, see #update-why
    el("confirm-text").textContent = "Replace the saved files of “" +
-     ((current.state && current.state.display_name) || current.package) +
-     "” with what is in the editor? A package with a network marked as posted cannot be changed.";
+     ((current.state && current.state.display_name) || current.package) + "” with what is in the editor?";
    el("confirm-update").classList.remove("hidden");
    el("confirm-yes").focus();
  });
- el("confirm-yes").addEventListener("click",function(){ save("update"); });
+ el("confirm-yes").addEventListener("click",function(){
+   if (postedLocked()) { updateLock(); return; }
+   save("update");
+ });
  el("confirm-no").addEventListener("click",function(){ el("confirm-update").classList.add("hidden"); el("update").focus(); });
  el("undo").addEventListener("click",undo);
  el("refresh").addEventListener("click",loadPackages);
@@ -1299,6 +1373,8 @@ button { font-family: inherit; }
    edits.clear();
    media = [];
    current = {package:null, revision:null, state:null};
+   baseline = null;
+   hideOffer();
    previewedKey = null;
    el("caption").value="";el("title").value="";el("notes").value="";
    counter(); conditionalFields(); invalidate(); renderNetworks(); renderMedia(); updateEditing();
@@ -1328,8 +1404,11 @@ button { font-family: inherit; }
    edits.clear();
    counter(); invalidate(); changed();
  }
- // Text from an idea (studio's "Write a post from this idea") or from `share --web --text/--idea`. An empty editor
- // takes it at once; an unsaved draft is never replaced without your click, and Undo brings it back.
+ // Text from an idea (studio's "Write a post from this idea") or from `share --web --text/--idea`:
+ // - an empty editor takes it at once;
+ // - a saved package open and unchanged stays safe on disk: the idea starts a NEW post (your networks chosen);
+ // - unsaved changes are never replaced without your click: the choice appears at the top of the editor, scrolled
+ //   into view with focus on it, and Undo brings your caption back.
  function useText(value, label) {
    if (!el("caption").value.trim() && !media.length && !el("notes").value.trim() && !current.package) {
      setCaption(value);
@@ -1338,22 +1417,56 @@ button { font-family: inherit; }
      el("caption").focus();
      return;
    }
-   const box = el("status");
-   box.replaceChildren(document.createTextNode("The editor already holds your post, so nothing was replaced. Use " + label +
-     " as the caption instead?"));
-   box.className = "alert";
-   const row = document.createElement("div");
-   const yes = button("Use it as my caption", "small");
-   const no = button("Keep my draft", "small");
-   yes.addEventListener("click", function(){
-     setCaption(value);
-     showMessage("Now using " + label + " as your caption. Undo brings the previous caption back.", true);
-     el("caption").focus();
-   });
-   no.addEventListener("click", function(){ showMessage("Kept your draft.", true); el("caption").focus(); });
-   row.appendChild(yes); row.appendChild(no);
-   box.appendChild(row);
+   if (isCleanPackage()) { startNewPost(value, label); return; }
+   offerText(value, label);
  }
+ function startNewPost(value, label) {
+   const kept = (current.state && current.state.display_name) || "your saved package";
+   hideOffer();
+   selected.clear(); edits.clear(); media = [];
+   current = {package:null, revision:null, state:null};
+   baseline = null; previewedKey = null;
+   el("caption").value = value; el("title").value = ""; el("notes").value = "";
+   preselectYours();
+   counter(); conditionalFields(); renderNetworks(); renderMedia(); updateEditing(); invalidate();
+   undoStack.length = 0; stable = snapshot(); el("undo").disabled = true;
+   setSaved("Saving…", "");
+   // A new draft: the old draft's attachment copies are cleared (the package keeps its own files), then this is kept.
+   api("/api/draft/clear", {}).then(saveDraft).catch(function(e){
+     setSaved("Not saved", "bad"); showMessage(e.message || "The draft could not be kept.", false);
+   });
+   renderPackages(lastPackages);
+   progress();
+   showMessage("Started a new post from " + label + ". Your saved package “" + kept + "” is still in Saved packages, " +
+     "unchanged." + (selected.size ? " Your networks are chosen; preview when you are ready." : " Pick your networks next.") +
+     " Nothing is posted for you.", true);
+   announce("Started a new post from your idea. Your saved package is still in Saved packages.");
+   el("caption").focus();
+ }
+ function offerText(value, label) {
+   offerValue = {text:value, label:label};
+   el("offer-text").textContent = (current.package ?
+     "You changed “" + ((current.state && current.state.display_name) || "this package") + "” and have not saved it" :
+     "The editor already holds a post you have not saved") + ", so nothing was replaced. Use " + label +
+     " as the caption instead? Undo brings your caption back.";
+   el("offer").classList.remove("hidden");
+   el("offer").scrollIntoView({block:"start"});
+   el("offer-yes").focus({preventScroll:true});
+ }
+ function hideOffer() { offerValue = null; el("offer").classList.add("hidden"); }
+ el("offer-yes").addEventListener("click", function(){
+   if (!offerValue) return;
+   const chosen = offerValue;
+   hideOffer();
+   setCaption(chosen.text);
+   showMessage("Now using " + chosen.label + " as your caption. Undo brings the previous caption back.", true);
+   el("caption").focus();
+ });
+ el("offer-no").addEventListener("click", function(){
+   hideOffer();
+   showMessage("Kept your draft.", true);
+   el("caption").focus();
+ });
  function startFromRequest() {
    if (pendingOffer) { useText(pendingOffer.text, pendingOffer.label); return; }
    if (!ideaWanted) return;
@@ -1398,6 +1511,7 @@ button { font-family: inherit; }
    if (data.draft) {
      current = {package:data.draft.package, revision:data.draft.revision, state:null};
      applyEditor(data.draft, data.media);
+     if (current.package && data.package_unchanged === true) baseline = editorKey();  // the package as saved
      setSaved("Draft saved", "ok");
    } else {
      stable = snapshot();
@@ -1414,7 +1528,7 @@ button { font-family: inherit; }
    return api("/api/packages", {});
  }).then(function(data){
    if (current.package) current.state = data.packages.find(p => p.name === current.package) || null;
-   if (current.package && !current.state) current = {package:null, revision:null, state:null};
+   if (current.package && !current.state) { current = {package:null, revision:null, state:null}; baseline = null; }
    updateEditing();
    renderPackages(data.packages);
    progress();

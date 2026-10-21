@@ -16,7 +16,8 @@ schedule or send; see share_composer_store.
 
 ``/api/idea`` only READS one open idea's text from the ideas inbox (the page offers it as the caption; the inbox
 is never changed). ``share --web --text/--idea`` seeds the autosaved draft through the same store, and never
-replaces an unsaved draft: the page offers the text instead. Under ``reachweaver studio`` the server also knows the
+replaces an unsaved draft: the page offers the text instead (``/api/draft/load`` also says, read-only, whether the
+draft is a saved package unchanged on disk; then the page starts a new post with it). Under ``reachweaver studio`` the server also knows the
 dashboard's full local URL (``dashboard_url``, carrying the dashboard's own token) and returns it only from the
 token-gated catalog route, so the page can link to Results; every guard here is unchanged.
 """
@@ -356,7 +357,9 @@ def _draft_load(obj: Any, server: "ShareServer | None" = None) -> dict:
     offer = None
     if server is not None and server.offer is not None:  # a --text/--idea seed that met an unsaved draft: once
         offer, server.offer = server.offer, None
-    return {"draft": draft, "media": media, "offer": offer}
+    # True only when the draft is a saved package unchanged since it was opened or saved: an idea then starts a new
+    # post (the package stays safe on disk) instead of asking to replace unsaved work.
+    return {"draft": draft, "media": media, "offer": offer, "package_unchanged": store.draft_matches_package(draft)}
 
 
 def idea_text(idea_id: object, db: str | None) -> dict:
