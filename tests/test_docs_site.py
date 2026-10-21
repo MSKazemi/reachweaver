@@ -150,7 +150,7 @@ class CheckerTest(unittest.TestCase):
             '<body><h1>T</h1>{extra}</body></html>')
 
     def _dist(self, tmp: Path, pages: dict[str, str]) -> Path:
-        for name in ("robots.txt", "llms.txt", "llms-full.txt", "og.png", "favicon.png"):
+        for name in ("robots.txt", "llms.txt", "llms-full.txt", "og.png", "favicon.png", "sitemap.xml"):
             (tmp / name).write_text("x", encoding="utf-8")
         urls = []
         for rel, html in pages.items():

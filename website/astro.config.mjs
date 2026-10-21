@@ -49,5 +49,20 @@ export default defineConfig({
 				return item;
 			},
 		}),
+		sitemapAlias(),
 	],
 });
+
+// Every project site under mskazemi.com serves <base>/sitemap.xml, the name the root robots.txt lists (the rule lives
+// in MSKazemi/mskazemi.github.io). The site has far fewer than 50,000 URLs, so the single <urlset> is copied as is.
+function sitemapAlias() {
+	return {
+		name: 'reachweaver:sitemap-alias',
+		hooks: {
+			'astro:build:done': async ({ dir }) => {
+				const { copyFile } = await import('node:fs/promises');
+				await copyFile(new URL('sitemap-0.xml', dir), new URL('sitemap.xml', dir));
+			},
+		},
+	};
+}

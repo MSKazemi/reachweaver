@@ -72,11 +72,11 @@ class Page(HTMLParser):
 def check(dist: Path) -> list[str]:
     problems: list[str] = []
     titles: dict[str, str] = {}
-    sitemap = "".join(p.read_text(encoding="utf-8") for p in dist.glob("sitemap-*.xml"))
+    sitemap = "".join(p.read_text(encoding="utf-8") for p in dist.glob("sitemap-[0-9]*.xml"))
     sitemap_urls = set(re.findall(r"<loc>([^<]+)</loc>", sitemap))
     if not sitemap_urls:
         problems.append("sitemap: no URLs")
-    for name in ("robots.txt", "llms.txt", "llms-full.txt", "og.png", "favicon.png"):
+    for name in ("robots.txt", "llms.txt", "llms-full.txt", "og.png", "favicon.png", "sitemap.xml"):
         if not (dist / name).is_file():
             problems.append(f"missing {name}")
 
