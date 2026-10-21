@@ -1,0 +1,13 @@
+{
+  "name": "ReachWeaver documentation",
+  "short_name": "ReachWeaver",
+  "start_url": "/reachweaver/",
+  "scope": "/reachweaver/",
+  "display": "standalone",
+  "background_color": "#0a1522",
+  "theme_color": "#0a1522",
+  "icons": [
+    { "src": "/reachweaver/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/reachweaver/icon-512.webp", "sizes": "512x512", "type": "image/webp" }
+  ]
+}

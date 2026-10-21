@@ -5,7 +5,7 @@ MYPY_VERSION ?= 2.4.0
 BUILD_VERSION ?= 1.6.1
 TWINE_VERSION ?= 7.0.0
 
-.PHONY: help test sync scan lint deps ruff typecheck format-check example check release-gate package plugin-eval plugin-eval-load
+.PHONY: help test sync scan lint deps ruff typecheck format-check example check release-gate package plugin-eval plugin-eval-load site site-check site-dev
 
 help:
 	@echo "make test     - offline unit tests (no network, no credentials)"
@@ -21,6 +21,9 @@ help:
 	@echo "make check    - sync + scan + lint + deps + test (what CI runs, minus ruff and mypy)"
 	@echo "make release-gate [TAG=vX.Y.Z] - scan + lint + deps, then the offline release gate (versions, CHANGELOG, docs, bundle, blockers, tests)"
 	@echo "make plugin-eval [PLUGIN_EVAL_ARGS='--case NAME --runs 1 --ablation none'] - LOCAL ONLY: plugin behaviour suite, real model calls on your Claude plan (docs/PLUGIN-EVALS.md)"
+	@echo "make site     - documentation website: generate content from the Markdown, npm ci, build website/dist (needs Node.js 22.23+)"
+	@echo "make site-check - check the built site: titles, descriptions, canonicals, sitemap, JSON-LD, no private links"
+	@echo "make site-dev - live preview of the documentation website at http://localhost:4321/reachweaver/"
 	@echo "make plugin-eval-load - LOCAL ONLY: load and schema-check the suite with a 0 USD ceiling; starts no run (needs the claude CLI)"
 
 test:
@@ -96,3 +99,15 @@ plugin-eval-load:
 	if echo "$$out" | grep -q "failed to load"; then exit 1; fi; \
 	if [ $$status -ne 0 ] && [ $$status -ne 2 ]; then exit $$status; fi; \
 	echo "plugin/evals: every case loaded (no run started)"
+
+# Documentation website (website/, Astro Starlight). The content is generated from the repository's Markdown.
+site:
+	$(PYTHON) scripts/build_docs_site.py
+	cd website && npm ci --no-audit --no-fund && npm run build
+
+site-check:
+	$(PYTHON) scripts/check_docs_site.py website/dist
+
+site-dev:
+	$(PYTHON) scripts/build_docs_site.py
+	cd website && npm ci --no-audit --no-fund && npm run dev

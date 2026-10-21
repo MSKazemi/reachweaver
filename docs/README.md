@@ -1,5 +1,7 @@
 # ReachWeaver documentation
 
+These guides are also published as a searchable website: **[mskazemi.com/reachweaver](https://mskazemi.com/reachweaver/)**, rebuilt from this folder on every change to `main`.
+
 Pick the line that matches what you want to do. If you are new, read the first group in order.
 
 ## 1. I am new

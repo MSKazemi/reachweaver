@@ -6,6 +6,17 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+A documentation website: [mskazemi.com/reachweaver](https://mskazemi.com/reachweaver/). No change to the `reachweaver` command or the skill.
+
+### Added
+
+- **Documentation website** (Astro Starlight, deployed to GitHub Pages by `.github/workflows/docs-site.yml`). Every public guide in `docs/`, the README, the bundled skill and its references, contributing, security, privacy and disclaimer pages, one page per release from this changelog, and a command reference for all 133 commands generated from the real argument parser. Full-text search, light and dark themes, mobile layout. Built by `scripts/build_docs_site.py` from the Markdown, which stays the single source; private documents are never read (`git ls-files` of the public index, plus a second name check). `make site`, `make site-check`, `make site-dev`.
+- **Search and AI-answer visibility for the site**: a unique title and a 50-160 character description per page, canonical URLs, sitemap, Open Graph and Twitter cards with a social image, JSON-LD (`SoftwareApplication`, `WebSite`, `Person`, `TechArticle`, `BreadcrumbList`), `llms.txt` and `llms-full.txt`, `robots.txt`. `scripts/check_docs_site.py` checks every built page; Lighthouse on the home, quickstart and a command-reference page: performance 99, accessibility 100, best practices 100, SEO 100 (local build, 2026-10-22).
+
+### Fixed
+
+- `docs/WORKER-OPERATIONS.md` linked to an alert-rules heading that had been renamed; the site's anchor check found it.
+
 ## [0.16.0] - 2026-10-22
 
 Much easier to use, measured. `reachweaver studio` opens one browser app where you write a post (your networks preselected), copy it for each network, mark it as posted with its numbers and see how it did. In the terminal, `posted LINK --likes N` records a post you made by hand in one step, `next` answers "what should I post next?" with your ideas by name, `report --week` gives a short summary instead of JSON, and every error says what to do. Measured against 0.15.0 with the same journeys: failed commands, dead ends, errors without a next step, hand-edited files and web steps that needed the terminal all went to zero; phone tap targets under 44 px went from 71 to 2; journey friction is about 3x lower. 133 commands (4 more than 0.15.0, none removed). No live adapter is added.
