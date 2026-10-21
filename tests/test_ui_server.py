@@ -225,6 +225,8 @@ class ApiTests(ServerBase):
         self.assertIn(guide["state"], {"needs_review", "drafts", "queued", "paused", "empty", "idle"})
         self.assertTrue(guide["steps"])
         self.assertNotIn("reachweaver ui", [step["command"] for step in guide["steps"]])
+        self.assertEqual(guide["primary"]["command"], guide["steps"][0]["command"])  # the start guide's order
+        self.assertLessEqual(len(guide["secondary"]), 3)
         text = json.dumps(guide)
         self.assertNotRegex(text, r"reachweaver approve|--live")
         self.assertNotIn(SECRET, text)
@@ -289,6 +291,10 @@ class ApiTests(ServerBase):
         self.assertEqual(results["posts"], [])  # nothing published in this fixture
         self.assertIn("never zero", results["note"])
         self.assertEqual(self.api("results?platform=%3Cx%3E")[0], 400)
+        for window in ("7d", "30d", "all"):
+            status, windowed = self.api("results?since=" + window)
+            self.assertEqual((status, windowed["summary"]["window"]), (200, "all" if window == "all" else window))
+        self.assertEqual(self.api("results?since=99d")[0], 400)
         status, campaigns = self.api("campaigns")
         self.assertEqual(status, 200)
         self.assertEqual(campaigns["campaigns"], [])
@@ -436,10 +442,76 @@ class AssetTests(unittest.TestCase):
         self.assertIn(" missing", js)
         self.assertIn("Credentials are needed only for live sending", js)
 
-    def test_blocked_banner_explains_a_credentials_only_block(self):
+    def test_banner_is_yellow_or_red_only_for_real_problems_and_calm_otherwise(self):
         js = ui_assets.APP_JS
-        self.assertIn('r.code === "credentials_missing"', js)
-        self.assertIn("drafting, review and dry runs still work", js)
+        banner = js[js.index("function statusBanner"):js.index("function accountStatus")]
+        self.assertIn('hl.level === "blocked" || hl.level === "attention"', banner)
+        self.assertIn("Emergency stop is ON", banner)
+        self.assertIn("Automatic sending isn't set up — you don't need it to write or post by hand.", banner)
+        self.assertNotIn("Runtime environment", js)  # no environment jargon on the first screen
+        self.assertIn('credentials_missing: "Not connected (only needed for automatic sending)"', js)
+        self.assertIn("uncertain send — check the platform", js)  # the safety meaning stays
+
+    def test_overview_has_one_next_step_and_no_repeated_lists(self):
+        js = ui_assets.APP_JS
+        overview = js[js.index("async function viewOverview"):js.index("// The Overview's short way into Claude Code")]
+        self.assertEqual(overview.count("nextStepCard("), 1)
+        for gone in ("needsCard", "nextCard(", "Your turn in the terminal", "Dead letters", "lateCard(\"Activity\""):
+            self.assertNotIn(gone, js if gone != "lateCard(\"Activity\"" else overview, gone)
+        self.assertIn('"Sends that failed"', js)
+        self.assertIn('"Your next step"', js)
+        self.assertIn('"reachweaver share --web --open"', js)  # the composer is one copy away (Write a new post)
+        self.assertIn('href="#/write" data-route="write"', ui_assets.INDEX_HTML)
+
+    def test_example_dates_are_computed_never_hard_coded(self):
+        js = ui_assets.APP_JS
+        self.assertIsNone(re.search(r"20\d\d-\d\d-\d\dT", js))
+        self.assertIn('"reachweaver schedule POST_ID --at " + exampleTime()', js)
+        self.assertIn('--observed-at " + exampleTime(true)', js)
+
+    def test_results_has_a_time_window_and_a_summary_and_sits_in_the_bottom_bar(self):
+        html, js = ui_assets.INDEX_HTML, ui_assets.APP_JS
+        self.assertIn('[["7d", "This week"], ["30d", "30 days"], ["all", "All"]]', js)
+        self.assertIn('api("results?" + q)', js)
+        self.assertIn("function resultsSummary", js)
+        tabs = html[html.index('<nav class="tabs"'):]
+        self.assertIn('href="#/results" data-route="results" class="tab"', tabs)
+        self.assertIn('id="scheduletab" hidden', tabs)  # under More until something is scheduled
+        self.assertIn('tab.hidden = !((c.approved || 0) + (c.scheduled || 0) + (c.sending || 0))', js)
+
+    def test_touch_targets_headings_and_focus_return(self):
+        css, js = ui_assets.APP_CSS, ui_assets.APP_JS
+        phone = css[css.index("@media (max-width: 640px)"):css.index("@media print")]
+        self.assertIn("min-height: var(--tap)", phone)
+        self.assertIn("--tap: 44px", css)
+        self.assertIn(".iconbtn { width: var(--tap); height: var(--tap); flex: none; }", css)
+        self.assertNotIn('h("div", { class: "ct" }', js)  # card titles are real headings
+        self.assertIn('h("h2", { class: "ct" }', js)
+        self.assertIn('palette.addEventListener("close", palReturn)', js)
+        self.assertIn("role: \"status\"", js[js.index("function statusBanner"):])
+
+    def test_long_labels_wrap_instead_of_widening_a_phone_screen(self):
+        css = ui_assets.APP_CSS
+        chip = re.search(r"\.chip \{[^}]*\}", css).group(0)
+        self.assertNotIn("nowrap", chip)
+        self.assertIn("overflow-wrap: anywhere", chip)
+        self.assertIn(".cmd code { flex: 1; min-width: 0;", css)
+        self.assertIn(".ohead > * { min-width: 0; max-width: 100%; }", css)
+
+    def test_brand_tokens_are_defined_once(self):
+        self.assertTrue(ui_assets.APP_CSS.startswith(ui_assets.BRAND_CSS))
+        for name in ("accent", "accent-dark", "radius", "font", "mono", "wordmark"):
+            self.assertIn(f"--rw-{name}:", ui_assets.BRAND_CSS)
+        self.assertIn("--accent: var(--rw-accent);", ui_assets.APP_CSS)
+        self.assertIn(f'fill="{ui_assets.BRAND["accent"]}"', ui_assets.ICON_SVG)
+
+    def test_post_made_by_hand_reads_as_posted_by_you(self):
+        js = ui_assets.APP_JS
+        self.assertIn('published_manual: "posted by you"', js)
+        self.assertIn('markNav(wentOut ? "posted" : "queue")', js)
+        self.assertIn('" (not sent by ReachWeaver)"', js)
+        self.assertIn('h("h1", null, firstWords(p.content, 70)', js)  # the heading is the post, the id is small print
+        self.assertIn('"Technical details"', js)  # the stored event detail only behind a toggle
 
     def test_tab_title_badge_is_not_overwritten_by_render(self):
         self.assertEqual(ui_assets.APP_JS.count("document.title ="), 1)

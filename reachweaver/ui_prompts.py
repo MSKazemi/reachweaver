@@ -50,6 +50,8 @@ PAGE_CARDS: dict[str, tuple[str, ...]] = {
     "overview": ("today", "week"), "post": ("voice", "followup", "claims"), "accounts": ("channel",),
     "distribution": ("channel",), "idea": ("idea",), "claude": ("today", "week", "channel"),
 }
+# Cards that only make sense for some post states: tightening the text helps before it goes out, never after.
+CARD_STATUSES: dict[str, tuple[str, ...]] = {"voice": ("draft", "approved", "scheduled")}
 PAGES = ("overview", "claude", "queue", "schedule", "ideas", "posted", "results", "campaigns", "campaign",
          "accounts", "distribution", "post", "idea", "search")
 RULES = (
@@ -195,7 +197,7 @@ def _plan(intent: str, context: dict, cmds: _Commands) -> list[str]:
                  "If I keep follow-up rules, "
                  f"`{cmds.text('followup-suggest', '--rules', 'RULES_FILE', '--account', account)}` lists the posts "
                  "that reached one of my thresholds."]
-        if post.get("status") != "published":
+        if post.get("status") not in ("published", "published_manual"):
             lines.insert(1, f"This post is {post.get('status')}, not published yet: plan the follow-up now and draft "
                             "it only after it is out.")
         return lines
@@ -317,9 +319,13 @@ def build_prompt(intent: str, context: dict | None = None, *, request: str = "",
 
 
 def cards_for(page: str, context: dict | None = None, *, prefix: tuple[str, ...] = ("reachweaver",)) -> list[dict]:
-    """The prompt cards of one page, each built with ``build_prompt``; a card whose context is missing is left out."""
+    """The prompt cards of one page, each built with ``build_prompt``; a card whose context is missing, or that does
+    not fit the post's state (``CARD_STATUSES``), is left out."""
     out = []
+    status = ((context or {}).get("post") or {}).get("status")
     for intent in PAGE_CARDS.get(page, ()):
+        if intent in CARD_STATUSES and status is not None and status not in CARD_STATUSES[intent]:
+            continue  # e.g. no "tighten this draft" for a post that is already out
         try:
             built = build_prompt(intent, context, prefix=prefix)
         except ValueError:

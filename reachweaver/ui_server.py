@@ -232,7 +232,7 @@ class Handler(BaseHTTPRequestHandler):
         if route == "next":  # the same read-only guidance as the `start` command
             guide = start.build_guide(server.database, server.accounts_path)
             guide["steps"] = [step for step in guide["steps"] if step["command"] != "reachweaver ui"]  # you are in it
-            self._json(200, ui_data.redact_value(guide))
+            self._json(200, ui_data.redact_value(ui_data.next_view(guide)))
             return
         if route == "distribution/markets":
             registry = load_registry()
@@ -291,8 +291,10 @@ class Handler(BaseHTTPRequestHandler):
             elif route == "suggest":
                 self._json(200, ui_data.suggestions_view(con))
             elif route == "results":
+                since = self._filter(query, "since")
                 self._json(200, ui_data.results_view(con, account=self._filter(query, "account"),
-                                                     platform=self._filter(query, "platform")))
+                                                     platform=self._filter(query, "platform"),
+                                                     since=None if since == "all" else since))
             elif route == "campaigns":
                 self._json(200, ui_data.campaigns_view(con))
             elif route == "campaign":
