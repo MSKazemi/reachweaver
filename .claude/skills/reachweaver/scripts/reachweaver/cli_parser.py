@@ -910,6 +910,28 @@ def make_parser() -> argparse.ArgumentParser:
     draft_source.add_argument("--file", type=Path, help="UTF-8 text file with the draft")
     p.add_argument("--platform", help="Compare with this platform's length statistics (default: the stored post's platform)")
     p.add_argument("--json", action="store_true", help="Machine-readable findings")
+    p = sub.add_parser("ai-label-check", help="Advisory: which AI-content label each target platform asks for "
+                       "(sourced rules, EU AI Act Art. 50 note); never blocks (docs/AI-CONTENT-LABELS.md)",
+                       description="Offline and advisory. Reads a draft's authorship (human, ai_assisted, "
+                       "ai_generated) and its media flags (realistic_synthetic, provenance.created_by) and prints, per "
+                       "target platform, label required / recommended / not required / unknown, what to tick in the "
+                       "platform's own composer and the cited source. Exits 0 after a check, 2 on an input error. "
+                       "Not legal advice; rules change, re-verify the cited page.")
+    draft_source = p.add_mutually_exclusive_group(required=True)
+    draft_source.add_argument("--post-id", help="A stored post (read-only database access)")
+    draft_source.add_argument("--file", type=Path, help="Draft, variant or campaign JSON (authorship and platform read from it)")
+    p.add_argument("--platform", action="append", metavar="ID", help="Target platform(s), e.g. youtube,instagram; "
+                   "replaces the draft's own platform; repeat or comma-separate")
+    p.add_argument("--media", type=Path, help="Media manifest JSON (realistic_synthetic and provenance per asset)")
+    p.add_argument("--authorship", choices=("human", "ai_assisted", "ai_generated"),
+                   help="Who wrote the text (overrides the file; a stored post has none recorded)")
+    p.add_argument("--eu", action="store_true", help="Also check EU AI Act Art. 50 (you publish from, or for an "
+                   "audience in, the EU); secondary-sourced, not legal advice")
+    p.add_argument("--public-interest", choices=("yes", "no"), help="With --eu: does the text inform the public "
+                   "on matters of public interest?")
+    p.add_argument("--editorial-review", choices=("yes", "no"), help="With --eu: did a person review or edit the "
+                   "AI text and hold editorial responsibility for it?")
+    p.add_argument("--json", action="store_true", help="Machine-readable advice")
     p = sub.add_parser("account-advisor", help="Offline channel shortlist and setup coaching; creates no account",
                        description="Offline shortlist of social channels for a region, goal, format and weekly time, "
                        "plus optional account-setup steps you do yourself and a coaching prompt for a normal Claude "

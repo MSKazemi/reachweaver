@@ -1,0 +1,369 @@
+{
+  "schema_version": "reachweaver.ai-disclosure.v1",
+  "checked_on": "2026-10-21",
+  "label": "Sourced summary of each platform's own AI-generated-content disclosure rules, read on the checked date. It is not legal advice and not a compliance certification. Platform rules and laws change quickly: re-verify the linked page before relying on an entry.",
+  "decisions": {
+    "required": "The cited rule asks the person who posts to disclose or label it.",
+    "recommended": "The cited rule does not clearly require a label for this case, but it labels or asks about it; labelling is the safe choice.",
+    "not_required": "The cited rules do not ask for a label in this case.",
+    "unknown": "ReachWeaver cannot decide: a fact about the content is missing, or the platform's rule was not verified."
+  },
+  "sources": {
+    "youtube_help_disclosure": {
+      "url": "https://support.google.com/youtube/answer/14328491?hl=en",
+      "kind": "official",
+      "checked_on": "2026-10-21",
+      "quote": "We require creators to disclose AI-generated or altered content that seems realistic."
+    },
+    "youtube_help_ai_use_setting": {
+      "url": "https://support.google.com/youtube/answer/14328491?hl=en",
+      "kind": "official",
+      "checked_on": "2026-10-21",
+      "quote": "In the Attributes section, under “AI use,” tap Yes if your content meets the disclosure requirements or No if not."
+    },
+    "youtube_help_not_realistic": {
+      "url": "https://support.google.com/youtube/answer/14328491?hl=en",
+      "kind": "official",
+      "checked_on": "2026-10-21",
+      "quote": "Creators don’t need to disclose non-realistic content that’s made with AI, or edits to realistic content that are minor."
+    },
+    "youtube_help_production_assistance": {
+      "url": "https://support.google.com/youtube/answer/14328491?hl=en",
+      "kind": "official",
+      "checked_on": "2026-10-21",
+      "quote": "Production assistance, like using generative AI tools to create or improve a video outline, script, thumbnail, title, or infographic",
+      "note": "Listed among the examples creators do not need to disclose."
+    },
+    "youtube_help_c2pa": {
+      "url": "https://support.google.com/youtube/answer/14328491?hl=en",
+      "kind": "official",
+      "checked_on": "2026-10-21",
+      "quote": "Content that contains C2PA metadata",
+      "note": "Listed under: YouTube may automatically apply an AI label on the video player or in the expanded description for ..."
+    },
+    "youtube_help_penalties": {
+      "url": "https://support.google.com/youtube/answer/14328491?hl=en",
+      "kind": "official",
+      "checked_on": "2026-10-21",
+      "quote": "Creators who consistently choose not to disclose this information may be subject to manual application of a label, or penalties from YouTube, including removal of content or suspension from the YouTube Partner Program."
+    },
+    "youtube_api_contains_synthetic_media": {
+      "url": "https://developers.google.com/youtube/v3/docs/videos",
+      "kind": "official_api",
+      "checked_on": "2026-10-21",
+      "quote": "this property allows the channel owner to disclose that a video contains realistic Altered or Synthetic",
+      "note": "Property status.containsSyntheticMedia, in a videos.insert or videos.update request. Already used by reachweaver/manual_export.py."
+    },
+    "meta_2024_02_disclosure_tool": {
+      "url": "https://about.fb.com/news/2024/02/labeling-ai-generated-images-on-facebook-instagram-and-threads/",
+      "kind": "official_newsroom",
+      "checked_on": "2026-10-21",
+      "quote": "We’ll require people to use this disclosure and label tool when they post organic content with a photorealistic video or realistic-sounding audio that was digitally created or altered, and we may apply penalties if they fail to do so.",
+      "note": "Meta newsroom post dated February 6, 2024 (the page also shows the date April 1, 2025); covers Facebook, Instagram and Threads."
+    },
+    "meta_2024_02_image_indicators": {
+      "url": "https://about.fb.com/news/2024/02/labeling-ai-generated-images-on-facebook-instagram-and-threads/",
+      "kind": "official_newsroom",
+      "checked_on": "2026-10-21",
+      "quote": "we will label images that users post to Facebook, Instagram and Threads when we can detect industry standard indicators that they are AI-generated."
+    },
+    "meta_2024_02_c2pa": {
+      "url": "https://about.fb.com/news/2024/02/labeling-ai-generated-images-on-facebook-instagram-and-threads/",
+      "kind": "official_newsroom",
+      "checked_on": "2026-10-21",
+      "quote": "the “AI generated” information in the C2PA and IPTC technical standards"
+    },
+    "meta_2024_04_ai_info": {
+      "url": "https://about.fb.com/news/2024/04/metas-approach-to-labeling-ai-generated-content-and-manipulated-media/",
+      "kind": "official_newsroom",
+      "checked_on": "2026-10-21",
+      "quote": "We will begin adding “AI info” labels to a wider range of video, audio and image content when we detect industry standard AI image indicators or when people disclose that they’re uploading AI-generated content."
+    },
+    "tiktok_guidelines_aigc": {
+      "url": "https://www.tiktok.com/community-guidelines/en/integrity-authenticity",
+      "kind": "official",
+      "checked_on": "2026-10-21",
+      "quote": "we require creators to label AI-generated or significantly edited content that shows realistic-looking scenes or people",
+      "note": "Community Guidelines, Integrity and Authenticity, effective September 24, 2026."
+    },
+    "tiktok_guidelines_unlabeled": {
+      "url": "https://www.tiktok.com/community-guidelines/en/integrity-authenticity",
+      "kind": "official",
+      "checked_on": "2026-10-21",
+      "quote": "Unlabeled content may be removed, restricted, or labeled by our team, depending on the harm it could cause."
+    },
+    "tiktok_newsroom_label_tool": {
+      "url": "https://newsroom.tiktok.com/en-us/new-labels-for-disclosing-ai-generated-content",
+      "kind": "official_newsroom",
+      "checked_on": "2026-10-21",
+      "quote": "Creators can now do this through the new label (or other types of disclosures, like a sticker or caption).",
+      "note": "TikTok newsroom post of 2023-09-19; the in-app setting name was not verified from a fetched page."
+    },
+    "tiktok_newsroom_c2pa": {
+      "url": "https://newsroom.tiktok.com/en-us/partnering-with-our-industry-to-advance-ai-transparency-and-literacy",
+      "kind": "official_newsroom",
+      "checked_on": "2026-10-21",
+      "quote": "Content Credentials attach metadata to content, which we can use to instantly recognize and label AIGC.",
+      "note": "TikTok newsroom post of 2024-05-09."
+    },
+    "tiktok_api_is_aigc": {
+      "url": "https://developers.tiktok.com/doc/content-posting-api-reference-direct-post",
+      "kind": "official_api",
+      "checked_on": "2026-10-21",
+      "quote": "Set to true if the video is AI generated content. If set, the video will be labelled with Creator labeled as AI-generated tag in video's description.",
+      "note": "post_info.is_aigc in Direct Post; already used by reachweaver/tiktok.py (disabled until a live receipt)."
+    },
+    "linkedin_policy_synthetic": {
+      "url": "https://www.linkedin.com/legal/professional-community-policies",
+      "kind": "official",
+      "checked_on": "2026-10-21",
+      "quote": "Do not share synthetic or manipulated media that depicts a person saying something they did not say or doing something they did not do without clearly disclosing the fake or altered nature of the material."
+    },
+    "linkedin_help_c2pa": {
+      "url": "https://www.linkedin.com/help/linkedin/answer/a6282984",
+      "kind": "official",
+      "checked_on": "2026-10-21",
+      "quote": "Members can view the Content Credentials on all image and video content that has C2PA information attached."
+    },
+    "linkedin_help_self_attest": {
+      "url": "https://www.linkedin.com/help/linkedin/answer/a6282984",
+      "kind": "official",
+      "checked_on": "2026-10-21",
+      "quote": "In select countries, when you upload media that does not already have valid authenticity information, you will have the option to self-attest that the media was created using AI.",
+      "note": "The same page says the feature is being made available gradually."
+    },
+    "x_policy_unfetched": {
+      "url": "https://help.x.com/en/rules-and-policies/manipulated-media",
+      "kind": "unfetched",
+      "checked_on": "2026-10-21",
+      "quote": "",
+      "note": "curl -4 received a 'Just a moment... Enable JavaScript and cookies to continue' challenge page, so X's policy text was not read. Nothing about X is asserted here."
+    },
+    "eu_art50_text": {
+      "url": "https://artificialintelligenceact.eu/article/50/",
+      "kind": "secondary",
+      "checked_on": "2026-10-21",
+      "quote": "that generates or manipulates text which is published with the purpose of informing the public on matters of public interest shall disclose that the text has been artificially generated or manipulated.",
+      "note": "Art. 50(4), second subparagraph, beginning 'Deployers of an AI system'. Secondary site (EUR-Lex was not reachable); not legal advice."
+    },
+    "eu_art50_human_review": {
+      "url": "https://artificialintelligenceact.eu/article/50/",
+      "kind": "secondary",
+      "checked_on": "2026-10-21",
+      "quote": "where the AI-generated content has undergone a process of human review or editorial control and where a natural or legal person holds editorial responsibility for the publication of the content.",
+      "note": "Art. 50(4): the exception to the text disclosure duty. Secondary site; not legal advice."
+    },
+    "eu_art50_deep_fake": {
+      "url": "https://artificialintelligenceact.eu/article/50/",
+      "kind": "secondary",
+      "checked_on": "2026-10-21",
+      "quote": "deep fake means AI-generated or manipulated image, audio or video content that resembles existing persons, objects, places, entities or events and would falsely appear to a person to be authentic or truthful",
+      "note": "Definition from Art. 3(60), shown inline on the Art. 50 page. Art. 50(4) first subparagraph: deployers of such a system 'shall disclose that the content has been artificially generated or manipulated'. Secondary site; not legal advice."
+    },
+    "eu_art50_artistic": {
+      "url": "https://artificialintelligenceact.eu/article/50/",
+      "kind": "secondary",
+      "checked_on": "2026-10-21",
+      "quote": "Where the content forms part of an evidently artistic, creative, satirical, fictional or analogous work or programme, the transparency obligations set out in this paragraph are limited to disclosure of the existence of such generated or manipulated content in an appropriate manner that does not hamper the display or enjoyment of the work.",
+      "note": "Art. 50(4). Secondary site; not legal advice."
+    },
+    "eu_art3_deployer": {
+      "url": "https://artificialintelligenceact.eu/article/50/",
+      "kind": "secondary",
+      "checked_on": "2026-10-21",
+      "quote": "except where the AI system is used in the course of a personal non-professional activity",
+      "note": "Part of the Art. 3(4) definition of deployer, shown inline on the Art. 50 page. Secondary site; not legal advice."
+    },
+    "eu_art50_timing": {
+      "url": "https://artificialintelligenceact.eu/article/50/",
+      "kind": "secondary",
+      "checked_on": "2026-10-21",
+      "quote": "in a clear and distinguishable manner at the latest at the time of the first interaction or exposure",
+      "note": "Art. 50(5). Secondary site; not legal advice."
+    },
+    "eu_art113_date": {
+      "url": "https://artificialintelligenceact.eu/article/113/",
+      "kind": "secondary",
+      "checked_on": "2026-10-21",
+      "quote": "It shall apply from 2 August 2026.",
+      "note": "Art. 113; the Art. 50 page on the same site states 'Comes into force 2 August 2026, according to Article 113'. Secondary site; not legal advice."
+    }
+  },
+  "platforms": {
+    "youtube": {
+      "name": "YouTube",
+      "aliases": ["youtube_shorts"],
+      "verification": "verified",
+      "when_required": "Realistic content made or meaningfully altered with AI: a real person saying or doing something they did not, altered footage of a real event or place, a realistic scene that did not happen, or AI music that is the main focus.",
+      "realistic_media": {"image": "required", "video": "required"},
+      "realistic_media_source": ["youtube_help_disclosure"],
+      "non_realistic_media": "not_required",
+      "non_realistic_media_source": ["youtube_help_not_realistic"],
+      "ai_text": "not_required",
+      "ai_text_basis": "YouTube lists AI help with an outline, script, title or thumbnail as production assistance that needs no disclosure.",
+      "ai_text_source": ["youtube_help_production_assistance"],
+      "native_control": "YouTube Studio upload > Attributes > \"AI use\": Yes",
+      "native_control_verified": true,
+      "native_control_source": ["youtube_help_ai_use_setting"],
+      "api_field": "status.containsSyntheticMedia",
+      "api_field_source": ["youtube_api_contains_synthetic_media"],
+      "reads_c2pa": true,
+      "c2pa_source": ["youtube_help_c2pa"],
+      "consequences": "Manual label, removal of content or suspension from the YouTube Partner Program for creators who consistently do not disclose (as quoted).",
+      "consequences_source": ["youtube_help_penalties"]
+    },
+    "instagram": {
+      "name": "Instagram",
+      "aliases": [],
+      "verification": "verified",
+      "when_required": "Organic posts with photorealistic video or realistic-sounding audio that was digitally created or altered. Images are labelled \"AI info\" when Meta detects industry indicators (C2PA, IPTC) or you disclose.",
+      "realistic_media": {"image": "recommended", "video": "required"},
+      "realistic_media_source": ["meta_2024_02_disclosure_tool", "meta_2024_02_image_indicators"],
+      "non_realistic_media": "not_required",
+      "non_realistic_media_source": ["meta_2024_02_disclosure_tool"],
+      "ai_text": "not_required",
+      "ai_text_basis": "The cited Meta rule covers photorealistic video and realistic-sounding audio; it says nothing about text.",
+      "ai_text_source": ["meta_2024_02_disclosure_tool"],
+      "native_control": "Meta's AI disclosure / label tool in the composer (the exact setting name was not verified; viewers see \"AI info\")",
+      "native_control_verified": false,
+      "native_control_source": ["meta_2024_02_disclosure_tool", "meta_2024_04_ai_info"],
+      "api_field": null,
+      "api_field_source": [],
+      "reads_c2pa": true,
+      "c2pa_source": ["meta_2024_02_c2pa"],
+      "consequences": "Meta \"may apply penalties\" when people do not use the disclosure tool (as quoted).",
+      "consequences_source": ["meta_2024_02_disclosure_tool"]
+    },
+    "facebook_pages": {
+      "name": "Facebook",
+      "aliases": ["facebook"],
+      "verification": "verified",
+      "when_required": "Organic posts with photorealistic video or realistic-sounding audio that was digitally created or altered. Images are labelled \"AI info\" when Meta detects industry indicators (C2PA, IPTC) or you disclose.",
+      "realistic_media": {"image": "recommended", "video": "required"},
+      "realistic_media_source": ["meta_2024_02_disclosure_tool", "meta_2024_02_image_indicators"],
+      "non_realistic_media": "not_required",
+      "non_realistic_media_source": ["meta_2024_02_disclosure_tool"],
+      "ai_text": "not_required",
+      "ai_text_basis": "The cited Meta rule covers photorealistic video and realistic-sounding audio; it says nothing about text.",
+      "ai_text_source": ["meta_2024_02_disclosure_tool"],
+      "native_control": "Meta's AI disclosure / label tool in the composer (the exact setting name was not verified; viewers see \"AI info\")",
+      "native_control_verified": false,
+      "native_control_source": ["meta_2024_02_disclosure_tool", "meta_2024_04_ai_info"],
+      "api_field": null,
+      "api_field_source": [],
+      "reads_c2pa": true,
+      "c2pa_source": ["meta_2024_02_c2pa"],
+      "consequences": "Meta \"may apply penalties\" when people do not use the disclosure tool (as quoted).",
+      "consequences_source": ["meta_2024_02_disclosure_tool"]
+    },
+    "threads": {
+      "name": "Threads",
+      "aliases": [],
+      "verification": "verified",
+      "when_required": "Organic posts with photorealistic video or realistic-sounding audio that was digitally created or altered. Images are labelled \"AI info\" when Meta detects industry indicators (C2PA, IPTC) or you disclose.",
+      "realistic_media": {"image": "recommended", "video": "required"},
+      "realistic_media_source": ["meta_2024_02_disclosure_tool", "meta_2024_02_image_indicators"],
+      "non_realistic_media": "not_required",
+      "non_realistic_media_source": ["meta_2024_02_disclosure_tool"],
+      "ai_text": "not_required",
+      "ai_text_basis": "The cited Meta rule covers photorealistic video and realistic-sounding audio; it says nothing about text.",
+      "ai_text_source": ["meta_2024_02_disclosure_tool"],
+      "native_control": "Meta's AI disclosure / label tool in the composer (the exact setting name was not verified; viewers see \"AI info\")",
+      "native_control_verified": false,
+      "native_control_source": ["meta_2024_02_disclosure_tool", "meta_2024_04_ai_info"],
+      "api_field": null,
+      "api_field_source": [],
+      "reads_c2pa": true,
+      "c2pa_source": ["meta_2024_02_c2pa"],
+      "consequences": "Meta \"may apply penalties\" when people do not use the disclosure tool (as quoted).",
+      "consequences_source": ["meta_2024_02_disclosure_tool"]
+    },
+    "tiktok": {
+      "name": "TikTok",
+      "aliases": [],
+      "verification": "verified",
+      "when_required": "AI-generated or significantly edited content that shows realistic-looking scenes or people.",
+      "realistic_media": {"image": "required", "video": "required"},
+      "realistic_media_source": ["tiktok_guidelines_aigc"],
+      "non_realistic_media": "not_required",
+      "non_realistic_media_source": ["tiktok_guidelines_aigc"],
+      "ai_text": "not_required",
+      "ai_text_basis": "The cited TikTok rule covers content that shows realistic-looking scenes or people; it says nothing about caption text.",
+      "ai_text_source": ["tiktok_guidelines_aigc"],
+      "native_control": "TikTok's creator AI-generated content label (or a sticker or caption); the exact in-app setting name was not verified",
+      "native_control_verified": false,
+      "native_control_source": ["tiktok_newsroom_label_tool"],
+      "api_field": "post_info.is_aigc",
+      "api_field_source": ["tiktok_api_is_aigc"],
+      "reads_c2pa": true,
+      "c2pa_source": ["tiktok_newsroom_c2pa"],
+      "consequences": "Unlabeled content may be removed, restricted, or labeled by TikTok (as quoted).",
+      "consequences_source": ["tiktok_guidelines_unlabeled"]
+    },
+    "linkedin": {
+      "name": "LinkedIn",
+      "aliases": [],
+      "verification": "verified",
+      "when_required": "Synthetic or manipulated media that depicts a person saying or doing something they did not must clearly disclose that it is fake or altered.",
+      "realistic_media": {"image": "recommended", "video": "recommended"},
+      "realistic_media_source": ["linkedin_policy_synthetic", "linkedin_help_self_attest"],
+      "realistic_media_note": "Required, not just recommended, when the media depicts a person saying or doing something they did not.",
+      "non_realistic_media": "not_required",
+      "non_realistic_media_source": ["linkedin_policy_synthetic"],
+      "ai_text": "not_required",
+      "ai_text_basis": "The cited LinkedIn rule covers synthetic or manipulated media depicting a person; it says nothing about text.",
+      "ai_text_source": ["linkedin_policy_synthetic"],
+      "native_control": "Say it clearly in the post; where offered (select countries), use the upload option to self-attest that the media was created using AI",
+      "native_control_verified": true,
+      "native_control_source": ["linkedin_help_self_attest"],
+      "api_field": null,
+      "api_field_source": [],
+      "reads_c2pa": true,
+      "c2pa_source": ["linkedin_help_c2pa"],
+      "consequences": null,
+      "consequences_source": []
+    },
+    "x": {
+      "name": "X",
+      "aliases": ["twitter"],
+      "verification": "unverified",
+      "when_required": "Not verified: X's policy page could not be read on the checked date.",
+      "realistic_media": {"image": "unknown", "video": "unknown"},
+      "realistic_media_source": ["x_policy_unfetched"],
+      "non_realistic_media": "unknown",
+      "non_realistic_media_source": ["x_policy_unfetched"],
+      "ai_text": "unknown",
+      "ai_text_basis": "X's policy page could not be read on the checked date.",
+      "ai_text_source": ["x_policy_unfetched"],
+      "native_control": null,
+      "native_control_verified": false,
+      "native_control_source": [],
+      "api_field": null,
+      "api_field_source": [],
+      "reads_c2pa": null,
+      "c2pa_source": [],
+      "consequences": null,
+      "consequences_source": []
+    }
+  },
+  "jurisdictions": {
+    "eu_ai_act_art50": {
+      "name": "EU AI Act, Article 50 (transparency for deployers)",
+      "applies_from": "2026-08-02",
+      "applies_from_source": ["eu_art113_date"],
+      "disclaimer": "Wording read from a secondary site (artificialintelligenceact.eu), not from EUR-Lex. This is not legal advice: whether you are a deployer, whether a text informs the public on matters of public interest and whether your review counts as editorial control are legal questions for you or a qualified lawyer.",
+      "text_rule_source": ["eu_art50_text"],
+      "text_exemption_source": ["eu_art50_human_review"],
+      "deep_fake_source": ["eu_art50_deep_fake"],
+      "artistic_source": ["eu_art50_artistic"],
+      "personal_use_source": ["eu_art3_deployer"],
+      "timing_source": ["eu_art50_timing"]
+    },
+    "china": {
+      "name": "China: Measures for Labeling AI-Generated Synthetic Content",
+      "module": "reachweaver/china.py",
+      "rule": "LEGAL.ai_label",
+      "note": "Rules, quotes and sources live in reachweaver/china.py (checked there); they apply to every platform in china.PROFILES."
+    }
+  }
+}

@@ -156,6 +156,7 @@ COMMANDS: dict[str, dict] = {
     "ai-visibility": _c(NR, note="network only with --online (own brief pages, their robots.txt and /llms.txt)"),
     "utm-link": _c(R),
     "creative-preflight": _c(R),
+    "ai-label-check": _c(R, note="advisory; --post-id opens the database read-only; never blocks, approves or sends"),
     "media-check": _c(R),
     "media-storyboard": _c(W),
     "media-cutlist": _c(R),

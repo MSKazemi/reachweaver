@@ -43,7 +43,7 @@ reachweaver = "reachweaver.cli:main"
 include = ["reachweaver*"]
 
 [tool.setuptools.package-data]
-reachweaver = ["distribution_registry.json", "platform_registry.json", "profile_audit_registry.json", "accounts.example.json", "discovery_registry.json", "signup_registry.json", "voice_tells.json", "ai_search_registry.json"]
+reachweaver = ["distribution_registry.json", "platform_registry.json", "profile_audit_registry.json", "accounts.example.json", "discovery_registry.json", "signup_registry.json", "voice_tells.json", "ai_search_registry.json", "ai_disclosure_registry.json"]
 
 # Type checking (issue #8, ADR-0002). Pragmatic baseline: only annotated functions are
 # checked; tighten deliberately module by module. Run with `make typecheck`.

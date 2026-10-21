@@ -1414,6 +1414,12 @@ def validate_media_manifest(manifest: dict, base_dir: str | Path) -> dict:
                   "subtitle_translations": []}
         reports.append(report)
         _check_rights(label, asset, errors, warnings)
+        if "realistic_synthetic" in asset:  # optional, additive: read by ai-label-check (docs/AI-CONTENT-LABELS.md)
+            if not isinstance(asset["realistic_synthetic"], bool):
+                errors.append(f"{label}.realistic_synthetic must be true or false when present")
+            elif asset["realistic_synthetic"]:
+                warnings.append(f"{label}: marked realistic_synthetic; most platforms ask for an AI label on "
+                                "realistic AI-made media. Run ai-label-check for each target platform")
         for key in ("caption", "content_warning", "attribution"):
             value = asset.get(key)
             if value is not None and not isinstance(value, str):
