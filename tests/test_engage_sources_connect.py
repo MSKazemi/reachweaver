@@ -64,7 +64,10 @@ class ConnectOrderTests(unittest.TestCase):
 
     def test_the_opener_uses_the_ipv4_first_handler_and_keeps_certificate_checks(self):
         import ssl
-        context = engage_sources.IPv4FirstHTTPSHandler()._context
+        # Python 3.12+ builds the default context in the handler; 3.11 leaves it None and the connection builds
+        # the same default, verifying context. Check the context a connection actually uses.
+        handler_context = engage_sources.IPv4FirstHTTPSHandler()._context
+        context = netconnect.IPv4FirstHTTPSConnection("example.org", 443, context=handler_context)._context
         self.assertTrue(context.check_hostname)
         self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
 
