@@ -774,6 +774,14 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, default=0, help="Loopback port (default: a free one)")
     p.add_argument("--open", action="store_true", help="Open the tokenised URL in your default browser")
     p.add_argument("--optout", type=Path, help=optout_help + "; queued posts mentioning it are counted, never named")
+    p = sub.add_parser("studio", help="Open the dashboard and the post composer together on 127.0.0.1, linked to "
+                                      "each other (write a post, then see how it did); each keeps its own token "
+                                      "and guards, nothing is sent; Ctrl+C stops both")
+    p.add_argument("--open", action="store_true",
+                   help="Open your browser: on the dashboard, or on the composer when you have no posts yet")
+    p.add_argument("--port", type=int, default=0, help="Dashboard loopback port (default: a free one)")
+    p.add_argument("--composer-port", type=int, default=0, help="Composer loopback port (default: a free one)")
+    p.add_argument("--optout", type=Path, help=optout_help + "; queued posts mentioning it are counted, never named")
     p = sub.add_parser("mcp-serve", help="Experimental: a local MCP server on stdin/stdout for MCP "
                        "clients other than Claude Code (Claude Desktop...); only read-only tools, no approve or "
                        "publish tool; runs until its input closes (docs/MCP-SERVER.md)")
@@ -1239,6 +1247,10 @@ def make_parser() -> argparse.ArgumentParser:
                    help="With --web, open the local composer in your default browser")
     p.add_argument("--port", type=int, default=0,
                    help="With --web, local port; 0 chooses a free port (default)")
+    p.add_argument("--idea", metavar="ID",
+                   help="With --web, start the composer draft from this open idea's text (the inbox is not "
+                        "changed); --text works the same way. An unsaved draft is kept and the page offers the "
+                        "text instead")
 
 
     p = sub.add_parser("manual-export", help="Offline creator-ready package for Threads/Instagram/Facebook Pages/YouTube/TikTok, or a generic package for any other manual_only distribution-registry destination; never sends")

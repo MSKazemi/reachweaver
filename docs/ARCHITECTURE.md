@@ -843,6 +843,7 @@ browser --GET /            --> page (share_browser_ui.HTML, CSP nonce per respon
         --POST /api/media (octet-stream) -> store.store_media(): state/composer/media/<16 hex>/<safe name>
         --POST /api/mark-posted -> store.mark_posted() -> storage.record_manual_publish() + <network>/POSTED.json
         --POST /api/accounts    -> store.list_accounts() (read-only accounts.load_accounts: id, platform, handle)
+        --POST /api/idea        -> share_browser.idea_text(): one OPEN idea's id + text from ideas.json (read-only)
 ```
 
 Page and wording: the UI mirrors the dashboard's tokens (`ui_assets.APP_CSS` values copied, not imported), with dark mode by `prefers-color-scheme`, a five-step progress bar computed from the editor state, a `role=status` announcer and 44 px targets under 640 px. `share_browser.plain()` maps CLI and field wording in errors and preview warnings to plain words (`PLAIN_WORDS`; the no-media-manifest warning becomes "<Network> needs a photo or video…"); the rule each message reports is unchanged. Each saved package gets a display name (`store.display_name`: caption words cut at a word boundary, control/format/bidi characters removed, plus the save time) in `PACKAGE.json`; it is re-validated on every read, else derived again, and the folder name pattern is unchanged.
@@ -871,3 +872,27 @@ Invariants:
 - **Untrusted text.** User text reaches the page only as text (no `innerHTML`); the CSP forbids remote resources and framing. Requests are not logged.
 
 Not implemented: image thumbnails in the page (the CSP keeps `img-src 'none'`), the global `--accounts` flag for the composer (it reads `$REACHWEAVER_ACCOUNTS` or the workspace's config/accounts.json; `ShareServer(accounts=...)` and `serve(accounts=...)` accept a path but `share --web` does not pass one yet), a cap on concurrent local connections, and keeping per-network edits when the main caption changes (they are discarded). With `--open` the token URL is handed to the system browser launcher, as `ui --open` does, so it may be visible in the local process list.
+
+## Studio: dashboard and composer in one process (`studio`)
+
+`reachweaver studio` (`reachweaver/studio.py`) starts the read-only dashboard (`ui_server.make_server`) and the composer (`share_browser.ShareServer`) in one process, each on its own loopback port, with its OWN per-run token and every guard it has alone. `studio.serve_both` runs the two `serve_forever` loops in daemon threads; Ctrl+C (or either loop ending) calls `shutdown()` and `server_close()` on both. With `--open` the browser starts on the dashboard, or on the composer when the database holds no post. When no database exists, `studio` creates an empty one through `storage.connect` (the same as `init`) before the dashboard opens it `mode=ro`; that is its only own write.
+
+```text
+dashboard --GET /<dash token>/api/studio --> {"studio": true, "composer": "http://127.0.0.1:C/#<composer token>"}
+composer  --GET /api/catalog (X-ReachWeaver-Token) --> {..., "dashboard": "http://127.0.0.1:D/<dash token>/#/results"}
+links: dashboard "Write a new post" / Ctrl K / next step / Write page -> composer URL
+       dashboard Ideas "Write a post from this idea" -> composer URL + "&idea=idea-xxxxxxxx" (fragment only)
+       composer "See how your posts did" (header, footer, after Mark as posted) -> dashboard #/results
+```
+
+Security review points (what keeps the cross-link from widening either page):
+
+- **Tokens stay per server and per run.** The two tokens differ, are new every run and are never stored or logged. Each server learns the other's URL only from `studio.link()` in the same process; a dashboard started by `ui` or a composer started by `share --web` has `None` and keeps its copyable-command fallback.
+- **A token only appears in a page served by the process that owns both servers**, and only inside a token-gated JSON answer (`api/studio`, `/api/catalog`), never in static HTML (tested: neither page body contains either token). Both answers carry `Cache-Control: no-store`.
+- **No referrer.** Both servers send `Referrer-Policy: no-referrer` (and both pages carry the meta tag); links use `rel="noopener noreferrer"`; the composer token sits in the URL fragment, which is never sent in a request or a Referer. The dashboard token is in its path, so leaving the dashboard must not leak it: the policy above covers that.
+- **No cross-origin access.** Both CSPs are unchanged (`default-src 'none'`, `connect-src 'self'`, no third-party origin), so a page can only navigate to the other, never fetch from it. The dashboard is still GET/HEAD-only (405 for POST/PUT/DELETE/PATCH), and the composer still refuses a POST without its own token and its own Origin (the dashboard's origin is refused too).
+- **One key in practice.** Whoever holds the dashboard URL of a studio run can read the composer link, so the two URLs are one secret; the terminal and docs/DASHBOARD.md say to keep both private.
+- **Idea prefill is read-only and server-checked.** The dashboard puts only an idea id (`idea-` + 8 hex) in the composer link's fragment; the composer page strips it from the address at once and asks `/api/idea` (Host, token, Origin, size and allowlist guards like every POST) for that OPEN idea's text, read from `ideas.json` and never changed. The page fills an empty editor, or, when the editor holds a post, asks before replacing the caption (Undo restores it). This was chosen over seeding the draft on the server from a URL because a link (which a person can be tricked into opening) then never writes anything by itself. `share --web --text T` and `--idea ID` seed the draft from the owner's own command line through `share_composer_store.save_draft` (allowlisted fields only) and never replace an unsaved draft: the text is offered once by the page instead (`ShareServer.offer`).
+- **Not exposed to agents.** `studio` is `interactive` in the catalog and in `mcp_server.NEVER_EXPOSED`.
+
+Tests: `tests/test_studio.py` (both servers start, cross-link only in studio mode, referrer and CSP headers, dashboard refuses POST/PUT/DELETE/PATCH, composer refuses a wrong Origin or token, Ctrl+C closes both, the idea route and seeding), `tests/test_reason_help.py` (every health reason code has dashboard help text with the fix).

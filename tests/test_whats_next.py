@@ -75,25 +75,27 @@ class ViewTests(Base):
         self.assertIn('"Idea number 0 about glazing"', view["actions"][0]["text"])
         self.assertEqual(view["counts"]["open_ideas"], 7)
 
-    def test_an_idea_becomes_a_share_command_for_the_networks_you_use_quoted_for_the_shell(self):
+    def test_an_idea_opens_the_composer_with_that_idea_for_the_networks_you_use(self):
         self.state.mkdir(mode=0o700)
         idea_text = "It's $5 & \"cheap\"; `rm -rf` $(whoami)"
-        ideas.add(self.inbox(), idea_text)
+        item = ideas.add(self.inbox(), idea_text)
         self.by_hand("instagram", "first", days=3, slug="a")
         self.by_hand("instagram", "second", days=2, slug="b")
         self.by_hand("bluesky", "third", days=1, slug="c")
         action = next(a for a in self.view()["actions"] if a["kind"] == "idea")
         argv = shlex.split(action["command"])
-        self.assertEqual(argv[:4], ["reachweaver", "share", "--platform", "instagram,bluesky"])
-        self.assertEqual(argv[4:], ["--text", idea_text])  # one argument, exactly the idea
+        # The idea id, never its text: nothing the idea says reaches a shell, and the composer reads it read-only.
+        self.assertEqual(argv, ["reachweaver", "share", "--web", "--open", "--idea", item["id"]])
+        self.assertNotIn("rm -rf", action["command"])
+        self.assertIn("Instagram, Bluesky", action["note"])
         make_parser().parse_args(argv[1:])
 
-    def test_a_long_idea_goes_to_the_browser_composer_instead_of_a_long_command(self):
+    def test_a_long_idea_goes_to_the_browser_composer_too(self):
         self.state.mkdir(mode=0o700)
-        ideas.add(self.inbox(), "word " * 80)
+        item = ideas.add(self.inbox(), "word " * 80)
         self.by_hand("bluesky", "posted", days=1, slug="a")
         action = next(a for a in self.view()["actions"] if a["kind"] == "idea")
-        self.assertEqual(action["command"], whats_next.SHARE_WEB)
+        self.assertEqual(action["command"], whats_next.SHARE_WEB + " --idea " + item["id"])
         self.assertLessEqual(len(action["text"]), 100)
 
     def test_drafts_results_due_and_days_since_last_post(self):

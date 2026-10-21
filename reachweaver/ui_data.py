@@ -145,20 +145,35 @@ def headline(summary: dict) -> dict:
 
 NEXT_SECONDARY = 3
 WRITE_LABEL = "Write a new post"
+# Steps the browser can do itself: ``composer`` (writing a post, which ``studio`` turns into a link to the composer it
+# runs beside this dashboard) and ``ideas`` (this dashboard's own Ideas page). Everything else stays a command to copy.
+_OPENS = (("reachweaver share --web", "composer"), ("reachweaver idea list", "ideas"))
+
+
+def step_opens(command: str | None) -> str | None:
+    """``composer``, ``ideas`` or None: what a next step's command does that a page can do with a link instead."""
+    if not command:
+        return None
+    for prefix, page in _OPENS:
+        if command == prefix or command.startswith(prefix + " "):
+            return page
+    return None
 
 
 def next_view(guide: dict) -> dict:
     """The Overview's "Your next step" card from the ``start`` guide (``start.build_guide``, same order): one
     ``primary`` step and at most ``NEXT_SECONDARY`` others. When nothing is waiting, the primary step is writing a new
     post in the browser composer (``share --web``), which needs no account. Each step says whether only the owner may
-    run its command (``catalog.owner_runs``). Commands are text; nothing is run."""
+    run its command (``catalog.owner_runs``) and what a page can open instead (``opens``, see ``step_opens``).
+    Commands are text; nothing is run."""
     from .start import SHARE_WEB  # start imports this module: a late import avoids the cycle
-    steps = [dict(s, owner_only=bool(s.get("command") and owner_runs(s["command"])))
+    steps = [dict(s, owner_only=bool(s.get("command") and owner_runs(s["command"])),
+                  opens=step_opens(s.get("command")))
              for s in guide["steps"] if s.get("command") != "reachweaver ui"]
     waiting = guide.get("state") not in ("empty", "idle")
     write = {"label": WRITE_LABEL, "command": SHARE_WEB,
              "note": "Opens a page on this computer that turns one post into a ready-to-paste version for each "
-                     "network. You post it yourself; nothing is sent.", "owner_only": False}
+                     "network. You post it yourself; nothing is sent.", "owner_only": False, "opens": "composer"}
     if waiting and steps:
         primary, rest = steps[0], steps[1:]
         if not any(s.get("command") == SHARE_WEB for s in rest):

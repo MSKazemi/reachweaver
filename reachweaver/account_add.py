@@ -335,6 +335,9 @@ def run(args) -> int:
         print(f"Filling in the example entry {account_id} (it still held placeholder values) with your details.")
     others = {str(a["id"]): a for a in kept}
     notes = _persona_checks(normalized, args.persona, others, profile_store.load_optional(args.profile))
+    version_note = linkedin_version_note(normalized)
+    if version_note:
+        notes.append(version_note)
     names = [normalized["env_prefix"] + suffix for suffix in account_credential_suffixes(normalized)]
     print(describe(normalized))
     for note in notes:
@@ -368,6 +371,29 @@ FIELD_LABELS = {"handle": "Handle", "server": "Server", "chat_id": "Channel", "b
                 "linkedin_version": "LinkedIn API version", "page_name": "Page", "page_id": "Page id",
                 "persona": "Persona", "service": "Server", "visibility": "Visibility"}
 _NOT_SHOWN = frozenset({"id", "platform", "env_prefix"})
+
+
+def linkedin_version_note(entry: dict) -> str | None:
+    """A warning (never a refusal) when a LinkedIn entry pins an API version outside the supported window. Uses the
+    same check (``linkedin.version_status``) that makes ``health`` report linkedin_version_unsupported, so adding
+    the account says it now instead of the dashboard surprising you later. Posting by hand is unaffected."""
+    if entry.get("platform") != "linkedin":
+        return None
+    from .linkedin import VERSION_UNSUPPORTED_MONTHS, version_status
+    level, message = version_status(entry.get("linkedin_version"))
+    if level == "ok":
+        return None
+    version = entry.get("linkedin_version")
+    if level == "error" and "linkedin_version_unsupported" in message:
+        return (f"LinkedIn API version {version} is {VERSION_UNSUPPORTED_MONTHS} months old or more. LinkedIn "
+                "supports each version for a minimum of one year, so ReachWeaver refuses automatic LinkedIn sends "
+                "with it and the dashboard shows it as blocked. Posting by hand is not affected. Use the 'Latest "
+                "Version' from LinkedIn's versioning page (see docs/LINKEDIN.md): set linkedin_version in "
+                "accounts.json, or remove this account and add it again with --field linkedin_version=YYYYMM.")
+    if level == "warning":
+        return (f"LinkedIn API version {version} is getting old; plan to move to a newer version (docs/LINKEDIN.md) "
+                "before LinkedIn stops supporting it.")
+    return f"LinkedIn API version {version} cannot be used for automatic sending: {message}."
 
 
 def describe(entry: dict) -> str:

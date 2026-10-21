@@ -10,6 +10,12 @@ posted by hand (``storage.record_manual_publish``: a terminal record that nothin
 can send), optionally naming an account that the server checks against
 accounts.json (read, never written). Nothing here can approve, schedule or send;
 see share_composer_store.
+
+``/api/idea`` only READS one open idea's text from the ideas inbox (the page offers it as the caption; the inbox
+is never changed). ``share --web --text/--idea`` seeds the autosaved draft through the same store, and never
+replaces an unsaved draft: the page offers the text instead. Under ``reachweaver studio`` the server also knows the
+dashboard's full local URL (``dashboard_url``, carrying the dashboard's own token) and returns it only from the
+token-gated catalog route, so the page can link to Results; every guard here is unchanged.
 """
 from __future__ import annotations
 
@@ -46,7 +52,9 @@ _SAVE_FIELDS = frozenset({"mode", "package", "revision", "confirm"})
 # Every POST route and the body it takes. Nothing else is routed; there is no send, approve or schedule route.
 JSON_ROUTES = frozenset({"/api/preview", "/api/prepare", "/api/packages", "/api/package/open",
                          "/api/package/duplicate", "/api/mark-posted", "/api/draft/load", "/api/draft/save",
-                         "/api/draft/clear", "/api/accounts"})
+                         "/api/draft/clear", "/api/accounts", "/api/idea"})
+IDEA_ID = re.compile(r"idea-[0-9a-f]{8}")
+SEED_TEXT_BYTES = 8 * 1024  # an idea is at most ideas.TEXT_MAX characters; --text for the composer stays short too
 MEDIA_ROUTE = "/api/media"
 # Technical wording from the shared share/manual-export rules -> plain words for the page. The rule and its
 # safety meaning are unchanged; only CLI flag and field names are replaced. Applied to errors and warnings.
@@ -313,11 +321,59 @@ def _accounts(obj: Any, accounts: str | None) -> dict:
     return {"accounts": store.list_accounts(accounts), "ledger_ids": dict(store.LEDGER_ID)}
 
 
-def _draft_load(obj: Any) -> dict:
+def _draft_load(obj: Any, server: "ShareServer | None" = None) -> dict:
     _only(obj, set())
     draft = store.load_draft()
     media = [store.media_info(m) for m in draft["media"]] if draft else []
-    return {"draft": draft, "media": media}
+    offer = None
+    if server is not None and server.offer is not None:  # a --text/--idea seed that met an unsaved draft: once
+        offer, server.offer = server.offer, None
+    return {"draft": draft, "media": media, "offer": offer}
+
+
+def idea_text(idea_id: object, db: str | None) -> dict:
+    """Read-only: one OPEN idea's id and text from the ideas inbox next to the database, for the composer to offer
+    as a caption. Nothing is written; the inbox is never changed (an idea stays open until you drop or promote it)."""
+    from . import ideas as ideas_inbox
+    if not isinstance(idea_id, str) or not IDEA_ID.fullmatch(idea_id):
+        raise ValidationError("Unknown idea.")
+    for item in ideas_inbox.listing(ideas_inbox.inbox_path(db), status="open"):
+        if item["id"] == idea_id:
+            return {"id": item["id"], "text": item["text"]}
+    raise ValidationError(f"No open idea called {idea_id}. It may have been dropped or promoted already.")
+
+
+def _idea(obj: Any, db: str | None) -> dict:
+    return {"idea": idea_text(_only(obj, {"idea"}).get("idea"), db)}
+
+
+def draft_is_empty(draft: dict | None) -> bool:
+    """True when there is nothing in the composer worth keeping: no caption, network, note, title, media or open
+    package (a draft that is only whitespace counts as empty)."""
+    if not draft:
+        return True
+    return not ((draft.get("text") or "").strip() or draft.get("platforms") or (draft.get("note") or "").strip()
+                or (draft.get("title") or "").strip() or draft.get("media") or draft.get("overrides")
+                or draft.get("package"))
+
+
+def seed_draft(text: str, label: str) -> dict:
+    """Start the composer from ``text`` (``share --web --text`` / ``--idea``). The draft is written through the
+    normal store (allowlisted fields only) when the composer holds no unsaved draft. An unsaved draft is NEVER
+    replaced: the result says so and carries an ``offer`` that the page shows once, so the owner can choose."""
+    if not isinstance(text, str) or not text.strip():
+        raise ValidationError("The text to start the composer with is empty.")
+    if len(text.encode("utf-8")) > SEED_TEXT_BYTES:
+        raise ValidationError(f"The text to start the composer with is too long (at most {SEED_TEXT_BYTES} bytes); "
+                              "paste it into the composer instead.")
+    if draft_is_empty(store.load_draft()):
+        store.save_draft({"text": text})
+        return {"seeded": True, "offer": None,
+                "message": f"Started the composer with {label}. It is a private draft on this computer; nothing is "
+                           "posted."}
+    return {"seeded": False, "offer": {"text": text, "label": label},
+            "message": f"The composer already holds a post, so it was kept. The page offers {label} instead; you "
+                       "choose whether to use it."}
 
 
 def _draft_save(obj: Any) -> dict:
@@ -359,6 +415,10 @@ class ShareServer(ThreadingHTTPServer):
         self.db = db  # the history database "Mark as posted" records into (--db, else the workspace default)
         self.accounts = accounts  # accounts.json read (never written) for the optional account choice
         self.write_lock = threading.Lock()  # one composer request touches the files or the database at a time
+        # Set only by `studio`: the dashboard's full local URL (it carries the DASHBOARD's own token), returned by
+        # the token-gated catalog route so the page can link to Results. A composer started alone has none.
+        self.dashboard_url: str | None = None
+        self.offer: dict | None = None  # a --text/--idea seed kept out of an unsaved draft; offered once by the page
         super().__init__((BIND_ADDRESS, port), ShareHandler)
 
     @property
@@ -434,7 +494,8 @@ class ShareHandler(BaseHTTPRequestHandler):
             if not self._token_ok():
                 self._json_response(403, {"errors": ["This browser session is not authorized."]})
                 return
-            self._json_response(200, {"platforms": catalog(), "max_destinations": MAX_DESTINATIONS})
+            self._json_response(200, {"platforms": catalog(), "max_destinations": MAX_DESTINATIONS,
+                                      "dashboard": self.server.dashboard_url})
         else:
             self._json_response(404, {"errors": ["Not found."]})
 
@@ -569,7 +630,9 @@ class ShareHandler(BaseHTTPRequestHandler):
         if path == "/api/accounts":
             return _accounts(obj, self.server.accounts)
         if path == "/api/draft/load":
-            return _draft_load(obj)
+            return _draft_load(obj, self.server)
+        if path == "/api/idea":  # read-only: one open idea's text, which the page offers as the caption
+            return _idea(obj, self.server.db)
         if path == "/api/draft/save":
             return _draft_save(obj)
         if path == "/api/draft/clear":
@@ -577,10 +640,34 @@ class ShareHandler(BaseHTTPRequestHandler):
         raise ValidationError("Not found.")
 
 
-def serve(port: int = 0, open_browser: bool = False, db: str | None = None, accounts: str | None = None) -> int:
+def seed_from(text: str | None, idea: str | None, db: str | None) -> tuple[str, str] | None:
+    """(text, label) for ``share --web --text`` / ``--idea``, or None. The idea is only read from the inbox."""
+    if text is not None and idea is not None:
+        raise ValidationError("Choose --text or --idea for the composer, not both.")
+    if idea is not None:
+        found = idea_text(idea.strip().casefold(), db)
+        return found["text"], f"the text of idea {found['id']}"
+    if text is not None:
+        return text, "your --text"
+    return None
+
+
+def apply_seed(server: ShareServer, seed: tuple[str, str] | None) -> None:
+    """Seed the draft (or keep an unsaved one and let the page offer the text) and say which happened."""
+    if seed is None:
+        return
+    result = seed_draft(*seed)
+    server.offer = result["offer"]
+    print(result["message"], flush=True)
+
+
+def serve(port: int = 0, open_browser: bool = False, db: str | None = None, accounts: str | None = None,
+          *, text: str | None = None, idea: str | None = None) -> int:
     """Owner-run loopback browser, stopped by Ctrl+C. No scheduled/background tasks."""
+    seed = seed_from(text, idea, db)  # checked before a port is bound: a bad idea id starts nothing
     server = ShareServer(port, db=db, accounts=accounts)
     try:
+        apply_seed(server, seed)
         print("ReachWeaver manual Share Composer (offline, loopback only)")
         print("Open this private local URL in your browser:")
         print(server.url, flush=True)

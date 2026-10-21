@@ -63,7 +63,7 @@ WITHHELD_COMMANDS = {"credentials-audit": "reads credential values (never prints
 # Commands that must never become a tool, whatever the catalog says. A backstop, not the rule.
 NEVER_EXPOSED = frozenset({
     "approve", "review", "unapprove", "publish", "resume", "reconcile", "reconnect", "approval-mode", "connect",
-    "connect-check", "account-kit", "update", "schedule", "cancel", "pause", "disconnect", "mcp-serve", "ui",
+    "connect-check", "account-kit", "update", "schedule", "cancel", "pause", "disconnect", "mcp-serve", "ui", "studio",
     "share", "data-purge", "metrics-fetch", "engagement-fetch", "sources-scan", "postiz-check",
     # 2026-10-21: the owner's own statement that he published a post and read these numbers; a client never makes it
     "posted"})
