@@ -60,6 +60,8 @@ LEDGER_SENTENCE = {
 }
 LEDGER_PROBLEM = {
     ledger.REPLAY: "Its approval was already used once. Approve it again in your terminal before it can be sent.",
+    ledger.WITHDRAWN: ("Its approval was withdrawn earlier, so this approved copy came back from an older database. "
+                       "Approve it again in your terminal before it can be sent."),
     ledger.BROKEN: "The ledger has no record of the approval this post was sent under. Check the post on the platform.",
     ledger.UNAVAILABLE: "The ledger file cannot be read. Restore state/approval-ledger.jsonl next to the database.",
 }

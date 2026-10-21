@@ -589,7 +589,8 @@ def _publish(db, args, wlog) -> int:
                                                 args.min_gap_minutes, providers=providers)
             code = run_live_send(db, post, account, max_per_24h=post_max, min_gap_minutes=post_gap,
                                  optout=optout, cooldown_floor_seconds=rate["cooldown_floor_seconds"],
-                                 preflight_max_retries=rate["preflight_max_retries"])
+                                 preflight_max_retries=rate["preflight_max_retries"],
+                                 on_preflight_retry=wlog.retry_hook(post))
             wlog.backend_result(db, post, code, backend=account["backend"])
             if code and args.post_id:
                 return code
@@ -768,7 +769,8 @@ def _publish(db, args, wlog) -> int:
             verified_connection = preflight_with_backoff(
                 lambda: check_connection(account),
                 max_retries=preflight_retries(post["platform"], rate["preflight_max_retries"]),
-                paused=lambda: is_paused(db), retry_on=PublishError)
+                paused=lambda: is_paused(db), retry_on=PublishError,
+                on_retry=wlog.retry_hook(post))  # log only (security decision item 3); None without --log-json
         except (ValidationError, PublishError) as exc:
             note = ""
             if is_rate_limited(exc):
@@ -2495,9 +2497,6 @@ def execute(args) -> int:
                                       "sharing it again is intended. Nothing changed")
             for hit in repeats:
                 print(f"Warning: {repeat_guard.describe(hit)}")
-            if blocking_repeats:  # --allow-repeat: leave a trace of the decision
-                record_event(db, "repeat_override", args.post_id,
-                      "kinds=" + ",".join(sorted({hit["kind"] for hit in blocking_repeats})))
             reply_problems = _reply_problems(post, _optional_account(args, post["account_id"], post["platform"]),
                                              optout)
             if reply_problems:
@@ -2530,8 +2529,15 @@ def execute(args) -> int:
                 expected = approval_payload_sha256(post, scheduled_at=None, use_row_schedule=False, identity=bound_identity)
                 confirmation.show_payload(post, expected, heading="CONFIRM approval of")
                 confirmed = confirmation.confirm_post(db, args.post_id, expected, action="approve")
-            target = transition(db, args.post_id, "approve", approver=approver, approval_channel=channel,
-                                expected_sha256=expected, confirmation=confirmed, identity=bound_identity)
+            from .storage import _atomic
+            with _atomic(db):  # an --allow-repeat override is recorded only with the approval it belongs to
+                target = transition(db, args.post_id, "approve", approver=approver, approval_channel=channel,
+                                    expected_sha256=expected, confirmation=confirmed, identity=bound_identity)
+                if blocking_repeats:  # --allow-repeat: leave a trace of the decision, tied to this approval
+                    approved_hash = get_post(db, args.post_id)["approved_payload_sha256"] or ""
+                    record_event(db, "repeat_override", args.post_id,
+                                 "kinds=" + ",".join(sorted({hit["kind"] for hit in blocking_repeats}))
+                                 + f" approval_sha256={approved_hash[:12]}")
             post = get_post(db, args.post_id)
             bound = post["approved_payload_sha256"]
             print(f"Post {args.post_id} -> {target} (payload sha256 {bound[:12]}, "
@@ -2599,6 +2605,15 @@ def execute(args) -> int:
             new_status = transition(db,args.post_id,args.command)
             print(json.dumps({"post_id": args.post_id, "status": new_status}) if args.json
                   else f"Post {args.post_id} -> {new_status}")
+            # Security decision item 12: the withdrawal could not be written to the approval ledger.
+            from .storage import LEDGER_UNRECORDED
+            last = db.execute("SELECT detail FROM event_log WHERE post_id=? AND action=? ORDER BY id DESC LIMIT 1",
+                              (args.post_id, args.command)).fetchone()
+            if last is not None and LEDGER_UNRECORDED in str(last[0] or "").split():
+                print(f"WARNING: the withdrawal of post {args.post_id} is not recorded in the approval ledger "
+                      "(approval_ledger_unavailable). The post is withdrawn in this database, but a copy restored "
+                      "from an older backup could still carry the old approval. Restore approval-ledger.jsonl "
+                      "next to the database (reachweaver health shows its state)", file=sys.stderr)
         elif args.command == "schedule":
             when = parse_utc(args.at)
             platform = get_post(db, args.post_id)["platform"]

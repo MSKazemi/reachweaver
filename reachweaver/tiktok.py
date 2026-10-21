@@ -685,7 +685,8 @@ def run_live_send(con, post, account: dict, *, max_per_24h: int, min_gap_minutes
     try:  # read-only: GET user info (+ creator_info query for Direct Post); bounded retries (#11)
         verified = preflight_with_backoff(lambda: check_connection(account, record),
                                           max_retries=preflight_retries("tiktok", preflight_max_retries),
-                                          paused=lambda: is_paused(con), retry_on=publishers.PublishError)
+                                          paused=lambda: is_paused(con), retry_on=publishers.PublishError,
+                                          on_retry=wlog.retry_hook(post))  # log only (decision item 3)
     except (ValidationError, publishers.PublishError) as exc:
         note = ""
         if is_rate_limited(exc):

@@ -44,7 +44,7 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import cast
+from typing import Callable, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request
@@ -319,13 +319,16 @@ def record_backend_acceptance(con, post_id: str, backend_ref: str) -> None:
 
 def run_live_send(con, post, account: dict, *, max_per_24h: int, min_gap_minutes: int,
                   optout: list | None = None, cooldown_floor_seconds: int | None = None,
-                  preflight_max_retries: int | None = None) -> int:
+                  preflight_max_retries: int | None = None,
+                  on_preflight_retry: Callable[[int, float, str], None] | None = None) -> int:
     """One guarded live send for the CLI loop. Returns 0, 2 (blocked/skipped) or 3 (review).
 
     ``optout``: entries the CLI loaded once for the run; ``None`` loads them here from
     the default sources, so a direct caller cannot skip the opt-out gate.
     ``cooldown_floor_seconds`` / ``preflight_max_retries``: the tighten-only caps.json v2
     values (issue #11); ``None`` uses the built-in 60 s floor and at most 2 retries.
+    ``on_preflight_retry``: the worker log's retry observer (security decision item 3, log only),
+    passed to ``preflight_with_backoff`` as ``on_retry``; it cannot change the outcome.
     """
     from .optout import load_optout, publish_block_reason
     from .ratelimit import (AMBIGUOUS, FLOOR_SECONDS, PREFLIGHT_MAX_RETRIES, classify_send_failure,
@@ -376,7 +379,8 @@ def run_live_send(con, post, account: dict, *, max_per_24h: int, min_gap_minutes
             raise ValidationError("failed preflight check")
         # GET /integrations only; bounded jittered retries before the claim (#11, D13).
         integration = preflight_with_backoff(lambda: verify_integration(account), max_retries=retries,
-                                             paused=lambda: is_paused(con), retry_on=PublishError)
+                                             paused=lambda: is_paused(con), retry_on=PublishError,
+                                             on_retry=on_preflight_retry)
     except (ValidationError, PublishError) as exc:
         note = ""
         if is_rate_limited(exc):

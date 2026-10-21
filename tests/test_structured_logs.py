@@ -59,6 +59,7 @@ EVENT_KEYS = {
     "post_claimed": COMMON_KEYS | POST_KEYS | {"backend"},
     "post_published": COMMON_KEYS | POST_KEYS | {"backend", "remote_id", "remote_url"},
     "post_needs_review": COMMON_KEYS | POST_KEYS | {"backend", "send_class", "error_code", "rate_limited"},
+    "preflight_retry": COMMON_KEYS | POST_KEYS | {"attempt", "delay_ms", "code"},
     "run_end": COMMON_KEYS | {"outcome", "exit_code", "error_code", "counts", "dropped_lines"},
 }
 CREDENTIALS = {
@@ -276,7 +277,7 @@ class _Workspace(unittest.TestCase):
 class VocabularyTests(unittest.TestCase):
     def test_fixed_event_and_reason_vocabulary(self):
         self.assertEqual(EVENTS, ("run_start", "gate_refused", "post_skipped", "post_claimed", "post_published",
-                                  "post_needs_review", "run_end"))
+                                  "post_needs_review", "preflight_retry", "run_end"))
         self.assertEqual(GATE_REASONS, ("live_gate", "emergency_pause", "human_confirmation"))
         for code in ("dry_run", "not_due", "paused", "optout_blocked", "budget", "cooldown", "rebind_required",
                      "account_missing", "identity_preflight_failed", "not_eligible", "backend_refused"):
@@ -373,7 +374,8 @@ class DryRunLogTests(_Workspace):
             (ids["missing"], "dry_run")])
         end = records[-1]
         self.assertEqual((end["outcome"], end["exit_code"], end["emergency_paused"]), ("completed", 0, False))
-        self.assertEqual(end["counts"], {"due": 7, "skipped": 7, "claimed": 0, "published": 0, "needs_review": 0})
+        self.assertEqual(end["counts"], {"due": 7, "skipped": 7, "claimed": 0, "published": 0, "needs_review": 0,
+                                         "preflight_retries": 0})
         self.assert_no_leak(err)
 
     def test_dry_run_while_paused_marks_every_post_paused(self):
@@ -431,7 +433,8 @@ class LiveLogTests(_Workspace):
                          ("ambiguous", "http_503", False))
         end = records[-1]
         self.assertEqual((end["outcome"], end["exit_code"], end["error_code"]), ("completed", 0, None))
-        self.assertEqual(end["counts"], {"due": 7, "skipped": 4, "claimed": 3, "published": 2, "needs_review": 1})
+        self.assertEqual(end["counts"], {"due": 7, "skipped": 4, "claimed": 3, "published": 2, "needs_review": 1,
+                                         "preflight_retries": 0})
         # The stored receipt keeps the query string; only the log line drops it.
         with connect(str(self.db)) as con:
             stored = con.execute("SELECT remote_url FROM posts WHERE id=?", (ids["published_masto"],)).fetchone()[0]

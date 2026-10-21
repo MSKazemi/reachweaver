@@ -441,16 +441,33 @@ def backoff_delay(attempt: int, rng: random.Random | None = None) -> float:
     return (rng or _rng).uniform(0.0, min(PREFLIGHT_CAP_SECONDS, PREFLIGHT_BASE_SECONDS * (2 ** attempt)))
 
 
+def _notify_retry(on_retry: Callable[[int, float, str], None], retry: int, delay: float,
+                  exc: BaseException) -> None:
+    """Call a retry observer with a sanitized code; swallow every failure (log only, decision item 3 D3)."""
+    try:
+        from .worker_log import error_code  # lazy: the observer is optional and only the CLI loop passes one
+        on_retry(retry, delay, error_code(exc))
+    except Exception:  # noqa: BLE001 - an observer can never change the retry, delay, pause check or claim
+        pass
+
+
 def preflight_with_backoff(check: Callable[[], T], *, max_retries: int, paused: Callable[[], bool],
                            retry_on: type[BaseException] | tuple[type[BaseException], ...],
                            rng: random.Random | None = None,
-                           sleep: Callable[[float], None] | None = None) -> T:
+                           sleep: Callable[[float], None] | None = None,
+                           on_retry: Callable[[int, float, str], None] | None = None) -> T:
     """Run a read-only, pre-claim identity check with at most ``max_retries`` jittered retries.
 
     Never wrap a content write in this. A retry happens only for ``retry_on`` errors that
     ``retryable_preflight`` accepts. A server-supplied delay above the 30 s cap stops at once
     (the caller records a cooldown and prints BLOCKED). The emergency pause is re-checked
     before every retry, and an active pause ends the check with a ValidationError.
+
+    ``on_retry(retry, delay_seconds, code)`` (issue #26 retry metrics, security decision item 3,
+    owner-approved 2026-10-21): an observer called just before each sleep with the retry number
+    (1, 2), the chosen delay and the sanitized error code (``worker_log.error_code``, never provider
+    text). It cannot change the outcome: anything it raises is swallowed, and ``None`` (the default)
+    leaves the behaviour byte-identical.
     """
     if type(max_retries) is not int or not 0 <= max_retries <= PREFLIGHT_MAX_RETRIES:
         raise ValidationError(f"preflight retries must be 0..{PREFLIGHT_MAX_RETRIES}")
@@ -470,6 +487,8 @@ def preflight_with_backoff(check: Callable[[], T], *, max_retries: int, paused: 
             delay = backoff_delay(attempt, rng)
             if server_delay is not None:
                 delay = max(delay, float(server_delay))
+            if on_retry is not None:
+                _notify_retry(on_retry, attempt + 1, delay, exc)
             (sleep or _sleep)(delay)
             if paused():
                 raise ValidationError("Global emergency pause is active; preflight retry abandoned") from None

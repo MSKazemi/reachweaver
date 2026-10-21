@@ -45,7 +45,7 @@ Refusing to approve POST_ID: the same video file is already shared on this platf
 only if sharing it again is intended. Nothing changed
 ```
 
-Your options, in order of preference: choose different material; or, if sharing again is intended (an evergreen reminder, a re-upload after a fix), approve with `--allow-repeat`. The override is deliberate and leaves an audit event (`repeat_override`) listing what matched. Only you can pass it: approval stays a human action, and the Claude Code skill is not allowed to run `approve`.
+Your options, in order of preference: choose different material; or, if sharing again is intended (an evergreen reminder, a re-upload after a fix), approve with `--allow-repeat`. The override is deliberate and leaves an audit event (`repeat_override`) listing what matched. The event is written only when the approval itself succeeds, in the same transaction, and carries the same `approval_sha256=` prefix as that `approve` event; a refused approve leaves no override behind. Only you can pass it: approval stays a human action, and the Claude Code skill is not allowed to run `approve`.
 
 ## Honest limits
 

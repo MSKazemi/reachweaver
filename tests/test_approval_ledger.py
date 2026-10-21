@@ -6,6 +6,7 @@ a socket guard turns any real connection attempt into a test failure.
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -486,6 +487,200 @@ class SanitizedErrorTests(Base):
         for leaked in (str(self.root), snap["approval_nonce"], snap["approved_payload_sha256"], TOKEN):
             self.assertNotIn(leaked, text)
         self.assertIn(f"reachweaver unapprove {pid}", text)
+
+
+class WithdrawalTests(Base):
+    """Security decision item 12 (owner-approved 2026-10-21): unapprove/cancel close the nonce in the ledger."""
+
+    def withdrawn_copy(self, db, command, *, schedule=False):
+        """Approve (and optionally schedule), keep a backup copy of the row, then withdraw it with ``command``."""
+        pid = self.approved(db)
+        if schedule:
+            transition(db, pid, "schedule", "2026-10-08T11:00:00+00:00")
+        backup = self.snapshot(db, pid)
+        transition(db, pid, command)
+        return pid, backup
+
+    def test_unapprove_appends_one_withdrawn_line_and_a_restored_backup_is_refused(self):
+        with connect(self.db) as db:
+            pid, backup = self.withdrawn_copy(db, "unapprove")
+            self.assertEqual(get_post(db, pid)["status"], "draft")
+            self.assertEqual(events(db, "unapprove"), ["status=draft ledger=withdrawn"])
+            self.restore(db, pid, backup)  # a database backup from before the unapprove
+            row = get_post(db, pid)
+            self.assertEqual((row["status"], row["approved_payload_sha256"]), ("approved", approval_payload_sha256(row)))
+            with self.assertRaises(ValidationError) as caught:
+                claim_sending(db, pid, now=NOW)
+            self.assertTrue(str(caught.exception).startswith(ledger.WITHDRAWN + ":"), str(caught.exception))
+            self.assertEqual(get_post(db, pid)["status"], "approved")
+            self.assertEqual((get_post(db, pid)["last_error"], events(db, "send_claimed")), (ledger.WITHDRAWN, []))
+            self.assertEqual(len(events(db, "approval_replay_blocked")), 1)
+            self.assertIn(f"reason={ledger.WITHDRAWN}", events(db, "approval_replay_blocked")[0])
+            self.assertEqual(check_approval_binding(db, pid, now=NOW), ledger.WITHDRAWN)
+            audit = queue_health(db, now=NOW)["approval_ledger"]
+            self.assertEqual(audit, {"status": "broken", "problems": [{"post_id": pid, "reason": ledger.WITHDRAWN}]})
+        (line,) = self.ledger_lines()
+        self.assertEqual((line["post_id"], line["approval_nonce"], line["event"], line["v"], line["prev"]),
+                         (pid, backup["approval_nonce"], "withdrawn", 1, "0" * 64))
+        self.assertEqual(line["payload_sha256"], backup["approved_payload_sha256"])
+        self.assertEqual(set(line), {"v", "post_id", "approval_nonce", "payload_sha256", "event", "ts", "prev"})
+
+    def test_cancel_of_an_approved_or_scheduled_post_is_recorded_and_a_restore_is_refused(self):
+        for schedule in (False, True):
+            with self.subTest(schedule=schedule), connect(self.db) as db:
+                pid, backup = self.withdrawn_copy(db, "cancel", schedule=schedule)
+                self.assertEqual(get_post(db, pid)["status"], "cancelled")
+                self.assertEqual(events(db, "cancel")[-1], "status=cancelled ledger=withdrawn")
+                self.restore(db, pid, backup)
+                with self.assertRaisesRegex(ValidationError, "^" + ledger.WITHDRAWN):
+                    claim_sending(db, pid, now="2026-10-08T12:30:00+00:00")
+                self.assertEqual(get_post(db, pid)["status"], "scheduled" if schedule else "approved")
+                self.assertEqual(events(db, "send_claimed"), [])
+        self.assertEqual([line["event"] for line in self.ledger_lines()], ["withdrawn", "withdrawn"])
+
+    def test_unapprove_of_a_scheduled_post_is_recorded(self):
+        with connect(self.db) as db:
+            pid, backup = self.withdrawn_copy(db, "unapprove", schedule=True)
+            self.restore(db, pid, backup)
+            self.assertEqual(check_approval_binding(db, pid, now=NOW), ledger.WITHDRAWN)
+            with self.assertRaisesRegex(ValidationError, "^" + ledger.WITHDRAWN):
+                claim_sending(db, pid, now=NOW)
+
+    def test_cli_live_run_refuses_a_restored_withdrawn_approval_before_any_request(self):
+        with connect(self.db) as db:
+            pid = add_post(db, "my-bluesky", "bluesky", "A useful verified research note")
+        self.assertEqual(self.cli("approve", pid, "--approver", "owner")[0], 0)
+        with connect(self.db) as db:
+            backup = self.snapshot(db, pid)
+        code, out, err = self.cli("unapprove", pid)
+        self.assertEqual((code, err), (0, ""))
+        self.assertIn(f"Post {pid} -> draft", out)
+        with connect(self.db) as db:
+            self.restore(db, pid, backup)
+        code, text, preflight, sent = self.live(pid)
+        self.assertEqual(code, 2)
+        self.assertIn(ledger.WITHDRAWN, text)
+        self.assertIn(f"reachweaver unapprove {pid}", text)
+        for leaked in (str(self.root), backup["approval_nonce"], backup["approved_payload_sha256"], TOKEN):
+            self.assertNotIn(leaked, text)
+        preflight.assert_not_called()  # refused before the identity preflight, which is a network call
+        sent.assert_not_called()
+        self.assertEqual([line["event"] for line in self.ledger_lines()], ["withdrawn"])
+
+    def test_reapproval_after_unapprove_works_and_the_withdrawn_nonce_stays_refused(self):
+        with connect(self.db) as db:
+            pid, backup = self.withdrawn_copy(db, "unapprove")
+            transition(db, pid, "approve", approver="owner")  # normal use: re-approve draws a fresh nonce
+            fresh = get_post(db, pid)["approval_nonce"]
+            self.assertNotEqual(fresh, backup["approval_nonce"])
+            self.assertIsNone(check_approval_binding(db, pid, now=NOW))
+            self.assertTrue(claim_sending(db, pid, now=NOW))
+            finish_send(db, pid, "remote-1", None)
+            self.restore(db, pid, backup)
+            with self.assertRaisesRegex(ValidationError, "^" + ledger.WITHDRAWN):
+                claim_sending(db, pid, now="2026-10-08T13:00:00+00:00")
+        self.assertEqual([(line["approval_nonce"], line["event"]) for line in self.ledger_lines()],
+                         [(backup["approval_nonce"], "withdrawn"), (fresh, "consumed")])
+
+    def test_documented_recovery_after_a_refused_restore_adds_no_second_line(self):
+        with connect(self.db) as db:
+            pid, backup = self.withdrawn_copy(db, "unapprove")
+            self.restore(db, pid, backup)
+            transition(db, pid, "unapprove")  # the refusal text's steps: unapprove, show, approve
+            self.assertEqual(events(db, "unapprove")[-1], "status=draft ledger=withdrawn")
+            transition(db, pid, "approve", approver="owner")
+            self.assertTrue(claim_sending(db, pid, now=NOW))
+        self.assertEqual([line["event"] for line in self.ledger_lines()], ["withdrawn", "consumed"])
+
+    def test_draft_cancel_and_pre_nonce_rows_write_nothing(self):
+        with connect(self.db) as db:
+            self.approved(db)  # creates the ledger
+            draft = add_post(db, "my-bluesky", "bluesky", "Never approved")
+            transition(db, draft, "cancel")
+            self.assertEqual(events(db, "cancel"), ["status=cancelled"])
+            legacy = self.approved(db, content="Approved before nonces existed")
+            db.execute("UPDATE posts SET approval_nonce=NULL WHERE id=?", (legacy,))
+            transition(db, legacy, "unapprove")
+            self.assertEqual(events(db, "unapprove"), ["status=draft"])
+        self.assertEqual(self.ledger_lines(), [])
+
+    def test_unusable_ledger_never_blocks_a_withdrawal_and_the_cli_warns(self):
+        with connect(self.db) as db:
+            pid = add_post(db, "my-bluesky", "bluesky", "A useful verified research note")
+        self.assertEqual(self.cli("approve", pid, "--approver", "owner")[0], 0)
+        self.ledger.chmod(0o644)  # not private: unusable, fail closed for sends
+        code, out, err = self.cli("unapprove", pid)
+        self.assertEqual(code, 0, out + err)
+        self.assertIn(f"Post {pid} -> draft", out)
+        self.assertIn("WARNING: the withdrawal of post", err)
+        self.assertIn(UNAVAILABLE, err)
+        self.assertNotIn(str(self.root), err)
+        with connect(self.db) as db:
+            self.assertEqual(get_post(db, pid)["status"], "draft")
+            self.assertEqual(events(db, "unapprove"), [f"status=draft ledger=unrecorded reason={UNAVAILABLE}"])
+        self.ledger.chmod(0o600)
+        self.assertEqual(self.ledger_lines(), [])
+        self.ledger.unlink()  # a deleted ledger: cancel still works, with the same warning
+        with connect(self.db) as db:
+            transition(db, pid, "cancel")
+            self.assertEqual(get_post(db, pid)["status"], "cancelled")
+        # --json keeps its document on stdout; the warning goes to stderr only.
+        with connect(self.db) as db:
+            other = add_post(db, "my-bluesky", "bluesky", "Second note")
+            db.execute("UPDATE posts SET status='approved', approval_nonce=? WHERE id=?", (ledger.new_nonce(), other))
+        code, out, err = self.cli("cancel", other, "--json")
+        self.assertEqual((code, json.loads(out)), (0, {"post_id": other, "status": "cancelled"}))
+        self.assertIn("WARNING", err)
+
+    def test_crash_after_the_withdrawn_line_fails_closed(self):
+        real = ledger.withdraw
+
+        def append_then_crash(*args, **kw):
+            real(*args, **kw)
+            raise RuntimeError("simulated crash")
+        with connect(self.db) as db:
+            pid = self.approved(db)
+            with patch("reachweaver.ledger.withdraw", side_effect=append_then_crash), self.assertRaises(RuntimeError):
+                transition(db, pid, "unapprove")
+            self.assertEqual(get_post(db, pid)["status"], "approved")  # the row change was rolled back
+            with self.assertRaisesRegex(ValidationError, "^" + ledger.WITHDRAWN):  # safe direction: nothing sent
+                claim_sending(db, pid, now=NOW)
+            transition(db, pid, "unapprove")
+            transition(db, pid, "approve", approver="owner")
+            self.assertTrue(claim_sending(db, pid, now=NOW))
+
+    def test_ledger_format_compatibility(self):
+        with connect(self.db) as db:
+            consumed = self.approved(db)
+            self.assertTrue(claim_sending(db, consumed, now=NOW))  # an old-style ledger: consumed lines only
+            self.assertEqual(queue_health(db, now=NOW)["approval_ledger"], {"status": "ok", "problems": []})
+            pid, _ = self.withdrawn_copy(db, "unapprove")
+        lines = self.ledger.read_text(encoding="utf-8").splitlines()
+        self.assertEqual([json.loads(line)["event"] for line in lines], ["consumed", "withdrawn"])
+        # Unknown event names and a second line for the same approval are a broken chain (fail closed).
+        for edit in ({"event": "revoked"}, {"event": "consumed", "post_id": consumed}):
+            with self.subTest(edit=edit):
+                first = json.loads(lines[0])
+                second = {**json.loads(lines[1]), **edit}
+                if second["post_id"] == consumed:
+                    second["approval_nonce"] = first["approval_nonce"]
+                second["prev"] = hashlib.sha256(lines[0].encode("utf-8")).hexdigest()
+                self.ledger.write_text(lines[0] + "\n" + json.dumps(second, sort_keys=True, separators=(",", ":"))
+                                       + "\n", encoding="utf-8")
+                with connect(self.db) as db:
+                    self.assertEqual(queue_health(db, now=NOW)["approval_ledger"]["status"], "broken")
+                    self.assertEqual(ledger.check(db, pid, "ab" * 16), UNAVAILABLE)
+        self.ledger.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        with connect(self.db) as db:
+            self.assertEqual(queue_health(db, now=NOW)["approval_ledger"], {"status": "ok", "problems": []})
+
+    def test_health_reports_a_restored_withdrawn_approval(self):
+        with connect(self.db) as db:
+            pid, backup = self.withdrawn_copy(db, "cancel")
+            self.restore(db, pid, backup)
+            report = build_health(db, {"my-bluesky": ACCOUNT}, now=NOW, env=CHECK_ENV)
+        self.assertIn(ledger.WITHDRAWN, {r["code"] for r in report["reasons"]})
+        self.assertEqual(report["overall"], "attention")
 
 
 if __name__ == "__main__":
