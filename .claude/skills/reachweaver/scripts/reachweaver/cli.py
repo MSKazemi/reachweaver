@@ -110,6 +110,57 @@ def _accounts(args):
     return load_accounts(args.accounts)
 
 
+def _connect_accounts(args) -> dict:
+    """``connect``: no accounts file yet means no accounts, not an error (a broken file still stops)."""
+    try:
+        return _accounts(args)
+    except ValidationError as exc:
+        if not str(exc).startswith("Missing "):
+            raise
+        return {}
+
+
+def _connect_first_account(args) -> str | None:
+    """No accounts: print the next steps; in a terminal offer to add one with the account-add flow.
+
+    Returns the new account id, or None when nothing was added. Only public details are asked (by
+    ``account_add.run``, the same validation and confirmation); no password, token or code is asked for.
+    """
+    from . import account_add, connect_guide
+    if args.json:
+        print(json.dumps({"accounts": [], "note": "No accounts yet. Add one: reachweaver account-add PLATFORM "
+                          "(public details only). Offline; no request was made."}, indent=2))
+        return None
+    print(connect_guide.render_no_accounts(in_workspace=home.root() is not None))
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        return None
+
+    def ask(prompt: str) -> str:
+        try:
+            return input(prompt)
+        except EOFError:
+            return ""
+
+    live = [p for p in account_add.PLATFORMS if p in SUPPORTED_LIVE]
+    choices = live + [p for p in account_add.PLATFORMS if p not in live]
+    platform = connect_guide.offer_first_account(choices, ask=ask, say=print)
+    if platform is None:
+        return None
+    before = set(_connect_accounts(args))
+    account_add.run(argparse.Namespace(platform=platform, accounts=args.accounts, profile=args.profile, db=args.db,
+                                       field=[], handle=None, server=None, id=None, env_prefix=None, persona=None,
+                                       dry_run=False))
+    added = [account_id for account_id in _connect_accounts(args) if account_id not in before]
+    if not added:
+        return None
+    if args.guide:
+        args.account = added[0]
+        print(f"\nContinuing with the connection steps for {added[0]}.")
+    else:
+        print()
+    return added[0]
+
+
 def _social_web_plan(args) -> int:
     """Offline open social web map (social_web.py): reads public account metadata only; no queue, no network."""
     from . import social_web
@@ -2127,11 +2178,15 @@ def execute(args) -> int:
         return 1 if result["blocking"] else 0
     if args.command == "connect":
         from . import connect_guide
-        accounts = _accounts(args)
+        accounts = _connect_accounts(args)
         if args.account is not None and args.account not in accounts:
             raise ValidationError("Unknown account. Run 'doctor' for account IDs")
         if args.guide and args.json:
             raise ValidationError("connect --json prints the status table; it cannot be combined with --guide")
+        if not accounts:  # the natural first command: next steps, not an error (and, in a terminal, add one)
+            if _connect_first_account(args) is None:
+                return 0
+            accounts = _accounts(args)
         registry = load_capabilities()
         gone: list[str] = []
         if storage_database_path(args.db).is_file():  # read-only: the status table never creates or changes the database

@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import sys
 import tempfile
 from pathlib import Path
@@ -86,6 +87,44 @@ def _ask(question: str) -> str:
         return input(question + ": ").strip()
     except EOFError as exc:
         raise ValidationError("Input ended. Nothing was written.") from exc
+
+
+# What each required field looks like, for a blank answer and the non-terminal error. Shapes, not real accounts.
+NEEDED = {"handle": ("your handle", "name.bsky.social"), "server": ("your server", "https://mastodon.social"),
+          "chat_id": ("your channel", "@yourchannel"), "bot_username": ("your bot's username", "your_bot"),
+          "person_id": ("your LinkedIn member id", "YOUR_MEMBER_ID"),
+          "linkedin_version": ("the LinkedIn API version", "YYYYMM"), "page_name": ("your Page name", "Your Page")}
+# The identity shapes above are refused like the example file's placeholders, in case one is copied as it is
+# (not the server: https://mastodon.social is a real server people use).
+_PLACEHOLDERS = (_PLACEHOLDERS | {"yourname"}
+                 | frozenset(shape.casefold() for key, (_, shape) in NEEDED.items() if key != "server"))
+REQUIRED_ATTEMPTS = 3
+
+
+def _example(platform: str, key: str) -> str:
+    if key == "handle" and platform != "bluesky":
+        return "yourname"
+    return NEEDED.get(key, (key, "VALUE"))[1]
+
+
+def _ask_required(platform: str, key: str) -> str:
+    """Ask for one required field; a blank answer asks again (with an example) instead of stopping."""
+    for attempt in range(REQUIRED_ATTEMPTS):
+        answer = _ask(QUESTIONS.get(key, key).format(label=LABELS[platform]))
+        if answer:
+            return answer
+        if attempt < REQUIRED_ATTEMPTS - 1:
+            print(f"  {LABELS[platform]} needs {NEEDED.get(key, (key,))[0]} (like {_example(platform, key)}). "
+                  "Type it, or press Ctrl-D to stop.")
+    return ""
+
+
+def _missing_message(platform: str, missing: list[str]) -> str:
+    """``Bluesky needs your handle (like name.bsky.social). Add --handle name.bsky.social``"""
+    needs = " and ".join(f"{NEEDED.get(k, (k,))[0]} (like {_example(platform, k)})" for k in missing)
+    flags = " ".join(f"--{k} {_example(platform, k)}" if k in ("handle", "server") else
+                     f"--field {k}={shlex.quote(_example(platform, k))}" for k in missing)
+    return f"{LABELS[platform]} needs {needs}. Add {flags}. Nothing was written."
 
 
 def _clean(key: str, value: str) -> object:
@@ -252,14 +291,13 @@ def run(args) -> int:
         print(f"Adding a {LABELS[platform]} account. Public details only: ReachWeaver never asks for a password "
               "or token here.")
         for key in missing:
-            answer = _ask(QUESTIONS.get(key, key).format(label=LABELS[platform]))
+            answer = _ask_required(platform, key)
             if answer:
                 values[key] = _clean(key, answer)
         asked = True
         missing = [key for key in schema["required"] if not values.get(key)]
     if missing:
-        flags = " ".join(f"--{k} VALUE" if k in ("handle", "server") else f"--field {k}=VALUE" for k in missing)
-        raise ValidationError(f"{LABELS[platform]} needs {', '.join(missing)}. Add: {flags}. Nothing was written.")
+        raise ValidationError(_missing_message(platform, missing))
     for key, value in values.items():
         if isinstance(value, str) and value.strip().casefold() in _PLACEHOLDERS:
             raise ValidationError(f"{key} {value!r} is the example placeholder; use your own account's value. "

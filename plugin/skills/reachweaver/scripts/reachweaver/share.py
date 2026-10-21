@@ -134,8 +134,7 @@ def _guided(args) -> list[str]:
     selected = destinations(args.platform) if args.platform else _ask_networks(popular)
     human = _human_only()
     if any(p not in human for p in selected) and args.text is None and args.file is None:
-        print("For several lines, save your caption in a .txt file and use --file instead.")
-        args.text = _ask("Caption or post text: ")
+        args.text = _ask_caption()
     if any(p not in human for p in selected) and not args.attach:
         attach = _ask_attachment()
         if attach is not None:
@@ -163,6 +162,32 @@ def _ask_networks(popular: str) -> list[str]:
         except ValidationError as exc:
             print(f"{exc}. Try again.")
     raise ValidationError("No network chosen. Nothing was written. 'reachweaver share --list' shows the names")
+
+
+CAPTION_MAX_LINES = 200
+
+
+def _ask_caption() -> str:
+    """The caption, one or several lines: an empty line (or Ctrl-D) ends it. A blank first line asks again."""
+    print("Caption or post text. Several lines are fine: press Enter on an empty line to finish (or Ctrl-D).")
+    print("For blank lines between paragraphs, save the text in a .txt file and use --file instead.")
+    for _ in range(GUIDE_ATTEMPTS):
+        lines: list[str] = []
+        while len(lines) < CAPTION_MAX_LINES:
+            try:
+                line = input("> ")
+            except EOFError:
+                if lines:
+                    print()
+                    break
+                raise ValidationError("Input ended. Nothing was written.") from None
+            if not line.strip():
+                break
+            lines.append(line.rstrip())
+        if lines:
+            return "\n".join(lines)
+        print("Type the text of your post (it cannot be empty).")
+    raise ValidationError("No caption given. Nothing was written")
 
 
 def _ask_attachment() -> Path | None:
@@ -197,8 +222,15 @@ def _attachments(paths: list[Path] | None) -> list[Path]:
     if len(files) > 10:
         raise ValidationError("At most ten files may be listed for manual attachment")
     for path in files:
-        if path.is_symlink() or not path.is_file():
-            raise ValidationError(f"Attachment is missing, a directory or a symlink: {path}")
+        if path.is_symlink():
+            raise ValidationError(f"Attachment is a symbolic link: {path}. Name the file itself (links are not "
+                                  "followed), or leave it out.")
+        if path.is_dir():
+            raise ValidationError(f"Attachment is a folder, not a file: {path}. Name one photo or video in it, "
+                                  "or leave it out.")
+        if not path.is_file():
+            raise ValidationError(f"Attachment not found: {path} (looked in {path.absolute().parent}). "
+                                  "Check the name or leave it out.")
         if not path.stat().st_size:
             raise ValidationError(f"Attachment is empty: {path}")
         if path.suffix.casefold() not in IMAGE_SUFFIXES | VIDEO_SUFFIXES:
@@ -424,7 +456,73 @@ def _readme(packages: list[tuple[str, dict]], files: list[Path]) -> str:
     return "\n".join(lines)
 
 
+PARTIAL = 1  # exit code: some networks were prepared, others skipped (0 all prepared, 2 blocked: nothing written)
+
+
+def split_blocked(packages: list[tuple[str, dict]], errors: list[str]
+                  ) -> tuple[list[tuple[str, dict]], list[tuple[str, str, list[str]]]] | None:
+    """``(ready packages, [(platform, label, errors)])`` when only some networks have errors, else None.
+
+    None means all-or-nothing still applies: an error that belongs to no single network (a missing caption, a
+    misplaced --note or --title), or every network blocked.
+    """
+    by_platform: dict[str, list[str]] = {}
+    for error in errors:
+        platform, sep, message = error.partition(": ")
+        if not sep or platform not in dict(packages):
+            return None
+        by_platform.setdefault(platform, []).append(message)
+    ready = [(p, pkg) for p, pkg in packages if p not in by_platform]
+    if not ready:
+        return None
+    blocked = [(p, pkg["platform_label"], by_platform[p]) for p, pkg in packages if p in by_platform]
+    return ready, blocked
+
+
+def skip_lines(blocked: list[tuple[str, str, list[str]]]) -> list[str]:
+    """One line per skipped network with its fix: ``YouTube skipped: add --title "…" and run again with ...``"""
+    lines = []
+    for platform, label, messages in blocked:
+        again = f"run again with --platform {platform}"
+        if messages == [YOUTUBE_TITLE_SHARE]:
+            lines.append(f'{label} skipped: add --title "…" and {again}')
+            continue
+        fixes = "; ".join(m.replace(YOUTUBE_TITLE_SHARE, 'add --title "…"') for m in messages)
+        lines.append(f"{label} skipped: {fixes}. Fix that and {again}")
+    return lines
+
+
+def terminal_texts(packages: list[tuple[str, dict]]) -> list[str]:
+    """The final text per network, compact enough to copy from the terminal (``share_tailor.terminal_lines``)."""
+    from .share_tailor import terminal_lines
+    entries = []
+    for platform, pkg in packages:
+        if pkg.get("human_only") is True:
+            continue
+        content = pkg["content"]
+        name = ("description.txt" if platform == "youtube" else
+                "caption.txt" if platform in MANUAL_PLATFORMS else "post.txt")
+        entries.append({"platform": platform, "label": pkg["platform_label"], "text": content["text"],
+                        "title": content.get("title") if platform == "youtube" else None,
+                        "format": content.get("format"), "file": f"{platform}/{name}",
+                        "tailoring": (pkg.get("share") or {}).get("tailoring") or {}})
+    return terminal_lines(entries)
+
+
 def run(args) -> int:
+    """Local preflight and optional private file creation. Exit 0 when every chosen network was prepared,
+    ``PARTIAL`` (1) when some were skipped (each with its fix), 2 when blocked (nothing written). With
+    ``--strict`` any blocked network blocks them all, as before."""
+    skipped: list[str] = []
+    code = _run(args, skipped)
+    if code == 0 and skipped:
+        print(f"Partial: skipped {', '.join(skipped)} (see the SKIPPED lines above); exit code {PARTIAL}.",
+              file=sys.stderr)
+        return PARTIAL
+    return code
+
+
+def _run(args, skipped: list[str]) -> int:
     """Perform only local preflight and optional private file creation."""
     if args.web:
         if (args.platform or args.guide or args.list or args.text is not None or
@@ -457,11 +555,18 @@ def run(args) -> int:
     # In this command the title is a flag, not a variant field: say which flag to add.
     errors = [f"youtube: {YOUTUBE_TITLE_SHARE}" if error == f"youtube: {YOUTUBE_TITLE_MISSING}" else error
               for error in errors]
-    if errors:
+    partial = None if args.strict or not errors else split_blocked(packages, errors)
+    if errors and partial is None:
         print("BLOCKED. No files were written:", file=sys.stderr)
         for error in errors:
             print(" - " + error, file=sys.stderr)
         return 2
+    if partial is not None:
+        packages, blocked = partial
+        print(f"SKIPPED {len(blocked)} network(s); the other {len(packages)} are prepared below:", file=sys.stderr)
+        for line in skip_lines(blocked):
+            print(" - " + line, file=sys.stderr)
+        skipped.extend(platform for platform, _, _ in blocked)
     print("Review the handoff plan:")
     for platform, pkg in packages:
         mode = "YOU WRITE IT" if pkg.get("human_only") else "MANUAL COPY"
@@ -473,6 +578,8 @@ def run(args) -> int:
             print("   Check: " + warning)
     if files:
         print(f"Media: {len(files)} file(s) checked offline from their headers; not copied or uploaded")
+    for line in terminal_texts(packages):
+        print(line)
     if args.preview:
         print("PREVIEW ONLY: nothing saved, uploaded or published.")
         return 0

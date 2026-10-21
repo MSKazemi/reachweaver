@@ -14,6 +14,7 @@ The functions take their input/output/check callables as arguments so the whole 
 """
 from __future__ import annotations
 
+import difflib
 from typing import Callable, Iterable, Mapping
 
 from .accounts import account_credential_suffixes, missing_credentials
@@ -21,7 +22,9 @@ from .capabilities import require_capability
 from .policy import ValidationError
 
 # Platform -> (label, how to create the credential). Sources: docs/ACCOUNT-ONBOARDING.md (variables and
-# scopes) and the provider pages it cites. Page addresses that depend on the account use {server}.
+# scopes) and the provider pages it cites. Page addresses that depend on the account use {server}. "doc" is a
+# path in the repository; the guide prints its online address (``doc_link``) because a workspace folder or a
+# pip install has no docs/ folder.
 GUIDES: dict[str, dict] = {
     "bluesky": {
         "label": "Bluesky",
@@ -58,6 +61,14 @@ GUIDES: dict[str, dict] = {
         "doc": "docs/LINKEDIN.md",
     },
 }
+
+DOCS_BASE = "https://github.com/MSKazemi/reachweaver/blob/main/"
+
+
+def doc_link(path: str) -> str:
+    """The online copy of a repository doc (``docs/X.md``): the reader's own folder has no docs/ folder."""
+    return DOCS_BASE + path
+
 
 # Account states, in the order the summary table lists them.
 READY = "ready_to_check"
@@ -125,10 +136,46 @@ def account_rows(accounts: Mapping[str, dict], registry: dict, *, disconnected: 
     return rows
 
 
+def render_no_accounts(*, in_workspace: bool = False) -> str:
+    """What ``connect`` says before any account exists: not an error, the next steps."""
+    lines = ["No accounts yet, so there is nothing to connect.",
+             "  Add one (public details only; never a password): reachweaver account-add bluesky",
+             "  Other networks: reachweaver account-add mastodon, telegram or linkedin",
+             "  Posting by hand needs no account: reachweaver share --guide"]
+    if not in_workspace:
+        lines.append("  Set up a folder for everything first: reachweaver workspace --init .")
+    lines.append("  How connecting works: " + doc_link("docs/ACCOUNT-ONBOARDING.md"))
+    return "\n".join(lines)
+
+
+FIRST_ACCOUNT_ATTEMPTS = 3
+
+
+def offer_first_account(choices: Iterable[str], *, ask: Callable[[str], str],
+                        say: Callable[[str], None]) -> str | None:
+    """Ask which network to add an account for; None when the person presses Enter (or gives up).
+
+    Only a network name is asked here. The account details are asked by ``account-add`` itself (public
+    identifiers only, the same validation); no password, token or code is ever asked for.
+    """
+    names = list(choices)
+    for _ in range(FIRST_ACCOUNT_ATTEMPTS):
+        answer = ask("Add one now? Which network? (" + ", ".join(names) + "; Enter to skip) ").strip().casefold()
+        if not answer:
+            return None
+        answer = {"bsky": "bluesky"}.get(answer, answer)
+        if answer in names:
+            return answer
+        close = difflib.get_close_matches(answer, names, n=1, cutoff=0.6)
+        guess = f" Did you mean {close[0]}?" if close else ""
+        say(f"  Unknown network {answer!r}.{guess} Type one of: {', '.join(names)}.")
+    say("  No account added. Run `reachweaver account-add NETWORK` when you are ready.")
+    return None
+
+
 def render_rows(rows: list[dict]) -> str:
     if not rows:
-        return ("No accounts yet. Add one: reachweaver account-add bluesky (public details only), "
-                "or set up a folder: reachweaver workspace --init .")
+        return render_no_accounts()
     width = max(len(r["account"]) for r in rows)
     lines = []
     for r in rows:
@@ -154,7 +201,7 @@ def explain_failure(code: str) -> str:
     for prefix, text in FAILURE_HINTS:
         if code.startswith(prefix):
             return text
-    return "See docs/TROUBLESHOOTING.md for this code."
+    return "See " + doc_link("docs/TROUBLESHOOTING.md") + " for this code."
 
 
 def run_guided(accounts: Mapping[str, dict], registry: dict, *, only: str | None, ask: Callable[[str], str],
@@ -190,7 +237,7 @@ def run_guided(accounts: Mapping[str, dict], registry: dict, *, only: str | None
             for name in row["missing"]:
                 say(f"      read -r -s -p '{name}: ' {name}; export {name}; printf '\\n'")
             say(f"      reachweaver connect --guide --account {row['account']}")
-            say(f"  More detail: {guide['doc']}")
+            say(f"  More detail (online): {doc_link(guide['doc'])}")
             say("  Never paste a password, token or code into Claude, a chat or an issue.")
         else:  # READY
             say("  The credential variables are set. Nothing is posted by this check; it only asks the platform "
@@ -222,7 +269,7 @@ def render_summary(results: list[dict]) -> str:
     verified = [r["account"] for r in results if r["state"] == VERIFIED]
     if verified:
         lines.append("Next: write a draft for a verified account, review it, then approve it yourself:")
-        lines.append(f"  reachweaver draft --account {verified[0]} --file examples/example-post.txt")
+        lines.append(f"  reachweaver draft --account {verified[0]} --text \"Your post\"   # or --file post.txt")
         lines.append("  reachweaver show POST_ID     # read the exact text")
         lines.append("  reachweaver approve POST_ID --approver YOUR_NAME")
         lines.append("Every post still needs your approval. Connecting an account does not turn that off.")
