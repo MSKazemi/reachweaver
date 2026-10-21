@@ -137,7 +137,7 @@ class RecordAndBindingTests(unittest.TestCase):
         for name, edit in edits.items():
             with self.subTest(change=name), connect(self.db) as db:
                 pid = self.draft(db, **rights)
-                transition(db, pid, "approve")
+                transition(db, pid, "approve", ai_label="not_needed")
                 row = get_post(db, pid)
                 self.assertIsNone(approval_binding_problem(row, offline_key_mode(db)))
                 media = json.loads(row["media_json"])
@@ -150,7 +150,7 @@ class RecordAndBindingTests(unittest.TestCase):
     def test_adding_rights_after_approval_also_breaks_it_and_old_approvals_still_verify(self):
         with connect(self.db) as db:
             pid = self.draft(db)  # no rights
-            transition(db, pid, "approve")
+            transition(db, pid, "approve", ai_label="not_needed")
             self.assertIsNone(approval_binding_problem(get_post(db, pid), offline_key_mode(db)))  # media-1 still verifies
             media = json.loads(get_post(db, pid)["media_json"])
             media[0]["rights"] = build_rights(**OWNER)[0]

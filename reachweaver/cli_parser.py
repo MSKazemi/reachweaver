@@ -356,6 +356,11 @@ def make_parser() -> argparse.ArgumentParser:
                    help="Approve even though this account has already shared (or has another approved copy of) the same "
                         "video, image or wording on this platform (repeat-check shows what matched). Bound into the "
                         "approval, so the send-time repeat check lets this one post through; also an audit event")
+    p.add_argument("--ai-label", choices=("applied", "not_needed"),
+                   help="Posts with images or a video only: your answer to the AI-content label question when "
+                        "ai-label-check says required or unknown for the post's platform (approval is refused "
+                        "without it). applied: you label it yourself (platform composer or text; ReachWeaver sets no "
+                        "label); not_needed: you decided no label is needed. Bound into the approval (approval/media-3)")
     p.add_argument("--sources", type=Path, metavar="CONFIG",
                    help="sources-scan config (#9): refuse when any published text (post, alt texts, video title/tags), a hosted image URL or the source URL links into any visibility:private repository of that config (private repository URLs are never public links)")
     p = sub.add_parser("youtube-attach", help="#22 (owner-approved; disabled until a live receipt): attach one local MP4 + upload metadata to a YouTube "
@@ -412,6 +417,19 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--sources", type=Path, metavar="CONFIG",
                    help="sources-scan config (#9): refuse when the alt text or the image URL links into any visibility:private repository of that config (private repository URLs are never public links)")
     sub.add_parser("media-detach", help="Offline: remove every image attachment from a DRAFT").add_argument("post_id")
+    p = sub.add_parser("ai-declare", help="Offline: record your AI-content declarations on a DRAFT: who wrote the "
+                                          "text (--authorship) and whether each image or video is realistic "
+                                          "AI-made media (--realistic-synthetic); bound at approval for a post with "
+                                          "media (approval/media-3) and used by the AI-label precondition")
+    p.add_argument("post_id")
+    p.add_argument("--authorship", choices=("human", "ai_assisted", "ai_generated", "clear"),
+                   help="Who wrote the text: human, ai_assisted or ai_generated (clear removes it)")
+    p.add_argument("--realistic-synthetic", choices=("yes", "no", "clear"),
+                   help="yes: the image/video could pass as a real photo or recording but was AI-made or altered; "
+                        "no: it is not; clear removes the answer. Applies to every attachment unless --attachment")
+    p.add_argument("--attachment", type=int, metavar="N",
+                   help="Only the Nth attachment (1-based, in send order; a video is 1)")
+    p.add_argument("--json", action="store_true", help="Machine-readable result: the declarations and the advice")
     p = sub.add_parser("video-attach", help="Offline: bind one local MP4 to a TikTok DRAFT (issue #23; owner-approved, "
                                             "disabled until a live receipt); approval binds its SHA-256 and the "
                                             "delivery options; a post has images or one video, never both; never uploads")

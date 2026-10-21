@@ -31,6 +31,9 @@ def offline_binding_problem(post, mode) -> str | None:
     if problem is None:
         from .send_options import row_problem
         problem = row_problem(post)
+    if problem is None:  # AI-label precondition (2026-10-21): a media post needing an answer has none bound
+        from .ai_label_gate import problem as ai_label_problem
+        problem = ai_label_problem(post)
     return None if problem == APPROVAL_KEY_UNAVAILABLE else problem
 
 
@@ -56,7 +59,8 @@ def approval_view(post, mode=None) -> dict:
         view["approve_would_bind_sha256"] = approval_payload_sha256(post, scheduled_at=None, use_row_schedule=False)
         view["approve_adds"] = ("a fresh per-approval nonce (approval/2) that this digest does not include; for a "
                                 "Mastodon or Postiz account also the fingerprint of its send options "
-                                "(approval/options-1), and with --allow-repeat the repeat override (approval/repeat-1)")
+                                "(approval/options-1), with --allow-repeat the repeat override (approval/repeat-1), and for a post "
+                                "with images or a video the AI-label declarations and --ai-label answer (approval/media-3)")
     return view
 
 
@@ -253,6 +257,12 @@ def build_post_view(db, post, account: dict | None) -> dict:
         shown["approval"]["send_options"] = options
     if "approved_allow_repeat" in post.keys() and post["approved_allow_repeat"]:
         shown["approval"]["allow_repeat"] = "bound (approval/repeat-1): an exact repeat may be sent"
+    if "approved_ai_label" in post.keys() and post["approved_ai_label"]:
+        shown["approval"]["ai_label"] = f"bound (approval/media-3): --ai-label {post['approved_ai_label']}"
+    from .ai_label_gate import advice
+    ai_label = advice(post)  # read-only advice; the approve precondition lives in storage.transition
+    if ai_label is not None:
+        shown["ai_label"] = ai_label
     media = media_view(post)
     if media is not None:
         shown["media"] = media

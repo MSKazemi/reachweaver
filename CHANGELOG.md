@@ -9,6 +9,7 @@ No section below claims a growth result. The only delivered posts claimed are th
 ### Security
 
 - `published_manual` is born terminal: `transition` has no edge into or out of it (approve, unapprove, cancel and schedule refuse it), `reconcile` refuses it, and `pending`, `claim_sending`, `publish` (dry run and `--live`, with or without `--post-id` or `--scheduled-only`), the Postiz and TikTok runners, the media/video setters, `queue-health`, `dead-letter` and the approval-ledger audit never select it. Every approval column of the record is NULL. Covered by `tests/test_manual_published.py`. No send path, network endpoint or credential use was added.
+- **AI-content label precondition for posts with media** (owner-approved 2026-10-21, security review decisions D1-D4 and D6; D5 deferred). `approve` of a post with images or a video computes the `ai-label-check` decision for the post's own platform from its stored declarations (EU Art. 50 left out, D4) and refuses with `ai_label_unanswered` when it is `required` or `unknown` (D2), until you pass `approve --ai-label applied|not_needed`. Text-only posts are never blocked (D1); `check` and `show` print the advice and, where relevant, the EU Art. 50 hint (advisory, never blocks). For a post with media, the declarations and the answer are bound into the approval hash under the add-on tag `reachweaver.storage.approval/media-3` (D3), so changing one after approval refuses the send; the `approve` audit event records `ai_label_decision=... ai_label=...`. `claim_sending`, `check_approval_binding`, `schedule`, `publish` (dry run) and `health` re-run the same decision on the bound values and the bundled registry, with no network, and refuse `ai_label_unanswered` when a needed answer is not bound. The registry file is not bound. `health` warns (`ai_disclosure_registry_aging`, attention, never blocks) when the AI-disclosure rules are more than 90 days old (D6). Nothing is added to the send path: no platform label field is set.
 
 ### Added
 
@@ -29,6 +30,7 @@ No section below claims a growth result. The only delivered posts claimed are th
   - `suggest` with a database adds P3 "What works for you" items (`observational_only`, with n and medians). When a bundled registry fact is aging or stale, it also adds one P3 research-freshness item.
   - A `calendar-plan` proposal gains `your_results`: your 6-hour blocks and weekdays that did better, next to the block of each proposed slot. It never picks a slot, and `--apply` is unchanged.
 - `registry-age`, `health` and `doctor` now cover `ai_search_registry.json`, `ai_disclosure_registry.json`, `social_web_registry.json` and `platform_risk_registry.json` (nine registries).
+- **`ai-declare POST_ID`** (offline, writes a draft only): record your own answers about a draft: `--authorship human|ai_assisted|ai_generated` (who wrote the text) and `--realistic-synthetic yes|no` per image or video (`--attachment N` for one; `clear` removes an answer). Stored in new nullable `posts` columns, keyed by each attachment's SHA-256 so a replaced file has no answer. `ai-label-check --post-id`, `check` and `show` now use them. See [docs/AI-CONTENT-LABELS.md](docs/AI-CONTENT-LABELS.md#when-approval-asks-for-an-answer).
 
 ### Changed
 
@@ -42,6 +44,12 @@ No section below claims a growth result. The only delivered posts claimed are th
 ### Upgrade note
 
 - Schema: `shared_material` gains the nullable column `post_id` (added automatically by the usual migration). The `posts.status` CHECK of a database created before this version does not allow `published_manual`; the first `mark-shared --url` rebuilds the `posts` table once (SQLite's documented table-rebuild procedure in one transaction: every row and column is copied, approval hashes and MACs stay valid, `foreign_key_check` must pass, otherwise everything rolls back) and logs a `posts_status_check_widened` event. Nothing changes until then. Older ReachWeaver versions were not tested against a database that holds `published_manual` records; back up `state/` before downgrading.
+
+### Upgrade notes
+
+- The database gains three nullable `posts` columns (`authorship`, `realistic_synthetic_json`, `approved_ai_label`), added by `migrate()` on first open; older code ignores them. With all three NULL the approval payload is byte-identical, so **every existing approval keeps its hash**.
+- **A post with images or a video approved before the upgrade is not grandfathered** (same rule as the approval nonce and send options): if its platform decision is `required` or `unknown`, the send is refused with `ai_label_unanswered` and the post stays approved or scheduled; `health` lists it under re-approval. Re-approve it once: `reachweaver unapprove POST_ID`, `reachweaver show POST_ID`, then approve with `--ai-label applied|not_needed` (or record `ai-declare` answers that settle it). Text-only approvals are unaffected. Every live adapter enabled today is text-only, so no enabled live send changes.
+- Rollback: after a downgrade, an approval that bound declarations or an answer (`approval/media-3`) no longer matches the payload older code computes, so it is refused with `approval_hash_mismatch_reapproval_required` until re-approved (fails closed), as with earlier binding changes.
 
 ## [0.14.0] - 2026-10-21
 

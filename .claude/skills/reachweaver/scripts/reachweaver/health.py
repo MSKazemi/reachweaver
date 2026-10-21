@@ -375,6 +375,18 @@ def build_health(con, accounts: dict[str, dict] | None, *, accounts_error: str |
     for row in research["registries"]:
         if row["error"] and row["registry"] != "capabilities":  # an invalid capability registry blocks above
             reasons.append(_reason("attention", "research_registry_invalid", f"{row['registry']}: {row['error']}"))
+    # AI-label precondition D6 (owner-approved 2026-10-21): warn when the AI-disclosure rules are older than
+    # 90 days; never blocks (the approve precondition keeps using the bundled file as it is).
+    from .ai_label_gate import registry_age
+    ai_rules = registry_age(current.date())
+    if ai_rules["status"] == "aging":
+        reasons.append(_reason("attention", "ai_disclosure_registry_aging",
+                               f"oldest AI-label rule checked {ai_rules['oldest_checked_on']} ({ai_rules['age_days']} "
+                               f"days > {ai_rules['warn_after_days']}); re-verify the cited platform pages before "
+                               "relying on ai-label-check or the approve precondition"))
+    elif ai_rules["status"] == "invalid":
+        reasons.append(_reason("attention", "ai_disclosure_registry_invalid",
+                               f"{ai_rules['error']}; media posts need an explicit --ai-label answer until it is fixed"))
     queue = queue_health(con, now=now, stale_minutes=stale_minutes, key_mode=approval_key_mode(con, env))
     paused = is_paused(con)
     opt_in = live_opt_in(env)
@@ -431,6 +443,7 @@ def build_health(con, accounts: dict[str, dict] | None, *, accounts_error: str |
                    "registry": {"reviewed_on": registry["reviewed_on"] if registry else None,
                                 "stale_platforms": stale, "max_age_days": max_age_days},
                    "registry_freshness": freshness.compact(research),
+                   "ai_disclosure_registry": ai_rules,
                    "caps_file": caps_path, "stale_sending_minutes": stale_minutes,
                    "approval_keyed_binding": keyed, "approval_ledger": ledger_view,
                    "status_counts": queue["status_counts"]},

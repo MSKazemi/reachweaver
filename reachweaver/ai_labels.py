@@ -11,9 +11,10 @@ or ``--authorship``) and its media flags: the optional media-manifest key ``real
 ``unknown``, says what to tick in the platform's own composer, and cites the source.
 
 It is advisory only. It never blocks, approves, schedules or sends anything (``SEND_PATH = None``); the database
-is opened read-only and only for ``--post-id``; no network request, model call or credential read. Wiring it in as
-an approval precondition is a protected change that needs the owner's security review. The EU wording is read
-from a secondary site and nothing here is legal advice.
+is opened read-only and only for ``--post-id``; no network request, model call or credential read. The approval
+precondition for posts with media (owner-approved 2026-10-21) lives in ``ai_label_gate.py`` and calls ``assess``
+with the post's bound declarations; this command itself still blocks nothing. The EU wording is read from a
+secondary site and nothing here is legal advice.
 """
 from __future__ import annotations
 
@@ -224,18 +225,31 @@ def media_from_manifest(manifest: object) -> list[dict]:
 
 
 def media_from_post(row: Any) -> list[dict]:
-    """Media stored on a post (``media_json`` images, ``video_json``). Realism is never stored there."""
+    """Media stored on a post (``media_json`` images, ``video_json``) with the owner's ``realistic_synthetic``
+    answers recorded by ``ai-declare`` (``posts.realistic_synthetic_json``, keyed by attachment SHA-256; absent or
+    unreadable means no answer). A malformed media or video record raises ``ValidationError``."""
     from .attachments import decode_media
     from .video import decode_video
     keys = row.keys()
+    realism: dict = {}
+    if "realistic_synthetic_json" in keys and row["realistic_synthetic_json"]:
+        try:
+            parsed = json.loads(str(row["realistic_synthetic_json"]))
+        except ValueError:
+            parsed = {}
+        realism = {k: v for k, v in parsed.items() if isinstance(v, bool)} if isinstance(parsed, dict) else {}
     items: list[dict] = []
     if "media_json" in keys and row["media_json"]:
         for idx, image in enumerate(decode_media(row["media_json"])):
             provenance = (image.get("rights") or {}).get("provenance") or {}
-            items.append({"id": f"image {idx + 1}", "kind": "image", "realistic_synthetic": None,
+            items.append({"id": f"image {idx + 1}", "kind": "image", "sha256": image.get("sha256"),
+                          "realistic_synthetic": realism.get(image.get("sha256")),
                           "created_by": provenance.get("created_by"), "targets": []})
-    if "video_json" in keys and row["video_json"] and decode_video(row["video_json"]):
-        items.append({"id": "video", "kind": "video", "realistic_synthetic": None, "created_by": None, "targets": []})
+    if "video_json" in keys and row["video_json"]:
+        video = decode_video(row["video_json"])
+        if video:
+            items.append({"id": "video", "kind": "video", "sha256": video.get("sha256"),
+                          "realistic_synthetic": realism.get(video.get("sha256")), "created_by": None, "targets": []})
     return items
 
 
@@ -500,7 +514,9 @@ def run_command(args: argparse.Namespace) -> int:
             if row is None:
                 raise ValidationError(f"unknown post {args.post_id!r}")
             stored_media = media_from_post(row)
-        items = [{"id": args.post_id, "platforms": platforms or [row["platform"]], "authorship": override}]
+            stored_authorship = row["authorship"] if "authorship" in row.keys() else None
+        items = [{"id": args.post_id, "platforms": platforms or [row["platform"]],
+                  "authorship": override or (stored_authorship if stored_authorship in AUTHORSHIP else None)}]
     else:
         items = items_from_document(_read_json(args.file, "draft file"))
         stored_media = []
@@ -517,9 +533,10 @@ def run_command(args: argparse.Namespace) -> int:
         raise ValidationError(f"at most {MAX_TARGETS} draft/platform pairs per check")
     report = assess(targets, media, registry=registry, eu=args.eu, public_interest=args.public_interest,
                     editorial_review=args.editorial_review)
-    if args.post_id is not None and override is None:
-        report["authorship_note"] = ("Authorship is not stored with a post; pass --authorship human|ai_assisted|"
-                                     "ai_generated for a definite answer.")
+    if args.post_id is not None and override is None and items[0]["authorship"] is None:
+        report["authorship_note"] = ("No authorship is recorded for this post; record it with reachweaver ai-declare "
+                                     f"{args.post_id} --authorship human|ai_assisted|ai_generated, or pass --authorship "
+                                     "here for a one-off answer.")
     print(json.dumps(report, indent=2, ensure_ascii=False) if args.json else render_text(report))
     return 0
 

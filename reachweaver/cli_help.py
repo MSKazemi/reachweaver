@@ -24,7 +24,7 @@ import textwrap
 GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Get started and look around", ("start", "help", "context", "describe", "connect", "account-add", "account-advisor", "profile", "account-route", "account-kit", "version", "init", "doctor", "health", "workspace", "ui", "list", "show", "journal", "capabilities", "registry-age", "completion", "mcp-serve")),
     ("Draft and approve (nothing is sent)", (
-        "idea", "draft", "check", "repeat-check", "mark-shared", "review", "approve", "unapprove", "cancel", "schedule", "media-attach", "media-detach",
+        "idea", "draft", "check", "repeat-check", "mark-shared", "review", "approve", "unapprove", "cancel", "schedule", "media-attach", "media-detach", "ai-declare",
         "video-attach", "video-detach", "youtube-attach", "youtube-detach", "campaign-check", "campaign-preview",
         "campaign-stage", "campaign-export", "claims-check", "review-packet", "review-comment",
         "review-status")),

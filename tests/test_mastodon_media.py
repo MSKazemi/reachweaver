@@ -197,7 +197,7 @@ class Base(unittest.TestCase):
             path.write_bytes(png(note=f"image {i}".encode()))
             code, _, err = self.attach(pid, path, f"Chart number {i + 1} of weekly downloads")
             self.assertEqual(code, 0, err)
-        code, _, err = self.cli("approve", pid, "--approver", "mohsen")
+        code, _, err = self.cli("approve", pid, "--approver", "mohsen", "--ai-label", "not_needed")
         self.assertEqual(code, 0, err)
         return pid
 
@@ -364,7 +364,7 @@ class ApprovalBindingTests(Base):
     def test_media_tamper_after_approval_blocks_claim(self):
         with connect(self.db) as db:
             pid = self.post_with(db, [self.item])["id"]
-            transition(db, pid, "approve")
+            transition(db, pid, "approve", ai_label="not_needed")
             db.execute("UPDATE posts SET media_json=? WHERE id=?",
                        (encode_media([{**self.item, "alt": "Swapped description"}]), pid))
             with self.assertRaisesRegex(ValidationError, "approval_hash_mismatch_reapproval_required"):
@@ -382,7 +382,7 @@ class ApprovalBindingTests(Base):
                 transition(db, pid, "approve")
             self.assertEqual(get_post(db, pid)["status"], "draft")
             self.image.write_bytes(png())  # restored: the recorded bytes again
-            transition(db, pid, "approve")
+            transition(db, pid, "approve", ai_label="not_needed")
             with self.assertRaisesRegex(ValidationError, "only change on a draft"):
                 set_post_media(db, pid, [])
 
@@ -523,7 +523,7 @@ class MediaCliTests(Base):
     def test_approve_binds_media_and_prints_it(self):
         pid = self.draft()
         self.attach(pid)
-        code, out, err = self.cli("approve", pid)
+        code, out, err = self.cli("approve", pid, "--ai-label", "not_needed")
         self.assertEqual(code, 0, err)
         self.assertIn("media=1", out)
         with connect(self.db) as db:

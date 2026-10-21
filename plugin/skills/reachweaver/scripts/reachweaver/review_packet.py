@@ -78,7 +78,8 @@ def content_sha256(post) -> str:
     that the value is the same before
     and after approval; the row itself is never modified."""
     row = {key: post[key] for key in post.keys()}
-    for column in ("approval_nonce", "approved_identity", "approved_send_options", "approved_allow_repeat"):
+    for column in ("approval_nonce", "approved_identity", "approved_send_options", "approved_allow_repeat",
+                   "approved_ai_label"):
         if column in row:
             row[column] = None
     return storage.approval_payload_sha256(row, scheduled_at=None, use_row_schedule=False)

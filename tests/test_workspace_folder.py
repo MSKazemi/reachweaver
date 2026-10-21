@@ -59,7 +59,7 @@ class Base(unittest.TestCase):
             pid = add_post(db, "my-mastodon", "mastodon", "A post that carries a chart")
             set_post_media(db, pid, [attachments.build_attachment(self.image, "A described chart")])
             if approved:
-                transition(db, pid, "approve", approver="tester", approval_channel="cli_flag")
+                transition(db, pid, "approve", approver="tester", approval_channel="cli_flag", ai_label="not_needed")
         return pid
 
 

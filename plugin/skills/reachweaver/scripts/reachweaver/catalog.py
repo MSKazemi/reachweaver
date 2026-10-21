@@ -90,6 +90,7 @@ COMMANDS: dict[str, dict] = {
     "schedule": _c(W),
     "media-attach": _c(NW, note="network only for --url --online"),
     "media-detach": _c(W),
+    "ai-declare": _c(W, note="owner declarations on a draft (authorship, realistic synthetic media); bound at approval for media posts"),
     "video-attach": _c(W),
     "video-detach": _c(W),
     "youtube-attach": _c(W),

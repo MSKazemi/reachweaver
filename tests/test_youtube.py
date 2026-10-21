@@ -206,7 +206,7 @@ class Workspace(unittest.TestCase):
         self.assertEqual(code, 0, out + err)
         if approve:
             with connect(self.db) as con:
-                transition(con, pid, "approve")
+                transition(con, pid, "approve", ai_label="not_needed")
         return pid, path
 
     def post(self, pid):
@@ -355,7 +355,7 @@ class SpecAndBindingTests(Workspace):
                 self.assertEqual(code, 2)
                 self.assertIn(needle, out + err)
         with connect(self.db) as con:
-            transition(con, pid, "approve")
+            transition(con, pid, "approve", ai_label="not_needed")
             with self.assertRaisesRegex(ValidationError, "only change on a draft"):
                 set_post_video(con, pid, None)
             other = add_post(con, "yt-me", "bluesky", "hello")
@@ -407,7 +407,7 @@ class SpecAndBindingTests(Workspace):
         pid, path = self.draft(approve=False)
         path.write_bytes(path.read_bytes() + b"x")
         with connect(self.db) as con, self.assertRaisesRegex(ValidationError, "approval_video_changed"):
-            transition(con, pid, "approve")
+            transition(con, pid, "approve", ai_label="not_needed")
         code, out, _ = self.cli("show", pid)
         self.assertEqual(json.loads(out)["video"]["file_status"], "youtube_video_file_changed")
         code, out, _ = self.cli("check", pid)
