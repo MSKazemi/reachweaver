@@ -59,6 +59,7 @@ Errors are fixed codes. They never contain the token, the URL, request headers o
 - **Before the claim:** `facebook_http_400` (the token may be invalid, expired, not a Page token, or throttled), `facebook_http_401`, `facebook_http_403`, `facebook_http_429` (records an account cooldown) and `identity_mismatch`. The post stays approved.
 - **After `mark_write_started()`:** every failure ends in `_uncertain`, for example `facebook_feed_http_400_uncertain`, `facebook_feed_network_or_timeout_uncertain`, `facebook_feed_post_id_unrecognized_uncertain` or `facebook_receipt_page_mismatch_uncertain`. The post goes to `needs_review` with send class `ambiguous` and is **never** retried. No idempotency key is documented. Before you reconcile, open the Page and check whether the post exists.
 - A documented throttle that arrives as HTTP 400 does **not** record a cooldown. The send still stops at `needs_review` (proposal, decision D21-4).
+- Meta error-code handling (D19-5, D21-4) and `appsecret_proof` (D21-6) are decided after the first supervised Meta receipt and before wider use (owner decision 2026-10-21; see [preconditions](FIRST-LIVE-PILOT.md#preconditions-before-enabling-tiktok-youtube-or-a-meta-adapter)).
 
 ## Sources (read 2026-10-09)
 

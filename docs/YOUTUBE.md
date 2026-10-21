@@ -92,7 +92,7 @@ A failed or interrupted API upload leaves no resumable session in ReachWeaver (s
 
 ## Enabling (owner only, after review)
 
-Do not enable from an agent session. The owner (1) completes the decisions in the proposal, (2) has an OAuth client whose project passed Google's verification and the YouTube API audit if public uploads are wanted, (3) sets `"reachweaver_video_upload": "live"`, `video: "api_direct"` and sourced `rate_limits.facts` on the YouTube registry entry and adds `"youtube"` to `policy.SUPPORTED_LIVE_VIDEO`, (4) runs one supervised `private` upload with `publish --live --post-id ID` and records the native receipt per [FIRST-LIVE-PILOT.md](FIRST-LIVE-PILOT.md).
+Do not enable from an agent session. The owner (1) completes the decisions in the proposal, (2) has an OAuth client whose project passed Google's verification and the YouTube API audit if public uploads are wanted, (3) sets `"reachweaver_video_upload": "live"`, `video: "api_direct"` and sourced `rate_limits.facts` on the YouTube registry entry and adds `"youtube"` to `policy.SUPPORTED_LIVE_VIDEO`, (4) runs one supervised `private` upload with `publish --live --post-id ID` and records the native receipt per [FIRST-LIVE-PILOT.md](FIRST-LIVE-PILOT.md). Precondition of that enable change (owner decision 2026-10-21, not built yet): a `quotaExceeded` answer must record a provider cooldown, which it does not today ([preconditions](FIRST-LIVE-PILOT.md#preconditions-before-enabling-tiktok-youtube-or-a-meta-adapter)).
 
 ## Offline fixtures
 

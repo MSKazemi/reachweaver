@@ -2006,6 +2006,12 @@ def execute(args) -> int:
         for step in account_disconnect.revocation_steps(account):
             print(step)
         return 0
+    if args.command == "review":  # #11: owner-only loop; each answer runs the real approve or cancel command
+        if args.verify_identity and not args.online:
+            raise ValidationError("--verify-identity requires explicit --online (one read-only identity request per "
+                                  "approval). Nothing shown or approved")
+        from .review_loop import run as run_review_loop
+        return run_review_loop(args, execute=execute, make_parser=make_parser)
     if args.command == "reconnect":
         with connect(args.db) as db:
             lifted = account_disconnect.reconnect(db, args.account)

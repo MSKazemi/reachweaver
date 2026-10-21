@@ -64,7 +64,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_owner_only_core(self):
         owner = catalog.owner_only_commands()
-        for item in ("approve", "reconcile", "resume", "reconnect", "publish --live", "connect --guide",
+        for item in ("approve", "review", "reconcile", "resume", "reconnect", "publish --live", "connect --guide",
                      "account-kit --approve-plan", "approval-mode --confirmation"):
             self.assertIn(item, owner)
         self.assertNotIn("pause", owner)
@@ -152,6 +152,7 @@ class ContextTests(Base):
         self.assertIsNone(doc["posts"])
         self.assertIsNone(doc["safety"]["emergency_paused"])
         self.assertIn("publish --live", doc["owner_only_commands"]["commands"])
+        self.assertIn("review", doc["owner_only_commands"]["commands"])  # #11 guided approval loop
         self.assertLess(len(out.encode()), 3000)
 
     def test_populated_state_is_summarised_compactly_without_secret_values(self):

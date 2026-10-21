@@ -22,7 +22,7 @@ RW publish --post-id POST_ID  # dry run
 RW report --format markdown
 ```
 
-Then the owner, in their own terminal: `approve POST_ID`, and only on the production host with credentials set, `REACHWEAVER_ENV=prod REACHWEAVER_ALLOW_LIVE=1 reachweaver publish --live --post-id POST_ID`.
+Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk several drafts one by one), and only on the production host with credentials set, `REACHWEAVER_ENV=prod REACHWEAVER_ALLOW_LIVE=1 reachweaver publish --live --post-id POST_ID`.
 
 ## Get started and look around
 
@@ -60,6 +60,7 @@ Then the owner, in their own terminal: `approve POST_ID`, and only on the produc
 | `check` | Validate a draft before approval | `POST_ID`, `--persona ID`, `--optout F`, `--sources CONFIG` |
 | `repeat-check` | Same file, wording or link already shared on this platform? | `--post-id ID`, or `--platform P` with `--text`/`--file`/`--image`/`--video`/`--link`; `--days N`, `--json` |
 | `mark-shared` | Record what the owner posted by hand (local ledger only) | `--platform P`, `--account`, `--text`, `--file`, `--image`, `--video`, `--link`, `--url`, `--at`, `--note` |
+| `review` | **OWNER**: guided approval in the owner's terminal: each draft's sheet and check, then `a` (approve that one post), `s`, `c` (typed CANCEL) or `q`; needs a real terminal; reply drafts left out. Claude never runs it; suggest it when several drafts wait | `--campaign C`, `--account ID`, `--approver NAME`, `--persona`, `--optout F`, `--sources CONFIG`, `--verify-identity --online` |
 | `approve` | **OWNER**: approve the exact current text; binds a payload hash | `POST_ID`, `--persona`, `--approver`, `--verify-identity --online`, `--allow-repeat` (only when re-sharing is intended) |
 | `unapprove` | Approved/scheduled post back to draft; binding cleared | `POST_ID` |
 | `cancel` | Draft/approved/scheduled post will never be sent | `POST_ID` |

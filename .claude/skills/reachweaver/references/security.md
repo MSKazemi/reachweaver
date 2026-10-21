@@ -32,7 +32,7 @@ The report also shows `credential_source` (`environment` or `credentials_directo
 
 ## Production-only live gate (owner-only)
 
-`publish --live` also requires `REACHWEAVER_ALLOW_LIVE=1` **and** `REACHWEAVER_ENV=prod`, checked before any account or credential is loaded. Only the owner sets `REACHWEAVER_ENV=prod`, and only on the trusted production host; never on a development or CI machine. **Claude never runs `approve`, `publish --live` or any command that sets these variables**; the repository's `.claude/settings.json` deny rules block them (and also `approval-mode --confirmation off` and any command naming `REACHWEAVER_APPROVAL_SECRET`), and you must not work around those rules. Prepare the exact command and hand it to the owner.
+`publish --live` also requires `REACHWEAVER_ALLOW_LIVE=1` **and** `REACHWEAVER_ENV=prod`, checked before any account or credential is loaded. Only the owner sets `REACHWEAVER_ENV=prod`, and only on the trusted production host; never on a development or CI machine. **Claude never runs `approve`, `review`, `publish --live` or any command that sets these variables**; the repository's `.claude/settings.json` deny rules block them (and also `approval-mode --confirmation off` and any command naming `REACHWEAVER_APPROVAL_SECRET`), and you must not work around those rules. Prepare the exact command and hand it to the owner.
 
 ## Approval safeguards (#7 D6/D7, owner-approved 2026-10-09, owner-only)
 

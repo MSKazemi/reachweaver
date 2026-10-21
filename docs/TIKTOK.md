@@ -78,6 +78,8 @@ run_live_send
 
 Chunking follows the media transfer guide. A file of at most 64,000,000 bytes is sent as one chunk; larger files use 10 MiB chunks, with the remainder in the final chunk; `total_chunk_count = size // chunk_size`.
 
+**Before TikTok is enabled** (owner decision 2026-10-21, not built yet): the status polling must re-read the emergency pause between checks (today it does not), and the owner decides together how an inbox delivery counts in `queue-health` and in the account hold (today it is `needs_review`, so it is counted as ambiguous and holds the account until reconciled). See [preconditions](FIRST-LIVE-PILOT.md#preconditions-before-enabling-tiktok-youtube-or-a-meta-adapter).
+
 ## Offline fixtures
 
 `tests/fixtures/providers/tiktok/` holds twelve **synthetic, hand-written** responses (not recordings), replayed by `ChunkFixtureTests` and `CreatorOptionFixtureTests` in `tests/test_tiktok.py` against a temporary flipped registry:

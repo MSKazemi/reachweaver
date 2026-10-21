@@ -417,6 +417,17 @@ For each post the effective budget is the **strictest** of the CLI flag, the fil
 
 `providers` is refused in a version 1 file, and these two keys are refused outside `providers`. **Version 1 files stay valid unchanged.** Rollback: code older than this release rejects a version 2 file, so `publish --live` refuses to run; restore a version 1 file before downgrading. This caps file sets no dollar ceiling (spend caps for paid tiers are issue #24).
 
+## Spend ceilings are a precondition for any paid-API adapter
+
+ReachWeaver charges nothing and meters no money. Today no ReachWeaver send can spend money: every platform with a live or mock-tested adapter documents no posting fee in the capability registry, YouTube is limited by quota rather than price, and the only platform whose registry entry lists a per-request price, **X** (pay-per-use credits per post created, higher with a URL; prices subject to change), has no ReachWeaver adapter. The Postiz backend refuses X for the same reason. What limits sending today is the attempt budget above, the minimum gap, provider session budgets and 429 cooldowns.
+
+Owner decision of 2026-10-21: no monetary ceiling is built while no paid adapter exists, because it would guard nothing. Any future adapter for a paid API, such as X, must ship together with these rules, each reviewed as its own decision:
+
+1. The owner first sets the provider's own maximum spend per billing cycle in its developer console. ReachWeaver cannot check this, so the adapter proposal records it as the owner's statement.
+2. `caps.json` gains a tighten-only `max_spend_usd_per_30d` per provider. Before the claim, ReachWeaver estimates `attempts in the last 30 days × the registry price for this kind of request` and refuses with `spend_ceiling_reached` when the next attempt would go over it. Counting attempts rather than confirmed posts over-counts rather than under-counts.
+3. A registry price older than the staleness window refuses live sends to that provider until the price is checked again.
+4. The cost shown by `show` and the dashboard stays labelled as an estimate, never as an invoice.
+
 ## Runbook: revoked permissions and API version sunsets
 
 **Symptoms.**

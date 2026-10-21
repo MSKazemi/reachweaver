@@ -1,5 +1,5 @@
 {
-  "description": "Once per session: tell Claude when a newer ReachWeaver release exists (cached 24 h, silent offline). Never updates by itself. Before every shell command: refuse owner-only ReachWeaver actions (approve, publish --live, resume, reconcile, reconnect, turning confirmation off, the live switches) so they stay in the owner's own terminal.",
+  "description": "Once per session: tell Claude when a newer ReachWeaver release exists (cached 24 h, silent offline). Never updates by itself. Before every shell command: refuse owner-only ReachWeaver actions (approve, review, publish --live, resume, reconcile, reconnect, turning confirmation off, the live switches) so they stay in the owner's own terminal.",
   "hooks": {
     "SessionStart": [
       {

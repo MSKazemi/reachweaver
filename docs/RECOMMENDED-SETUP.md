@@ -47,11 +47,34 @@ cd my_social_media
 reachweaver workspace --init .
 [ -f config/accounts.json ] || curl -fsSL https://raw.githubusercontent.com/MSKazemi/reachweaver/main/config/accounts.example.json -o config/accounts.json
 reachweaver approval-mode --confirmation tty_hash_prefix
+reachweaver approval-mode --max-age-hours 168
 ```
 
-The first command creates `config/`, `state/`, `media/`, `logs/`, a `.gitignore` that keeps secrets out of git, and `secrets.env.example` (credential names only). The `curl` line is a safety net and only runs when `config/accounts.json` is missing: it fetches the example accounts file (public handles, no secrets; edit it later to list your own accounts). Releases after 0.5.2 carry that file inside the package, so `workspace --init` creates it and the line does nothing; 0.5.2 from PyPI does not, and `doctor` then stops with "Missing .../config/accounts.json". The last command makes `approve` and `publish --live` work only in a terminal where you type the first characters of the post's hash, so an AI session running commands through pipes is refused. It is strong friction, not a cryptographic boundary (a program can open a pseudo-terminal); the owner approval key in [account onboarding](ACCOUNT-ONBOARDING.md#optional-the-owner-approval-key-7-d7) is the stronger control. That setting is stored in this workspace's database, so repeat it for each new workspace.
+The first command creates `config/`, `state/`, `media/`, `logs/`, a `.gitignore` that keeps secrets out of git, and `secrets.env.example` (credential names only). The `curl` line is a safety net and only runs when `config/accounts.json` is missing: it fetches the example accounts file (public handles, no secrets; edit it later to list your own accounts). Releases after 0.5.2 carry that file inside the package, so `workspace --init` creates it and the line does nothing; 0.5.2 from PyPI does not, and `doctor` then stops with "Missing .../config/accounts.json". The last command makes `approve` and `publish --live` work only in a terminal where you type the first characters of the post's hash, so an AI session running commands through pipes is refused. It is strong friction, not a cryptographic boundary (a program can open a pseudo-terminal); the owner approval key in [account onboarding](ACCOUNT-ONBOARDING.md#optional-the-owner-approval-key-7-d7) is the stronger control. The next command makes an approval expire: a post approved more than 168 hours (7 days) ago is not sent until you approve it again, so an approval you forgot about cannot go out weeks later. Pick a number at least as long as the longest gap you plan between approving and the scheduled time; `schedule` refuses a due time after the approval expires. The limit can only be lowered from the command line, and turning the confirmation off needs the same typed check, so an assistant cannot quietly loosen either. Both are stored in this workspace's database, so repeat them for each new workspace.
 
-Claude can do the first steps for you if you prefer; run the last one yourself.
+Claude can do the first steps for you if you prefer; run the two `approval-mode` lines yourself.
+
+### Recommended approval settings for a computer you sit at
+
+These are the settings recommended after the 2026-10-21 security review, for the laptop or desktop where you approve posts yourself:
+
+| Setting | Command | Status |
+|---|---|---|
+| Type the hash prefix for every approval and live send | `reachweaver approval-mode --confirmation tty_hash_prefix` | Recommended: on |
+| Approvals expire after N hours | `reachweaver approval-mode --max-age-hours N` (for example 168; at least your longest scheduling lead) | Recommended: on |
+| Owner approval key (`REACHWEAVER_APPROVAL_SECRET`) | see [account onboarding](ACCOUNT-ONBOARDING.md#optional-the-owner-approval-key-7-d7) | Deferred: set it up when you run a separate worker host that sends without you |
+
+Check what is on with `reachweaver approval-mode`. The confirmation is friction against a process that runs commands through pipes, not proof that a person is present; the approval key, which an assistant cannot read, is the stronger control once a separate worker host exists.
+
+### Approve several drafts one by one
+
+When a campaign leaves several drafts, run this in your own terminal instead of copying each post id:
+
+```bash
+reachweaver review --campaign CAMPAIGN_ID --approver YOUR_NAME
+```
+
+It takes the drafts oldest first. For each one it prints the same review sheet as `show` and the result of `check`, then asks on your terminal: `a` approves that one post (through the normal `approve` command, with all its checks; with the confirmation above on, you also type the hash prefix), `s` skips it, `c` cancels it after you type `CANCEL`, `q` stops. An empty or unknown answer never approves anything. It refuses to start without a terminal, so Claude cannot run it, and it never approves a repeat of something already shared (use `approve POST_ID --allow-repeat` yourself when that is intended). Reply drafts are not included; approve them one at a time. At the end it lists the ids it approved, skipped, cancelled and refused, and the next command (a dry run with `publish --post-id`, or `schedule`). `--account ID` limits it to one account; `--optout`, `--sources`, `--persona` and `--verify-identity --online` are passed to each check and approval.
 
 ## Step 3. Start Claude in that folder and ask
 
@@ -83,10 +106,10 @@ Run these in your own terminal, inside the workspace folder:
 | When | Command | Why it is yours |
 |---|---|---|
 | You are ready to use a real account | `reachweaver connect --guide` | Walks you through the official sign-in and a limited credential, one account at a time. It needs a person at a terminal, and the credential stays in your environment, never in chat. |
-| Claude shows you a draft you accept | `reachweaver show POST_ID`, then `reachweaver approve ...` | Approval is for one exact text and destination. A plan or a chat is never approval. |
+| Claude shows you a draft you accept | `reachweaver show POST_ID`, then `reachweaver approve ...`; for several drafts, `reachweaver review` | Approval is for one exact text and destination. A plan or a chat is never approval. |
 | You want a real send | `reachweaver publish --post-id POST_ID --live` | Needs `REACHWEAVER_ALLOW_LIVE=1` and `REACHWEAVER_ENV=prod` that only you set. Start with one text post on a throwaway account ([first live pilot](FIRST-LIVE-PILOT.md)). |
 
-Claude tells you the exact command each time. Claude will not run `approve`, `publish --live`, `connect --guide` or `reconnect`, and will not loosen the approval settings. That is a deliberate safety rule, not a missing feature.
+Claude tells you the exact command each time. Claude will not run `approve`, `review`, `publish --live`, `connect --guide` or `reconnect`, and will not loosen the approval settings. That is a deliberate safety rule, not a missing feature.
 
 ## Keeping it up to date
 
@@ -99,7 +122,7 @@ They are separate copies of the same version, so update both. Your workspace fol
 
 ## What was and was not tested
 
-The package install from PyPI, the workspace layout, `doctor` and `approval-mode --confirmation tty_hash_prefix` were run on 2026-10-17 in a scratch folder. The `claude plugin ...` terminal commands are listed by `claude plugin --help` (Claude Code 2.1.302) and the marketplace file passes `claude plugin validate`, but the install step itself was not run end to end here. Nothing in this page has sent or published anything.
+The package install from PyPI, the workspace layout, `doctor` and `approval-mode --confirmation tty_hash_prefix` were run on 2026-10-17 in a scratch folder. The `claude plugin ...` terminal commands are listed by `claude plugin --help` (Claude Code 2.1.302) and the marketplace file passes `claude plugin validate`, but the install step itself was not run end to end here. `approval-mode --max-age-hours` and `review` are covered by the offline test suite (`tests/test_review_loop.py` drives `review` with a simulated terminal); neither was run against a real account. Nothing in this page has sent or published anything.
 
 ## Next
 

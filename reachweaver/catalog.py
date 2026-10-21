@@ -75,6 +75,8 @@ COMMANDS: dict[str, dict] = {
     "check": _c(W, note=DB_NOTE),
     "repeat-check": _c(R),
     "mark-shared": _c(W),
+    "review": _c(("owner_only", "network", "writes", "interactive"),
+                 note="guided approval loop in the owner's terminal; each answer runs approve or cancel for one post"),
     "approve": _c(("owner_only", "network", "writes")),
     "unapprove": _c(W),
     "cancel": _c(W),

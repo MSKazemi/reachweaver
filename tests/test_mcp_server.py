@@ -31,7 +31,7 @@ MODERN_META = {"io.modelcontextprotocol/protocolVersion": "2026-07-28",
                "io.modelcontextprotocol/clientCapabilities": {}}
 SIM = {"seed": 1, "pairs": 2, "lift": 0.1, "noise": 0.1}
 # Commands that must never be reachable from an MCP client, whatever else changes.
-NEVER = ("approve", "publish", "resume", "reconcile", "reconnect", "approval-mode", "connect", "account-kit",
+NEVER = ("approve", "review", "publish", "resume", "reconcile", "reconnect", "approval-mode", "connect", "account-kit",
          "unapprove", "schedule", "cancel", "update", "mcp-serve", "ui")
 
 
@@ -265,7 +265,7 @@ class CallTests(Base):
 
     def test_unknown_and_owner_only_tools_are_protocol_errors(self):
         server = self.legacy()
-        for name in ("approve", "publish", "resume", "reconcile", "reconnect", "approval_mode", "approval-mode",
+        for name in ("approve", "review", "publish", "resume", "reconcile", "reconnect", "approval_mode", "approval-mode",
                      "list", "check", "draft", "mcp_serve", "nope", "context "):
             reply = self.call(name, {}, server)
             self.assertEqual(reply["error"]["code"], -32602, name)

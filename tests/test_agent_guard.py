@@ -38,6 +38,11 @@ CASES = [
     ("reachweaver resume", True),
     ("reachweaver reconcile 12 --published --remote-id abc", True),
     ("reachweaver reconnect --account work-bsky", True),
+    ("reachweaver review", True),
+    ("reachweaver --db state/x.sqlite review --campaign launch --approver me", True),
+    ("python3 -m reachweaver.cli review --account work-bsky", True),
+    ("python3 ~/.claude/skills/reachweaver/scripts/run.py review", True),
+    ("python3 -c \"from reachweaver.cli import main; main(['review'])\"", True),
     ("reachweaver publish --live --limit 1", True),
     ("python3 -m reachweaver.cli publish --limit 1 --live", True),
     ("reachweaver publish --live=1", True),
@@ -97,6 +102,10 @@ CASES = [
     ("reachweaver unapprove 12", False),
     ("reachweaver pause", False),
     ("reachweaver disconnect --account work-bsky", False),
+    # The co-reviewer packet commands are not the review loop.
+    ("reachweaver review-packet --post-id 12 --out packet", False),
+    ("reachweaver review-status --packet packet", False),
+    ("python3 -c \"from reachweaver.cli import main; main(['review-status', '--packet', 'p'])\"", False),
     ("reachweaver --plain journal", False),
     # Draft text that mentions an owner-only word inside one quoted argument passes.
     ('reachweaver draft --account work-bsky --text "Please approve and resume the live --live run"', False),
@@ -163,7 +172,8 @@ class AgentGuardHookProtocolTests(unittest.TestCase):
 
     def test_script_runs_isolated_as_the_plugin_does(self):
         # `python3 -I <file>`: no package import, the reachweaver/ directory never shadows stdlib.
-        for command, expected in (("reachweaver approve 12", 2), ("reachweaver show 12", 0)):
+        for command, expected in (("reachweaver approve 12", 2), ("reachweaver review", 2),
+                                  ("reachweaver show 12", 0), ("reachweaver review-packet --post-id 12 --out p", 0)):
             with self.subTest(command=command):
                 done = subprocess.run([sys.executable, "-I", str(PLUGIN_GUARD)], input=self.payload(command),
                                       capture_output=True, text=True, timeout=60, check=False)
@@ -239,9 +249,14 @@ class RepositoryDenyRulesCoverModuleFormTests(unittest.TestCase):
         for command in ("python3 -m reachweaver.cli approve 12", "python3 -m reachweaver approve 12",
                         "python3 -m reachweaver.cli publish --live", "python3 -m reachweaver publish --limit 1 --live",
                         "python3 -m reachweaver.cli resume", "python3 -m reachweaver reconcile 12 --published",
-                        "reachweaver reconnect --account a", "python3 -m reachweaver.cli reconnect --account a"):
+                        "reachweaver reconnect --account a", "python3 -m reachweaver.cli reconnect --account a",
+                        "reachweaver review", "reachweaver review --campaign launch", "python3 -m reachweaver review",
+                        "python3 -m reachweaver.cli review --account a", "python3 scripts/run.py review"):
             with self.subTest(command=command):
                 self.assertTrue(any(fnmatch.fnmatchcase(command, rule) for rule in rules))
+        for command in ("reachweaver review-packet --post-id 12 --out packet", "reachweaver review-status --packet p"):
+            with self.subTest(command=command):  # agent-safe packet commands stay allowed
+                self.assertFalse(any(fnmatch.fnmatchcase(command, rule) for rule in rules))
 
 
 if __name__ == "__main__":

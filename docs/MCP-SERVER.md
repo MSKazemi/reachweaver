@@ -4,7 +4,7 @@
 
 `reachweaver mcp-serve` runs a small [Model Context Protocol](https://modelcontextprotocol.io) server on your own computer. It lets an MCP client other than Claude Code (for example Claude Desktop) read your local ReachWeaver state and run ReachWeaver's offline checks. Claude Code does not need it: the plugin and skill already run the command line directly.
 
-The server is **read-only**. It has no tool that approves, schedules, publishes, pauses, resumes, reconciles, reconnects, connects an account or changes the approval mode. A client cannot run those steps even if a prompt tells it to, because the tools do not exist. Those steps stay with you, in your own terminal.
+The server is **read-only**. It has no tool that approves (directly or through the `review` loop), schedules, publishes, pauses, resumes, reconciles, reconnects, connects an account or changes the approval mode. A client cannot run those steps even if a prompt tells it to, because the tools do not exist. Those steps stay with you, in your own terminal.
 
 ## What it offers
 
