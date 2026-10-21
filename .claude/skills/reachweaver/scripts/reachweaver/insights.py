@@ -38,6 +38,7 @@ from statistics import median
 from typing import Any, Callable
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from . import results
 from .baseline_eval import bootstrap_independent, matched_snapshot, quantile
 from .policy import PLATFORMS, ValidationError
 from .storage import METRIC_FIELDS, is_manual, measured_posts, parse_utc
@@ -95,8 +96,8 @@ HOW_TO_GET_DATA = (
     "a few days and again about a week after posting.",
     "Native analytics export: 'reachweaver import-metrics --csv FILE' (columns post_id, observed_at, source, "
     "metric columns).",
-    "One post by hand: 'reachweaver metrics POST_ID --observed-at TIME --source native-export --likes N "
-    "--replies N --reposts N'.",
+    "One post by hand, from the app's insights: 'reachweaver metrics POST_ID --likes N --replies N --reposts N' "
+    "(recorded now, source 'entered-by-hand').",
     "Record a result near the matched age (default 168 h = 7 days after posting, within 24 h) for at least "
     "10 posts per account; then run 'reachweaver insights' again.",
 )
@@ -475,6 +476,12 @@ def _analyze(con: sqlite3.Connection, *, account_id: str | None, platform: str |
             "features": features,
         }
         cohort["suggestions"] = _suggestions(cohort, rows, denominator=denominator, limit=limit) if comparable else []
+        matched_ids = {r["post_id"] for r in rows}
+        early = results.early_note([(sent, results.snapshot_ages(con, post["id"], sent)) for post, sent in members
+                                    if post["id"] not in matched_ids], current,
+                                   age_hours=age_hours, tolerance_hours=tolerance_hours, tz=zone)
+        if early is not None:  # key only when some posts have results, but all from before the matched age
+            cohort["results_at_other_ages"] = early
         cohorts.append(cohort)
         kept[(account, plat)] = rows
 
@@ -639,12 +646,14 @@ def render_text(report: dict[str, Any]) -> str:
     if not report["cohorts"]:
         lines += ["", "No published posts match these filters yet."]
     for cohort in report["cohorts"]:
-        lines += ["", f"{cohort['account_id'] or 'account unknown'} ({cohort['platform']}): {cohort['posts_with_result']} of "
+        lines += ["", f"{results.account_label(cohort['account_id'])} ({cohort['platform']}): {cohort['posts_with_result']} of "
                       f"{cohort['published_in_window']} published posts have a result"
                       + (f" ({cohort['posted_by_hand']} of them posted by hand)" if cohort.get("posted_by_hand") else "")
                       + (f" from source '{cohort['source']}'" if cohort["source"] else "")
                       + (f"; median {_fmt(cohort['overall']['median'], denominator)}" if cohort["overall"]["n"] else "")
                       + "."]
+        if cohort.get("results_at_other_ages"):
+            lines.append("  " + results.early_note_text(cohort["results_at_other_ages"]))
         if cohort["status"] != "ok":
             lines.append(f"  Too little data to compare: at least {2 * method['min_posts_per_group']} posts with a "
                          f"result are needed (groups of {method['min_posts_per_group']}).")

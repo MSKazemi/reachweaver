@@ -6,6 +6,27 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Added
+
+- **`reachweaver next` (new everyday command, read-only): "What should I post next?"** At most five ranked, concrete steps in plain language, each with one command: safety issues first, drafts waiting (`review`), posts due for their 7-day numbers (the exact `metrics POST_ID --likes N --replies N --reposts N` line), each open idea **by name** with `share --platform <your usual networks> --text '<idea>'` (quoted with `shlex.quote`; the browser composer for a long idea or no history), days since you last posted per network, and the top "what works for you" line. `--json` (schema `reachweaver.next.v1`). Reads the ideas inbox and an existing database `mode=ro`; never creates the database, drafts, approves, schedules or sends. Docs: [docs/NEXT-ACTIONS.md](docs/NEXT-ACTIONS.md). Tests: `tests/test_whats_next.py`.
+- **`report` at a terminal prints a short summary** ("This week (since 2026-10-14): 3 posts · 120 likes · 9 replies · best: ... on Instagram (95 likes, 7 replies)"), a table per network, the top 5 posts by interactions with their first words, posts with no numbers or due for their 7-day numbers, and the early-results note. `--format text` asks for it explicitly; `--week` is `--since 7d`. Unknown counts print as `-`, never 0.
+- **`show POST_ID` lists the post's latest recorded numbers** per source, with when they were observed and how many hours after posting (`results` in the JSON for published and posted-by-hand posts), or the exact `metrics` command when none are recorded.
+- **Human times when recording** (`reachweaver/when.py`, one parser): `metrics --observed-at/--window-start/--window-end` and `mark-shared --at` accept `now`, `today`, `yesterday`, `YYYY-MM-DD` (midday local, never in the future), `'YYYY-MM-DD HH:MM'` (the computer's time zone, its daylight-saving rules for that date) and ISO 8601 as before. Stored times are unchanged: ISO 8601 UTC with offset. `import-metrics` files still need an explicit offset. Tests: `tests/test_when.py`.
+- `start` without an accounts file but with posts or ideas already recorded shows your progress (`next`, the due `metrics` line, `report --week`, the composer) instead of only "No accounts file yet." (state `posting_by_hand`); a brand-new user still starts with `share --web --open`.
+
+### Changed
+
+- `metrics` defaults `--observed-at` to now and `--source` to `entered-by-hand` (you typed the numbers from the platform's own insights; never presented as an API or export source). Explicit values work as before. It then prints what was stored and, for a post younger than 6 days, when to record again for the 7-day comparison.
+- `report` without `--format`: text at a terminal, JSON when piped or redirected (unchanged for scripts).
+- `mark-shared --url` prints one id, the measurable post id, with its exact `metrics` line; without `--url` it adds "Not counted in reports. Add --url <link to the post> to measure it."
+- `insights` and the report say plainly when results exist but none at the matched age ("You recorded results N hours after posting; insights compares results about 7 days after posting. Record again around DATE or use --age-hours N"; JSON `cohorts[].results_at_other_ages`), and a cohort without an account is "(no account recorded)" instead of "account unknown".
+- Bare `suggest` prints the same view as `next` (its `--json` keeps the suggestions schema, counts only); `suggest --include-db` now includes the open-ideas signal, which points at `next`.
+- `--help` everyday list: `next` replaces `suggest` (bare `suggest` now prints the same view, so the list would show one answer twice; `suggest` stays in `--help all`). 130 commands.
+
+### Security
+
+- `next` prints the owner's idea text and post wording, so `mcp-serve` withholds it (`mcp_server.WITHHELD_COMMANDS`, a tightening). No approval, dry-run, pause, credential, reconciliation, Hacker News or Reddit rule changed; nothing new writes to the database or the send queue.
+
 ## [0.15.0] - 2026-10-21
 
 One place to write, share and learn. The browser composer reopens, autosaves and attaches media, and "Mark as posted" makes a post you shared by hand measurable. `share` now also makes copy-ready Bluesky, Mastodon, Telegram and LinkedIn posts, and `account-add` writes a valid account entry without a secret. Your own results feed hashtag ideas, follow-up thresholds, `suggest` and `calendar-plan`. `platform-risk` shows how dependent you are on each network, and `eu-review-evidence` lists the human review recorded for each published post. Media posts now need an explicit AI-label answer at approval where a platform requires a label (owner-approved; see Upgrade notes). 129 commands (4 more than 0.14.0, none removed). No live adapter is added.

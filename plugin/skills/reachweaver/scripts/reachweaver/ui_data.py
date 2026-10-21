@@ -147,8 +147,8 @@ def next_steps(post) -> list[dict]:
     elif status == "sending":
         steps = [{"label": "Inspect health for a stale send", "command": "reachweaver health"}]
     elif status == MANUAL_STATUS:  # posted by hand: only results can be added; it can never be sent
-        steps = [{"label": "Record its results from the platform's own analytics",
-                  "command": f"reachweaver metrics {pid} --observed-at TIME --source native-export --views N --likes N"}]
+        steps = [{"label": "Record its numbers from the platform's own insights (now, typed by hand)",
+                  "command": f"reachweaver metrics {pid} --likes N --replies N --reposts N"}]
     return steps
 
 

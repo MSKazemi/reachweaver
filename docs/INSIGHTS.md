@@ -30,7 +30,9 @@ Only results you recorded yourself:
 
 - `metrics-fetch --online` (the owner runs it): public Bluesky and Mastodon counters (likes, replies, reposts; no views).
 - `import-metrics --csv FILE`: a native analytics export.
-- `metrics POST_ID ...`: one snapshot by hand.
+- `metrics POST_ID --likes N --replies N --reposts N`: one snapshot by hand, from the app's own insights (recorded now with source `entered-by-hand` unless you give `--observed-at` and `--source`).
+
+When a post has results but none at the matched age (for example you recorded them the day after posting), the text says so plainly: "You recorded results 20 hours after posting; insights compares results about 7 days after posting. Record again around 2026-10-27 or use --age-hours 25." The date is the post's 7-day mark (in `--timezone`); when it has already passed only the `--age-hours` hint is given. The JSON carries the same facts as `cohorts[].results_at_other_ages`. A cohort without an account (a post recorded by hand without `--account`) is shown as "(no account recorded)".
 
 With too little data the command exits 0 and says how to get more. When the database does not exist yet it says so and does not create it.
 
@@ -89,7 +91,10 @@ cohorts[]         {account_id, platform, source, other_sources: {source: posts_w
                                            difference, relative_difference,
                                            interval: {confidence, difference: [low, high], excludes_zero, method} | null,
                                            strength: "too little data" | "observation"}},
-                   suggestions[]}
+                   suggestions[],
+                   results_at_other_ages (only when some posts have results, none at the matched age):
+                     {posts, hours_after_posting[], record_again_around: "YYYY-MM-DD" | null,
+                      suggested_age_hours, matched_age_hours}}
 suggestions[]     every cohort's lines: {account_id, platform, direction: "more" | "less", feature, value, label,
                    rest_label, n, median, rest_n, rest_median, relative_difference, interval, strength, text,
                    overlaps_with[]: {feature, value, label, n, shared},

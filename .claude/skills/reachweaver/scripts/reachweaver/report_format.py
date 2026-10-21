@@ -21,7 +21,7 @@ from typing import Any
 
 from .storage import METRIC_FIELDS, METRIC_STATUS_LABELS
 
-REPORT_FORMATS = ("json", "markdown", "csv")
+REPORT_FORMATS = ("json", "markdown", "csv", "text")
 UNKNOWN = "unknown"
 CSV_COLUMNS = ("platform", "metric", "published", "posts_with_snapshot", "value", "exact_posts", "total_posts",
                *(f"{label}_posts" for label in METRIC_STATUS_LABELS if label != "exact"),
@@ -179,7 +179,89 @@ def render_csv(result: dict) -> str:
     return buffer.getvalue()
 
 
+TOP_POSTS = 5
+TEXT_COLUMNS = ("likes", "replies", "reposts", "views")
+
+
+def _count(value: Any) -> str:
+    return "-" if value is None else str(value)
+
+
+def render_text(result: dict, posts: list[dict] | None = None, *, window_label: str | None = None,
+                early: str | None = None, due: list[dict] | None = None) -> str:
+    """The short terminal summary (``report`` at a terminal, or ``--format text``).
+
+    ``posts`` is ``results.post_results`` for the same window; ``early`` the plain note from
+    ``results.early_note_text``; ``due`` is ``results.results_due``. Exact values only: ``-`` means no post
+    has an exact value for that count (unknown, never 0). Stored text is cleaned of control characters."""
+    from . import results as res
+    posts = posts or []
+    platforms: dict = result["platforms"]
+    head = window_label or "All your recorded posts"
+    published = sum(int(item["published"]) for item in platforms.values())
+    if not published:
+        lines = [f"{head}: no published posts recorded."]
+        if not result.get("window"):
+            lines.append("Record a post you made by hand: reachweaver mark-shared --platform NAME --text '...' "
+                         "--url LINK")
+        return "\n".join(lines) + "\n"
+    totals = []
+    for key in ("likes", "replies", "reposts", "views"):
+        exact = [item[key] for item in platforms.values() if item.get(key) is not None]
+        if exact:
+            totals.append(f"{sum(exact)} {key}")
+    ranked = res.ranked(posts)
+    summary = f"{head}: {published} post{'s' if published != 1 else ''}"
+    if totals:
+        summary += " · " + " · ".join(totals)
+    if ranked:
+        best = ranked[0]
+        summary += (f" · best: \"{best['first_words']}\" on {res.platform_name(best['platform'])} "
+                    f"({res.numbers_text(best['numbers'], ('likes', 'replies', 'reposts'))})")
+    lines = [summary, ""]
+    width = max(8, *(len(res.platform_name(p)) for p in platforms))
+    lines.append("Network".ljust(width) + "  Posts  With numbers  " + "  ".join(c.capitalize().rjust(7) for c in TEXT_COLUMNS))
+    for platform, item in platforms.items():
+        hand = int(item.get("posted_by_hand") or 0)
+        lines.append(res.platform_name(platform).ljust(width) + f"  {item['published']:>5}  {item['metric_coverage']:>12}  "
+                     + "  ".join(_count(item.get(c)).rjust(7) for c in TEXT_COLUMNS)
+                     + (f"   ({hand} posted by hand)" if hand else ""))
+    if ranked:
+        lines += ["", "Top posts by interactions (likes + replies + reposts recorded):"]
+        for number, row in enumerate(ranked[:TOP_POSTS], 1):
+            when = (row["posted_at"] or "")[:10]
+            lines.append(f"  {number}. {row['interactions']:>5}  \"{row['first_words']}\"  "
+                         f"{res.platform_name(row['platform'])}, {res.account_label(row['account_id'])}, {when}  "
+                         f"[{row['post_id']}]")
+    missing = [row for row in posts if row["observed_at"] is None]
+    if missing:
+        lines += ["", f"{len(missing)} post(s) have no numbers yet, for example:",
+                  f"  {res.metrics_command(missing[0]['post_id'])}"]
+    if due:
+        lines += ["", f"Ready for their 7-day numbers ({len(due)}):"]
+        lines += [f"  \"{item['first_words']}\" ({res.platform_name(item['platform'])}, posted "
+                  f"{item['days_since_posting']} days ago): {item['command']}" for item in due[:TOP_POSTS]]
+    if early:
+        lines += ["", early]
+    replies = result.get("replies") or {}
+    if replies:
+        lines += ["", "Replies are counted apart: " + ", ".join(
+            f"{res.platform_name(p)} {int(item['published'])}" for p, item in replies.items())]
+    lines += ["", "Exact counts only; '-' = not recorded (unknown, not zero). Counts are each post's latest numbers, "
+                  "not unique people.",
+              "Other views: --format markdown | csv | json; 'reachweaver show POST_ID' for one post; "
+              "'reachweaver insights' for what works."]
+    return term_clean("\n".join(lines)) + "\n"
+
+
+def term_clean(text: str) -> str:
+    from .term import clean
+    return clean(text)
+
+
 def render_report(result: dict, fmt: str = "json") -> str:
+    if fmt == "text":
+        return render_text(result)
     if fmt == "json":
         return render_json(result)
     if fmt == "markdown":

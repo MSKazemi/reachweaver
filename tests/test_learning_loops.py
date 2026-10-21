@@ -288,6 +288,8 @@ class SuggestWhatWorksTests(unittest.TestCase):
             before = digest(db_path)
             code, out, err = run("--db", str(db_path), "suggest", "--limit", "50")
             self.assertEqual(code, 0, err)
+            self.assertIn("What works for you: Try more of: posts with a link", out)  # bare suggest = `next` view
+            _, out, _ = run("--db", str(db_path), "suggest", "--include-db", "--limit", "50")
             self.assertIn("What works for you: try more of posts with a link", out)
             self.assertEqual(digest(db_path), before)
 

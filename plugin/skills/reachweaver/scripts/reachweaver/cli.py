@@ -98,7 +98,8 @@ from .storage import (
     report_since, set_paused,
     set_post_media, set_post_video, store_metrics, sync_cooldown_scopes, transition, uncertain_send, utc_now,
     connect_readonly as storage_connect_readonly, database_path as storage_database_path, event as record_event,
-    record_shared, repeat_refusal, repeat_send_problem, MANUAL_STATUS, manual_url_problem, record_manual_publish,
+    record_shared, repeat_refusal, repeat_send_problem, MANUAL_STATUS, MEASURED_STATUSES, manual_url_problem,
+    record_manual_publish,
 )
 from .inputs import read_json_file
 from .cli_parser import make_parser  # noqa: F401  (re-exported: tests and tools use cli.make_parser)
@@ -1055,14 +1056,17 @@ def _registry_warning() -> str | None:
 def _bare_suggest(args) -> int:
     """``suggest`` with no input flag: an EXISTING database read-only (as --include-db) plus the open ideas count.
     A missing database is skipped, never created; with nothing to rank it prints next steps, not an error."""
-    from . import ideas as ideas_inbox
     from .storage import connect_readonly, database_path
-    from .suggest import EMPTY_NEXT_STEPS, render_next_steps
-    try:
-        open_ideas = ideas_inbox.counts(ideas_inbox.inbox_path(args.db))["open"]
-    except ValidationError as exc:
-        print(f"WARNING: ideas inbox skipped: {exc}", file=sys.stderr)
-        open_ideas = 0
+    from .suggest import EMPTY_NEXT_STEPS, MAX_ACTIONS
+    if type(args.limit) is not int or not 1 <= args.limit <= MAX_ACTIONS:
+        raise ValidationError("suggest --limit must be 1..50")
+    if not args.json:  # a person gets the same plain view as `reachweaver next`; --json keeps its schema
+        from .whats_next import build_next, render_text as render_whats_next
+        print(render_whats_next(build_next(args.db)))
+        print("The full ranked review (queue safety, measurement coverage, what works): "
+              "reachweaver suggest --include-db")
+        return 0
+    open_ideas = _open_idea_count(args.db)
     database = database_path(args.db)
     warning = _registry_warning()
     if database.is_file():
@@ -1072,12 +1076,18 @@ def _bare_suggest(args) -> int:
         result = build_suggestions(open_ideas=open_ideas, limit=args.limit, registry_warning=warning)
     if not result["actions"]:
         result["next_steps"] = [dict(step) for step in EMPTY_NEXT_STEPS]
-    if args.json:
-        print(json.dumps(result, indent=2, ensure_ascii=False))
-    else:
-        print(render_suggestions(result) + ("\n" + render_next_steps(result["next_steps"])
-                                            if "next_steps" in result else ""))
+    print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0
+
+
+def _open_idea_count(db) -> int:
+    """Open ideas in the inbox next to the database (a count only); 0 with a warning when it cannot be read."""
+    from . import ideas as ideas_inbox
+    try:
+        return ideas_inbox.counts(ideas_inbox.inbox_path(db))["open"]
+    except ValidationError as exc:
+        print(f"WARNING: ideas inbox skipped: {exc}", file=sys.stderr)
+        return 0
 
 
 def _execute_read_only(args) -> int:
@@ -1513,7 +1523,9 @@ def execute(args) -> int:
                 result = build_suggestions(snapshot=snapshot, engagement=engagement, seo_briefs=seo,
                                            experiments=experiments, con=db, limit=args.limit,
                                            registry_warning=(_registry_warning() if args.command == "suggest"
-                                                             else None))
+                                                             else None),
+                                           open_ideas=(_open_idea_count(args.db) if args.command == "suggest"
+                                                       else None))
                 if args.command == "weekly-digest":
                     digest_report = {"generated_at": utc_now(), "platforms": report(db),
                                      "note": "Coverage varies. Counts are latest-per-post snapshots, "
@@ -2046,6 +2058,9 @@ def execute(args) -> int:
                     raise ValidationError("Unknown account for that platform. Run 'doctor' for account IDs")
             if not (text or images or video_sha or clean_links):
                 raise ValidationError("Give at least one of --text/--file, --image, --video or --link")
+            if args.at is not None:  # now / yesterday / 'YYYY-MM-DD HH:MM' (local) / ISO: stored as UTC ISO
+                from .when import parse_when
+                args.at = parse_when(args.at, what="--at")
             if args.url:  # 2026-10-21: a link makes the by-hand post measurable (a terminal published_manual record)
                 from .metrics_fetch import platform_id_from_url
                 problem = manual_url_problem(args.url)
@@ -2058,12 +2073,11 @@ def execute(args) -> int:
                                                  content=text or "", images=images, video=video_sha,
                                                  links=clean_links, posted_at=args.at, note=args.note,
                                                  remote_id=remote_id)
-                print(f"Recorded {made['shared_id']}: later drafts for {args.platform} are checked against this "
-                      "material.")
-                print(f"Measurable as post {made['post_id']} (posted by hand, {MANUAL_STATUS}): record its results "
-                      f"with 'reachweaver metrics {made['post_id']} ...' or import-metrics; report, insights and the "
-                      "dashboard include it, labelled posted by hand"
-                      + ("; metrics-fetch --online can read its public counters." if remote_id else "."))
+                print(f"Measurable as post {made['post_id']} (posted by hand on {args.platform}): report, insights, "
+                      "next and the dashboard count it; later drafts are checked against it.")
+                print(f"Add its numbers when you have them: reachweaver metrics {made['post_id']} --likes N "
+                      "--replies N --reposts N"
+                      + (" (or 'reachweaver metrics-fetch --online' reads its public counters)" if remote_id else ""))
                 print("Nothing was posted or sent, and this record can never be approved, scheduled or sent.")
                 return 0
             with connect(args.db) as db:
@@ -2072,6 +2086,7 @@ def execute(args) -> int:
                                          url=args.url, note=args.note)
             print(f"Recorded {entry_id}: later drafts for {args.platform} are checked against this material. "
                   "Nothing was posted or sent.")
+            print("Not counted in reports. Add --url <link to the post> to measure it.")
             return 0
         notes: list[str] = []
         if args.post_id is not None:
@@ -2413,6 +2428,11 @@ def execute(args) -> int:
         document = describe(make_parser(), args.name)
         print(json.dumps(document, ensure_ascii=False, separators=(",", ":")) if args.json else render_catalog(document))
         return 0
+    if args.command == "next":  # the ideas inbox plus an EXISTING database mode=ro; prints text; creates nothing
+        from .whats_next import build_next, render_text as render_whats_next
+        next_view = build_next(args.db)
+        print(json.dumps(next_view, indent=2, ensure_ascii=False) if args.json else render_whats_next(next_view))
+        return 0
     if args.command == "start":  # reads the accounts file and (if present) the database mode=ro; prints text
         from .start import build_guide, render as render_guide
         guide = build_guide(args.db, args.accounts)
@@ -2426,7 +2446,8 @@ def execute(args) -> int:
     if args.command in READ_ONLY_DB_COMMANDS:
         return _execute_read_only(args)
     # `report --since`: a bad window fails here, before the database is opened.
-    report_window = (report_since(args.since) if args.command == "report" and args.since is not None else None)
+    report_window = (report_since("7d" if args.week else args.since)
+                     if args.command == "report" and (args.since is not None or args.week) else None)
     if args.command == "report":  # read-only: mode=ro, never creates, migrates or writes the database
         return _run_report(args, report_window)
     with connect(args.db) as db:
@@ -2972,11 +2993,15 @@ def execute(args) -> int:
             reconcile(db,args.post_id,args.published,args.remote_id,args.remote_url,force=args.force)
             print("Reconciled on user's attestation; check the external platform carefully")
         elif args.command == "metrics":
-            observed_at = parse_utc(args.observed_at)
+            from .when import parse_when
+            observed_at = parse_when(args.observed_at, what="--observed-at")
+            bounds = [parse_when(value, what=flag) if value else value
+                      for value, flag in ((args.window_start, "--window-start"), (args.window_end, "--window-end"))]
             values = {key:getattr(args,key) for key in METRIC_FIELDS}
             store_metrics(db,args.post_id,observed_at,args.source,
-                          window_start=args.window_start,window_end=args.window_end,**values)
+                          window_start=bounds[0],window_end=bounds[1],**values)
             print("Metrics snapshot recorded. Missing values remain unknown, not zero")
+            _metrics_age_hint(db, args.post_id, observed_at, args.source)
         elif args.command == "import-metrics":
             with args.csv.open(newline="",encoding="utf-8-sig") as file:
                 reader = csv.DictReader(file)
@@ -3082,6 +3107,9 @@ def _run_report(args, report_window: str | None) -> int:
     """``report``: an existing database opened read-only (mode=ro + query_only). A missing database prints the
     empty report plus a friendly note on stderr and is never created; an older schema is never migrated."""
     from .storage import connect_readonly, database_path, schema_gaps
+    if args.report_format is None:  # a person at a terminal gets the summary; pipes and scripts keep the JSON
+        from . import term
+        args.report_format = "text" if term.interactive(sys.stdout) else "json"
     database = database_path(args.db)
     envelope: dict = {"generated_at": utc_now(), "platforms": {},
                       "note": "Coverage varies. Counts are latest-per-post snapshots, not unique people or "
@@ -3094,8 +3122,10 @@ def _run_report(args, report_window: str | None) -> int:
         print(f"No ReachWeaver database at {database} yet, so there is nothing to report. It was not created. "
               "Start with 'reachweaver start' (or 'reachweaver init'), publish a post and record its results.",
               file=sys.stderr)
-        print(render_report(envelope, args.report_format), end="")
+        print(_report_text(args, envelope) if args.report_format == "text"
+              else render_report(envelope, args.report_format), end="")
         return 0
+    text_parts: dict = {}
     with connect_readonly(database) as db:
         gaps = schema_gaps(db, ("posts", "metric_snapshots"))
         if gaps:
@@ -3104,10 +3134,55 @@ def _run_report(args, report_window: str | None) -> int:
                                   "then retry")
         envelope["platforms"] = report(db, since=report_window)
         replies = reply_report(db, since=report_window)
+        if args.report_format == "text":
+            text_parts = _report_text_parts(db, report_window)
     if replies:  # issue #17: replies are counted apart from the post totals; key only when present
         envelope["replies"] = replies
-    print(render_report(envelope, args.report_format), end="")
+    print(_report_text(args, envelope, **text_parts) if args.report_format == "text"
+          else render_report(envelope, args.report_format), end="")
     return 0
+
+
+def _metrics_age_hint(db, post_id: str, observed_at: str, source: str) -> None:
+    """After ``metrics``: what was stored, and when to record again for the 7-day comparison ``insights`` makes."""
+    from . import results
+    post = get_post(db, post_id)
+    sent, observed = results.to_time(post["send_started_at"]), results.to_time(observed_at)
+    observed_local = observed.astimezone().strftime("%Y-%m-%d %H:%M") if observed else observed_at
+    print(f"Stored for post {post_id} as observed {observed_local} (your time), source '{source}'.")
+    if sent is None or observed is None or post["status"] not in MEASURED_STATUSES:
+        return
+    age = results.hours_between(sent, observed)
+    if age < results.DUE_AFTER_HOURS:
+        again = results.local_date(sent + timedelta(hours=results.MATCH_AGE_HOURS))
+        print(f"That is {max(0, round(age))} hours after posting. To compare posts, insights uses the numbers about "
+              f"7 days after posting: record again around {again}.")
+
+
+def _report_text_parts(db, window: str | None) -> dict:
+    """``report`` at a terminal: per-post rows, posts due for their 7-day numbers and the early-results note."""
+    from . import results
+    now = datetime.now(timezone.utc)
+    posts = results.post_results(db, since=window)
+    note = results.early_note_for(db, posts, now)
+    return {"posts": posts, "due": results.results_due(db, now),
+            "early": (results.early_note_text(note, age_hint="run 'reachweaver insights --age-hours {n}'")
+                      if note else None)}
+
+
+def _report_text(args, envelope: dict, *, posts=None, due=None, early=None) -> str:
+    from .report_format import render_text
+    from .results import local_date, to_time
+    window = envelope.get("window")
+    label = None
+    if window:
+        since = to_time(window["since"])
+        day = local_date(since) if since else window["since"][:10]
+        label = f"This week (since {day})" if args.week or args.since == "7d" else f"Since {day}"
+    text = render_text(envelope, posts, window_label=label, early=early, due=due)
+    if not window:
+        text += "Only the last 7 days: reachweaver report --week\n"
+    return text
 
 
 def _json_error(parsed, exc: BaseException | None, message: str) -> None:

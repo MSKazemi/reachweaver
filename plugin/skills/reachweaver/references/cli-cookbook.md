@@ -20,6 +20,7 @@ RW check POST_ID
 RW repeat-check --post-id POST_ID
 RW publish --post-id POST_ID  # dry run
 RW report --format markdown
+RW next                       # what to post next: ideas by name, numbers due, days since the last post
 ```
 
 Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk several drafts one by one), and only on the production host with credentials set, `REACHWEAVER_ENV=prod REACHWEAVER_ALLOW_LIVE=1 reachweaver publish --live --post-id POST_ID`.
@@ -28,7 +29,8 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 
 | Command | Purpose | Key flags |
 |---|---|---|
-| `start` | Reads workspace, accounts (names example placeholders), database, queue, ideas and snapshots; prints the exact next command (browser composer first, drafts via the owner's `review`); runs nothing | `--json` |
+| `start` | Reads workspace, accounts (names example placeholders), database, queue, ideas and snapshots; prints the exact next command (browser composer first, drafts via the owner's `review`); with no accounts file but posts or ideas already recorded it shows that progress (`next`, `report --week`) instead of first-time setup; runs nothing | `--json` |
+| `next` | "What should I post next?": at most 5 ranked, concrete steps: safety issues first, drafts waiting (`review`), posts due for their 7-day numbers (exact `metrics` line), each open idea BY NAME with one `share --platform <usual networks> --text '...'` command (shell-quoted; the browser composer for a long idea), days since the last post per network, the top "what works" line. Read-only; prints the owner's idea text, so mcp-serve withholds it. Bare `suggest` prints the same view | `--json` (schema `reachweaver.next.v1`) |
 | `connect` | Status table of configured accounts (credential variable names only); never posts | `--account ID`, `--json`; **OWNER** `--guide` (walkthrough, needs a person at a terminal) |
 | `account-advisor` | Ranked channel shortlist and setup coaching; creates no account | `--region R`, `--goal G`, `--format F`, `--weekly-hours N`, `--existing`, `--setup PLATFORM_ID`, `--json` |
 | `profile` | Private `config/profile.json`: personas, usernames, sign-up details | `--init`, `--persona ID`, `--show`, `--check`, `--set PATH=VALUE`, `--handle PLATFORM:PERSONA=NAME` |
@@ -62,7 +64,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `draft` | Queue a text draft; one per `--account`, all or none | `--account ID` (repeat), `--text T` or `--file F`, `--campaign`, `--source-url`, `--persona ID`, `--reply-to ITEM_ID` (owner adds `--online` to verify the parent) |
 | `check` | Validate a draft before approval | `POST_ID`, `--persona ID`, `--optout F`, `--sources CONFIG` |
 | `repeat-check` | Same file, wording or link already shared on this platform? | `--post-id ID`, or `--platform P` with `--text`/`--file`/`--image`/`--video`/`--link`; `--days N`, `--json` |
-| `mark-shared` | Record what the owner posted by hand (local ledger). With `--url` (the post's link) it also becomes measurable: a `published_manual` "posted by hand" post id that `metrics`/`import-metrics`/`report`/`insights` and the dashboard include; it can never be approved, scheduled or sent. Offer it after a by-hand post so its results can be measured | `--platform P`, `--account`, `--text`, `--file`, `--image`, `--video`, `--link`, `--url`, `--at` (when it was posted), `--note` |
+| `mark-shared` | Record what the owner posted by hand (local ledger). With `--url` (the post's link) it also becomes measurable: a `published_manual` "posted by hand" post id (the one id printed, with its exact `metrics` line) that `metrics`/`import-metrics`/`report`/`insights`/`next` and the dashboard include; it can never be approved, scheduled or sent. Without `--url` it says the post is not counted in reports. Offer it after a by-hand post so its results can be measured | `--platform P`, `--account`, `--text`, `--file`, `--image`, `--video`, `--link`, `--url`, `--at` (when it was posted: `now`, `yesterday`, `YYYY-MM-DD`, `'YYYY-MM-DD HH:MM'` local, or ISO), `--note` |
 | `review` | **OWNER**: guided approval in the owner's terminal: each draft's sheet and check, then `a` (approve that one post), `s`, `c` (typed CANCEL) or `q`; needs a real terminal; reply drafts left out. Claude never runs it; suggest it when several drafts wait | `--campaign C`, `--account ID`, `--approver NAME`, `--persona`, `--optout F`, `--sources CONFIG`, `--verify-identity --online` |
 | `approve` | **OWNER**: approve the exact current text; binds a payload hash (plus a Mastodon account's visibility/language/spoiler_text, a Postiz account's server/integration, and `--allow-repeat` when given). A post with images or a video whose AI-label decision is required/unknown is refused (`ai_label_unanswered`) until the owner answers `--ai-label`; text-only posts are never blocked | `POST_ID`, `--persona`, `--approver`, `--verify-identity --online`, `--allow-repeat` (only when re-sharing is intended), `--ai-label applied\|not_needed` (media posts; bound, approval/media-3) |
 | `ai-declare` | Record the owner's AI-content answers on a draft: who wrote the text, whether each image/video is realistic AI-made media; bound at approval for media posts (approval/media-3). Record only answers the owner gave; never guess them | `POST_ID`, `--authorship human\|ai_assisted\|ai_generated\|clear`, `--realistic-synthetic yes\|no\|clear`, `--attachment N`, `--json` |
@@ -125,10 +127,10 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 
 | Command | Purpose | Key flags |
 |---|---|---|
-| `metrics` | Record one snapshot from a native export | `POST_ID`, `--observed-at`, `--source`, `--views`, `--impressions`, `--likes`, `--replies`, `--clicks`, `--window-start`, `--window-end` |
+| `metrics` | Record one post's numbers that the owner read in the app's insights or a native export. Defaults: observed now, source `entered-by-hand` (the owner typed them; never claims an API source). Prints when to record again for the 7-day comparison | `POST_ID`, `--likes`, `--replies`, `--reposts`, `--views`, `--impressions`, `--clicks`, `--observed-at` (`now`/`yesterday`/`YYYY-MM-DD`/`'YYYY-MM-DD HH:MM'` local/ISO), `--source native-export`, `--window-start`, `--window-end` |
 | `import-metrics` | Native-analytics CSV, all rows or none; cells count/unknown/suppressed/not_available/delayed/estimated:N | `--csv FILE` |
 | `metrics-fetch` | **online**, read-only public Bluesky/Mastodon counters; never posts | `--online`, `--dry-run`, `--account`, `--post-id`, `--max-posts` |
-| `report` | Coverage-aware analytics; exact values only; opens the DB read-only and never creates a missing one | `--format json/markdown/csv`, `--since 7d/30d/24h/YYYY-MM-DD` (posts sent in the window) |
+| `report` | Coverage-aware analytics; exact values only; opens the DB read-only and never creates a missing one. At a terminal: a short summary (totals, best post, a table per network, top 5 posts by interactions, posts due for numbers); piped: the unchanged JSON. Claude reads it with `--format json` | `--format text/json/markdown/csv`, `--week` (= `--since 7d`), `--since 7d/30d/24h/YYYY-MM-DD` (posts sent in the window) |
 | `youtube-analytics` | Sampling report over stored YouTube snapshots; fetches nothing | `--account`, `--post-id` |
 | `timing-evaluate` | Per-account matched-age outcomes; not optimal-time proof | `--account`, `--timezone`, `--source`, `--metric`, `--denominator`, `--stratify format/campaign`, `--since`, `--until` |
 | `baseline-eval` | Personalized slots/arms vs the generic baseline; bootstrap CI, non-causal | `--account`, `--timezone`, `--since`, `--until`, `--source`, `--metric`, `--denominator`, `--slot exploit:Tue@09:00`, `--campaign-arm`, `--readout`, `--attribution`, `--attribution-source analytics/ga4`, `--json` |
@@ -137,7 +139,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `attribution-report` | UTM/referrer join of local analytics exports; not causal | `--analytics`, `--github-traffic`, `--ga4-csv`, `--gsc-csv`, `--json` |
 | `pilot-report` | Per-arm readout of an owner field-pilot CSV log | `--log CSV`, `--min-weeks`, `--json` |
 | `peer-benchmark` | Compare with peers' public counters copied by hand | `--file F`, `--platform`, `--include-individuals`, `--json` |
-| `suggest` | Ranked review of profile, posts, SEO, engagement, queue; bare `suggest` reads an existing DB query-only plus the open-ideas count, and prints next steps when there is nothing; with a DB it adds P3 "What works for you" items from `insights`, plus a research-freshness item when a registry fact is aging or stale | `--snapshot F`, `--metrics-csv F`, `--owner-authorized`, `--engagement-export`, `--seo-briefs`, `--experiments`, `--include-db`, `--json` |
+| `suggest` | Ranked review of profile, posts, SEO, engagement, queue; bare `suggest` prints the same plain view as `next` (its `--json` keeps the suggestions schema: an existing DB query-only plus the open-ideas count, never idea text); `--include-db` also counts open ideas; with a DB it adds P3 "What works for you" items from `insights`, plus a research-freshness item when a registry fact is aging or stale | `--snapshot F`, `--metrics-csv F`, `--owner-authorized`, `--engagement-export`, `--seo-briefs`, `--experiments`, `--include-db`, `--json` |
 | `weekly-digest` | `suggest` (+ report) as one private Markdown file; never sent | `--out F`, `--snapshot F`, `--include-db` |
 
 ## Experiments

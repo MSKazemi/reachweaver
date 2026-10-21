@@ -58,7 +58,8 @@ UNSUPPORTED_PROTOCOL_VERSION = -32022
 
 DRAFT_COMMAND = "draft"
 # Read-only in the catalog but not for an unattended client: it reads credential values to audit them.
-WITHHELD_COMMANDS = {"credentials-audit": "reads credential values (never prints them); the owner runs it"}
+WITHHELD_COMMANDS = {"credentials-audit": "reads credential values (never prints them); the owner runs it",
+                     "next": "prints the owner's saved idea text and post wording; the owner reads it in a terminal"}
 # Commands that must never become a tool, whatever the catalog says. A backstop, not the rule.
 NEVER_EXPOSED = frozenset({
     "approve", "review", "unapprove", "publish", "resume", "reconcile", "reconnect", "approval-mode", "connect",

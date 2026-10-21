@@ -51,6 +51,8 @@ COMMANDS: dict[str, dict] = {
     "describe": _c(R, note="this catalog"),
     "help": _c(R, note="prints help text from the parser; offline"),
     "start": _c(R),
+    "next": _c(R, note="ideas inbox and the database mode=ro; never creates the database; prints your idea text, "
+                       "so mcp-serve withholds it"),
     "version": _c(R),
     "init": _c(W),
     "doctor": _c(R),
