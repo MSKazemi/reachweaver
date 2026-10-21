@@ -255,7 +255,7 @@ class StartTests(Base):
     def test_a_brand_new_user_still_starts_with_the_browser(self):
         guide = start.build_guide(str(self.db), str(self.config))
         self.assertEqual(guide["state"], "no_accounts_file")
-        self.assertEqual(guide["steps"][0]["command"], start.SHARE_WEB)
+        self.assertEqual(guide["steps"][0]["command"], start.STUDIO)
 
 
 if __name__ == "__main__":
