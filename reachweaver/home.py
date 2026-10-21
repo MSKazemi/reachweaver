@@ -10,10 +10,16 @@ from (or any parent of it), or named with ``--home DIR``, the default places mov
 An explicit flag (``--db``, ``--accounts`` ...) or the matching ``REACHWEAVER_*`` setting still wins over the
 workspace, and without a marker nothing changes: the defaults stay relative to the folder you run from.
 
+It also remembers the global path options typed for this run (``--home``, ``--db``, ``--accounts``, ``--profile``)
+so that a printed next step (``command``) repeats them: following it then reaches the same files instead of the
+defaults (UX re-measure 2026-10-21: ``--accounts myaccounts.json draft`` suggested a plain ``account-add``, which
+wrote config/accounts.json, and the retry failed again).
+
 This module only resolves paths. It reads no environment, creates nothing and opens no database.
 """
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 
 from .policy import ValidationError
@@ -22,6 +28,7 @@ MARKER = ".reachweaver-workspace"
 SEARCH_LEVELS = 8
 
 _root: Path | None = None
+_typed: tuple[tuple[str, str], ...] = ()
 
 
 def set_root(path: Path | None) -> None:
@@ -31,6 +38,33 @@ def set_root(path: Path | None) -> None:
 
 def root() -> Path | None:
     return _root
+
+
+def remember_flags(*, home_dir: str | Path | None = None, db: str | Path | None = None,
+                   accounts: str | Path | None = None, profile: str | Path | None = None) -> None:
+    """The global path options typed for this run; no argument forgets them (``cli.main`` does, when it ends)."""
+    global _typed
+    _typed = tuple((flag, str(value)) for flag, value in (("--home", home_dir), ("--db", db),
+                                                           ("--accounts", accounts), ("--profile", profile))
+                   if value is not None and str(value) != "")
+
+
+def typed_accounts() -> str | None:
+    """The ``--accounts`` value typed for this run, or None."""
+    return next((value for flag, value in _typed if flag == "--accounts"), None)
+
+
+def command(rest: str, *, accounts: str | Path | None = None) -> str:
+    """``reachweaver [the global options typed for this run] REST``, ready to copy.
+
+    ``accounts`` names an accounts file that differs from the run's default (a command's own ``--accounts``);
+    it replaces a typed ``--accounts``. Values are shell-quoted; without typed options this is ``reachweaver REST``.
+    """
+    flags = [(flag, value) for flag, value in _typed if not (accounts is not None and flag == "--accounts")]
+    if accounts is not None:
+        flags.append(("--accounts", str(accounts)))
+    words = ["reachweaver", *(f"{flag} {shlex.quote(value)}" for flag, value in flags)]
+    return " ".join(words + ([rest] if rest else []))
 
 
 def default_path(relative: str | Path) -> Path:

@@ -17,6 +17,7 @@ from __future__ import annotations
 import difflib
 from typing import Callable, Iterable, Mapping
 
+from . import home
 from .accounts import account_credential_suffixes, missing_credentials
 from .capabilities import require_capability
 from .policy import ValidationError
@@ -126,11 +127,13 @@ def account_rows(accounts: Mapping[str, dict], registry: dict, *, disconnected: 
             state, next_step = MANUAL, (f"No connection needed: ReachWeaver cannot send to this platform yet. "
                                         f"Use `manual-export --platform {account['platform']}`.")
         elif account_id in gone:
-            state, next_step = DISCONNECTED, f"Run `reconnect --account {account_id}` in your own terminal to lift it."
+            state, next_step = (DISCONNECTED, f"Run `{home.command(f'reconnect --account {account_id}')}` in your "
+                                              "own terminal to lift it.")
         elif missing:
-            state, next_step = NEEDS, f"Run `connect --guide --account {account_id}` for the steps."
+            state, next_step = NEEDS, f"Run `{home.command(f'connect --guide --account {account_id}')}` for the steps."
         else:
-            state, next_step = READY, f"Run `connect --guide --account {account_id}` to confirm the sign-in."
+            state, next_step = (READY, f"Run `{home.command(f'connect --guide --account {account_id}')}` to confirm "
+                                       "the sign-in.")
         rows.append({"account": account_id, "platform": account["platform"], "state": state,
                      "adapter": kind, "missing": missing, "next": next_step})
     return rows
@@ -138,11 +141,12 @@ def account_rows(accounts: Mapping[str, dict], registry: dict, *, disconnected: 
 
 def render_no_accounts(*, in_workspace: bool = False) -> str:
     """What ``connect`` says before any account exists: not an error, the next steps."""
+    # Commands repeat the options this run was given (--accounts, --db ...): following one fills the same file.
     lines = ["No accounts yet, so there is nothing to connect.",
-             "  Add one (public details only; never a password): reachweaver account-add bluesky",
-             "  Other networks: reachweaver account-add mastodon, telegram or linkedin",
+             f"  Add one (public details only; never a password): {home.command('account-add bluesky')}",
+             f"  Other networks: {home.command('account-add mastodon')} (or telegram, linkedin)",
              "  Posting by hand needs no account: reachweaver share --guide"]
-    if not in_workspace:
+    if not in_workspace and home.typed_accounts() is None:  # a workspace makes config/accounts.json, not your file
         lines.append("  Set up a folder for everything first: reachweaver workspace --init .")
     lines.append("  How connecting works: " + doc_link("docs/ACCOUNT-ONBOARDING.md"))
     return "\n".join(lines)
@@ -169,7 +173,7 @@ def offer_first_account(choices: Iterable[str], *, ask: Callable[[str], str],
         close = difflib.get_close_matches(answer, names, n=1, cutoff=0.6)
         guess = f" Did you mean {close[0]}?" if close else ""
         say(f"  Unknown network {answer!r}.{guess} Type one of: {', '.join(names)}.")
-    say("  No account added. Run `reachweaver account-add NETWORK` when you are ready.")
+    say(f"  No account added. Run `{home.command('account-add NETWORK')}` when you are ready.")
     return None
 
 
@@ -232,11 +236,14 @@ def run_guided(accounts: Mapping[str, dict], registry: dict, *, only: str | None
                 say(f"   {index}. {step}")
             if guide["page"]:
                 say(f"  Official page: {guide['page']}")
-            say("  Then, in a terminal the AI does not control, set these variables WITHOUT typing the value into "
-                "history, and run this guide again for this account:")
+            # Wording only (UX 2026-10-21); the read/export lines and what is asked are unchanged.
+            say("  Then, in your own terminal window (not inside an AI chat), set these variables WITHOUT typing "
+                "the value into history, and run this guide again for this account:")
             for name in row["missing"]:
                 say(f"      read -r -s -p '{name}: ' {name}; export {name}; printf '\\n'")
-            say(f"      reachweaver connect --guide --account {row['account']}")
+            say("      " + home.command("connect --guide --account " + row["account"]))
+            say("  These variables last only until you close that terminal window. How to keep them safely: "
+                + doc_link("docs/ACCOUNT-ONBOARDING.md"))
             say(f"  More detail (online): {doc_link(guide['doc'])}")
             say("  Never paste a password, token or code into Claude, a chat or an issue.")
         else:  # READY
@@ -269,10 +276,11 @@ def render_summary(results: list[dict]) -> str:
     verified = [r["account"] for r in results if r["state"] == VERIFIED]
     if verified:
         lines.append("Next: write a draft for a verified account, review it, then approve it yourself:")
-        lines.append(f"  reachweaver draft --account {verified[0]} --text \"Your post\"   # or --file post.txt")
-        lines.append("  reachweaver show POST_ID     # read the exact text")
-        lines.append("  reachweaver approve POST_ID --approver YOUR_NAME")
+        lines.append(f"  {home.command('draft --account ' + verified[0])} --text \"Your post\"   # or --file post.txt")
+        lines.append(f"  {home.command('show POST_ID')}     # read the exact text")
+        lines.append(f"  {home.command('approve POST_ID --approver YOUR_NAME')}")
         lines.append("Every post still needs your approval. Connecting an account does not turn that off.")
     else:
-        lines.append("Next: finish the steps above for one account, then run `reachweaver connect --guide` again.")
+        lines.append(f"Next: finish the steps above for one account, then run `{home.command('connect --guide')}` "
+                     "again.")
     return "\n".join(lines)

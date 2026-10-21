@@ -154,8 +154,11 @@ class CliPresentationTests(unittest.TestCase):
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = main(["--db", self.db, "--accounts", str(Path(self.db).parent / "absent.json"), "doctor"])
         self.assertEqual(code, 2)
-        self.assertIn("no accounts yet. Add one: reachweaver account-add bluesky", err.getvalue())
-        self.assertIn("Next: 'reachweaver account-add bluesky'", err.getvalue())
+        absent = Path(self.db).parent / "absent.json"
+        self.assertIn(f"no accounts yet. Add one: reachweaver --db {self.db} --accounts {absent} account-add bluesky "
+                      "(public details only).", err.getvalue())
+        # The message already names account-add with the right file: the hint only adds posting by hand.
+        self.assertIn("Or post by hand with no account at all: 'reachweaver share --guide'.", err.getvalue())
         self.assertNotIn("accounts.example.json", err.getvalue(), "no example file next to absent.json")
         Path(self.db).parent.mkdir(parents=True, exist_ok=True)
         Path(self.db).parent.joinpath("accounts.example.json").write_text('{"accounts": []}', encoding="utf-8")

@@ -251,6 +251,27 @@ def early_note_text(note: dict, *, age_hint: str = "use --age-hours {n}") -> str
     return text + f"To compare the results you have, {hint}."
 
 
+def early_note_advice(note: dict, *, by_hand: bool) -> str:
+    """``early_note`` as plain advice for the terminal ``report`` (UX 2026-10-21): when to record again and the
+    command that records numbers, instead of an ``insights --age-hours`` option. ``by_hand``: every post the note
+    is about was recorded with ``posted``, so ``posted LINK`` updates its numbers; otherwise ``metrics``."""
+    hours = note["hours_after_posting"]
+    if hours[-1] == 0:
+        when = "right after posting"
+    elif hours[0] == hours[-1]:
+        when = f"{hours[0]} hour{'s' if hours[0] != 1 else ''} after posting"
+    else:
+        when = f"between {hours[0]} and {hours[-1]} hours after posting"
+    days = "7 days" if note["matched_age_hours"] == MATCH_AGE_HOURS else f"{note['matched_age_hours']} hours"
+    record = ("reachweaver posted LINK --likes N" if by_hand
+              else "reachweaver metrics POST_ID --likes N ('reachweaver list' shows the post ids)")
+    text = f"You recorded these numbers {when}. "
+    if note["record_again_around"]:
+        return text + f"Record numbers again around {note['record_again_around']} to compare after {days}: {record}"
+    return (text + f"Comparing posts uses the numbers about {days} after posting; to compare the ones you have, "
+            f"run: reachweaver insights --age-hours {note['suggested_age_hours']}")
+
+
 def early_note_for(con: sqlite3.Connection, rows: list[dict], now: datetime, tz: tzinfo | None = None) -> dict | None:
     """``early_note`` for the posts in ``rows`` (``post_results`` output)."""
     entries = []

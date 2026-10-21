@@ -7,10 +7,11 @@ dict ``post_view.build_post_view`` returns; nothing is read, written or sent.
 """
 from __future__ import annotations
 
+import shlex
 import textwrap
 
 from . import term
-from .results import account_label
+from .results import account_label, local_date, to_time
 
 METER_WIDTH = 20
 # platform_preview keys that carry the platform's own count and limit, per platform.
@@ -77,9 +78,36 @@ def _box(text: str, width: int) -> list[str]:
     return [top, *[f"│ {line.ljust(pad)} │" for line in wrapped], "└" + "─" * (pad + 2) + "┘"]
 
 
+def _manual_sheet(view: dict, head: str, columns: int, stream) -> str:
+    """A post you made by hand (UX 2026-10-21): when and where you posted it, its text if recorded, its numbers.
+
+    No length meter or approval section: ReachWeaver never sent it and can never approve or send it, and an empty
+    text box with "0/300 graphemes" read as a broken draft."""
+    hand = view.get("posted_by_hand") or {}
+    url = str(hand.get("remote_url") or "")
+    moment = to_time(str(hand.get("posted_at") or ""))
+    when = local_date(moment) if moment is not None else "an unrecorded date"
+    link = shlex.quote(url) if url else "LINK"
+    lines = [head, f"{account_label(view['account_id'])} on {view['platform']}",
+             term.clean(f"Posted by you on {when}" + (f" · {url}" if url else "")), ""]
+    if view.get("content"):
+        lines += [term.style("TEXT", "bold", stream), *_box(view["content"], columns)]
+    else:
+        lines.append(term.clean(f'(text not recorded — add it with reachweaver posted {link} --text "...")'))
+    record = f"reachweaver posted {link} --likes N --replies N --reposts N"
+    results = dict(view.get("results") or {"latest_by_source": []}, record_more=record)
+    lines += ["", term.style("RESULTS", "bold", stream), *results_lines(results)]
+    lines += ["", "ReachWeaver never sent this post and cannot send, schedule or approve it.",
+              "", "Full details as JSON: reachweaver --plain show " + view["id"]]
+    return "\n".join(lines)
+
+
 def render_sheet(view: dict, steps: list[dict], stream, *, columns: int | None = None) -> str:
     columns = min(columns or term.terminal_columns(stream), 100)
     status = view["status"]
+    if status == "published_manual":
+        head = f"POST {term.clean(view['id'])}  " + term.style("[posted by you]", term.STATUS_COLOUR[status], stream)
+        return _manual_sheet(view, head, columns, stream)
     colour = term.STATUS_COLOUR.get(status, "grey")
     head = f"POST {term.clean(view['id'])}  " + term.style(f"[{status.replace('_', ' ')}]", colour, stream)
     lines = [head,

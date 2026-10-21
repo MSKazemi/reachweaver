@@ -26,7 +26,7 @@ import stat
 from pathlib import Path, PurePosixPath
 from typing import Mapping
 
-from . import ledger
+from . import home, ledger
 from .accounts import missing_credentials
 from .attachments import decode_media, encode_media
 from .ideas import FILENAME as IDEAS_FILENAME
@@ -157,7 +157,8 @@ def inspect(con, db_path: Path, accounts: Mapping[str, dict] | None, accounts_pa
     credentials: dict[str, list[str]] = {}
     if accounts is None:
         add("accounts_file_missing", "info", f"{accounts_path} not found",
-            "Copy config/accounts.json from the old computer, or add an account: reachweaver account-add bluesky.")
+            "Copy config/accounts.json from the old computer, or add an account: "
+            + home.command("account-add bluesky") + ".")
     else:
         credentials = {name: missing_credentials(account) for name, account in accounts.items()}
     return {"workspace": str(root) if root is not None else None, "paths": paths, "database": database, "ledger": audit["status"], "files": files,
@@ -338,12 +339,12 @@ def next_steps(root: Path, networks: list[str] | None, accounts_created: bool) -
         return ["Next: reachweaver doctor  (checks the accounts file that was already there)"]
     go = "" if root == Path.cwd().resolve() else f"cd {_shell_quote(str(root))}, then "
     if networks is None:
-        return [f"Next: {go}replace the example accounts with yours: reachweaver account-add bluesky (fills the "
+        return [f"Next: {go}replace the example accounts with yours: {home.command('account-add bluesky')} (fills the "
                 "bluesky example in place); repeat for each network you use."]
     if networks:
         return ([f"Placeholders added for: {', '.join(networks)} (not real accounts yet). Next: {go}fill each in:"]
-                + [f"  reachweaver account-add {network}" for network in networks])
-    return [f"No accounts yet. Next: {go}reachweaver account-add bluesky (or instagram, mastodon...; public "
+                + ["  " + home.command(f"account-add {network}") for network in networks])
+    return [f"No accounts yet. Next: {go}{home.command('account-add bluesky')} (or instagram, mastodon...; public "
             "details only), or post by hand right away: reachweaver share --guide"]
 
 

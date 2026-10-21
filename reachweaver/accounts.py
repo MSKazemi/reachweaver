@@ -304,8 +304,14 @@ def missing_accounts_message(path: Path) -> str:
     It keeps the leading ``Missing <path>`` that callers (``start``, ``error_codes`` and the optional-accounts
     readers in ``cli``) recognise. The example file is mentioned only when it sits next to the missing file.
     """
-    text = (f"Missing {path}: no accounts yet. Add one: reachweaver account-add bluesky (public details only), "
-            "or set up a folder: reachweaver workspace --init .")
+    # The next step repeats the options this run was given (--accounts, --db ...) so following it fills this
+    # file, not the default one (UX 2026-10-21). A command's own --accounts differs from the default: name it.
+    own = path if path != accounts_path(None) else None
+    text = (f"Missing {path}: no accounts yet. Add one: {home.command('account-add bluesky', accounts=own)} "
+            "(public details only)")
+    # A workspace makes config/accounts.json, not a file you named: offered only when no file was named.
+    text += (", or set up a folder: reachweaver workspace --init ." if own is None and home.typed_accounts() is None
+             else ".")
     example = path.with_name("accounts.example.json")
     if example.is_file():
         text += f" Or copy {example} to {path} and edit it (no secrets)."
