@@ -24,6 +24,10 @@ python3 -m reachweaver share --guide
 
 ReachWeaver asks which networks you want (for example, instagram,threads; an empty or mistyped answer is asked again, with a "Did you mean" and the list), asks for your caption, offers to check a photo or video (type its path, or press Enter to skip; nothing is uploaded), reviews the requirements and asks `Save these files? [Y/n]`. Enter saves, because saving only writes private files on your computer. It creates a private folder named something like state/share-YYYYMMDD-HHMMSS.
 
+The caption may take several lines: type each line at the `>` prompt and press Enter on an empty line to finish (or Ctrl-D). An empty line ends the caption, so for blank lines between paragraphs save the text in a file and use `--file`.
+
+Before it asks to save, the terminal shows the final text for each network, so you can copy it from there: a header per network with its length against that network's limit (for example `Instagram (photo post): 72/2200 characters`, `Bluesky: 72/300 graphemes`), then the text. A long text shows its first three lines (about 280 characters) and `… full text in instagram/caption.txt`. When your caption fits every network you chose, every copy is the same text, and the terminal says so once: `Same text for all 3: it fits every network, so nothing was changed`. ReachWeaver does not invent differences: a copy changes only when a sourced rule requires it (see the next section).
+
 Open the **OPEN-FIRST.md** file in that folder. It says what to paste into each app, which options to choose yourself, and what to double-check before posting, with one short **Tip** per network (restating a fact ReachWeaver has a source for; a suggestion, not a promise of reach). Every platform has its own caption/post and CHECKLIST.md, written in plain words: "Not posted yet", "ReachWeaver cannot post to Instagram; you post it yourself", "Instagram needs a photo or video: attach it in the app". The machine-readable `manual-export.json` keeps its status codes.
 
 ### When a caption is too long, or a phrase does not fit
@@ -49,6 +53,19 @@ python3 -m reachweaver share --platform instagram,tiktok --file my-caption.txt -
 ~~~
 
 Choose a *new* output folder every time. Existing folders are never overwritten.
+
+### When one network is blocked
+
+If one network cannot be prepared and the others can, Share writes the others and lists the skipped one with its fix, for example:
+
+~~~text
+SKIPPED 1 network(s); the other 2 are prepared below:
+ - YouTube skipped: add --title "…" and run again with --platform youtube
+~~~
+
+Exit codes, for scripts: `0` every chosen network was prepared; `1` some were skipped (each listed with its fix; the others were prepared, unless you used `--preview` or answered no to saving); `2` blocked, nothing written. A problem that belongs to no single network (no caption, `--note` without a human-only community, `--title` without YouTube) still blocks everything, and so does every network being blocked. Add `--strict` for all or nothing: any blocked network then writes nothing and exits 2.
+
+A file named with `--attach` that does not exist says where it looked: `Attachment not found: nothere.mp4 (looked in /your/folder). Check the name or leave it out.` (exit 2). A folder or a symbolic link given instead of a file gets its own plain message.
 
 ## Bluesky, Mastodon, Telegram and LinkedIn
 
@@ -92,7 +109,7 @@ YouTube needs a title and a description:
 python3 -m reachweaver share --platform youtube --title "See ReachWeaver in action" --text "Here is what the demonstration covers." --out state/my-youtube-video
 ~~~
 
-You get title.txt and description.txt. You must upload the video yourself and decide visibility, made-for-kids status and synthetic-content disclosures in YouTube Studio.
+You get title.txt and description.txt. Without `--title`, YouTube is skipped (with that fix named) and any other networks you chose are still prepared. You must upload the video yourself and decide visibility, made-for-kids status and synthetic-content disclosures in YouTube Studio.
 
 ## Facebook Pages
 
@@ -125,6 +142,7 @@ Do not automate groups, DM strangers, copy spam across communities, or bypass lo
 | Remember a post you shared manually | reachweaver mark-shared (see the repeat-guard guide) |
 | Measure a post you shared manually | reachweaver mark-shared --platform P --url LINK --text "..." (see below) |
 | Keep an over-long caption as written (and block) | Add --no-shorten |
+| All or nothing when one network is blocked | Add --strict (default: prepare the others, exit 1) |
 | Add your account for an actual API send | reachweaver account-add bluesky, then reachweaver connect --guide; Share intentionally never sends |
 
 ## Measure posts you shared by hand

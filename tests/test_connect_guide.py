@@ -225,6 +225,87 @@ class CommandTests(Base):
         self.assertIn("Verified", out.getvalue())
 
 
+class NoAccountsTests(unittest.TestCase):
+    """The natural first command, before any account exists: next steps (exit 0), and in a terminal an offer."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.config = Path(self.tmp.name) / "config" / "accounts.json"
+        self.db = Path(self.tmp.name) / "state" / "r.sqlite"
+
+    def run_cli(self, *argv, answers=None):
+        out, err = TTY(), io.StringIO()
+        queue = list(answers or [])
+
+        def fake_input(prompt=""):
+            out.write(prompt)
+            if not queue:
+                raise EOFError
+            return queue.pop(0)
+
+        terminal = patch("sys.stdin", TTY()) if answers is not None else patch("sys.stdin", io.StringIO(""))
+        with patch.dict(os.environ, {}, clear=True), terminal, contextlib.redirect_stdout(out), \
+                contextlib.redirect_stderr(err), patch("builtins.input", fake_input), \
+                patch("reachweaver.cli.check_connection", side_effect=AssertionError("no request")):
+            code = main(["--db", str(self.db), "--accounts", str(self.config), *argv])
+        return code, out.getvalue(), err.getvalue()
+
+    def test_no_accounts_file_is_a_status_not_an_error(self):
+        code, out, err = self.run_cli("connect")
+        self.assertEqual((code, err), (0, ""))
+        self.assertIn("No accounts yet, so there is nothing to connect.", out)
+        self.assertIn("reachweaver account-add bluesky", out)
+        self.assertIn("Posting by hand needs no account: reachweaver share --guide", out)
+        self.assertIn(cg.DOCS_BASE + "docs/ACCOUNT-ONBOARDING.md", out)
+        self.assertNotIn("Add one now?", out, "no question without a terminal")
+        self.assertFalse(self.config.exists())
+        self.assertFalse(self.db.exists())
+
+    def test_an_empty_accounts_list_and_json_and_guide_without_a_terminal(self):
+        self.config.parent.mkdir(parents=True)
+        self.config.write_text('{"accounts": []}', encoding="utf-8")
+        code, out, _ = self.run_cli("connect")
+        self.assertEqual(code, 0)
+        self.assertIn("No accounts yet", out)
+        code, out, _ = self.run_cli("connect", "--json")
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)["accounts"], [])
+        code, out, _ = self.run_cli("connect", "--guide")
+        self.assertEqual(code, 0)
+        self.assertIn("No accounts yet", out)
+
+    def test_a_broken_accounts_file_still_stops(self):
+        self.config.parent.mkdir(parents=True)
+        self.config.write_text("not json", encoding="utf-8")
+        self.assertEqual(self.run_cli("connect")[0], 2)
+
+    def test_in_a_terminal_it_offers_the_account_add_flow_then_the_guide(self):
+        code, out, err = self.run_cli("connect", "--guide", answers=["blusky", "bluesky", "", "me.bsky.social", ""])
+        self.assertEqual(code, 0, err)
+        self.assertIn("Did you mean bluesky?", out)
+        self.assertIn("Bluesky needs your handle", out)  # a blank answer asks again
+        self.assertEqual(load_accounts(self.config)["my-bluesky"]["handle"], "me.bsky.social")
+        self.assertIn("Continuing with the connection steps for my-bluesky.", out)
+        self.assertIn("read -r -s -p 'REACHWEAVER_BSKY_APP_PASSWORD: '", out)
+        self.assertIn("More detail (online): " + cg.DOCS_BASE + "docs/ACCOUNT-ONBOARDING.md", out)
+        for prompt in re.findall(r"[^\n]*\? [^\n]*", out):
+            self.assertNotRegex(prompt.lower(), r"password:|token:|secret:")
+        self.assertFalse(self.db.exists())
+
+    def test_enter_skips_the_offer_and_writes_nothing(self):
+        code, out, _ = self.run_cli("connect", answers=[""])
+        self.assertEqual(code, 0)
+        self.assertIn("Add one now? Which network?", out)
+        self.assertFalse(self.config.exists())
+
+    def test_offer_reasks_then_gives_up(self):
+        said = []
+        self.assertIsNone(cg.offer_first_account(["bluesky"], ask=lambda p: "nope", say=said.append))
+        self.assertEqual(len(said), cg.FIRST_ACCOUNT_ATTEMPTS + 1)
+        self.assertEqual(cg.offer_first_account(["bluesky"], ask=lambda p: "BSKY", say=said.append), "bluesky")
+
+
 class BoundaryTests(unittest.TestCase):
     def test_module_has_no_way_to_read_a_secret_open_a_browser_or_touch_the_network(self):
         text = (ROOT / "reachweaver/connect_guide.py").read_text(encoding="utf-8")

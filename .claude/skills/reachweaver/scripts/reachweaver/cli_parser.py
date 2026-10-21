@@ -1212,6 +1212,8 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--media", type=Path, help="Optional advanced media-check manifest for existing validation")
     p.add_argument("--out", type=Path, help="New output folder (default: a unique private folder under state/)")
     p.add_argument("--preview", action="store_true", help="Check without writing any files")
+    p.add_argument("--strict", action="store_true", help="All or nothing: if any network is blocked, write none "
+                   "(default: prepare the others, list the skipped ones with their fix and exit 1)")
     p.add_argument("--no-shorten", action="store_true",
                    help="Keep a caption that is too long for a network as written (a blocking error) instead of "
                         "shortening it at a word boundary with a SHORTENED flag")

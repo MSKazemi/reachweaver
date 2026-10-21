@@ -108,12 +108,13 @@ class ShareTests(unittest.TestCase):
         self.assertEqual(code, 0, errors)
         self.assertIn("PREVIEW ONLY", out)
         self.assertFalse(self.out.exists())
-        # One 600-character word cannot be shortened at a word boundary, so Threads still blocks.
-        code, _, errors = self.cli("share", "--platform", "instagram,threads",
+        # One 600-character word cannot be shortened at a word boundary, so Threads still blocks. With
+        # --strict that blocks every write (the old all-or-nothing behaviour).
+        code, _, errors = self.cli("share", "--platform", "instagram,threads", "--strict",
                                    "--text", "x" * 600, "--out", str(self.out))
         self.assertEqual(code, 2)
         self.assertIn("threads", errors)
-        self.assertFalse(self.out.exists(), "One rejected destination must block all writes")
+        self.assertFalse(self.out.exists(), "--strict: one rejected destination must block all writes")
 
     def test_human_only_notes_and_refusal_of_ready_post(self):
         code, output, errors = self.cli("share", "--platform", "reddit",
@@ -202,25 +203,25 @@ class ShareTests(unittest.TestCase):
 
     def test_guided_terminal_flow_can_be_cancelled(self):
         # network, caption, attachment (Enter skips), save?
-        with patch("sys.stdin", TerminalText("instagram\nA real caption\n\nn\n")):
+        with patch("sys.stdin", TerminalText("instagram\nA real caption\n\n\nn\n")):
             code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
         self.assertEqual(code, 0, errors)
         self.assertIn("Cancelled", output)
         self.assertFalse(self.out.exists())
-        with patch("sys.stdin", TerminalText("instagram\nA real caption\n\ny\n")):
+        with patch("sys.stdin", TerminalText("instagram\nA real caption\n\n\ny\n")):
             code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
         self.assertEqual(code, 0, errors)
         self.assertTrue((self.out / "OPEN-FIRST.md").is_file())
 
     def test_guide_saves_on_enter_because_saving_is_local(self):
-        with patch("sys.stdin", TerminalText("instagram\nA real caption\n\n\n")):
+        with patch("sys.stdin", TerminalText("instagram\nA real caption\n\n\n\n")):
             code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
         self.assertEqual(code, 0, errors)
         self.assertIn("Save these files? [Y/n]", output)
         self.assertTrue((self.out / "OPEN-FIRST.md").is_file())
 
     def test_guide_reasks_an_empty_or_unknown_network_with_the_list(self):
-        with patch("sys.stdin", TerminalText("\nblusky\nbluesky\nA real caption\n\n\n")):
+        with patch("sys.stdin", TerminalText("\nblusky\nbluesky\nA real caption\n\n\n\n")):
             code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
         self.assertEqual(code, 0, errors)
         self.assertIn("Type at least one network, for example: instagram", output)
@@ -231,7 +232,7 @@ class ShareTests(unittest.TestCase):
     def test_guide_takes_an_attachment_and_reasks_a_missing_one(self):
         photo = self.root / "photo one.png"
         photo.write_bytes(png_bytes(1080, 1080))
-        answers = f"bluesky\nA real caption\nnope.jpg\n'{photo}'\n\n"
+        answers = f"bluesky\nA real caption\n\nnope.jpg\n'{photo}'\n\n"
         with patch("sys.stdin", TerminalText(answers)):
             code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
         self.assertEqual(code, 0, errors)
@@ -265,6 +266,94 @@ class ShareTests(unittest.TestCase):
         mastodon = (self.out / "mastodon" / "CHECKLIST.md").read_text(encoding="utf-8")
         self.assertIn("This is a copy-only package", mastodon)
         self.assertNotIn("limit unknown", mastodon.split("## Checklist")[1].split("##")[0])
+
+
+class ShareOnboardingTests(unittest.TestCase):
+    """Partial packages, the text in the terminal, the multi-line guide caption and plain attachment errors."""
+
+    setUp = ShareTests.setUp
+    cli = ShareTests.cli
+
+    def test_a_blocked_network_is_skipped_with_its_fix_and_the_others_are_written(self):
+        code, out, errors = self.cli("share", "--platform", "instagram,tiktok,youtube",
+                                     "--text", "New release is out", "--out", str(self.out))
+        self.assertEqual(code, 1, errors)
+        self.assertIn('YouTube skipped: add --title "…" and run again with --platform youtube', errors)
+        self.assertIn("Partial: skipped youtube", errors)
+        self.assertNotIn("BLOCKED", errors)
+        self.assertTrue((self.out / "instagram" / "caption.txt").is_file())
+        self.assertTrue((self.out / "tiktok" / "caption.txt").is_file())
+        self.assertFalse((self.out / "youtube").exists())
+        self.assertNotIn("YouTube", (self.out / "OPEN-FIRST.md").read_text(encoding="utf-8"))
+        self.assertIn("Prepared 2 private manual packages", out)
+
+    def test_strict_keeps_all_or_nothing(self):
+        code, _, errors = self.cli("share", "--platform", "instagram,youtube", "--strict",
+                                   "--text", "New release is out", "--out", str(self.out))
+        self.assertEqual(code, 2)
+        self.assertIn("BLOCKED. No files were written", errors)
+        self.assertFalse(self.out.exists())
+
+    def test_errors_that_belong_to_no_single_network_still_block_everything(self):
+        code, _, errors = self.cli("share", "--platform", "instagram,threads", "--out", str(self.out))
+        self.assertEqual(code, 2)
+        self.assertIn("Add a caption", errors)
+        self.assertFalse(self.out.exists())
+        # Every chosen network blocked: nothing is partial about it.
+        code, _, errors = self.cli("share", "--platform", "youtube", "--text", "A description", "--out", str(self.out))
+        self.assertEqual(code, 2)
+        self.assertFalse(self.out.exists())
+
+    def test_the_final_text_is_shown_once_when_every_network_gets_the_same(self):
+        code, out, errors = self.cli("share", "--platform", "instagram,threads,bluesky",
+                                     "--text", "Our new release is out https://example.org/notes", "--out", str(self.out))
+        self.assertEqual(code, 0, errors)
+        self.assertIn("Same text for all 3: it fits every network, so nothing was changed", out)
+        self.assertEqual(out.count("\nOur new release is out https://example.org/notes\n"), 1)
+        self.assertIn(" - Instagram (photo post): 48/2200 characters", out)
+        self.assertIn(" - Threads: 48/500 characters", out)
+        self.assertIn(" - Bluesky: 48/300 graphemes", out)
+
+    def test_a_shortened_text_is_shown_per_network_with_a_pointer_to_the_full_text(self):
+        long = " ".join(["This sentence keeps the post long enough."] * 12)
+        code, out, errors = self.cli("share", "--platform", "instagram,bluesky", "--text", long,
+                                     "--out", str(self.out))
+        self.assertEqual(code, 0, errors)
+        self.assertIn("Your text, ready to copy (exactly what is in each file):", out)
+        self.assertIn("---- Bluesky: ", out)
+        self.assertIn("SHORTENED to fit", out)
+        self.assertIn("… full text in instagram/caption.txt", out)
+        self.assertNotIn("Same text", out)
+        self.assertLess(len(out.split("Your text, ready to copy")[1].splitlines()), 15)
+
+    def test_guide_caption_takes_several_lines_until_an_empty_line(self):
+        with patch("sys.stdin", TerminalText("bluesky\nFirst line\nSecond line\n\n\n\n")):
+            code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
+        self.assertEqual(code, 0, errors)
+        self.assertIn("press Enter on an empty line to finish (or Ctrl-D)", output)
+        self.assertEqual((self.out / "bluesky" / "post.txt").read_text(encoding="utf-8"), "First line\nSecond line")
+
+    def test_guide_caption_ends_at_ctrl_d_and_an_empty_first_line_asks_again(self):
+        from reachweaver import share
+        with patch("builtins.input", side_effect=["", "Only line", EOFError()]), \
+                contextlib.redirect_stdout(io.StringIO()) as shown:
+            self.assertEqual(share._ask_caption(), "Only line")
+        self.assertIn("cannot be empty", shown.getvalue())
+        with patch("builtins.input", side_effect=EOFError()), contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(ValidationError):
+                share._ask_caption()
+
+    def test_a_missing_attachment_says_where_it_looked_and_what_to_do(self):
+        code, _, errors = self.cli("share", "--platform", "instagram", "--text", "hi",
+                                   "--attach", str(self.root / "nothere.mp4"), "--out", str(self.out))
+        self.assertEqual(code, 2)
+        self.assertIn(f"Attachment not found: {self.root / 'nothere.mp4'} (looked in {self.root}). "
+                      "Check the name or leave it out.", errors)
+        code, _, errors = self.cli("share", "--platform", "instagram", "--text", "hi",
+                                   "--attach", str(self.root), "--out", str(self.out))
+        self.assertEqual(code, 2)
+        self.assertIn("is a folder, not a file", errors)
+        self.assertFalse(self.out.exists())
 
 
 if __name__ == "__main__":

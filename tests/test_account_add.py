@@ -104,7 +104,33 @@ class AccountAddTests(unittest.TestCase):
     def test_missing_details_without_a_terminal_name_the_flags(self):
         code, _, err = self.cli("telegram", "--field", "chat_id=@mychannel")
         self.assertEqual(code, 2)
-        self.assertIn("--field bot_username=VALUE", err)
+        self.assertIn("Telegram needs your bot's username (like your_bot). Add --field bot_username=your_bot.", err)
+        self.assertFalse(self.accounts.exists())
+        code, _, err = self.cli("bluesky")
+        self.assertEqual(code, 2)
+        self.assertIn("Bluesky needs your handle (like name.bsky.social). Add --handle name.bsky.social.", err)
+
+    def test_a_copied_example_shape_is_refused_like_a_placeholder(self):
+        code, _, err = self.cli("bluesky", "--handle", "name.bsky.social")
+        self.assertEqual(code, 2)
+        self.assertIn("example placeholder", err)
+        self.assertFalse(self.accounts.exists())
+
+    def test_a_blank_answer_in_a_terminal_asks_again(self):
+        prompts: list[str] = []
+        answers = TerminalText("\n\nmaker.bsky.social\n\n")
+        with patch("builtins.input", side_effect=lambda prompt: (prompts.append(prompt), answers.readline().strip())[1]):
+            code, out, err = self.cli("bluesky", stdin=answers)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(sum("Your public username" in p for p in prompts), 3)
+        self.assertIn("Bluesky needs your handle (like name.bsky.social). Type it, or press Ctrl-D to stop.", out)
+        self.assertEqual(load_accounts(self.accounts)["my-bluesky"]["handle"], "maker.bsky.social")
+
+    def test_three_blank_answers_stop_with_the_plain_message(self):
+        with patch("builtins.input", return_value=""):
+            code, _, err = self.cli("bluesky", stdin=TerminalText(""))
+        self.assertEqual(code, 2)
+        self.assertIn("Bluesky needs your handle", err)
         self.assertFalse(self.accounts.exists())
 
     def test_interactive_questions_never_ask_for_a_secret(self):

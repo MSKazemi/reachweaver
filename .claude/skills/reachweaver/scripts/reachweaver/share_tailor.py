@@ -17,7 +17,9 @@ Rules come from code that already exists, never from new research:
 
 Every other network has no known limit here, so its text is left exactly as written. Hashtags are never
 moved: the repository has no sourced rule for moving them on any network, so the text keeps its order and
-the existing per-network hashtag warnings still apply.
+the existing per-network hashtag warnings still apply. Likewise no other per-network rewrite is made without
+a sourced rule: when a caption fits every chosen network, every copy is the same text, and ``terminal_lines``
+says so ("Same text for all 3: it fits every network") instead of pretending the copies differ.
 """
 from __future__ import annotations
 
@@ -205,3 +207,92 @@ def phrase_warnings(platform: str, text: str) -> list[str]:
     if platform in LINKS_WORK and LINK_IN_BIO.search(text):
         return [f"{LINKS_WORK[platform]}; replace 'link in bio' with the link itself"]
     return []
+
+
+# --- What the terminal shows after the plan: each network's final text, compact and copyable -------------
+SHOW_LINES = 3      # lines of one text shown in the terminal
+SHOW_CHARS = 280    # characters of one text shown in the terminal
+SHOW_TOTAL = 40     # lines for the whole section
+RULE = "----"
+FORMAT_WORDS = {"image": "photo post", "video": "video post", "carousel": "carousel post", "link": "link post"}
+
+
+def measure(platform: str, text: str) -> str:
+    """``76/2200 characters``: the length by the rule ``fit`` applies, against that network's limit."""
+    if platform == "bluesky":
+        return f"{grapheme_count(text)}/{BLUESKY_MAX_GRAPHEMES} graphemes"
+    if platform == "mastodon":
+        return f"{mastodon_length(text)}/{mastodon_text_limit(None)} characters (a link counts as 23)"
+    if platform == "threads":
+        return f"{threads_length(text)}/{FACTS['threads']['text_max_chars']['value']} characters"
+    if platform == "instagram":
+        return f"{len(text)}/{FACTS['instagram']['caption_max_chars']['value']} characters"
+    if platform == "tiktok":
+        return f"{utf16_length(text)}/{FACTS['tiktok']['caption_max_utf16']['value']} UTF-16 units"
+    if platform == "youtube":
+        return f"{len(text.encode('utf-8'))}/{FACTS['youtube']['description_max_bytes']['value']} bytes"
+    if platform in ("telegram", "linkedin"):
+        return f"{len(text)}/{CONSERVATIVE_TEXT_LIMITS[platform]} characters"
+    if platform == "facebook":
+        return f"{len(text)}/{CONSERVATIVE_TEXT_LIMITS['facebook']} characters (ReachWeaver's cap)"
+    return f"{len(text)} characters (no known limit here)"
+
+
+def _excerpt(text: str, file: str) -> list[str]:
+    """At most SHOW_LINES lines and SHOW_CHARS characters, then a pointer to the file with the full text."""
+    shown: list[str] = []
+    used, cut = 0, False
+    lines = text.splitlines() or [""]
+    for number, line in enumerate(lines):
+        if number >= SHOW_LINES or used >= SHOW_CHARS:
+            cut = True
+            break
+        room = SHOW_CHARS - used
+        if len(line) > room:  # cut at a space, never inside a link or a word
+            piece = line[:room]
+            space = piece.rfind(" ")
+            shown.append((piece[:space] if space > 0 else piece).rstrip() + ELLIPSIS)
+            cut = True
+            break
+        shown.append(line)
+        used += len(line)
+    if cut:  # unindented, so what is copied from the terminal is the text itself
+        shown.append(f"{ELLIPSIS} full text in {file}")
+    return shown
+
+
+def _header(entry: dict) -> str:
+    kind = FORMAT_WORDS.get(str(entry.get("format")))
+    label = entry["label"] + (f" ({kind})" if kind else "")
+    shortened = "; SHORTENED to fit" if (entry.get("tailoring") or {}).get("shortened") else ""
+    return f"{label}: {measure(entry['platform'], entry['text'])}{shortened}"
+
+
+def terminal_lines(entries: list[dict]) -> list[str]:
+    """Each network's final text with its length against the limit; one block when every text is the same.
+
+    ``entries``: ``{"platform", "label", "text", "title", "format", "file", "tailoring"}``. Nothing is
+    rewritten here: when the texts are identical the output says so instead of pretending they differ.
+    """
+    if not entries:
+        return []
+    lines = [""]
+    if len(entries) > 1 and len({entry["text"] for entry in entries}) == 1:
+        every = "both" if len(entries) == 2 else f"all {len(entries)}"
+        lines.append(f"Your text, ready to copy. Same text for {every}: it fits every network, so nothing was "
+                     "changed:")
+        lines += [RULE] + _excerpt(entries[0]["text"], entries[0]["file"] + " (the same in each folder)") + [RULE]
+        lines += [" - " + _header(entry) + (f"; title: {entry['title']}" if entry.get("title") is not None else "")
+                  for entry in entries]
+        return lines[:SHOW_TOTAL]
+    lines.append("Your text, ready to copy (exactly what is in each file):")
+    for entry in entries:
+        block = [f"{RULE} {_header(entry)}"]
+        if entry.get("title") is not None:
+            block.append(f"Title: {entry['title']}")
+        block += _excerpt(entry["text"], entry["file"])
+        if len(lines) + len(block) + 1 > SHOW_TOTAL:
+            lines.append(f"{ELLIPSIS} the other networks' texts are in their folders (see OPEN-FIRST.md)")
+            break
+        lines += block
+    return lines + [RULE]
