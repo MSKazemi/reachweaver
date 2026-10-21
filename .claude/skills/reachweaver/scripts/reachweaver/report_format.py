@@ -26,7 +26,7 @@ UNKNOWN = "unknown"
 CSV_COLUMNS = ("platform", "metric", "published", "posts_with_snapshot", "value", "exact_posts", "total_posts",
                *(f"{label}_posts" for label in METRIC_STATUS_LABELS if label != "exact"),
                "estimated_sum", "windows_with", "windows_without", "earliest_window_start",
-               "latest_window_end", "generated_at")
+               "latest_window_end", "generated_at", "posted_by_hand")
 _FORMULA_START = ("=", "+", "-", "@", "\t", "\r", "\n", "＝", "＋", "－", "＠")
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
@@ -108,7 +108,9 @@ def render_markdown(result: dict, *, level: int = 1, title: str = "ReachWeaver r
             "|---|---|---|" + "---|" * len(METRIC_FIELDS) + "---|"]
     for platform, item in platforms.items():
         cells = [_value_cell(_summary(item, key)) for key in METRIC_FIELDS]
-        out.append(f"| {_md(platform)} | {item['published']} | {item['metric_coverage']} | "
+        by_hand = int(item.get("posted_by_hand") or 0)  # posts recorded with mark-shared --url
+        out.append(f"| {_md(platform)} | {item['published']}{f' ({by_hand} posted by hand)' if by_hand else ''} | "
+                   f"{item['metric_coverage']} | "
                    + " | ".join(cells) + f" | {_window_cell(item)} |")
     out += ["", f"{h2} Coverage and status (metrics without full exact coverage)", ""]
     rows = []
@@ -171,7 +173,8 @@ def render_csv(result: dict) -> str:
                    summary["value"] if summary["exact"] else None, summary["exact"], summary["total"],
                    *(counts.get(label, 0) for label in METRIC_STATUS_LABELS if label != "exact"),
                    estimate["sum"] if estimate else "", window["with_window"], window["without_window"],
-                   window["earliest_window_start"] or "", window["latest_window_end"] or "", generated]
+                   window["earliest_window_start"] or "", window["latest_window_end"] or "", generated,
+                   int(item.get("posted_by_hand") or 0)]
             writer.writerow([csv_cell(cell) for cell in row])
     return buffer.getvalue()
 

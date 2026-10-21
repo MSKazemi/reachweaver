@@ -74,6 +74,8 @@ Short, plain explanations, in alphabetical order. For the bigger picture read th
 
 **Shared-material ledger** — The local list of things you posted by hand, kept so the repeat check knows about them. You add to it with `mark-shared`.
 
+**Posted by hand (`published_manual`)** — A post you published yourself and recorded with `mark-shared --url`, so its results can be measured in `report`, `insights` and the dashboard. It can never be approved, scheduled or sent.
+
 **SQLite / state** — The small private database file in `state/` where your drafts, approvals and history live. Only your user can read it.
 
 **Status** — Where a post is in its life: see *Queue*.

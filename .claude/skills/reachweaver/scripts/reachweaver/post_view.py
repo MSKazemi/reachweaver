@@ -15,7 +15,8 @@ from .policy import CONSERVATIVE_TEXT_LIMITS, LINKEDIN_ESCAPED_MAX, ValidationEr
 from .richtext import bluesky_preview, deterministic_tid, mastodon_length
 from .accounts import bluesky_service
 from .storage import (
-    APPROVAL_KEY_UNAVAILABLE, approval_binding_problem, approval_payload_sha256, binding_refusal,
+    APPROVAL_KEY_UNAVAILABLE, MANUAL_PROVENANCE, MANUAL_STATUS, approval_binding_problem, approval_payload_sha256,
+    binding_refusal,
     offline_key_mode, parse_utc, post_media, post_video,
 )
 from .video import mode as video_mode
@@ -240,6 +241,12 @@ def build_post_view(db, post, account: dict | None) -> dict:
 
     ``db`` is only read (``offline_key_mode`` inspects settings); ``account`` is metadata or None."""
     shown = {key: post[key] for key in SHOW_FIELDS}
+    if post["status"] == MANUAL_STATUS:  # 2026-10-21: owner-declared by-hand post, measurable, never sendable
+        shown["posted_by_hand"] = {"provenance": MANUAL_PROVENANCE, "posted_at": post["send_started_at"],
+                                   "remote_url": post["remote_url"], "platform_id": post["remote_id"],
+                                   "note": "You published this yourself; ReachWeaver never sent it and can never "
+                                           "approve, schedule or send it. Record its results with metrics, "
+                                           "import-metrics or metrics-fetch."}
     shown["approval"] = approval_view(post, offline_key_mode(db))
     options = send_options_view(post, account)
     if options is not None:

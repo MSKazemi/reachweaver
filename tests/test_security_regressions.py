@@ -623,8 +623,8 @@ class PersonalDataReportTests(_SeededOutbox):
         data = json.loads(out)
         self.assertEqual(set(data), {"generated_at", "platforms", "note"})
         self.assertEqual(set(data["platforms"]), {"mastodon"})
-        allowed = {"published", "metric_coverage", "coverage_by_metric", "window_coverage", "metrics",
-                   *storage.METRIC_FIELDS}
+        allowed = {"published", "posted_by_hand", "metric_coverage", "coverage_by_metric", "window_coverage", "metrics",
+                   *storage.METRIC_FIELDS}  # posted_by_hand (2026-10-21): a count, like published
         self.assertEqual(set(data["platforms"]["mastodon"]), allowed)
         # #15 per-metric status block: counts and codes only.
         per_metric = data["platforms"]["mastodon"]["metrics"]

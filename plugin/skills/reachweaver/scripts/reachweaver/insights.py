@@ -40,7 +40,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .baseline_eval import bootstrap_independent, matched_snapshot, quantile
 from .policy import PLATFORMS, ValidationError
-from .storage import METRIC_FIELDS, parse_utc, published_posts
+from .storage import METRIC_FIELDS, is_manual, measured_posts, parse_utc
 from .timing_analysis import DAYPARTS, post_format
 
 KIND = "reachweaver.insights"
@@ -86,7 +86,8 @@ LIMITS = (
     "for that.",
     "Only posts with an exact result at the matched age from one source are used. Missing is unknown, "
     "never zero; excluded posts are counted.",
-    "send_started_at is when the send started, not a guaranteed publication time.",
+    "send_started_at is when the send started, not a guaranteed publication time. For a post you published by "
+    "hand (mark-shared --url) it is the time you declared.",
     "Read-only: this command cannot approve, schedule or publish anything and changes no plan.",
 )
 HOW_TO_GET_DATA = (
@@ -407,7 +408,8 @@ def analyze(con: sqlite3.Connection, *, account_id: str | None = None, platform:
     start = parse_since(since, current)
     usable, value_of = _measure(metric, denominator)
 
-    posts = published_posts(con, account_id=account_id, platform=platform, include_replies=False)
+    # Sent by ReachWeaver, plus posts the owner published by hand and recorded with mark-shared --url (labelled).
+    posts = measured_posts(con, account_id=account_id, platform=platform, include_replies=False)
     by_cohort: dict[tuple[str, str], list[tuple[sqlite3.Row, datetime]]] = defaultdict(list)
     skipped_global: Counter[str] = Counter()
     for post in posts:
@@ -453,7 +455,8 @@ def analyze(con: sqlite3.Connection, *, account_id: str | None = None, platform:
         cohort: dict[str, Any] = {
             "account_id": account, "platform": plat, "source": chosen,
             "other_sources": {k: v for k, v in sorted(coverage.items()) if k != chosen},
-            "published_in_window": len(members), "posts_with_result": len(rows),
+            "published_in_window": len(members), "posted_by_hand": sum(1 for p, _ in members if is_manual(p)),
+            "posts_with_result": len(rows),
             "excluded": dict(sorted(skipped.items())),
             "status": "ok" if comparable else "not_enough_data",
             "overall": _summary([r["value"] for r in rows]),
@@ -509,8 +512,9 @@ def render_text(report: dict[str, Any]) -> str:
     if not report["cohorts"]:
         lines += ["", "No published posts match these filters yet."]
     for cohort in report["cohorts"]:
-        lines += ["", f"{cohort['account_id']} ({cohort['platform']}): {cohort['posts_with_result']} of "
+        lines += ["", f"{cohort['account_id'] or 'account unknown'} ({cohort['platform']}): {cohort['posts_with_result']} of "
                       f"{cohort['published_in_window']} published posts have a result"
+                      + (f" ({cohort['posted_by_hand']} of them posted by hand)" if cohort.get("posted_by_hand") else "")
                       + (f" from source '{cohort['source']}'" if cohort["source"] else "")
                       + (f"; median {_fmt(cohort['overall']['median'], denominator)}" if cohort["overall"]["n"] else "")
                       + "."]

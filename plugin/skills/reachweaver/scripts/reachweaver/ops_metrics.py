@@ -44,7 +44,8 @@ from .storage import (
 REPORT = "reachweaver_ops_metrics"
 SCHEMA_VERSION = 1
 PREFIX = "reachweaver_"
-STATUSES = ("draft", "approved", "scheduled", "sending", "published", "needs_review", "cancelled")
+STATUSES = ("draft", "approved", "scheduled", "sending", "published", "needs_review", "cancelled",
+            "published_manual")  # published_manual: posted by hand (mark-shared --url), never sent by ReachWeaver
 BINDING_REASONS = (BINDING_MISSING, BINDING_MISMATCH, BINDING_UNAVAILABLE)
 SEND_CLASS_LABELS = tuple(CLASS_GUIDANCE)  # certain_not_sent, likely_not_created, ambiguous, unknown
 MAX_SINCE_DAYS = 3650

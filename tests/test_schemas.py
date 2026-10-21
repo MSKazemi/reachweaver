@@ -414,7 +414,9 @@ class StateMachine(unittest.TestCase):
     def test_storage_status_map_covers_existing_statuses(self):
         statuses = set(re.search(r"status IN \(([^)]*)\)", storage.SCHEMA).group(1).replace("'", "").split(","))
         self.assertEqual(set(STORAGE_STATUS_MAP), statuses)
-        self.assertTrue(set(STORAGE_STATUS_MAP.values()) <= set(STATES))
+        # published_manual (posted by hand, 2026-10-21) has no canonical state: never a PublishJob or approval
+        self.assertIsNone(STORAGE_STATUS_MAP["published_manual"])
+        self.assertTrue({state for state in STORAGE_STATUS_MAP.values() if state is not None} <= set(STATES))
 
 
 class SchemaCli(unittest.TestCase):

@@ -244,7 +244,7 @@ class InsightsCliTests(unittest.TestCase):
                                                   "source"})
         cohort = report["cohorts"][0]
         self.assertEqual(set(cohort), {"account_id", "platform", "source", "other_sources", "published_in_window",
-                                       "posts_with_result", "excluded", "status", "overall", "features",
+                                       "posted_by_hand", "posts_with_result", "excluded", "status", "overall", "features",
                                        "suggestions"})
         group = cohort["features"][0]["groups"][0]
         self.assertEqual(set(group), {"value", "label", "rest_label", "n", "median", "rest_n", "rest_median",

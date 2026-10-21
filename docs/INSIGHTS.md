@@ -1,6 +1,6 @@
 # What works for you (`insights`)
 
-`reachweaver insights` looks at **your own published posts** and the results you recorded for them, and tells you which simple features went together with better or worse results. It is read-only and offline: it opens the database with `mode=ro`, never creates or migrates it, makes no network request and cannot draft, approve, schedule or publish anything.
+`reachweaver insights` looks at **your own published posts** (including posts you published by hand and recorded with `mark-shared --url`; `posted_by_hand` counts them per cohort) and the results you recorded for them, and tells you which simple features went together with better or worse results. It is read-only and offline: it opens the database with `mode=ro`, never creates or migrates it, makes no network request and cannot draft, approve, schedule or publish anything.
 
 Every line it prints is an **observation about your past posts and a hypothesis to test**, never a cause and never a promise of future reach.
 
@@ -82,7 +82,7 @@ method            {metric, denominator, unit, post_age_hours, age_tolerance_hour
                    comparison, strength_labels, interval: {method, resamples, confidence, seed} | null}
 excluded          {reason: count} for posts without a usable send time
 cohorts[]         {account_id, platform, source, other_sources: {source: posts_with_result},
-                   published_in_window, posts_with_result, excluded: {reason: count},
+                   published_in_window, posted_by_hand, posts_with_result, excluded: {reason: count},
                    status: "ok" | "not_enough_data", overall: {n, median, p25, p75},
                    features[]: {feature, label, groups_by,
                                 groups[]: {value, label, rest_label, n, median, rest_n, rest_median,

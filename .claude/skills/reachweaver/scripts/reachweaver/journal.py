@@ -28,11 +28,14 @@ from .policy import ValidationError
 from .privacy import write_private_file
 from .repeat_guard import sha256_file
 from .report_format import csv_cell, markdown_cell
-from .storage import journal_posts, parse_utc, post_media, post_timelines, post_video, shared_entries, utc_now
+from .storage import (MANUAL_STATUS, journal_posts, parse_utc, post_media, post_timelines, post_video, shared_entries,
+                      utc_now)
 from .inputs import read_json_file
 
-POSTED_STATUSES = ("published", "sending", "needs_review")  # posted, or possibly posted
-ALL_STATUSES = ("draft", "approved", "scheduled", "sending", "published", "needs_review", "cancelled")
+# posted, or possibly posted; published_manual = posted by hand and recorded with mark-shared --url (2026-10-21)
+POSTED_STATUSES = ("published", "sending", "needs_review", "published_manual")
+ALL_STATUSES = ("draft", "approved", "scheduled", "sending", "published", "needs_review", "cancelled",
+                "published_manual")
 MARKER = ".reachweaver-archive"
 EXCERPT = 120
 _ACTION = re.compile(r"[a-z_]{1,40}")
@@ -82,12 +85,15 @@ def _post_files(post: dict, verify: bool) -> list[dict]:
 
 def post_entry(post: dict, timeline: list[dict], *, verify_files: bool = False) -> dict:
     text = post["content"]
-    return {"id": post["id"], "source": "reachweaver", "when": post["posted_at"], "platform": post["platform"],
-            "account": post["account_id"], "status": post["status"], "campaign": post["campaign"] or None,
+    by_hand = post["status"] == MANUAL_STATUS  # owner-declared: published by hand, recorded with mark-shared --url
+    return {"id": post["id"], "source": "posted_by_hand" if by_hand else "reachweaver", "when": post["posted_at"],
+            "platform": post["platform"], "account": post["account_id"] or None, "status": post["status"],
+            "campaign": post["campaign"] or None,
             "remote_id": post["remote_id"], "remote_url": post["remote_url"], "source_url": post["source_url"] or None,
             "approved_by": post["approved_by"], "approved_at": post["approved_at"],
             "approval_channel": post["approval_channel"],
-            "approval_sha256": (post["approved_payload_sha256"] or "")[:12] or None, "note": None,
+            "approval_sha256": (post["approved_payload_sha256"] or "")[:12] or None,
+            "note": "posted by hand (owner-declared); never sent by ReachWeaver" if by_hand else None,
             "chars": len(text), "text": text, "files": _post_files(post, verify_files),
             "timeline": [item for item in timeline if _ACTION.fullmatch(str(item["action"]))]}
 
@@ -118,7 +124,10 @@ def build_entries(con, *, statuses: Iterable[str] = POSTED_STATUSES, platform: s
     entries = [post_entry(row, timelines[row["id"]], verify_files=verify_files) for row in rows]
     if by_hand and post_id is None:
         low, high = (parse_utc(since) if since else None), (parse_utc(until) if until else None)
+        measured = {row["id"] for row in rows}
         for row in shared_entries(con):
+            if row.get("post_id") and (row["post_id"] in measured or MANUAL_STATUS not in statuses):
+                continue  # its measurable published_manual record is the journal entry (or was filtered out)
             entry = shared_entry(row)
             if platform is not None and entry["platform"] != platform:
                 continue

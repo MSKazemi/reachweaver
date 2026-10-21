@@ -37,7 +37,14 @@ def parse_utc(value: str) -> str:
 
 
 # Every value the posts.status CHECK constraint below allows (a test keeps the two equal).
-POST_STATUSES = ("draft", "approved", "scheduled", "sending", "published", "needs_review", "cancelled")
+POST_STATUSES = ("draft", "approved", "scheduled", "sending", "published", "needs_review", "cancelled",
+                 "published_manual")
+# 2026-10-21 (owner-approved slice "manual-published-measurable"): a post the owner declares he published BY HAND,
+# kept only so its results can be measured. It is born in this state by ``record_manual_publish`` and is terminal:
+# ``transition`` has no edge into or out of it, and no send, schedule, claim or reconcile query selects it.
+MANUAL_STATUS = "published_manual"
+MANUAL_PROVENANCE = "owner-declared manual publish"
+MEASURED_STATUSES = ("published", MANUAL_STATUS)  # posts whose results report/insights/metrics-fetch measure
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS posts (
@@ -48,7 +55,7 @@ CREATE TABLE IF NOT EXISTS posts (
   campaign TEXT NOT NULL DEFAULT '',
   source_url TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'draft'
-    CHECK(status IN ('draft','approved','scheduled','sending','published','needs_review','cancelled')),
+    CHECK(status IN ('draft','approved','scheduled','sending','published','needs_review','cancelled','published_manual')),
   created_at TEXT NOT NULL,
   approved_at TEXT,
   scheduled_at TEXT,
@@ -106,7 +113,8 @@ CREATE TABLE IF NOT EXISTS shared_material (
   content TEXT NOT NULL DEFAULT '',
   images_json TEXT NOT NULL DEFAULT '[]',
   video_sha256 TEXT,
-  links_json TEXT NOT NULL DEFAULT '[]'
+  links_json TEXT NOT NULL DEFAULT '[]',
+  post_id TEXT  -- 2026-10-21: the measurable published_manual record this entry belongs to, if any
 );
 CREATE INDEX IF NOT EXISTS idx_shared_platform ON shared_material(platform);
 CREATE TABLE IF NOT EXISTS cooldown_scope_members (
@@ -231,10 +239,12 @@ REPEAT_FIELDS = ("approved_allow_repeat",)
 REPEAT_TAG = "reachweaver.storage.approval/repeat-1"
 REPEAT_ALLOWED = "1"
 REPEAT_REFUSAL = "repeat_of_shared_material"
+SHARED_POST_FIELDS = ("post_id",)  # 2026-10-21: links a mark-shared entry to its published_manual record
 _MIGRATIONS = (("metric_snapshots", WINDOW_FIELDS), ("posts", APPROVAL_BINDING_FIELDS),
                ("metric_snapshots", STATUS_FIELDS), ("posts", APPROVAL_MAC_FIELDS), ("posts", MEDIA_FIELDS),
                ("posts", VIDEO_FIELDS), ("posts", REPLY_TARGET_FIELDS), ("posts", IDENTITY_FIELDS),
-               ("posts", NONCE_FIELDS), ("posts", SEND_OPTIONS_FIELDS), ("posts", REPEAT_FIELDS))
+               ("posts", NONCE_FIELDS), ("posts", SEND_OPTIONS_FIELDS), ("posts", REPEAT_FIELDS),
+               ("shared_material", SHARED_POST_FIELDS))
 
 
 def migrate(con: sqlite3.Connection) -> list[str]:
@@ -1987,10 +1997,12 @@ def repeat_candidates(con, platform: str, exclude_post_id: str | None = None) ->
 
     Each row carries the stored text, ``media_json``, ``video_json`` and ``source_url`` for the caller's hash and
     similarity comparison, plus ``activity_at`` (see :func:`posting_history`). Callers must never emit the text.
+    A ``published_manual`` record is left out here: its linked ``mark-shared`` entry (``shared_entries``) is what
+    the repeat guard compares, with exactly the account scope ``mark-shared`` always had.
     """
     activity = ("COALESCE((SELECT MAX(e.at) FROM event_log e WHERE e.post_id=p.id AND e.action='published'),"
                 " p.scheduled_at, p.created_at)")
-    where, params = "p.platform=? AND p.status<>'cancelled'", [platform]
+    where, params = f"p.platform=? AND p.status NOT IN ('cancelled','{MANUAL_STATUS}')", [platform]
     if exclude_post_id is not None:
         where += " AND p.id<>?"
         params.append(exclude_post_id)
@@ -2009,26 +2021,188 @@ def shared_entries(con, platform: str | None = None) -> list[dict]:
     [] if the table is absent."""
     if not _has_table(con, "shared_material"):
         return []
+    linked = any(row[1] == "post_id" for row in con.execute("PRAGMA table_info(shared_material)"))
     where, params = ("WHERE platform=?", [platform]) if platform is not None else ("", [])
     rows = con.execute(f"""SELECT id, platform, account_id, recorded_at, posted_at, url, note, content, images_json,
-                                  video_sha256, links_json FROM shared_material {where}
+                                  video_sha256, links_json{', post_id' if linked else ''} FROM shared_material {where}
                            ORDER BY recorded_at DESC, id LIMIT ?""", [*params, REPEAT_ROWS_MAX]).fetchall()
     return [{"id": r["id"], "platform": r["platform"], "account_id": r["account_id"], "recorded_at": r["recorded_at"],
              "posted_at": r["posted_at"], "url": r["url"], "note": r["note"], "content": r["content"],
              "images": json.loads(r["images_json"]), "video": r["video_sha256"],
-             "links": json.loads(r["links_json"])} for r in rows]
+             "links": json.loads(r["links_json"]), "post_id": r["post_id"] if linked else None} for r in rows]
 
 
 def record_shared(con, *, platform: str, account_id: str | None, content: str, images: list[str], video: str | None,
-                  links: list[str], posted_at: str | None, url: str, note: str) -> str:
-    """Remember material shared by hand so later drafts for the platform are checked against it."""
+                  links: list[str], posted_at: str | None, url: str, note: str, post_id: str | None = None) -> str:
+    """Remember material shared by hand so later drafts for the platform are checked against it.
+
+    ``post_id`` (2026-10-21) links the entry to the ``published_manual`` record ``record_manual_publish`` made."""
     entry_id = "shared-" + uuid4().hex[:10]
-    con.execute("""INSERT INTO shared_material(id,platform,account_id,recorded_at,posted_at,url,note,content,
-                                              images_json,video_sha256,links_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-                (entry_id, platform, account_id, utc_now(), parse_utc(posted_at) if posted_at else None, url, note,
-                 content, json.dumps(images), video, json.dumps(links)))
+    if post_id is None:  # byte-identical to the original statement, so an unmigrated table keeps working
+        con.execute("""INSERT INTO shared_material(id,platform,account_id,recorded_at,posted_at,url,note,content,
+                                                  images_json,video_sha256,links_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                    (entry_id, platform, account_id, utc_now(), parse_utc(posted_at) if posted_at else None, url, note,
+                     content, json.dumps(images), video, json.dumps(links)))
+    else:
+        con.execute("""INSERT INTO shared_material(id,platform,account_id,recorded_at,posted_at,url,note,content,
+                                                  images_json,video_sha256,links_json,post_id)
+                       VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (entry_id, platform, account_id, utc_now(), parse_utc(posted_at) if posted_at else None, url, note,
+                     content, json.dumps(images), video, json.dumps(links), post_id))
     event(con, "material_shared_recorded", None, f"id={entry_id} platform={platform}")
     return entry_id
+
+
+# --- Posts published by hand, made measurable (2026-10-21) --------------------------------------
+MANUAL_URL_MAX = 2048
+MANUAL_FUTURE_SKEW_MINUTES = 10  # a declared publish time may not lie further in the future than this
+MANUAL_RECORDED_EVENT = "manual_publish_recorded"
+_MANUAL_URL = re.compile(r"https?://[^\s\x00-\x1f\x7f]{1,2040}")
+
+
+def manual_status_supported(con) -> bool:
+    """True when this database's ``posts.status`` CHECK accepts ``published_manual`` (SELECT only).
+
+    A database created before 2026-10-21 keeps its older CHECK until :func:`record_manual_publish` first widens
+    it; until then it holds no such record, so every reader may treat the status as absent."""
+    row = con.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='posts'").fetchone()
+    return row is not None and f"'{MANUAL_STATUS}'" in str(row[0])
+
+
+def _posts_ddl() -> str:
+    start = SCHEMA.index("CREATE TABLE IF NOT EXISTS posts (")
+    return SCHEMA[start:SCHEMA.index(");", start) + 2]
+
+
+def _widen_status_check(con) -> None:
+    """Rebuild ``posts`` with the current CHECK (adds ``published_manual``); rows, ids and columns are kept.
+
+    SQLite cannot change a CHECK constraint in place, so this is the documented "make other kinds of table
+    schema changes" procedure (https://www.sqlite.org/lang_altertable.html#otheralter): foreign keys off, then in
+    one ``BEGIN IMMEDIATE`` create the new table, copy every row by column name, drop the old one, rename, recreate
+    the index and run ``foreign_key_check``; any problem rolls the whole change back. Runs at most once per
+    database and only when the owner first records a by-hand post. Nothing is sent, approved or re-bound: the
+    approval columns are copied byte for byte, so every stored approval hash still matches its row.
+    """
+    if con.in_transaction:
+        raise ValidationError("Recording a post published by hand must run outside an open transaction; nothing changed")
+    fk_on = con.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+    con.execute("PRAGMA foreign_keys=OFF")  # a no-op inside a transaction, hence the check above
+    try:
+        con.execute("BEGIN IMMEDIATE")
+        try:
+            if not manual_status_supported(con):  # re-checked under the write lock: another process may have won
+                old = [row[1] for row in con.execute("PRAGMA table_info(posts)")]
+                con.execute("DROP TABLE IF EXISTS posts__rw_widen")
+                con.execute(_posts_ddl().replace("CREATE TABLE IF NOT EXISTS posts (", "CREATE TABLE posts__rw_widen (", 1))
+                new = [row[1] for row in con.execute("PRAGMA table_info(posts__rw_widen)")]
+                lost = [name for name in old if name not in new]
+                if lost:  # never drop data a newer or foreign schema added
+                    raise ValidationError(f"posts has columns this version does not know ({', '.join(lost)}); "
+                                          "nothing changed")
+                columns = ",".join(old)  # names come from PRAGMA table_info of our own table
+                con.execute(f"INSERT INTO posts__rw_widen({columns}) SELECT {columns} FROM posts")
+                before = con.execute("SELECT COUNT(*) FROM posts").fetchone()[0]
+                con.execute("DROP TABLE posts")
+                con.execute("ALTER TABLE posts__rw_widen RENAME TO posts")
+                con.execute("CREATE INDEX IF NOT EXISTS idx_posts_due ON posts(status,scheduled_at)")
+                if con.execute("SELECT COUNT(*) FROM posts").fetchone()[0] != before:
+                    raise ValidationError("posts row count changed while widening the status check; nothing changed")
+                if con.execute("PRAGMA foreign_key_check").fetchall():
+                    raise ValidationError("foreign key check failed while widening the status check; nothing changed")
+                event(con, "posts_status_check_widened", None, f"added={MANUAL_STATUS} rows={before}")
+            con.execute("COMMIT")
+        except BaseException:
+            if con.in_transaction:
+                con.execute("ROLLBACK")
+            raise
+    finally:
+        if fk_on:
+            con.execute("PRAGMA foreign_keys=ON")
+
+
+def manual_url_problem(url: object) -> str | None:
+    """Why ``url`` cannot be the permalink of a by-hand post, or None. Only http(s) links, no spaces or controls."""
+    if not isinstance(url, str) or not url.strip():
+        return "--url is required: the link of the post on the platform"
+    if len(url) > MANUAL_URL_MAX or not _MANUAL_URL.fullmatch(url.strip()):
+        return "--url must be one http(s) link without spaces, at most 2048 characters"
+    from .repeat_guard import canonical_link
+    if canonical_link(url) is None:
+        return "--url must be an http(s) link with a host"
+    return None
+
+
+def find_manual_duplicate(con, platform: str, url: str) -> str | None:
+    """Id of a ``published`` or ``published_manual`` post of ``platform`` whose link is ``url`` (canonical form)."""
+    from .repeat_guard import canonical_link
+    wanted = canonical_link(url)
+    for row in con.execute("SELECT id, remote_url FROM posts WHERE platform=? AND status IN (?,?) AND remote_url IS NOT NULL",
+                           (platform, *MEASURED_STATUSES)):
+        if canonical_link(str(row["remote_url"])) == wanted:
+            return row["id"]
+    return None
+
+
+def record_manual_publish(con, *, platform: str, url: str, account_id: str | None = None, content: str = "",
+                          images: list[str] | tuple[str, ...] = (), video: str | None = None,
+                          links: list[str] | tuple[str, ...] = (), posted_at: str | None = None, note: str = "",
+                          remote_id: str | None = None, now: str | None = None) -> dict:
+    """Record a post the owner says he published BY HAND so its results can be measured. Sends nothing.
+
+    Writes, under one ``BEGIN IMMEDIATE``: (1) the ``mark-shared`` ledger entry exactly as ``record_shared`` does
+    (so the repeat guard sees the material with the same account scope as before), linked by ``post_id``; and (2)
+    a ``posts`` row born in the terminal ``published_manual`` state with the platform, the account (``''`` when
+    unknown), the text, ``remote_url`` = ``url``, ``remote_id`` (a platform id the caller derived from ``url``, or
+    None), ``send_started_at`` = ``posted_at`` (default: now) and every approval column NULL. Plus a
+    ``manual_publish_recorded`` audit event carrying the provenance (owner-declared manual publish).
+
+    The record can never be sent: no ``transition`` edge leads into or out of ``published_manual``; ``pending``,
+    ``claim_sending``, ``reconcile``, the media/video setters and every worker select approved, scheduled, sending or
+    needs_review rows only. Refused (ValidationError, nothing written): an unknown platform, a bad link, a publish
+    time more than 10 minutes in the future, no material, or a link already recorded for this platform.
+    Returns ``{"post_id", "shared_id", "status", "provenance"}``. Callers outside a transaction only.
+    """
+    from .policy import PLATFORMS
+    if not isinstance(platform, str) or platform not in PLATFORMS:
+        raise ValidationError(f"Unknown platform {str(platform)[:40]!r}")
+    problem = manual_url_problem(url)
+    if problem:
+        raise ValidationError(problem)
+    url = url.strip()
+    if account_id is not None and (not isinstance(account_id, str) or not account_id.strip()):
+        raise ValidationError("account must be a nonempty account id or None")
+    if not isinstance(content, str) or not isinstance(note, str):
+        raise ValidationError("text and note must be strings")
+    images, links = list(images), list(links)
+    if not (content or images or video or links):
+        raise ValidationError("Give at least one of --text/--file, --image, --video or --link")
+    current = parse_utc(now or utc_now())
+    when = parse_utc(posted_at) if posted_at else current
+    if datetime.fromisoformat(when) > datetime.fromisoformat(current) + timedelta(minutes=MANUAL_FUTURE_SKEW_MINUTES):
+        raise ValidationError("--at is in the future: give the time you actually posted it; nothing recorded")
+    if remote_id is not None and (not isinstance(remote_id, str) or not remote_id.strip() or len(remote_id) > 1024):
+        raise ValidationError("remote_id must be a nonempty platform id or None")
+    if not manual_status_supported(con):
+        _widen_status_check(con)
+    post_id = uuid4().hex[:16]
+    with _atomic(con):
+        duplicate = find_manual_duplicate(con, platform, url)
+        if duplicate is not None:
+            raise ValidationError(f"{url[:200]} is already recorded for {platform} as post {duplicate}; nothing recorded. "
+                                  f"Record its results with: reachweaver metrics {duplicate} ...")
+        source_url = links[0] if links else ""
+        con.execute("""INSERT INTO posts (id,account_id,platform,content,campaign,source_url,status,created_at,
+                                          send_started_at,remote_id,remote_url)
+                       VALUES(?,?,?,?,'',?,?,?,?,?,?)""",
+                    (post_id, account_id or "", platform, content, source_url, MANUAL_STATUS, current, when,
+                     remote_id, url))
+        shared_id = record_shared(con, platform=platform, account_id=account_id, content=content, images=images,
+                                  video=video, links=links, posted_at=when, url=url, note=note, post_id=post_id)
+        event(con, MANUAL_RECORDED_EVENT, post_id,
+              f"provenance=owner_declared_manual_publish platform={platform} account={account_id or 'unknown'} "
+              f"posted_at={when} shared_id={shared_id} platform_id={'derived' if remote_id else 'none'}")
+    return {"post_id": post_id, "shared_id": shared_id, "status": MANUAL_STATUS, "provenance": MANUAL_PROVENANCE}
 
 
 def event_activity(con, actions: tuple[str, ...], *, since: str | None = None,
@@ -2321,6 +2495,21 @@ def published_posts(con, *, account_id: str | None = None, platform: str | None 
     return rows if include_replies else [row for row in rows if reply_target_text(row) is None]
 
 
+def measured_posts(con, *, account_id: str | None = None, platform: str | None = None,
+                   include_replies: bool = True) -> list[sqlite3.Row]:
+    """Posts whose results are measured: ``published`` (sent by ReachWeaver) plus ``published_manual`` (posted by
+    hand and recorded with ``mark-shared --url``), ordered like ``list_posts``. Callers label the by-hand ones."""
+    rows = [*published_posts(con, account_id=account_id, platform=platform, include_replies=include_replies),
+            *list_posts(con, status=MANUAL_STATUS, account_id=account_id, platform=platform)]
+    rows.sort(key=lambda r: (r["send_started_at"] is not None, r["send_started_at"] or "", r["id"]))
+    return rows
+
+
+def is_manual(row) -> bool:
+    """True for a ``published_manual`` record (a post the owner declared he published by hand)."""
+    return row is not None and row["status"] == MANUAL_STATUS
+
+
 def has_reply_column(con) -> bool:
     return any(row[1] == "reply_target" for row in con.execute("PRAGMA table_info(posts)"))
 
@@ -2449,19 +2638,25 @@ def report(con, *, since: str | None = None) -> dict[str, dict]:
     adds per metric: ``value``, ``exact``/``total`` (published posts) and ``coverage``,
     ``status_counts`` (a post without any snapshot counts as unknown) and ``estimated``: the
     separately labelled count and sum of platform estimates, or None.
+
+    Posts the owner published by hand and recorded with ``mark-shared --url`` (``published_manual``, 2026-10-21)
+    are measured like sent posts (their send time is the declared publish time) and counted in ``published``;
+    ``posted_by_hand`` says how many of those ``published`` posts were posted by hand.
     """
     groups: dict[str, dict] = {}
     window_from = datetime.fromisoformat(parse_utc(since)) if since is not None else None
-    for post in published_posts(con, include_replies=False):  # replies: see reply_report()
+    for post in measured_posts(con, include_replies=False):  # replies: see reply_report()
         if window_from is not None and not _at_or_after(post["send_started_at"], window_from):
             continue
         item = groups.setdefault(post["platform"], {
-            "published": 0, "metric_coverage": 0, **{k: 0 for k in METRIC_FIELDS},
+            "published": 0, "posted_by_hand": 0, "metric_coverage": 0, **{k: 0 for k in METRIC_FIELDS},
             "coverage_by_metric": {k: 0 for k in METRIC_FIELDS},
             "window_coverage": {"with_window": 0, "without_window": 0,
                                 "earliest_window_start": None, "latest_window_end": None},
             "metrics": {k: _metric_summary() for k in METRIC_FIELDS}})
         item["published"] += 1
+        if is_manual(post):
+            item["posted_by_hand"] += 1
         snapshot = (latest_snapshot(con, post["id"]) if window_from is None
                     else _latest_snapshot_since(con, post["id"], window_from))
         for k, (label, value) in metric_states(snapshot).items():

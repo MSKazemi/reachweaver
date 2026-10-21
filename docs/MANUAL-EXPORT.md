@@ -181,3 +181,33 @@ Any future adapter needs its own security review and must keep human approval, d
 ## After you post a package by hand
 
 `manual-export` cannot see what you do with the package. Once you have posted it yourself, record it with `reachweaver mark-shared --platform P --video FILE --text "..."`, so the [repeat guard](REPEAT-GUARD.md) warns you if the same video or wording is about to go out again on that platform.
+
+## Measure posts you shared by hand
+
+Add the link of the post you published (and, if you like, the account and the time you posted it):
+
+```bash
+reachweaver mark-shared --platform mastodon --account my-masto \
+  --url https://social.example.org/@me/109876543210 \
+  --at 2026-10-20T09:00:00+02:00 --file caption.txt
+```
+
+With `--url`, `mark-shared` does two things and sends nothing:
+
+1. It records the material for the [repeat guard](REPEAT-GUARD.md), exactly as without `--url` (without `--account` it counts for every account on that platform).
+2. It creates a measurable record: a post with status `published_manual` ("posted by hand"). It prints its id. `--at` is the time you posted it (default: now; a time more than 10 minutes in the future is refused). This time is what `report --since` and `insights` use.
+
+Then record its results as for any published post:
+
+- `reachweaver metrics POST_ID --observed-at TIME --source native-export --views N --likes N`, or `import-metrics --csv FILE` with that `post_id`, from the platform's own analytics.
+- `metrics-fetch --online` reads public counters for a Mastodon link on your configured server and handle, and for a Bluesky link of the form `https://bsky.app/profile/did:.../post/...` (the post must be by your configured handle). For a Bluesky link with a handle instead of a `did:`, or for any other platform, use `metrics` or `import-metrics`; `metrics-fetch` lists the record as `posted_by_hand_without_platform_id`.
+
+`report`, `insights`, `journal` and the dashboard's Posted and Results pages include these posts and label them "posted by hand". `journal --no-by-hand` leaves them out.
+
+What it cannot do:
+
+- It cannot be approved, scheduled, sent, retried or reconciled. Every send path refuses it or does not see it.
+- It is your own statement. ReachWeaver does not check that the post exists. Record the same link twice and the second call is refused.
+- It does not change older posts. A record made without `--url` stays a repeat-guard entry only; record it again with `--url` to make it measurable.
+
+The first time you record a post this way, ReachWeaver upgrades an older database once (it rebuilds the posts table so it accepts the new status, keeping every row and approval). Back up `state/` first if you like; nothing else changes.
