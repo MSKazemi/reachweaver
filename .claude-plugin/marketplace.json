@@ -9,7 +9,7 @@
       "name": "reachweaver",
       "source": "./plugin",
       "description": "Approval-first social publishing and evidence-driven audience growth",
-      "version": "0.11.0",
+      "version": "0.12.0",
       "category": "marketing"
     }
   ]
