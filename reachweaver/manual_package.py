@@ -63,13 +63,22 @@ def generic_platforms() -> tuple[str, ...]:
                         if p["reachweaver_delivery"] == "manual_only" and key not in DEDICATED))
 
 
-def _destination(platform: str) -> dict:
+def _destination(platform: str, copy_handoff: bool = False) -> dict:
+    """The registry entry for a generic package destination.
+
+    ``copy_handoff`` (used only by ``share``, owner decision 2026-10-21) also accepts a text network that
+    ReachWeaver can send to through its API (``mock_tested_text``), so a creator without a connected account
+    still gets text to copy and post by hand. The package stays a manual handoff: no send path, no queue.
+    Human-only destinations are never ``mock_tested_text``, so their notes-only rule is unchanged.
+    """
     if platform in MANUAL_PLATFORMS or platform in DEDICATED:
         raise ValidationError(f"{platform!r} has a dedicated package: use manual-export --platform "
                               f"{DEDICATED.get(platform, platform)}")
     entry = _entries().get(platform)
     if entry is None:
         raise ValidationError(f"{platform!r} is not in the distribution registry")
+    if copy_handoff and entry["reachweaver_delivery"] == "mock_tested_text" and entry["human_only"] is not True:
+        return entry
     if entry["reachweaver_delivery"] != "manual_only":
         raise ValidationError(f"{platform!r} is {entry['reachweaver_delivery']!r}, not manual_only, in the "
                               "distribution registry; the generic manual package covers manual_only only")
@@ -83,11 +92,11 @@ def _options(variant: dict) -> dict:
 
 # --- Preflight ---------------------------------------------------------------------------
 
-def package_preflight(platform: str, variant: object,
-                      account_meta: dict | None = None) -> tuple[list[str], list[str]]:
+def package_preflight(platform: str, variant: object, account_meta: dict | None = None, *,
+                      copy_handoff: bool = False) -> tuple[list[str], list[str]]:
     """Return (blocking errors, warnings) for one generic manual package. Offline and pure."""
     try:
-        entry = _destination(platform)
+        entry = _destination(platform, copy_handoff)
     except ValidationError as exc:
         return [str(exc)], []
     if not isinstance(variant, dict):
@@ -274,14 +283,14 @@ def _media_section(platform: str, fmt: str, manifest, base_dir) -> tuple[dict, l
 # --- Package -------------------------------------------------------------------------------
 
 def build_package(platform: str, variant: dict, media_manifest=None, account_meta: dict | None = None, *,
-                  media_base_dir=None, generated_at: str | None = None) -> dict:
+                  media_base_dir=None, generated_at: str | None = None, copy_handoff: bool = False) -> dict:
     """Build a generic manual package. It never sends anything; status is always manual-only."""
-    entry = _destination(platform)
+    entry = _destination(platform, copy_handoff)
     if not isinstance(variant, dict):
         raise ValidationError("variant must be a JSON object")
     label, human_only = entry["label"], entry["human_only"] is True
     meta = account_meta if isinstance(account_meta, dict) else {}
-    errors, warnings = package_preflight(platform, variant, account_meta)
+    errors, warnings = package_preflight(platform, variant, account_meta, copy_handoff=copy_handoff)
     fmt = variant.get("format", "text")
     media, media_errors, media_warnings = _media_section(platform, fmt if isinstance(fmt, str) else "",
                                                          media_manifest, media_base_dir)

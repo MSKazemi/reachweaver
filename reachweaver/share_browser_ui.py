@@ -219,7 +219,8 @@ button { font-family:inherit; }
      button.className = "network";
      button.setAttribute("aria-pressed", selected.has(p.id) ? "true" : "false");
      button.appendChild(text("strong", p.label));
-     button.appendChild(text("span",p.human_only ? "You write the final post · Notes only" : "Manual posting package"));
+     button.appendChild(text("span",p.human_only ? "You write the final post · Notes only" :
+       p.api_capable ? "Copy and post yourself · or connect it to send from ReachWeaver" : "Manual posting package"));
      button.addEventListener("click",function(){
        if(selected.has(p.id)) {selected.delete(p.id); edits.delete(p.id);}
        else if(selected.size < 10) selected.add(p.id);
@@ -275,6 +276,8 @@ button { font-family:inherit; }
        button.type = "button";
        button.addEventListener("click",function(){copy(editor.value,button);});
        card.appendChild(button);
+       if(item.shortened) card.appendChild(text("p","Shortened to fit this network: read the ending before you copy it.","hint"));
+       if(item.note) card.appendChild(text("p",item.note,"hint"));
      }
      if(item.warnings.length) {
        card.appendChild(text("strong","Before sharing, check:"));

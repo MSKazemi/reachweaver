@@ -108,9 +108,14 @@ class BrowserComposerTests(unittest.TestCase):
             data = json.loads(response)
             ids = {p["id"] for p in data["platforms"]}
             self.assertTrue({"instagram", "threads", "tiktok", "youtube", "reddit"}.issubset(ids))
-            self.assertNotIn("bluesky", ids, "live-capable networks use a separate approval gate")
+            # Owner decision 2026-10-21: API-capable text networks are offered as copy-only packages and
+            # flagged; sending from ReachWeaver stays the separate approval-first draft flow.
+            bluesky = next(p for p in data["platforms"] if p["id"] == "bluesky")
+            self.assertTrue(bluesky["api_capable"])
+            self.assertFalse(bluesky["human_only"])
             reddit = next(p for p in data["platforms"] if p["id"] == "reddit")
             self.assertTrue(reddit["human_only"])
+            self.assertFalse(reddit["api_capable"])
             self.assertEqual(data["max_destinations"], 10)
 
     def test_cross_site_and_unauthenticated_requests_are_refused(self):
@@ -248,7 +253,7 @@ class BrowserComposerTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             _incoming({"platforms": ["threads"] * 20, "text": "text"})
         with self.assertRaises(ValidationError):
-            _incoming({"platforms": ["bluesky"], "text": "text"})
+            _incoming({"platforms": ["hacker_news"], "text": "text"})
         self.assertFalse((self.root / "state").exists())
 
     def test_non_ascii_token_header_is_refused_not_crashed(self):

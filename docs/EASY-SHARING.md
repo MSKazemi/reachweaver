@@ -44,6 +44,26 @@ python3 -m reachweaver share --platform instagram,tiktok --file my-caption.txt -
 
 Choose a *new* output folder every time. Existing folders are never overwritten.
 
+## Bluesky, Mastodon, Telegram and LinkedIn
+
+ReachWeaver can also send to these four networks through their APIs, but you do not need to connect anything to share there. Share gives you the same kind of copy-ready package as for Instagram:
+
+~~~bash
+python3 -m reachweaver share --platform bluesky,linkedin,mastodon --text "A small update for new creators" --out state/my-text-share
+~~~
+
+Each package is checked with the same text rule that `draft` and `check` use for that network (for example 300 graphemes on Bluesky), and each one says: *Copy and post it yourself; to send it from ReachWeaver instead, connect the account and use draft → review.* Share itself never sends, never writes the local database or send queue and never records a post. If you post by hand and want the repeat guard to know, run `reachweaver mark-shared` afterwards.
+
+To add one of your accounts for that send route, run `reachweaver account-add bluesky` (or mastodon, telegram, linkedin). It asks only for public details such as your handle, never a password, and prints the names of the environment variables you set yourself. Then follow `reachweaver connect --guide`.
+
+## One caption, fitted to each network
+
+Every network gets its own copy of your caption. When the caption is longer than a network's limit, Share shortens that copy at the last word that fits, adds "…", and marks it **SHORTENED** in the plan, in OPEN-FIRST.md and in that network's CHECKLIST.md, naming any hashtags that were cut. Read the ending before you post. The limits come from rules ReachWeaver already applies: the `draft`/`check` rule for Bluesky, Mastodon, Telegram and LinkedIn, the official limits recorded for Threads, Instagram, TikTok and YouTube descriptions, and ReachWeaver's conservative cap for Facebook Pages. Networks without a known limit (X, for example) keep your text exactly as written, with a note when it is longer than ReachWeaver's internal guardrail.
+
+Hashtags are never moved or rewritten: ReachWeaver has no sourced rule for moving them on any network, so your text keeps its order and the existing hashtag warnings (one topic tag on Threads, at most five in the Instagram app) still appear. Nothing is written by AI: the only change is the cut.
+
+Prefer to shorten it yourself? Add `--no-shorten`: an over-long caption then blocks with the network's rule, and nothing is written.
+
 ## Photos and video
 
 Say which photo or video you plan to attach:
@@ -52,9 +72,11 @@ Say which photo or video you plan to attach:
 python3 -m reachweaver share --platform instagram,tiktok --text "Watch this short demonstration" --attach demo.mp4 --out state/my-video-share
 ~~~
 
-The video is **only listed as a reference**; it is not copied, validated or uploaded. In Instagram and TikTok, **you** choose the actual file, check the video/photo specifications, rights, likeness consent, alt text/subtitles and disclosures, and publish in the native app.
+The file is **never copied or uploaded**. Share reads its header offline (container, size, width and height, duration) and checks it against the limits ReachWeaver has a cited source for: for example Bluesky's 10-minute video limit, Instagram's 4:5 to 1.91:1 image ratio or TikTok's 23-60 fps. Each finding appears as a **MEDIA PROBLEM** (a documented hard limit) or **Media advice** (a recommendation) line in the plan and in that network's CHECKLIST.md, and a value the source does not state, or a header it cannot read, is listed as not checked. These findings never block the package: you decide in the app. YouTube rules are the Shorts rules and apply only if you post a Short. Networks without a sourced media table (Threads, Facebook Pages, X and most others) say so. No external tool such as ffprobe is needed.
 
-Instagram defaults to an image post without a video attachment, or a video post when an attached video's extension is supplied. TikTok and YouTube use video formats. The filename extension alone is *not proof* that media is valid: use media-check with a rights-confirmed media manifest if you want technical validation.
+**You** still choose the actual file, check rights, likeness consent, alt text, subtitles and disclosures, and publish in the native app. For those checks too, use `--media` with a rights-confirmed media manifest (`media-check`).
+
+Instagram defaults to an image post without a video attachment, or a video post when an attached video's extension is supplied. TikTok and YouTube use video formats.
 
 ## A YouTube video
 
@@ -95,12 +117,13 @@ Do not automate groups, DM strangers, copy spam across communities, or bypass lo
 | Check your text before saving files | Add --preview |
 | Change a post for only one destination | Edit that platform's caption.txt or post.txt before manually pasting |
 | Remember a post you shared manually | reachweaver mark-shared (see the repeat-guard guide) |
-| Connect an account for an actual API send | See the security checklist and account onboarding; Share intentionally never sends |
+| Keep an over-long caption as written (and block) | Add --no-shorten |
+| Add your account for an actual API send | reachweaver account-add bluesky, then reachweaver connect --guide; Share intentionally never sends |
 
 If you need automated sending, that is a **different, approval-first** process and only works for specifically supported, owner-authorized accounts. One Share package is not consent to publish automatically.
 
 ## What Share does not do
 
-Share does not generate media, change or optimize the text differently per platform, guarantee better visibility, detect the target account, validate native post outcomes, collect analytics or publish by itself. It does apply existing per-platform preflight checks where available and refuses to save any packages if one chosen network has a blocking error.
+Share does not generate media or text, rewrite or optimize a caption (it only shortens an over-long copy at a word boundary, and says so), move hashtags, guarantee better visibility, detect the target account, validate native post outcomes, collect analytics or publish by itself. It does apply existing per-platform preflight checks where available and refuses to save any packages if one chosen network has a blocking error. Media findings from `--attach` are advice for you and never block.
 
 **Privacy:** all generated text is local. Files are stored under a new owner-only folder (0700 on POSIX, text files 0600). No new dependency, hosted service or additional charge is required.

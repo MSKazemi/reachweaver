@@ -58,6 +58,7 @@ class StateTests(StartBase):
         self.assertEqual(commands[:3], [start.SHARE_WEB, start.SHARE_GUIDE, "reachweaver workspace --init ."])
         self.assertFalse(any(c.startswith("cp ") for c in commands), "no example file here to copy")
         self.assertIn("Easiest", guide["steps"][0]["label"])
+        self.assertEqual(commands[-1], "reachweaver account-add bluesky")
 
     def test_no_accounts_file_inside_a_workspace_restores_it_with_workspace_init(self):
         root = self.base / "my space"

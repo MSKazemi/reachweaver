@@ -107,6 +107,7 @@ class ShareTests(unittest.TestCase):
         self.assertEqual(code, 0, errors)
         self.assertIn("PREVIEW ONLY", out)
         self.assertFalse(self.out.exists())
+        # One 600-character word cannot be shortened at a word boundary, so Threads still blocks.
         code, _, errors = self.cli("share", "--platform", "instagram,threads",
                                    "--text", "x" * 600, "--out", str(self.out))
         self.assertEqual(code, 2)
@@ -145,7 +146,8 @@ class ShareTests(unittest.TestCase):
         self.assertEqual(code, 0, errors)
         package = json.loads((self.out / "instagram" / "manual-export.json").read_text(encoding="utf-8"))
         self.assertEqual(package["content"]["format"], "video")
-        self.assertFalse(package["media"]["validated"])
+        self.assertFalse(package["media"]["validated"], "no manifest was validated; only headers were read")
+        self.assertIn("unrecognized file header", "\n".join(package["preflight"]["warnings"]))
         self.assertIn(str(video), (self.out / "OPEN-FIRST.md").read_text(encoding="utf-8"))
         self.assertFalse((self.out / "instagram" / "demo.mp4").exists())
         code, _, errors = self.cli("share", "--platform", "instagram",
@@ -155,18 +157,27 @@ class ShareTests(unittest.TestCase):
         self.assertIn("missing", errors.casefold())
         self.assertFalse((self.root / "bad").exists())
 
-    def test_refuses_existing_output_and_unapproved_live_network(self):
+    def test_refuses_existing_output_and_unknown_network(self):
         self.out.mkdir()
         code, _, errors = self.cli("share", "--platform", "threads",
                                    "--text", "Draft only", "--out", str(self.out))
         self.assertEqual(code, 2)
         self.assertIn("exists", errors)
-        code, _, errors = self.cli("share", "--platform", "bluesky",
+        code, _, errors = self.cli("share", "--platform", "myspace",
                                    "--text", "Should be refused",
                                    "--out", str(self.root / "bad"))
         self.assertEqual(code, 2)
-        self.assertIn("approve", errors.casefold())
+        self.assertIn("unknown manual destination", errors.casefold())
         self.assertFalse((self.root / "bad").exists())
+
+    def test_api_capable_network_is_a_copy_only_package(self):
+        # Owner decision 2026-10-21: Bluesky gets copy-ready text too; sending stays draft -> review -> approve.
+        code, _, errors = self.cli("share", "--platform", "bluesky",
+                                   "--text", "Copy this yourself", "--out", str(self.out))
+        self.assertEqual(code, 0, errors)
+        package = json.loads((self.out / "bluesky" / "manual-export.json").read_text(encoding="utf-8"))
+        self.assertEqual(package["status"], "manual_export_not_published")
+        self.assertIn("draft → review", package["notice"])
 
     def test_default_output_goes_into_a_selected_workspace(self):
         workspace = self.root / "my-workspace"

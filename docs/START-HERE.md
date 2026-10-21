@@ -35,7 +35,7 @@ python3 -m reachweaver share --guide
 
 Answer which social networks you want, type a caption, review the plan and choose whether to save it. The new **OPEN-FIRST.md** file gives you simple steps, and each network has its own copy-ready text file and checklist. You then open the real social app and post manually. No one is logged in, and nothing is uploaded or published by this command.
 
-For two networks in one command, try `python3 -m reachweaver share --platform instagram,threads --text "Our new tutorial" --out state/my-post`. For photographs, video and human-only communities, see [Easy sharing](EASY-SHARING.md). Automatic account publishing is a separate, approval-first workflow explained below.
+For two networks in one command, try `python3 -m reachweaver share --platform instagram,threads --text "Our new tutorial" --out state/my-post`. LinkedIn, Bluesky, Mastodon and Telegram work the same way: you get text to copy, even with no account connected. If your caption is too long for a network, that network's copy is shortened at a word boundary and marked SHORTENED, and a photo or video you name with `--attach` is checked offline against that network's documented sizes and durations. For photographs, video and human-only communities, see [Easy sharing](EASY-SHARING.md). Automatic account publishing is a separate, approval-first workflow explained below; `reachweaver account-add bluesky` adds your account to it without ever asking for a password.
 
 ## Five ideas you need
 

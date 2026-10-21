@@ -1582,3 +1582,50 @@ def validate_media_manifest(manifest: dict, base_dir: str | Path) -> dict:
 def media_check(manifest_path: str | Path) -> dict:
     path = Path(manifest_path)
     return validate_media_manifest(read_manifest(path), path.parent)
+
+
+def check_file_for_targets(path: str | Path, targets: list[str] | tuple[str, ...]) -> dict:
+    """Header-only technical checks of one local photo or video against each target's sourced table.
+
+    Used by ``share --attach`` when no media manifest is supplied. It applies the same rows as
+    ``media-check`` (container, size, duration, aspect ratio, dimensions, codecs, frame rate, audio) but
+    there is no alt text, caption file or rights record to check, so those stay the account holder's job.
+    ``problems`` come from rows whose cited source states a hard limit and ``advice`` from recommendations;
+    the caller decides how to show them. A target without a sourced table, an unreadable header or an
+    unknown value is reported as not checked, never guessed. Reads the file locally; nothing is uploaded.
+    """
+    path = Path(path)
+    info = probe_file(path)
+    container = info["container"]
+    kind = "video" if container in VIDEO_CONTAINERS else "image" if container in IMAGE_CONTAINERS else None
+    ratio = _aspect(info)
+    result: dict[str, Any] = {
+        "path": str(path), "kind": kind,
+        "detected": {"container": container, "bytes": info.get("bytes", UNKNOWN), "width": info["width"],
+                     "height": info["height"], "aspect_ratio": round(ratio, 4) if ratio != UNKNOWN else UNKNOWN,
+                     "duration_seconds": info["duration_seconds"]},
+        "notes": [], "targets": {},
+    }
+    if kind is None:
+        result["notes"].append("unrecognized file header: not a PNG, JPEG, GIF, WebP, MP4 or MOV this checker can "
+                               "read (WebM is not detected), so no platform limit was checked")
+        return result
+    expected = EXTENSIONS.get(path.suffix.lower())
+    if expected is not None and expected != container and not {expected, container} <= VIDEO_CONTAINERS:
+        result["notes"].append(f"extension {path.suffix} does not match the detected {container} header")
+    if info.get("has_exif"):
+        result["notes"].append("embedded EXIF metadata present; it may reveal location or device data. Remove "
+                               "sensitive metadata before you upload")
+    for target in dict.fromkeys(targets):
+        if target not in CONSTRAINTS or kind not in CONSTRAINTS[target]:
+            result["targets"][target] = {"problems": [], "advice": [], "checked": [], "not_checked": [],
+                                         "table": False}
+            continue
+        errors: list[str] = []
+        warnings: list[str] = []
+        summary = _check_target(path.name, target, kind, info, {}, {}, [], errors, warnings)
+        skipped = set(summary["skipped"])
+        advice = [w for w in warnings if not any(f"constraint '{name}' skipped" in w for name in skipped)]
+        result["targets"][target] = {"problems": errors, "advice": advice, "checked": summary["checked"],
+                                     "not_checked": sorted(skipped), "table": True}
+    return result

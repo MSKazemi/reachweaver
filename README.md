@@ -73,7 +73,7 @@ Write one caption, select social networks, preview all drafts and save private h
 
 ### Easiest option: Share a post without connecting an account
 
-You can prepare captions for Instagram, Threads, TikTok, YouTube and many other networks, then paste them in the apps yourself. No JSON, password, account connection, subscription or API key is required:
+You can prepare captions for Instagram, Threads, TikTok, YouTube, LinkedIn, Bluesky, Mastodon, Telegram and many other networks, then paste them in the apps yourself. Each network gets its own copy, shortened at a word boundary (and clearly marked SHORTENED) only when it is over that network's limit, and an attached photo or video is checked offline against the sizes, durations and aspect ratios ReachWeaver has sources for. No JSON, password, account connection, subscription or API key is required:
 
 ```bash
 python3 -m reachweaver share --guide
@@ -85,7 +85,7 @@ Or prepare two destinations at once:
 python3 -m reachweaver share --platform instagram,threads --text "Here is our latest demonstration!" --out state/my-first-share
 ```
 
-Open the resulting **OPEN-FIRST.md** file. It tells you which caption to copy, which app to open and what to check before posting. Media files are referenced, not uploaded. **This is manual preparation only: it never publishes or schedules posts.** See the [easy sharing guide](docs/EASY-SHARING.md), including photos, videos, YouTube titles and human-only community rules.
+Open the resulting **OPEN-FIRST.md** file. It tells you which caption to copy, which app to open and what to check before posting. Media files are checked from their headers, never copied or uploaded. **This is manual preparation only: it never publishes or schedules posts.** See the [easy sharing guide](docs/EASY-SHARING.md), including photos, videos, YouTube titles and human-only community rules.
 
 ### Option 1: with Claude Code (recommended)
 
@@ -123,7 +123,8 @@ Only when you are ready, and only for accounts you control:
 
 ```bash
 python3 -m pip install -e .            # optional: gives you a plain `reachweaver` command
-cp config/accounts.example.json config/accounts.json   # then edit it: NO passwords or tokens in this file
+reachweaver account-add bluesky        # asks for your public handle only; never a password or token
+cp config/accounts.example.json config/accounts.json   # or copy the example and edit it: NO passwords or tokens
 reachweaver doctor                     # offline; lists which credential names are still missing
 reachweaver init                       # creates your private local database
 reachweaver connect                    # offline status table: which accounts still need credentials
@@ -311,6 +312,7 @@ reachweaver youtube-detach POST_ID         #22: remove the video from a YouTube 
 reachweaver youtube-analytics [--account ID] [--post-id ID]  #22: read-only sampling report over stored metric snapshots of published YouTube videos; labels exact / sampled / suppressed / delayed / not_available / unknown, never invents a view count, fetches nothing (docs/YOUTUBE.md#analytics-sampling-report)
 reachweaver manual-export --platform threads|instagram|facebook|youtube|tiktok|<any other manual_only id> --variant F [--media MANIFEST] [--account-meta F] --out DIR [--json]  creator-ready package + checklist; other manual_only destinations get a generic package (limits unknown unless a registry records them; human-only ones get a write-it-yourself notes form); never sends (docs/MANUAL-EXPORT.md)
 reachweaver manual-export-batch --file BATCH.json --out DIR [--json]  1-25 manual-export items preflighted as a whole (one blocking error writes nothing), one package folder each plus a manifest with the SHA-256 of every exact-text file; human-only destinations refused; an item's `at` is advisory, never scheduled (docs/MANUAL-EXPORT.md#batch-of-manual-packages)
+reachweaver share [--platform P,...] (--text T | --file F) [--note N]... [--title T] [--format F] [--attach FILE]... [--media MANIFEST] [--out DIR] [--preview] [--no-shorten] [--list] [--guide] [--web [--open] [--port N]]  offline copy-ready package per network (including Bluesky, Mastodon, Telegram and LinkedIn, copy-only); a caption over a network's limit is shortened at a word boundary and marked SHORTENED; --attach files get offline header checks against sourced limits; human-only venues get notes only; never writes the database or sends (docs/EASY-SHARING.md)
 reachweaver delivery-options [--platform ID] [--json]  offline route per distribution-registry channel: official API adapter (the four mock-tested ones), manual package, human-only notes form or unsupported, with the exact manual-export command; connects, posts and schedules nothing
 reachweaver campaign-stage --file F --brand B [--optout F]    idempotently create draft posts only
 reachweaver experiment-evaluate --file F       analyze paired native metrics; no causal claim
@@ -364,6 +366,7 @@ reachweaver distribution-plan --region R --goal G [--limit N] [--date D --timezo
 reachweaver social-web-plan [--setup FILE] [--presence P]... [--bridged ID]... [--fediverse-sharing ID]... [--site URL [--site-kind K]] [--json]  offline open social web map: protocols, bridges, canonical home, duplicate reach, identity checklist; never sends (docs/OPEN-SOCIAL-WEB.md)
 reachweaver account-advisor [--region R] [--goal G] [--format F] [--weekly-hours N] [--limit N] [--existing ID]... [--setup ID [--brand B] [--audience A] [--language L]] [--json]  offline shortlist of platforms to start, from the distribution registry; --setup prints the official start page, the steps you do yourself and a coaching prompt for a normal Claude chat that never opens the site; creates and connects no account (docs/ACCOUNT-ADVISOR.md)
 reachweaver profile [--init [--persona ID]...] [--show] [--check] [--set PATH=VALUE]... [--handle PLATFORM:PERSONA=NAME[:STATUS]]...  your private profile (personas, a username per network, sign-up details); local file, never holds passwords (docs/PERSONAS-AND-ACCOUNT-KIT.md)
+reachweaver account-add PLATFORM [--handle H] [--server URL] [--field KEY=VALUE]... [--id ID] [--persona ID] [--env-prefix P] [--dry-run]  offline: append one public account entry to accounts.json (asks in a terminal for what is missing), validated by the normal loader; refuses duplicates and example placeholders, fills an unedited example entry in place, keeps accounts.json.bak, applies the wrong-account guard; never asks for or stores a secret, prints the variable names to set and points to connect --guide
 reachweaver account-route --platform P [--persona ID] [--json]  which account and username to use for a persona on a network, and which account to switch to; offline
 reachweaver account-kit --platform P... [--persona ID] [--questions] [--out NEW_DIR --approve-plan SHA256] [--json]  offline: one plan and one approval write sign-up details (in the platform's language) for accounts you create yourself; creates no account
 reachweaver draft|check|approve ... --persona ID  refuse an account that belongs to another persona and name the one to switch to (default: preferences.default_persona)

@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from . import confirmation, engage_scout, followups, insights, platform_risk, repeat_guard, review_evidence
+from .account_add import PLATFORMS as ACCOUNT_ADD_PLATFORMS
 from .account_advisor import FORMATS as ADVISOR_FORMATS
 from .attribution import ATTRIBUTION_SOURCES, CAMPAIGN_TYPES
 from .campaigns import OBJECTIVES
@@ -1005,6 +1006,25 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--out", type=Path, metavar="NEW_DIR", help="Write the packets here (a folder that does not exist yet); needs --approve-plan")
     p.add_argument("--approve-plan", metavar="SHA256", help="The first 12+ characters of the plan sha256 you reviewed: your single approval for every platform in the plan")
     p.add_argument("--json", action="store_true", help="Machine-readable plan (personal values partly hidden)")
+    p = sub.add_parser("account-add", help="Add one account you own to accounts.json (public details only; asks for "
+                       "missing ones in a terminal); never asks for or stores a password or token",
+                       description="Offline. Appends one correctly shaped entry to config/accounts.json (or --accounts), "
+                       "checks it with the normal loader, refuses duplicates and example placeholders, applies the "
+                       "wrong-account (persona) guard and keeps the previous file as accounts.json.bak. It prints the "
+                       "environment variable NAMES to set yourself and points to 'connect --guide'.")
+    p.add_argument("platform", choices=ACCOUNT_ADD_PLATFORMS, metavar="PLATFORM",
+                   help="One of " + ", ".join(ACCOUNT_ADD_PLATFORMS))
+    p.add_argument("--id", help="Account id (default my-PLATFORM, or my-PLATFORM-2 when taken)")
+    p.add_argument("--handle", help="Public username (Bluesky: the full handle such as name.bsky.social)")
+    p.add_argument("--server", help="Mastodon server origin, e.g. https://mastodon.social")
+    p.add_argument("--field", action="append", default=[], metavar="KEY=VALUE",
+                   help="Another public field of this network (chat_id, bot_username, person_id, linkedin_version...); "
+                        "secret-named keys are refused; repeat")
+    p.add_argument("--persona", metavar="ID", help="Which of your personas this account is (work, family...); checked "
+                   "against your profile")
+    p.add_argument("--env-prefix", metavar="REACHWEAVER_NAME", help="Credential variable prefix (default: the example's "
+                   "prefix for the first account of a network, else derived from the id)")
+    p.add_argument("--dry-run", action="store_true", help="Print the entry and checks; write nothing")
     p = sub.add_parser("discovery-plan", help="Offline platform discovery and topic/hashtag recommendations; not a reach forecast or publisher")
     p.add_argument("--file", type=Path, required=True, help="Owner-reviewed JSON with post text, topics and optional dated trend evidence")
     p.add_argument("--json", action="store_true", help="Evidence, selected/skipped tags and creative checklist")
@@ -1050,10 +1070,15 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--title", help="YouTube video title when a YouTube destination is selected")
     p.add_argument("--format", choices=("text", "image", "video", "carousel", "link"),
                    help="Override a platform's inferred format (image/video requires manual media attachment)")
-    p.add_argument("--attach", action="append", type=Path, help="List a local photo/video to attach yourself in each app; not uploaded or validated")
+    p.add_argument("--attach", action="append", type=Path, help="A local photo/video you will attach yourself in each app; "
+                   "its header is checked offline against each network's sourced limits (size, duration, aspect "
+                   "ratio...), never uploaded")
     p.add_argument("--media", type=Path, help="Optional advanced media-check manifest for existing validation")
     p.add_argument("--out", type=Path, help="New output folder (default: a unique private folder under state/)")
     p.add_argument("--preview", action="store_true", help="Check without writing any files")
+    p.add_argument("--no-shorten", action="store_true",
+                   help="Keep a caption that is too long for a network as written (a blocking error) instead of "
+                        "shortening it at a word boundary with a SHORTENED flag")
 
     p.add_argument("--web", action="store_true",
                    help="Start the mobile-friendly browser composer on 127.0.0.1 (manual, offline)")

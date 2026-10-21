@@ -75,6 +75,8 @@ COMMANDS: dict[str, dict] = {
     "profile": _c(W, note="--show and --check only read"),
     "account-route": _c(R),
     "account-kit": _c(W, ("--approve-plan",), "the plan is read-only; --out with --approve-plan writes packets"),
+    "account-add": _c(W, note="appends one public entry to accounts.json (previous file kept as .bak); never a "
+                              "secret; --dry-run writes nothing"),
     # Draft and approve
     "draft": _c(NW, note="network only for --reply-to --online"),
     "check": _c(W, note=DB_NOTE),

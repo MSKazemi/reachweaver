@@ -25,11 +25,12 @@ import webbrowser
 from . import home
 from .distribution import load_registry as load_distribution_registry
 from .inputs import nesting_depth
-from .manual_export import LABELS, MANUAL_PLATFORMS, write_export
-from .manual_package import MAX_TALKING_POINT_CHARS, write_package
+from .manual_export import LABELS, MANUAL_PLATFORMS
+from .manual_package import MAX_TALKING_POINT_CHARS
 from .policy import ValidationError
 from .privacy import write_private_file
-from .share import MAX_DESTINATIONS, MAX_TEXT_BYTES, _human_only, _readme, destinations, make_packages
+from .share import (MAX_DESTINATIONS, MAX_TEXT_BYTES, _human_only, _readme, api_text_platforms, destinations,
+                    make_packages, write_one)
 from .share_browser_ui import HTML
 
 SEND_PATH = None
@@ -41,11 +42,12 @@ _ALLOWED_FIELDS = frozenset({"platforms", "text", "title", "note", "overrides"})
 
 
 def catalog() -> list[dict[str, Any]]:
-    """Only existing *manual* destinations. This does not mean connected accounts."""
+    """Copy-only destinations. ``api_capable`` networks are copy-only here too; it never means connected."""
     from .manual_package import generic_platforms
     items = {p["id"]: p for p in load_distribution_registry()["platforms"]}
-    supported = set(MANUAL_PLATFORMS) | set(generic_platforms())
-    featured = ("instagram", "threads", "tiktok", "youtube", "facebook",
+    api = set(api_text_platforms())
+    supported = set(MANUAL_PLATFORMS) | set(generic_platforms()) | api
+    featured = ("instagram", "threads", "tiktok", "youtube", "facebook", "linkedin", "bluesky",
                 "pinterest", "x", "dev", "xiaohongshu", "sharechat")
     order = [p for p in featured if p in supported]
     order.extend(sorted(supported - set(order)))
@@ -55,6 +57,7 @@ def catalog() -> list[dict[str, Any]]:
             "label": LABELS[p] if p in LABELS else items[p]["label"],
             "human_only": bool(items[p]["human_only"]) if p in items else False,
             "featured": p in featured,
+            "api_capable": p in api,
         }
         for p in order
     ]
@@ -143,7 +146,9 @@ def _safe_preview(packages: list[tuple[str, dict]]) -> list[dict[str, Any]]:
             "format": content.get("format", "notes" if human else "text"),
             "warnings": pkg["preflight"]["warnings"],
             "note": "Write this yourself under the community rules" if human else
+                    (pkg.get("share") or {}).get("send_from_reachweaver") or
                     "Copy after reviewing the native app's options",
+            "shortened": bool(((pkg.get("share") or {}).get("tailoring") or {}).get("shortened")),
             "published": False,
         })
     return result
@@ -164,10 +169,7 @@ def _write_private(packages: list[tuple[str, dict]]) -> Path:
     stage = Path(tempfile.mkdtemp(prefix=".pending-", dir=parent))
     try:
         for platform, pkg in packages:
-            if platform in MANUAL_PLATFORMS:
-                write_export(pkg, stage / platform)
-            else:
-                write_package(pkg, stage / platform)
+            write_one(platform, pkg, stage / platform)
         write_private_file(stage / "OPEN-FIRST.md", _readme(packages, []))
         if os.path.lexists(target):
             raise ValidationError("The generated output destination already exists.")
