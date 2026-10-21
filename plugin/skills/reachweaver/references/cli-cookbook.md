@@ -91,7 +91,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `resume` | **OWNER**: lift the emergency stop | none |
 | `reconcile` | **OWNER**: human-confirm an uncertain send after checking the real account; never blind-retry | `POST_ID`, `--published --remote-id ID --remote-url URL` or `--not-published`, `--force` |
 | `approval-mode` | Show the approval safeguards; **OWNER** tightens them; never turn confirmation off | `--confirmation tty_hash_prefix`, `--require-key`, `--require-identity`, `--max-age-hours N` |
-| `calendar-plan` | Propose audience-local times | `--account ID`, `--timezone TZ`, `--start DATE`, `--days N`, `--slot 'Wed@16:00'`, `--audience-activity CSV`, `--explore-share F`, `--include-drafts`, `--post-id`; `--apply` (queues approved posts locally) is the owner's decision |
+| `calendar-plan` | Propose audience-local times | `--account ID`, `--timezone TZ`, `--start DATE`, `--days N`, `--slot 'Wed@16:00'`, `--audience-activity CSV`, `--explore-share F`, `--include-drafts`, `--post-id`, `--market tiktok@US` (sourced flag only; slots unchanged); `--apply` (queues approved posts locally) is the owner's decision |
 | `calendar-gaps` | Empty and overloaded slots in the local queue | `--account ID`, `--timezone TZ`, `--start`, `--days`, `--max-per-day`, `--min-spacing-hours`, `--timing-source`, `--timing-metric`, `--json` |
 | `connect-check` | **online**: non-publishing identity check of one account | `--account ID`, `--online` |
 | `postiz-check` | **online**, read-only Postiz integration listing or receipt lookup | `--account ID`, `--online`, `--post-id` |
@@ -131,6 +131,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `timing-evaluate` | Per-account matched-age outcomes; not optimal-time proof | `--account`, `--timezone`, `--source`, `--metric`, `--denominator`, `--stratify format/campaign`, `--since`, `--until` |
 | `baseline-eval` | Personalized slots/arms vs the generic baseline; bootstrap CI, non-causal | `--account`, `--timezone`, `--since`, `--until`, `--source`, `--metric`, `--denominator`, `--slot exploit:Tue@09:00`, `--campaign-arm`, `--readout`, `--attribution`, `--attribution-source analytics/ga4`, `--json` |
 | `insights` | "What works for you": your own posts' matched-age results by time, weekday, length, link, format, hashtags, hook; median + n per group, top 3 hypotheses to test; never causal, read-only | `--account`, `--platform`, `--since 30d`, `--timezone`, `--source`, `--metric interactions`, `--denominator`, `--min-posts`, `--resamples`, `--json` |
+| `platform-risk` | Multi-homing: share of your recorded reach per platform (matched age; post-count fallback, labelled), concentration (top share, HHI), sourced risk flags (X pay-per-use, LinkedIn API terms, Reddit commercial agreement, TikTok US joint venture), owned share; hypotheses only, read-only | `--account`, `--since 30d`, `--metric views/impressions`, `--age-hours`, `--tolerance-hours`, `--owned ID`, `--owned-reach NAME=N`, `--owned-posts NAME=N`, `--market tiktok@US`, `--site URL`, `--setup FILE`, `--json` |
 | `attribution-report` | UTM/referrer join of local analytics exports; not causal | `--analytics`, `--github-traffic`, `--ga4-csv`, `--gsc-csv`, `--json` |
 | `pilot-report` | Per-arm readout of an owner field-pilot CSV log | `--log CSV`, `--min-weeks`, `--json` |
 | `peer-benchmark` | Compare with peers' public counters copied by hand | `--file F`, `--platform`, `--include-individuals`, `--json` |
@@ -164,6 +165,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `voice-check` | Advisory: draft vs the owner's voice profile and a heuristic stock-AI-phrase list; never blocks, rewrite flagged lines yourself | `--profile F`, `--text T`/`--file F`/`--post-id ID`, `--platform P`, `--json` |
 | `media-check` | Media manifest: headers, limits, alt text, captions, rights | `MANIFEST`, `--json` |
 | `ai-label-check` | Advisory: per target platform, is an AI-content label required / recommended / not required / unknown, what to tick natively, cited source; optional EU AI Act Art. 50 note (secondary source, not legal advice); never blocks | `--file F`/`--post-id ID`, `--platform P`, `--media MANIFEST`, `--authorship A`, `--eu`, `--public-interest yes\|no`, `--editorial-review yes\|no`, `--json` |
+| `eu-review-evidence` | Human-review evidence per published post for the EU AI Act Art. 50(4) exemption: approver, time, approved payload hash, text hash, approval-ledger line + integrity, authorship if recorded; database and ledger only read, never repaired; not legal advice | `--since 30d`, `--account`, `--platform`, `--post-id`, `--limit`, `--format text/json/markdown`, `--json` |
 | `media-storyboard` | Brief -> vertical-video storyboard, SRT, manifest; generates no media | `--campaign F`, `--out DIR`, `--check`, `--duration`, `--aspect`, `--json` |
 | `media-cutlist` | One master video -> per-platform cut list + suggested ffmpeg | `PLAN`, `--json` |
 
@@ -171,7 +173,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 
 | Command | Purpose | Key flags |
 |---|---|---|
-| `distribution-plan` | Regional channel research + hypothetical timing; never schedules | `--region R`, `--goal contributors/adoption/awareness/collaboration`, `--limit`, `--date`, `--timezone` (needed for `global` with a date), `--json` |
+| `distribution-plan` | Regional channel research + hypothetical timing; never schedules | `--region R`, `--goal contributors/adoption/awareness/collaboration`, `--limit`, `--date`, `--timezone` (needed for `global` with a date), `--market US/global/tiktok@US` (sourced market flag; ranking unchanged), `--json` |
 | `social-web-plan` | Open social web map: which accounts are on ActivityPub / AT Protocol / Nostr / Farcaster, bridges (Bridgy Fed, opt-in), canonical-home hypothesis, duplicate-reach warnings, identity checklist, gaps; reads accounts metadata only, never the queue | `--accounts A`, `--setup FILE`, `--presence PLATFORM`, `--bridged ID`, `--fediverse-sharing ID`, `--site URL`, `--site-kind ghost/wordpress_activitypub/bridgy_fed_web/plain`, `--json` |
 | `discovery-plan` | Platform discovery and topic/hashtag ideas; no reach forecast | `--file F`, `--json` |
 | `sources-scan` | Rank opt-in GitHub/feed/changelog/DOI signals | `--config F`, `--online` (**online**), `--state F`, `--mark-seen`, `--top N`, `--json` |

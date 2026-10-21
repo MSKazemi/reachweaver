@@ -9,7 +9,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import confirmation, engage_scout, followups, insights, repeat_guard
+from . import confirmation, engage_scout, followups, insights, platform_risk, repeat_guard, review_evidence
 from .account_advisor import FORMATS as ADVISOR_FORMATS
 from .attribution import ATTRIBUTION_SOURCES, CAMPAIGN_TYPES
 from .campaigns import OBJECTIVES
@@ -445,6 +445,9 @@ def make_parser() -> argparse.ArgumentParser:
                         "times, labelled role=explore; the rest stay on the exploit slots. Not randomized")
     p.add_argument("--explore-slot", action="append", metavar="Wed@11:00",
                    help="With --explore-share: an audience-local time to explore, distinct from the exploit slots; repeat")
+    p.add_argument("--market", action="append", default=[], metavar="MARKET",
+                   help="Audience market for market-specific notices: US, global or PLATFORM@MARKET (tiktok@US); "
+                        "adds a sourced flag only, never changes the slots")
     p = sub.add_parser("calendar-gaps", help="Read-only: empty and overloaded slots per account from the local queue; "
                        "never approves, schedules or publishes")
     p.add_argument("--account", required=True, help="One configured social account ID")
@@ -722,6 +725,8 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--limit", type=int, default=5, help="Number of candidate channels (1..20)")
     p.add_argument("--date", help="YYYY-MM-DD audience-local day for illustrative time tests, not an actual queue")
     p.add_argument("--timezone", help="IANA timezone override, required with --date for global audiences")
+    p.add_argument("--market", action="append", default=[], metavar="MARKET",
+                   help="Audience market for market-specific notices: US, global or PLATFORM@MARKET (tiktok@US)")
     p.add_argument("--json", action="store_true", help="Return machine-readable RESEARCH-ONLY plan")
     p = sub.add_parser("social-web-plan", help="Offline open social web map: which accounts are on ActivityPub, AT "
                        "Protocol, Nostr or Farcaster, bridges, canonical home, duplicate reach, identity checklist; "
@@ -786,6 +791,8 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--seed", type=int, default=16, help="Fixed seed: same inputs give identical output")
     p.add_argument("--json", action="store_true")
     insights.add_parser(sub)  # insights (reachweaver/insights.py)
+    platform_risk.add_parser(sub)  # platform-risk (reachweaver/platform_risk.py)
+    review_evidence.add_parser(sub)  # eu-review-evidence (reachweaver/review_evidence.py)
     p = sub.add_parser("experiment-evaluate", help="Matched-age, non-causal readout of preregistered post pairs")
     p.add_argument("--file", type=Path, required=True)
     p = sub.add_parser("experiment-preregister",

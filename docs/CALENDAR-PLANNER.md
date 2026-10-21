@@ -111,6 +111,8 @@ python3 -m reachweaver calendar-plan \
 
 For TikTok, a native scheduling eligibility hint flags proposals beyond the documented ten-day queue horizon. This hint does not indicate the account actually has that capability; recheck its current official UI before scheduling. Some formats and accounts cannot be scheduled natively.
 
+For TikTok the output also carries a `market_notices` entry: since 2026-01-23 a separate US joint venture holds TikTok's US recommendation algorithm, which it announced it will retrain, test and update on US user data ([announcement](https://newsroom.tiktok.com/announcement-from-the-new-tiktok-usds-joint-venture-llc?lang=en), checked 2026-10-21). Pass `--market tiktok@US` (or `--market US`) when your audience is in the US, `--market global` otherwise; without it the notice says the market was not stated. The candidate windows above come from general sources, so re-verify them with your own US audience data. The notice changes no slot. See [platform risk](PLATFORM-RISK.md#tiktok-us-and-global-advice---market).
+
 ## 3. Explicitly apply for the existing three local text adapters
 
 Once every selected post is individually approved **and the proposal has been reviewed**:

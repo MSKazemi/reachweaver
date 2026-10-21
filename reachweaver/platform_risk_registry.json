@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-10-21",
+  "decision_type": "sourced_platform_facts_and_editorial_hypotheses",
+  "note": "Platform dependency facts for platform-risk. Every flag quotes an official page read on checked_on. The consequence for your reach is an editorial hypothesis, never a forecast. Re-read each source before relying on a flag.",
+  "flags": [
+    {
+      "id": "pay_per_use_api",
+      "platform": "x",
+      "label": "Pay-per-use API",
+      "kind": "api_cost",
+      "fact": "X bills its API per request (writes) or per resource (reads); creating a post that contains a URL is listed at $0.200 per request.",
+      "hypothesis": "Any tool that posts to or measures X through its API costs money per call, and the price list can change.",
+      "sources": [
+        {
+          "url": "https://docs.x.com/x-api/getting-started/pricing",
+          "kind": "official",
+          "checked_on": "2026-10-21",
+          "quote": "All prices are per resource fetched (reads) or per request (writes/actions)."
+        },
+        {
+          "url": "https://docs.x.com/x-api/getting-started/pricing",
+          "kind": "official",
+          "checked_on": "2026-10-21",
+          "quote": "Post: Create (with URL) $0.200 per request"
+        }
+      ]
+    },
+    {
+      "id": "automated_posting_prohibited",
+      "platform": "linkedin",
+      "label": "Automated posting not allowed by the API terms",
+      "kind": "api_terms",
+      "fact": "LinkedIn's API Terms of Use, 3.1 General Restrictions, list among things you must not do: using the Content or the APIs to automate posting on LinkedIn.",
+      "hypothesis": "Reach on LinkedIn depends on posting each item yourself; a workflow that relies on scheduled or bulk API posting there is exposed to the terms.",
+      "sources": [
+        {
+          "url": "https://www.linkedin.com/legal/l/api-terms-of-use",
+          "kind": "official",
+          "checked_on": "2026-10-21",
+          "quote": "Use the Content or the APIs to automate posting on the LinkedIn Services."
+        }
+      ]
+    },
+    {
+      "id": "commercial_api_separate_agreement",
+      "platform": "reddit",
+      "label": "Commercial API use needs a separate agreement",
+      "kind": "api_terms",
+      "fact": "Reddit's Data API Terms say commercial use of the Data APIs needs a separate agreement with Reddit.",
+      "hypothesis": "A business that measures or automates Reddit through the API without that agreement depends on terms it does not meet; ReachWeaver keeps Reddit manual and moderator-led either way.",
+      "sources": [
+        {
+          "url": "https://redditinc.com/policies/data-api-terms",
+          "kind": "official",
+          "checked_on": "2026-10-21",
+          "quote": "If you are interested in using the Data APIs for commercial purposes, research in excess of rate limits, or for any use that is not expressly permitted under the Data API Terms, then you will need to enter into a separate agreement with Reddit."
+        }
+      ]
+    },
+    {
+      "id": "regional_algorithm_split",
+      "platform": "tiktok",
+      "label": "Separate US entity and recommendation algorithm (since 2026-01-23)",
+      "kind": "regional_split",
+      "markets": [
+        "US"
+      ],
+      "fact": "Since 2026-01-23 the TikTok USDS Joint Venture holds TikTok's US algorithm: it announced it will retrain, test and update the content recommendation algorithm on US user data, and that it has decision-making authority over US trust and safety policies and moderation. The same announcement says interoperability keeps a global TikTok experience for US users.",
+      "hypothesis": "Timing and algorithm advice drawn from non-US TikTok data may not carry over to a US audience (and the reverse); nothing here documents how distribution differs in practice.",
+      "sources": [
+        {
+          "url": "https://newsroom.tiktok.com/announcement-from-the-new-tiktok-usds-joint-venture-llc?lang=en",
+          "kind": "official",
+          "checked_on": "2026-10-21",
+          "quote": "The Joint Venture will retrain, test, and update the content recommendation algorithm on U.S. user data."
+        },
+        {
+          "url": "https://newsroom.tiktok.com/announcement-from-the-new-tiktok-usds-joint-venture-llc?lang=en",
+          "kind": "official",
+          "checked_on": "2026-10-21",
+          "quote": "The Joint Venture will safeguard the U.S. content ecosystem and have decision-making authority for trust and safety policies and content moderation."
+        },
+        {
+          "url": "https://newsroom.tiktok.com/announcement-from-the-new-tiktok-usds-joint-venture-llc?lang=en",
+          "kind": "official",
+          "checked_on": "2026-10-21",
+          "quote": "Interoperability enables the Joint Venture to provide U.S. users with a global TikTok experience"
+        }
+      ]
+    }
+  ],
+  "market_notices": [
+    {
+      "platform": "tiktok",
+      "market": "US",
+      "since": "2026-01-23",
+      "flag": "regional_algorithm_split",
+      "notice": "TikTok in the US: since 2026-01-23 a separate US joint venture holds the US recommendation algorithm, which it announced it will retrain, test and update on US user data. Timing and algorithm advice here comes from general (not US-specific) sources; re-verify it with your own US audience data."
+    }
+  ],
+  "markets": [
+    "US",
+    "global"
+  ],
+  "owned_channels": {
+    "status": "editorial_hypothesis",
+    "ids": [
+      "site",
+      "blog",
+      "newsletter",
+      "email"
+    ],
+    "rationale": "An address or list you control (your site, blog, newsletter or e-mail list, including an ActivityPub-enabled blog) keeps working if a network changes its rules, prices or algorithm. Which other channels count as owned is your call: declare them with --owned. This is a planning heuristic, not a measured result."
+  },
+  "concentration": {
+    "status": "editorial_thresholds",
+    "method": "Herfindahl-Hirschman index (HHI): the sum of each platform's squared share of the basis, from near 0 (spread thin) to 1 (one platform). Effective platforms = 1 / HHI.",
+    "bands": [
+      {
+        "max_effective_platforms": 1.5,
+        "label": "concentrated",
+        "text": "Most of your recorded reach comes from one platform."
+      },
+      {
+        "max_effective_platforms": 2.5,
+        "label": "few",
+        "text": "Your recorded reach rests on about two platforms."
+      },
+      {
+        "max_effective_platforms": null,
+        "label": "spread",
+        "text": "Your recorded reach is spread over several platforms."
+      }
+    ]
+  }
+}

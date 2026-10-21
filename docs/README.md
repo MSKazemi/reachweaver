@@ -41,12 +41,14 @@ Pick the line that matches what you want to do. If you are new, read the first g
 | Choose channels for a region or goal | [Global strategy](GLOBAL-DISTRIBUTION-2026-10-08.md), [distribution governance](DISTRIBUTION-GOVERNANCE.md), [regional channels](REGIONAL-CHANNELS-2026-10-14.md), [community and creator platforms](COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md) |
 | See what works for you (your own past results; hypotheses, not causes) | [What works for you (`insights`)](INSIGHTS.md) |
 | Fediverse, Bluesky, bridges and duplicate reach | [Open social web](OPEN-SOCIAL-WEB.md) |
+| See how much of your reach depends on one platform, with sourced risk flags | [Platform risk (`platform-risk`)](PLATFORM-RISK.md) |
 | Pick times to post | [Calendar planner](CALENDAR-PLANNER.md), [timing evaluation](TIMING-EVALUATION.md), [platform algorithm and scheduling evidence](PLATFORM-ALGORITHMS-SCHEDULING-2026-10-08.md) |
 | Check images and video | [Media assets](MEDIA-ASSETS.md) |
 | Improve profiles and posts | [Profile and post audits](PROFILE-AND-POST-AUDITS.md), [profile metrics CSV](PROFILE-METRICS-CSV.md), [peer benchmark](PEER-BENCHMARK.md) |
 | Check draft posts against an editorial checklist before review | [Creative preflight (offline)](CREATIVE-PREFLIGHT.md) |
 | Make drafts sound like you, not like generic AI text | [Voice check (offline, advisory)](VOICE-CHECK.md) |
 | Know which AI-content label each platform asks for (YouTube, Meta, TikTok, LinkedIn, EU AI Act Art. 50, China) | [AI content labels (offline, advisory)](AI-CONTENT-LABELS.md) |
+| List the human-review evidence ReachWeaver recorded for published posts (EU AI Act Art. 50(4); not legal advice) | [Human review evidence report](AI-CONTENT-LABELS.md#human-review-evidence-report-eu-review-evidence) |
 | Help relevant creators cover, critique, remix or cite your content | [Creator amplification (offline)](CREATOR-AMPLIFICATION.md) |
 | Grow an open-source project | [Open-source developer growth playbook](OPEN-SOURCE-DEVELOPER-GROWTH-PLAYBOOK.md), [DEV authority playbook](DEV-AUTHORITY-PLAYBOOK-2026-10-08.md), [GitHub discovery](GITHUB-DISCOVERY.md) |
 | Find topics from your own sources | [Sources](SOURCES.md), [SEO integration](SEO-INTEGRATION.md) |
