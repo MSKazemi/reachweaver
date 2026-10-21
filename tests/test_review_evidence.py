@@ -79,7 +79,7 @@ class EvidenceTests(Base):
         self.assertEqual(post["ledger"]["at"], SENT)
         self.assertTrue(post["ledger"]["payload_sha256_matches"])
         self.assertEqual(post["gaps"], ["no authorship declaration recorded"])
-        self.assertIsNone(report["authorship_column"])
+        self.assertEqual(report["authorship_column"], "authorship")  # posts.authorship since the AI-label gate
         self.assertEqual(report["legal_basis"]["kind"], "secondary")
         self.assertIn("human review or editorial control", report["legal_basis"]["exemption_quote"])
         self.assertFalse(report["database_written"])
@@ -103,7 +103,6 @@ class EvidenceTests(Base):
     def test_authorship_column_and_confirmation_token_are_read_when_present(self):
         with connect(self.db) as db:
             pid = self.publish(db)
-            db.execute("ALTER TABLE posts ADD COLUMN authorship TEXT")
             db.execute("UPDATE posts SET authorship='ai_assisted' WHERE id=?", (pid,))
             db.execute("INSERT INTO event_log(at, post_id, action, detail) VALUES(?,?,?,?)",
                        (NOW, pid, "approve", "approval_sha256=abc approver=owner channel=cli_flag "
