@@ -1,5 +1,6 @@
 """Offline-only tests for ten newly registered social networks."""
 import unittest
+from freshness_support import assert_checked_since
 from reachweaver.distribution import load_registry, validate_registry
 from reachweaver.manual_package import build_package, generic_platforms, package_preflight
 from reachweaver.policy import SUPPORTED_LIVE
@@ -19,7 +20,7 @@ class NewSocialNetworkTests(unittest.TestCase):
             with self.subTest(pid=pid):
                 entry = by_id[pid]
                 self.assertEqual(entry["reachweaver_delivery"], "manual_only")
-                self.assertEqual(entry["checked_on"], "2026-10-17")
+                assert_checked_since(self, entry["checked_on"], "2026-10-17", data["reviewed_on"])
                 self.assertEqual(entry["human_only"], pid in HUMAN_ONLY)
                 self.assertEqual(entry["scheduling"]["mode"], "native" if pid == "band" else "unverified")
                 self.assertEqual(bool(entry["scheduling"]["official_source"]), pid == "band")

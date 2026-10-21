@@ -8,6 +8,7 @@ import shutil
 import socket
 import tempfile
 import unittest
+from freshness_support import assert_checked_since
 from pathlib import Path
 from unittest.mock import patch
 
@@ -110,7 +111,7 @@ class PlatformAuditTests(unittest.TestCase):
         for pid, entry in sourced:
             with self.subTest(platform=pid, field=entry["field"]):
                 self.assertTrue(entry["source_url"].startswith("https://"))
-                self.assertIn(entry["checked_on"], ("2026-10-15", "2026-10-16"))
+                assert_checked_since(self, entry["checked_on"], "2026-10-15")
                 self.assertIn(str(entry["max"]), entry["quote"])
                 self.assertIn(entry["unit"], ("characters", "graphemes"))
         for p in rows:

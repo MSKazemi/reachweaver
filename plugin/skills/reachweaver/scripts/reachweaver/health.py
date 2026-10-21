@@ -1,7 +1,8 @@
 """One offline readiness view per configured account, plus a read-only dead-letter report (issue #26).
 
 ``build_health`` combines what already exists offline: the capability registry
-(adapter status and staleness), credential variable NAMES (never values),
+(adapter status and staleness), the age of every dated fact in the bundled research registries
+(``freshness``: per account and in ``global.registry_freshness``), credential variable NAMES (never values),
 LinkedIn version/authorization lifecycle, Postiz backend configuration, the
 local queue, rolling send attempts against the effective budget, uncertain
 sends, approved/scheduled posts whose approval binding needs a human re-approval
@@ -23,6 +24,7 @@ from datetime import datetime, timedelta
 
 from .caps import CLI_DEFAULTS, effective_caps, effective_rate_limits, providers_for
 from .capabilities import DEFAULT_MAX_AGE_DAYS, load_registry, require_capability, stale_entries
+from . import freshness
 from .accounts import CredentialError, credential, credential_source
 from .credential_hygiene import expected_variables
 from .policy import ValidationError, live_opt_in, runtime_environment
@@ -191,7 +193,8 @@ def _last_attempt(con, account_id: str, start: str, now: str) -> str | None:
 
 
 def account_health(con, account: dict, *, registry: dict, stale: list[str], queue: dict,
-                   counts: dict, caps: dict | None, cli_caps: tuple[int, int], now: str, env) -> dict:
+                   counts: dict, caps: dict | None, cli_caps: tuple[int, int], now: str, env,
+                   research: dict | None = None) -> dict:
     current = datetime.fromisoformat(now)
     account_id, platform = account["id"], account["platform"]
     reasons: list[dict] = []
@@ -228,6 +231,15 @@ def account_health(con, account: dict, *, registry: dict, stale: list[str], queu
     if platform in stale:
         reasons.append(_reason("attention", "registry_entry_stale",
                                f"{platform} verified {entry['verified_date']}; re-verify official sources"))
+    if research is not None:  # the other research registries; the capability entry is covered just above
+        summary = freshness.platform_summary(research, platform, exclude=("capabilities",))
+        result["research_freshness"] = summary
+        if summary["counts"]["stale"]:
+            reasons.append(_reason("attention", "research_facts_stale",
+                                   f"{summary['counts']['stale']} {platform} fact(s) in "
+                                   f"{', '.join(summary['registries'])} older than {freshness.STALE_AFTER_DAYS} days "
+                                   f"(oldest checked {summary['oldest_checked_on']}); "
+                                   f"re-verify: reachweaver registry-age --platform {platform}"))
     if adapter == "manual" and queued:
         reasons.append(_reason("attention", "manual_platform_has_queued_posts",
                                f"{queued} approved/scheduled post(s); publish --live will skip them"))
@@ -359,6 +371,10 @@ def build_health(con, accounts: dict[str, dict] | None, *, accounts_error: str |
     except ValidationError as exc:
         registry, stale = None, []
         reasons.append(_reason("blocked", "capability_registry_invalid", str(exc)))
+    research = freshness.build_report(current.date(), include_fresh=True)  # bundled files only; never raises
+    for row in research["registries"]:
+        if row["error"] and row["registry"] != "capabilities":  # an invalid capability registry blocks above
+            reasons.append(_reason("attention", "research_registry_invalid", f"{row['registry']}: {row['error']}"))
     queue = queue_health(con, now=now, stale_minutes=stale_minutes, key_mode=approval_key_mode(con, env))
     paused = is_paused(con)
     opt_in = live_opt_in(env)
@@ -390,7 +406,7 @@ def build_health(con, accounts: dict[str, dict] | None, *, accounts_error: str |
         for account in (accounts or {}).values():
             rows.append(account_health(con, account, registry=registry, stale=stale, queue=queue,
                                        counts=per_status.get(account["id"], {}), caps=caps,
-                                       cli_caps=cli_caps, now=now, env=env))
+                                       cli_caps=cli_caps, now=now, env=env, research=research))
     configured = set(accounts or {})
     orphans = sorted(a for a, c in per_status.items()
                      if a not in configured and any(c.get(s) for s in ("approved", "scheduled", "sending", "needs_review")))
@@ -414,6 +430,7 @@ def build_health(con, accounts: dict[str, dict] | None, *, accounts_error: str |
                    "runtime_environment": environment, "credential_source": credential_source(env),
                    "registry": {"reviewed_on": registry["reviewed_on"] if registry else None,
                                 "stale_platforms": stale, "max_age_days": max_age_days},
+                   "registry_freshness": freshness.compact(research),
                    "caps_file": caps_path, "stale_sending_minutes": stale_minutes,
                    "approval_keyed_binding": keyed, "approval_ledger": ledger_view,
                    "status_counts": queue["status_counts"]},
@@ -434,6 +451,8 @@ def render_health(report: dict) -> str:
              f"{'enabled' if g['live_opt_in_env'] else 'disabled'}; REACHWEAVER_ENV {g['runtime_environment']} "
              f"(live requires prod); credential source {g['credential_source']}; registry reviewed {g['registry']['reviewed_on']}; "
              f"caps file: {g['caps_file'] or 'none'}"]
+    if g.get("registry_freshness"):
+        lines.append(g["registry_freshness"]["line"])
     for row in report["accounts"]:
         b = row["budget"]
         lines.append(f"{row['account_id']}: {row['platform']}; adapter={row['adapter']}; status={row['status']}; "

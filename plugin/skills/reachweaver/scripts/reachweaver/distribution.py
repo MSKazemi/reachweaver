@@ -148,8 +148,15 @@ def build_distribution_plan(
     local_date: str | None = None,
     audience_timezone: str | None = None,
     registry: dict | None = None,
+    today: date | None = None,
 ) -> dict:
-    """Build only an offline draft research plan. Never queue or post content."""
+    """Build only an offline draft research plan. Never queue or post content.
+
+    Each channel carries its registry ``checked_on`` date, age and a fresh/aging/stale label
+    (``freshness.annotate``) evaluated at ``today`` (default: the local date).
+    """
+    from .freshness import POLICY, annotate
+    current = today or date.today()
     data = registry if registry is not None else load_registry()
     issues = validate_registry(data)
     if issues:
@@ -177,6 +184,7 @@ def build_distribution_plan(
             "reachweaver_delivery": item["reachweaver_delivery"],
             "requires_human_only": item["human_only"],
             "account_connected": "unknown_not_verified",
+            **annotate(item["checked_on"], current),
         })
     slots = []
     tz_name = audience_timezone or market.get("timezone")
@@ -214,6 +222,8 @@ def build_distribution_plan(
         "country": market["country"],
         "goal": goal,
         "reviewed_on": data["reviewed_on"],
+        "freshness_as_of": current.isoformat(),
+        "freshness_policy": dict(POLICY),
         "confidence": "editorial_hypothesis_not_reach_forecast",
         "audience_timezone": tz_name,
         "language_options_not_product_capabilities": market["languages"],

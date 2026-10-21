@@ -16,6 +16,7 @@ from .campaigns import OBJECTIVES
 from .capabilities import DEFAULT_MAX_AGE_DAYS
 from .claims import DEFAULT_DUPLICATE_THRESHOLD
 from .distribution import GOALS
+from .freshness import REGISTRY_FILES
 from .journal import ALL_STATUSES as JOURNAL_STATUSES
 from .manual_export import MANUAL_PLATFORMS
 from .manual_package import generic_platforms
@@ -1078,6 +1079,13 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="Machine-readable full registry entries")
     p.add_argument("--max-age-days", type=int, default=DEFAULT_MAX_AGE_DAYS,
                    help=f"Warn when verified_date is older than N days (default {DEFAULT_MAX_AGE_DAYS})")
+    p = sub.add_parser("registry-age", help="Offline age of every dated platform fact in the bundled research "
+                                            "registries: fresh/aging (>60 days)/stale (>120 days)/undated; exit 0")
+    p.add_argument("--registry", choices=tuple(REGISTRY_FILES), help="Only this registry (default: all five)")
+    p.add_argument("--platform", help="Only this platform id, e.g. x or facebook (facebook_pages matches facebook)")
+    p.add_argument("--all", action="store_true", help="List fresh facts too (default: aging, stale and undated only)")
+    p.add_argument("--as-of", metavar="YYYY-MM-DD", help="Evaluate at this date instead of today (reproducible output)")
+    p.add_argument("--json", action="store_true", help="Machine-readable report")
     p = sub.add_parser("landing-check", help="SEO brief + campaign CTA landing-page checks; offline unless --online "
                        "(GET own pages, robots.txt honoured, redirects inspected); never publishes")
     p.add_argument("--briefs", type=Path, required=True, help="Local SEO briefs JSON (docs/SEO-INTEGRATION.md)")

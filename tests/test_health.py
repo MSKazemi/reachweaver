@@ -17,7 +17,7 @@ from reachweaver.caps import effective_caps, load_caps, validate_caps
 from reachweaver.cli import main
 from reachweaver.connections import VerifiedConnection
 from reachweaver.health import (
-    RECONCILE_STEPS, build_health, dead_letter, exit_code, sanitize_error_code,
+    RECONCILE_STEPS, build_health, dead_letter, exit_code, render_health, sanitize_error_code,
 )
 from reachweaver.policy import ValidationError
 from reachweaver.storage import (
@@ -240,6 +240,31 @@ class HealthReportTests(HealthTestBase):
         self.assertTrue(report["accounts"][0]["registry"]["stale"])
         self.assertIn("registry_entry_stale", self.codes(report))
         self.assertEqual(report["overall"], "attention")
+
+    def test_research_registry_freshness_section_and_stale_reason(self):
+        # NOW predates some registry dates: a fact checked after the evaluation date is fresh, never negative-stale.
+        report = self.health()
+        fresh = report["global"]["registry_freshness"]
+        self.assertEqual(set(fresh["registries"]), {"capabilities", "distribution", "discovery", "profile-audit", "signup"})
+        self.assertEqual(fresh["counts"]["stale"], 0)
+        row = report["accounts"][0]
+        self.assertEqual(row["research_freshness"]["status"], "fresh")
+        self.assertNotIn("capabilities", row["research_freshness"]["registries"])
+        self.assertNotIn("research_facts_stale", self.codes(report))
+        self.assertIn("Research facts as of 2026-10-08", render_health(report))
+        late = self.health(now="2027-06-01T00:00:00+00:00")
+        self.assertGreater(late["global"]["registry_freshness"]["counts"]["stale"], 0)
+        reason = next(r for r in late["reasons"] if r["code"] == "research_facts_stale")
+        self.assertEqual((reason["level"], reason["account_id"]), ("attention", "h-bluesky"))
+        self.assertIn("registry-age --platform bluesky", reason["detail"])
+        self.assertEqual(exit_code(late), 0)  # attention never changes the exit code
+
+    def test_invalid_research_registry_is_attention_not_blocked(self):
+        with patch("reachweaver.discovery.load_discovery_registry", side_effect=ValidationError("Invalid discovery")):
+            report = self.health()
+        self.assertIn("research_registry_invalid", self.codes(report))
+        self.assertEqual(report["global"]["registry_freshness"]["registries"]["discovery"]["error"], "Invalid discovery")
+        self.assertNotEqual(report["overall"], "blocked")
 
     def test_invalid_registry_blocks(self):
         with connect(self.db) as db, patch("reachweaver.health.load_registry",

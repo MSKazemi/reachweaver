@@ -11,7 +11,7 @@ reachweaver account-advisor --region china --goal awareness --format images --we
 reachweaver account-advisor --region global --goal collaboration --existing linkedin --existing github --json
 ```
 
-The ranking starts from the region and goal order in the versioned `reachweaver/distribution_registry.json` (the same research as `distribution-plan`), then keeps only platforms that fit your `--format` and your weekly time. A platform appears only if the advisor has a reviewed official starting page for it, so some researched platforms are left out. `--existing` is your own statement, not verified access. The score orders options **within this plan only**; it is not a platform ranking signal, an audience estimate, a promised number of impressions or a forecast. The weekly hours per platform are editorial estimates, not measured platform data.
+Each recommendation shows when its distribution entry was last checked (`checked YYYY-MM-DD`, and `aging - re-verify` after 60 days or `stale - re-verify` after 120; JSON `checked_on`, `age_days`, `freshness`, `freshness_label`). The ranking starts from the region and goal order in the versioned `reachweaver/distribution_registry.json` (the same research as `distribution-plan`), then keeps only platforms that fit your `--format` and your weekly time. A platform appears only if the advisor has a reviewed official starting page for it, so some researched platforms are left out. `--existing` is your own statement, not verified access. The score orders options **within this plan only**; it is not a platform ranking signal, an audience estimate, a promised number of impressions or a forecast. The weekly hours per platform are editorial estimates, not measured platform data.
 
 | Option | Values |
 |---|---|

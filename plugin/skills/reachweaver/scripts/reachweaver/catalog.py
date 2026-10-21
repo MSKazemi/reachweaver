@@ -64,6 +64,7 @@ COMMANDS: dict[str, dict] = {
     "show": _c(W, note=DB_NOTE),
     "journal": _c(W, note="read-only unless --out FILE"),
     "capabilities": _c(R),
+    "registry-age": _c(R, note="age of every dated research fact in the bundled registries; offline, never the database"),
     "completion": _c(R),
     "connect": _c(NW, ("--guide",), "the status table is offline and read-only; --guide is the owner's walkthrough"),
     "account-advisor": _c(R),

@@ -183,8 +183,23 @@ Before any work starts, confirm the owner has a **Pinterest business account**, 
 
 ## Periodic update process
 
-1. **Cadence:** re-verify every entry at least every 120 days, and immediately before building an adapter or running a pilot. `reachweaver capabilities` warns when an entry's `verified_date` is older than `--max-age-days` (default 120).
+1. **Cadence:** re-verify every entry at least every 120 days, and immediately before building an adapter or running a pilot. `reachweaver capabilities` warns when an entry's `verified_date` is older than `--max-age-days` (default 120), and `reachweaver registry-age` reports the age of every dated fact in all five research registries ([Registry freshness](#registry-freshness)).
 2. **Sources:** use official provider pages only (developer docs, terms, pricing, help centre). Third-party blogs may suggest what to check, but a registry value never rests on them. If a fact cannot be confirmed, set it to `unknown`, which fails closed.
 3. **Edit:** update `reachweaver/platform_registry.json`, including `verified_date`, `verification_basis` and `sources`. A stated rate limit needs an HTTPS `source`; exact numbers go in `rate_limits.facts` with an `accessed` date, and anything the official page does not state goes in `rate_limits.not_published`. Then mirror the table and notes here.
 4. **Gate:** run `python3 scripts/sync_skill.py` and then `python3 -m unittest discover -s tests -v`. CI re-validates the registry, checks the bundle is byte-identical and fails on any missing platform, field, enum, date or HTTPS source.
 5. **Changing an adapter** (`live_text`/`live_media`) also requires changing `policy.SUPPORTED_LIVE`, and a video switch requires `policy.SUPPORTED_LIVE_VIDEO`, plus a security review (see CLAUDE.md). The tests reject any mismatch. `live_media_formats` and `reachweaver_reply_adapter` need no code change for Mastodon and Bluesky, so treat them as security-reviewed changes too.
+
+## Registry freshness
+
+Five bundled registries state dated platform facts: `platform_registry.json` (capabilities; `verified_date` and `rate_limits.accessed`), `distribution_registry.json` (each channel's `checked_on`), `discovery_registry.json` (each guidance source's `checked_on`), `profile_audit_registry.json` (each platform's `evidence.checked_on` and each sourced field limit's `checked_on`) and `signup_registry.json` (only a snapshot `reviewed_on`, which its entries use and say so with `date_basis: registry_reviewed_on`). One policy applies to all of them (`reachweaver/freshness.py`):
+
+| Status | Age of the checked date | Meaning |
+| --- | --- | --- |
+| `fresh` | 0 to 60 days (or a date after the evaluation date) | Last checked recently; still not proof the fact holds today |
+| `aging` | more than 60 days | Re-verify against the cited official source soon |
+| `stale` | more than 120 days (the same threshold as `capabilities --max-age-days` and `health`'s `registry_entry_stale`) | Re-verify before relying on it |
+| `undated` | no checked date recorded | An unverified editorial hypothesis; a date is never inferred |
+
+`reachweaver registry-age [--registry NAME] [--platform P] [--all] [--as-of YYYY-MM-DD] [--json]` lists every aging, stale and undated fact with its registry, platform, date, age and source, the counts per registry and the oldest checked date per platform. It always exits 0 and reads only the bundled files. `health` shows a one-line summary and `global.registry_freshness`, adds `research_freshness` per account and the `attention` reason `research_facts_stale` when a configured account's platform has a stale fact in the distribution, discovery, profile-audit or sign-up registry (the capability entry keeps `registry_entry_stale`). `doctor` prints the same one-line summary and carries `registry_freshness` in `--json`. `distribution-plan`, `account-advisor` and `discovery-plan` add `checked_on`, `age_days`, `freshness` and `freshness_label` to each platform fact they show (JSON keys are additive) and print `checked YYYY-MM-DD`, followed by `aging - re-verify` or `stale - re-verify` when it applies. `freshness.warning_line()` returns a one-line warning (or nothing) for session summaries such as `context` and `start`.
+
+As of 2026-10-21 eight profile-audit entries (Discord, Indie Hackers, Peerlist, Bilibili, Zhihu, OSCHINA, Snapchat, WhatsApp) are `undated`: they are `editorial_hypothesis_unverified` and cite no official source, so there is nothing to date them against. They stay undated until someone verifies them at an official source and records that source and date.

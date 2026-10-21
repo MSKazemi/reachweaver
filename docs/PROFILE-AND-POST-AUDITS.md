@@ -42,7 +42,7 @@ The machine-readable source of truth is `reachweaver/profile_audit_registry.json
 | **Snapchat** | Clear creator identity and proven mobile-native content | Original short vertical demo, tested with a defined audience | Native views/shares when exported; suitability for technical B2B is **hypothesis** |
 | **WhatsApp Channels** | Owner-controlled opt-in identity and accurate channel description | Permissioned high-value subscriber announcements | Forwarding/retention only where available; **no unsolicited DMs or mass invitations** |
 
-Primary documentation and evidence dates are saved per platform in [the registry](../reachweaver/profile_audit_registry.json). High-confidence **capability facts**, not undocumented secret weights, include:
+Primary documentation and evidence dates are saved per platform in [the registry](../reachweaver/profile_audit_registry.json). `reachweaver registry-age --registry profile-audit` reports their age (fresh, aging after 60 days, stale after 120 days) and lists the eight entries without an official source or date as `undated` ([policy](PLATFORMS.md#registry-freshness)). High-confidence **capability facts**, not undocumented secret weights, include:
 
 - [LinkedIn profile intro](https://www.linkedin.com/help/linkedin/answer/a547248) and [Page best practices](https://business.linkedin.com/advertise/linkedin-pages/best-practices).
 - [YouTube channel customization](https://support.google.com/youtube/answer/3027950?hl=en), [retention analysis](https://support.google.com/youtube/answer/9314415) and [publish-time FAQ](https://support.google.com/youtube/answer/141805?hl=en).

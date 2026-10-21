@@ -124,6 +124,7 @@ reachweaver schedule POST_ID --at 2026-10-15T09:00:00+02:00   # only if it was s
 `reachweaver health [--json] [--stale-minutes N]` is offline. For every account in `config/accounts.json` it shows:
 
 - the adapter (`live_text`, `backend` for Postiz, or `manual`) as the capability registry decides it, and whether that registry entry is older than 120 days;
+- `research_freshness`: the oldest checked date and the fresh/aging/stale/undated counts of that platform's facts in the distribution, discovery, profile-audit and sign-up registries (a one-line total for all registries is printed near the top and kept in `global.registry_freshness`; detail with `reachweaver registry-age`);
 - credential variable **names** present and missing (values are never printed);
 - for LinkedIn, the pinned version status and the recorded authorization expiry; for Postiz, whether the backend is configured; for Mastodon, the server and whether `max_characters` is pinned;
 - local queue counts by status, send attempts in the rolling 24 hours against the effective budget (including the caps file), the time the minimum gap next allows an attempt, `needs_review`, stale `sending`, overdue schedules and approved/scheduled posts that need re-approval (`approval_rebind_required`, issue #7).
@@ -133,7 +134,7 @@ It also shows the emergency pause, the live opt-in flag and posts that belong to
 | Level | Codes |
 | --- | --- |
 | `blocked` (exit 1) | `emergency_pause_active`, `accounts_config_unloadable`, `caps_file_invalid`, `capability_registry_invalid`, `linkedin_version_unsupported`, `linkedin_authorization_expired`, `instagram_authorization_expired`/`threads_authorization_expired` once that adapter is live, `credentials_missing` on an account with approved or scheduled posts |
-| `attention` (exit 0) | `credentials_missing` with nothing queued, `registry_entry_stale`, `manual_platform_has_queued_posts`, `rolling_budget_exhausted`, `needs_review`, `stale_sending`, `overdue_scheduled`, `approval_rebind_required`, `provider_cooldown_active`, `provider_cooldown_ceiling_clamped`, `linkedin_version_ageing`, `linkedin_authorization_warning`/`_unknown`, `instagram_authorization_*`/`threads_authorization_*` (`_warning`; `_expired` while the adapter is manual-only; `_unknown` only once it is live), `queued_posts_for_unconfigured_accounts`, `no_accounts_configured` |
+| `attention` (exit 0) | `credentials_missing` with nothing queued, `registry_entry_stale`, `research_facts_stale`, `research_registry_invalid`, `manual_platform_has_queued_posts`, `rolling_budget_exhausted`, `needs_review`, `stale_sending`, `overdue_scheduled`, `approval_rebind_required`, `provider_cooldown_active`, `provider_cooldown_ceiling_clamped`, `linkedin_version_ageing`, `linkedin_authorization_warning`/`_unknown`, `instagram_authorization_*`/`threads_authorization_*` (`_warning`; `_expired` while the adapter is manual-only; `_unknown` only once it is live), `queued_posts_for_unconfigured_accounts`, `no_accounts_configured` |
 
 A monitor can alert on a nonzero exit. `health` never contacts a provider, so `ok` does not prove a token still works; `connect-check --online` does that.
 

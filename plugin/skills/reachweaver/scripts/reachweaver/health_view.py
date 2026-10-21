@@ -104,7 +104,10 @@ def render_health_sheet(report: dict, stream) -> str:
            f"   (observed {report['observed_at']})",
            f"Emergency pause {'ON' if g['emergency_paused'] else 'off'} · live opt-in "
            f"{'enabled' if g['live_opt_in_env'] else 'disabled'} · environment {g['runtime_environment']} "
-           f"(live sends need prod) · credentials from {g['credential_source']}", ""]
+           f"(live sends need prod) · credentials from {g['credential_source']}"]
+    if g.get("registry_freshness"):
+        out.append(g["registry_freshness"]["line"])
+    out.append("")
     if report["accounts"]:
         rows = []
         for row in report["accounts"]:
