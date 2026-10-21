@@ -522,10 +522,10 @@ def results_view(con, *, account: str | None = None, platform: str | None = None
         values = [_exact(item["latest"], k) for k in INTERACTIONS]
         item["interactions"] = sum(v for v in values if v is not None) if any(v is not None for v in values) else None
         posts.append(item)
-    totals = {}
+    totals: dict[str, int | None] = {}
     for key in METRIC_FIELDS:
-        values = [v for v in (_exact(p["latest"], key) for p in posts) if v is not None]
-        totals[key] = sum(values) if values else None
+        exact = [v for v in (_exact(p["latest"], key) for p in posts) if v is not None]
+        totals[key] = sum(exact) if exact else None
     top = sorted((p for p in posts if p["interactions"]), key=lambda p: (-p["interactions"], p["when"] or ""))
     summary_doc = {"window": since or "all", "start": start, "posts": len(posts),
                    "with_record": sum(1 for p in posts if p["latest"] is not None), "totals": totals,

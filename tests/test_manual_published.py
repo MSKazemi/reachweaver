@@ -371,7 +371,7 @@ class MeasurementTests(Base):
         self.assertIn(f"reachweaver metrics {pid}", detail["next_steps"][0]["command"])
         self.assertNotIn("approve", " ".join(s["command"] for s in detail["next_steps"]))
         from reachweaver.ui_assets import APP_JS
-        self.assertIn('published_manual: "posted by hand"', APP_JS)
+        self.assertIn('published_manual: "posted by you"', APP_JS)  # the dashboard's plain label (2026-10-21)
 
     def test_privacy_purge_redacts_old_by_hand_text_like_published_text(self):
         pid = self.manual("--account", "my-masto")
