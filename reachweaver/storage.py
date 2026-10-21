@@ -59,6 +59,9 @@ CREATE TABLE IF NOT EXISTS posts (
   approval_nonce TEXT,  -- wave 9 item 1 (same placement rule): per-approval random id, see reachweaver/ledger.py
   approved_send_options TEXT,  -- 2026-10-21 items 5/9 (same placement rule): see reachweaver/send_options.py
   approved_allow_repeat TEXT,  -- 2026-10-21 item 1 D2 (same placement rule): '1' = approved with --allow-repeat
+  authorship TEXT,  -- 2026-10-21 AI-label precondition (same placement rule): see reachweaver/ai_label_gate.py
+  realistic_synthetic_json TEXT,  -- same: owner answers per attachment sha256 (ai-declare)
+  approved_ai_label TEXT,  -- same: applied|not_needed, written by approve --ai-label only
   send_started_at TEXT,
   approved_payload_sha256 TEXT,
   approved_by TEXT,
@@ -231,10 +234,15 @@ REPEAT_FIELDS = ("approved_allow_repeat",)
 REPEAT_TAG = "reachweaver.storage.approval/repeat-1"
 REPEAT_ALLOWED = "1"
 REPEAT_REFUSAL = "repeat_of_shared_material"
+# AI-content label precondition (owner-approved 2026-10-21, D1-D4/D6; reachweaver/ai_label_gate.py): owner
+# declarations plus the approve-time --ai-label answer. Bound under the add-on tag ``approval/media-3`` only for a
+# post with media and only when one of them is set, so every earlier approval keeps its hash.
+AI_LABEL_FIELDS = ("authorship", "realistic_synthetic_json", "approved_ai_label")
 _MIGRATIONS = (("metric_snapshots", WINDOW_FIELDS), ("posts", APPROVAL_BINDING_FIELDS),
                ("metric_snapshots", STATUS_FIELDS), ("posts", APPROVAL_MAC_FIELDS), ("posts", MEDIA_FIELDS),
                ("posts", VIDEO_FIELDS), ("posts", REPLY_TARGET_FIELDS), ("posts", IDENTITY_FIELDS),
-               ("posts", NONCE_FIELDS), ("posts", SEND_OPTIONS_FIELDS), ("posts", REPEAT_FIELDS))
+               ("posts", NONCE_FIELDS), ("posts", SEND_OPTIONS_FIELDS), ("posts", REPEAT_FIELDS),
+               ("posts", AI_LABEL_FIELDS))
 
 
 def migrate(con: sqlite3.Connection) -> list[str]:
@@ -486,7 +494,12 @@ def approval_payload(row, *, scheduled_at: str | None = None, use_row_schedule: 
     ``approval/options-1``) plus ``send_options`` when ``approved_send_options`` is set, and
     ``repeat_binding`` (tag ``approval/repeat-1``) plus ``allow_repeat`` when ``approved_allow_repeat``
     is set. Each key is present only when its column holds a value, so every approval made without them
-    keeps its hash; the stored value is bound as is, so an edited one is a mismatch."""
+    keeps its hash; the stored value is bound as is, so an edited one is a mismatch.
+
+    AI-label precondition (2026-10-21, ``ai_label_gate.payload_fields``): for a row with images or a video and
+    at least one of ``authorship``, ``realistic_synthetic_json``, ``approved_ai_label`` set,
+    ``ai_label_binding`` (tag ``approval/media-3``) plus ``ai_label_declarations`` (the three stored values as
+    they are). A text-only row, and a media row with all three NULL, keep their payload byte for byte."""
     payload = _approval_payload_base(row, scheduled_at=scheduled_at, use_row_schedule=use_row_schedule)
     bound = identity or (row["approved_identity"] if "approved_identity" in row.keys() else None)
     if bound:
@@ -507,6 +520,8 @@ def approval_payload(row, *, scheduled_at: str | None = None, use_row_schedule: 
     if allow_repeat:
         payload["repeat_binding"] = REPEAT_TAG
         payload["allow_repeat"] = str(allow_repeat)
+    from .ai_label_gate import payload_fields
+    payload.update(payload_fields(row))
     return payload
 
 
@@ -737,6 +752,15 @@ def approval_send_options_problem(row, fingerprint: str | None) -> str | None:
     return problem(stored, fingerprint)
 
 
+def approval_ai_label_problem(row) -> str | None:
+    """AI-label precondition (owner-approved 2026-10-21, D1/D2): None, or ``ai_label_unanswered`` when an
+    approved row with images or a video needs an AI-label answer (platform decision required/unknown, re-run
+    on the bound values and the bundled registry, no network) and none is bound. Text-only rows: always None.
+    Call after ``approval_binding_problem``: the payload hash already covers an edited stored value."""
+    from .ai_label_gate import problem
+    return problem(row)
+
+
 def repeat_allowed(row) -> bool:
     """Sheet item 1 D2: the approval itself carries a bound ``--allow-repeat`` (the hash covers it)."""
     return "approved_allow_repeat" in row.keys() and row["approved_allow_repeat"] == REPEAT_ALLOWED
@@ -855,6 +879,10 @@ def binding_refusal(reason: str, post_id: str) -> str:
     from .ledger import refusal_text as ledger_refusal_text
     if reason in LEDGER_CODES:
         return ledger_refusal_text(reason, post_id)
+    from .ai_label_gate import UNANSWERED
+    from .ai_label_gate import refusal_text as ai_label_refusal_text
+    if reason == UNANSWERED:
+        return ai_label_refusal_text(post_id)
     if reason == APPROVAL_EXPIRED:
         return (f"{reason}: post {post_id} was approved longer ago than the owner's approval time-to-live "
                 f"(reachweaver approval-mode shows it); {steps}")
@@ -1049,6 +1077,8 @@ def check_approval_binding(con, post_id: str, now: str | None = None, *,
         if problem is None and row is not None:
             problem = approval_send_options_problem(row, send_options_fingerprint)
         if problem is None and row is not None:
+            problem = approval_ai_label_problem(row)  # 2026-10-21: media post without a bound AI-label answer
+        if problem is None and row is not None:
             problem = _ledger_problem(con, row)  # wave 9 item 1: replay / ledger, before any request
         if problem:
             _record_binding_failure(con, row, problem, now)
@@ -1079,7 +1109,8 @@ def transition(con, post_id, command: str, scheduled_at: str | None = None, *,
                approver: str | None = None, approval_channel: str | None = None,
                expected_sha256: str | None = None, confirmation: str | None = None,
                identity: str | None = None, nonce: str | None = None,
-               send_options: str | None = None, allow_repeat: bool = False) -> str:
+               send_options: str | None = None, allow_repeat: bool = False,
+               ai_label: str | None = None) -> str:
     """Local state change (#7): approve binds a payload hash; schedule verifies it and
     rebinds the new time (an unbound or changed post is refused, never laundered);
     unapprove/cancel clear it. See docs/SECURITY-REVIEW-PROPOSAL-7-11.md.
@@ -1103,16 +1134,23 @@ def transition(con, post_id, command: str, scheduled_at: str | None = None, *,
     the post will be sent with, stored in ``approved_send_options`` and bound under ``approval/options-1``.
     ``allow_repeat`` (approve only; sheet item 1 D2): the human passed ``--allow-repeat``; stored as
     ``approved_allow_repeat='1'`` and bound under ``approval/repeat-1``. Like the nonce, neither is part of
-    ``expected_sha256`` (the content digest); schedule keeps both; unapprove/cancel clear both."""
+    ``expected_sha256`` (the content digest); schedule keeps both; unapprove/cancel clear both.
+
+    ``ai_label`` (approve only; AI-label precondition, owner-approved 2026-10-21): the owner's explicit
+    ``--ai-label`` answer, ``applied`` or ``not_needed``, stored in ``approved_ai_label`` and bound under
+    ``approval/media-3``; only for a post with images or a video (a text-only post is refused with it). A post
+    with media whose platform decision is required/unknown is refused (``ai_label_unanswered``) without it.
+    Schedule keeps it and re-checks the precondition; unapprove/cancel clear it."""
     with _atomic(con):  # P3: the row is re-read and every UPDATE is status-guarded under one lock
         return _transition_locked(con, post_id, command, scheduled_at, approver=approver,
                                   approval_channel=approval_channel, expected_sha256=expected_sha256,
                                   confirmation=confirmation, identity=identity, nonce=nonce,
-                                  send_options=send_options, allow_repeat=allow_repeat)
+                                  send_options=send_options, allow_repeat=allow_repeat, ai_label=ai_label)
 
 
 def _transition_locked(con, post_id, command, scheduled_at, *, approver, approval_channel,
-                       expected_sha256, confirmation, identity, nonce, send_options, allow_repeat) -> str:
+                       expected_sha256, confirmation, identity, nonce, send_options, allow_repeat,
+                       ai_label=None) -> str:
     allowed = {
         "approve": {"draft": "approved"},
         "unapprove": {"approved": "draft", "scheduled": "draft"},
@@ -1130,7 +1168,7 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
     if command != "approve" and (approver is not None or approval_channel is not None
                                  or expected_sha256 is not None or confirmation is not None
                                  or identity is not None or nonce is not None
-                                 or send_options is not None or allow_repeat):
+                                 or send_options is not None or allow_repeat or ai_label is not None):
         raise ValidationError("Approver attribution only applies to approve")
     values = (target, utc_now() if command == "approve" else row["approved_at"] if target == "scheduled" else None,
               scheduled_at if command == "schedule" else None)
@@ -1159,6 +1197,7 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
             raise ValidationError(binding_refusal(BINDING_UNAVAILABLE, post_id) + f". Nothing changed by {command}")
     # Decide the binding BEFORE writing anything, so a refused schedule changes nothing.
     new_hash, by, channel = None, None, None
+    ai_decision: str | None = None  # AI-label decision for a post with media, recorded with the approval
     if command == "approve":
         from .identity import IDENTITY_REQUIRED, is_fingerprint, refusal_text
         if identity is not None and not is_fingerprint(identity):
@@ -1168,8 +1207,12 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
             raise ValidationError(_send_options.refusal_text(_send_options.SEND_OPTIONS_UNAVAILABLE, post_id))
         if type(allow_repeat) is not bool:
             raise ValidationError("allow_repeat must be True or False. Nothing approved")
+        from . import ai_label_gate
+        if ai_label is not None and (ai_label not in ai_label_gate.ANSWERS or not ai_label_gate.carries_media(row)):
+            raise ValidationError(ai_label_gate.approve_check(row, ai_label)[1] or "invalid --ai-label. Nothing approved")
         if (send_options is not None and "approved_send_options" not in row.keys()) or (
-                allow_repeat and "approved_allow_repeat" not in row.keys()):
+                allow_repeat and "approved_allow_repeat" not in row.keys()) or (
+                ai_label is not None and "approved_ai_label" not in row.keys()):
             raise ValidationError(binding_refusal(BINDING_UNAVAILABLE, post_id) + ". Nothing approved")
         if mode.identity_required and identity is None:
             raise ValidationError(refusal_text(IDENTITY_REQUIRED, post_id))
@@ -1211,6 +1254,13 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
             bound_row["approved_send_options"] = send_options
         if "approved_allow_repeat" in bound_row:
             bound_row["approved_allow_repeat"] = REPEAT_ALLOWED if allow_repeat else None
+        if "approved_ai_label" in bound_row:
+            bound_row["approved_ai_label"] = ai_label
+        # AI-label precondition (owner-approved 2026-10-21, D1/D2): a post with media whose platform
+        # decision is required/unknown needs the owner's explicit answer; text-only posts are never blocked.
+        ai_decision, ai_refusal = ai_label_gate.approve_check(bound_row, ai_label)
+        if ai_refusal:
+            raise ValidationError(ai_refusal)
         new_hash = approval_payload_sha256(bound_row, scheduled_at=None, use_row_schedule=False, identity=identity,
                                            nonce=nonce)
         # What a human confirms (D6) is the content digest; the random per-approval nonce is not
@@ -1224,7 +1274,7 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
         # Verify before rebinding, otherwise a schedule would launder tampered content. An
         # unbound legacy approval is refused too: scheduling it would only queue a post the
         # claim must refuse, so the operator re-approves first (owner decision D2).
-        problem = approval_binding_problem(row, mode)
+        problem = approval_binding_problem(row, mode) or approval_ai_label_problem(row)
         if problem:
             raise ValidationError(binding_refusal(problem, post_id) + ". Nothing scheduled")
         if mode.max_age_hours is not None and scheduled_at:
@@ -1256,6 +1306,9 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
     if "approved_allow_repeat" in row.keys() and command != "schedule":
         con.execute("UPDATE posts SET approved_allow_repeat=? WHERE id=? AND status=?",
                     (REPEAT_ALLOWED if command == "approve" and allow_repeat else None, post_id, target))
+    if "approved_ai_label" in row.keys() and command != "schedule":
+        con.execute("UPDATE posts SET approved_ai_label=? WHERE id=? AND status=?",
+                    (ai_label if command == "approve" else None, post_id, target))
     if new_mac:
         latch_keyed_mode(con)
     if new_hash:
@@ -1270,6 +1323,8 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
                 detail += " send_options=bound"
             if allow_repeat:
                 detail += " allow_repeat=bound"
+            if ai_decision:  # a post with media: the decision at approval and the owner's answer (or none)
+                detail += f" ai_label_decision={ai_decision} ai_label={ai_label or 'none'}"
             if confirmation:
                 detail += f" confirmation={confirmation}"
     event(con, command, post_id, detail)
@@ -1708,6 +1763,8 @@ def claim_sending(con, post_id: str, now: str | None = None, *,
         if binding_failure is None:
             binding_failure = approval_send_options_problem(row, send_options_fingerprint)  # items 5/9
         if binding_failure is None:
+            binding_failure = approval_ai_label_problem(row)  # 2026-10-21 AI-label precondition, bound values only
+        if binding_failure is None:
             binding_failure = _ledger_problem(con, row)  # wave 9 item 1: before cooldowns, budgets, any request
             if binding_failure in _CONFIG_REASONS:
                 raise ValidationError(binding_refusal(binding_failure, post_id) + ". No social post sent")
@@ -1786,7 +1843,8 @@ def approval_rebind_required(con, mode: ApprovalKeyMode | None = None) -> list[d
     from .send_options import row_problem as send_options_row_problem
     for row in con.execute("""SELECT * FROM posts WHERE status IN ('approved','scheduled')
                               ORDER BY account_id,id""").fetchall():
-        problem = approval_binding_problem(row, mode) or send_options_row_problem(row)  # 5b: no grandfathering
+        problem = (approval_binding_problem(row, mode) or send_options_row_problem(row)  # 5b: no grandfathering
+                   or approval_ai_label_problem(row))  # AI-label precondition: no grandfathering either
         if problem and problem != APPROVAL_KEY_UNAVAILABLE:
             out.append({"post_id": row["id"], "account_id": row["account_id"], "platform": row["platform"],
                         "status": row["status"], "reason": problem})

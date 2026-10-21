@@ -6,6 +6,20 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Added
+
+- **`ai-declare POST_ID`** (offline, writes a draft only): record your own answers about a draft: `--authorship human|ai_assisted|ai_generated` (who wrote the text) and `--realistic-synthetic yes|no` per image or video (`--attachment N` for one; `clear` removes an answer). Stored in new nullable `posts` columns, keyed by each attachment's SHA-256 so a replaced file has no answer. `ai-label-check --post-id`, `check` and `show` now use them. See [docs/AI-CONTENT-LABELS.md](docs/AI-CONTENT-LABELS.md#when-approval-asks-for-an-answer).
+
+### Security
+
+- **AI-content label precondition for posts with media** (owner-approved 2026-10-21, security review decisions D1-D4 and D6; D5 deferred). `approve` of a post with images or a video computes the `ai-label-check` decision for the post's own platform from its stored declarations (EU Art. 50 left out, D4) and refuses with `ai_label_unanswered` when it is `required` or `unknown` (D2), until you pass `approve --ai-label applied|not_needed`. Text-only posts are never blocked (D1); `check` and `show` print the advice and, where relevant, the EU Art. 50 hint (advisory, never blocks). For a post with media, the declarations and the answer are bound into the approval hash under the add-on tag `reachweaver.storage.approval/media-3` (D3), so changing one after approval refuses the send; the `approve` audit event records `ai_label_decision=... ai_label=...`. `claim_sending`, `check_approval_binding`, `schedule`, `publish` (dry run) and `health` re-run the same decision on the bound values and the bundled registry, with no network, and refuse `ai_label_unanswered` when a needed answer is not bound. The registry file is not bound. `health` warns (`ai_disclosure_registry_aging`, attention, never blocks) when the AI-disclosure rules are more than 90 days old (D6). Nothing is added to the send path: no platform label field is set.
+
+### Upgrade notes
+
+- The database gains three nullable `posts` columns (`authorship`, `realistic_synthetic_json`, `approved_ai_label`), added by `migrate()` on first open; older code ignores them. With all three NULL the approval payload is byte-identical, so **every existing approval keeps its hash**.
+- **A post with images or a video approved before the upgrade is not grandfathered** (same rule as the approval nonce and send options): if its platform decision is `required` or `unknown`, the send is refused with `ai_label_unanswered` and the post stays approved or scheduled; `health` lists it under re-approval. Re-approve it once: `reachweaver unapprove POST_ID`, `reachweaver show POST_ID`, then approve with `--ai-label applied|not_needed` (or record `ai-declare` answers that settle it). Text-only approvals are unaffected. Every live adapter enabled today is text-only, so no enabled live send changes.
+- Rollback: after a downgrade, an approval that bound declarations or an answer (`approval/media-3`) no longer matches the payload older code computes, so it is refused with `approval_hash_mismatch_reapproval_required` until re-approved (fails closed), as with earlier binding changes.
+
 ## [0.14.0] - 2026-10-21
 
 Handier, smarter and aware of newer distribution paradigms. A short everyday `--help`, a first run that starts in the browser composer, `report --since`, and a `suggest` that works with no flags. `insights` learns what works from your own results. Every platform fact shows how old it is. `ai-visibility` checks what your own pages tell AI answer engines, `ai-label-check` gives per-platform AI-content label rules, and `social-web-plan` maps your reach across the fediverse, Bluesky and bridges. 125 commands (6 more than 0.13.0, none removed). Everything new is read-only or advisory; no live adapter is added.

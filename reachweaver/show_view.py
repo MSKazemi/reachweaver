@@ -94,6 +94,9 @@ def render_sheet(view: dict, steps: list[dict], stream, *, columns: int | None =
                                 "red" if changed else "grey", stream))
     if (view.get("approval") or {}).get("allow_repeat"):
         lines.append("Repeat override: approved with --allow-repeat")
+    if view.get("ai_label"):  # AI-content label advice (D1/D4): read-only; the approve precondition is in storage
+        from .ai_label_gate import advice_lines
+        lines += [term.clean(line) for line in advice_lines(view["ai_label"])]
     if view.get("scheduled_at"):
         lines.append(f"Due: {view['scheduled_at']}")
     for key, label in (("media", "Images"), ("video", "Video"), ("reply", "Reply")):

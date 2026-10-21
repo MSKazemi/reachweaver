@@ -1,8 +1,8 @@
 # AI content labels: which label to apply, per platform
 
-**Status: experimental, advisory only, not yet in a released package.** Platforms and lawmakers now ask people to say when what they post was made with AI. The rules differ by platform, change often, and mostly concern **realistic** images, video and audio rather than text. `ai-label-check` reads one draft and tells you, for each platform you target, whether the platform's own rule asks for a label, what to tick in the platform's own composer, and which page says so.
+**Status: `ai-label-check` released in 0.14.0 (advisory); the approval precondition for posts with media is unreleased.** Platforms and lawmakers now ask people to say when what they post was made with AI. The rules differ by platform, change often, and mostly concern **realistic** images, video and audio rather than text. `ai-label-check` reads one draft and tells you, for each platform you target, whether the platform's own rule asks for a label, what to tick in the platform's own composer, and which page says so.
 
-It never blocks, approves, schedules or sends anything. Approval and publishing work exactly as before.
+The command itself never blocks, approves, schedules or sends anything. Since the owner-approved change of 2026-10-21, **`approve` of a post with images or a video asks for your answer** when the decision for the post's platform is `required` or `unknown`; see [When approval asks for an answer](#when-approval-asks-for-an-answer). Text-only posts are never blocked.
 
 > **Not legal advice. Rules change: re-verify.** Every rule below was read on **2026-10-21** from the page linked next to it. Before you rely on an entry, open that page again. The EU AI Act wording comes from a **secondary** site (artificialintelligenceact.eu), not from the Official Journal. Whether a law applies to you is a legal question for you or a qualified lawyer.
 
@@ -15,7 +15,7 @@ reachweaver ai-label-check --file examples/campaign.reachweaver.json --authorshi
 # Several platforms, with the media manifest that says which asset is realistic AI-made media
 reachweaver ai-label-check --file draft.json --platform youtube,instagram,tiktok --media media-manifest.json
 
-# A stored post (database opened read-only); a post records no authorship, so say it
+# A stored post (database opened read-only): uses what you recorded with ai-declare; --authorship overrides it once
 reachweaver ai-label-check --post-id POST_ID --authorship ai_assisted --platform linkedin
 
 # Also check the EU AI Act Article 50 duty (you publish from, or for an audience in, the EU)
@@ -25,8 +25,8 @@ reachweaver ai-label-check --file draft.json --eu --public-interest yes --editor
 Inputs:
 
 - `--file` takes a draft (`authorship`, `platform` or `platforms`), a variant (`platform`) or a campaign (`variants`, each with a `platform` and optionally its own `authorship`). `--post-id` reads one stored post instead.
-- `--authorship human|ai_assisted|ai_generated` is the draft schema's `authorship` field ([SCHEMAS.md](SCHEMAS.md)). Without it, a stored post is checked as `unknown`.
-- `--media` reads a media manifest ([MEDIA-ASSETS.md](MEDIA-ASSETS.md)). Two fields decide the answer: `provenance.created_by` (`owner`, `tool`, `third_party`) and the optional `realistic_synthetic` flag: `true` when the image or video was made or meaningfully altered with AI **and looks real**. An asset with `targets` counts only for those platforms. Without `--media`, a stored post's images and video are read from the database; realism is never stored there, so tool-made media comes back `unknown`.
+- `--authorship human|ai_assisted|ai_generated` is the draft schema's `authorship` field ([SCHEMAS.md](SCHEMAS.md)). For a stored post, the authorship you recorded with `ai-declare` is used; without either, it is checked as `unknown`.
+- `--media` reads a media manifest ([MEDIA-ASSETS.md](MEDIA-ASSETS.md)). Two fields decide the answer: `provenance.created_by` (`owner`, `tool`, `third_party`) and the optional `realistic_synthetic` flag: `true` when the image or video was made or meaningfully altered with AI **and looks real**. An asset with `targets` counts only for those platforms. Without `--media`, a stored post's images and video are read from the database together with the `realistic_synthetic` answers you recorded with `ai-declare`; media with no answer and no `created_by owner` comes back `unknown`.
 - `--eu`, `--public-interest yes|no` and `--editorial-review yes|no` add the EU AI Act Article 50 check below.
 
 Each target gets one of four answers: **required** (the cited rule asks you to disclose or label it), **recommended** (the rule labels or asks about it but does not clearly require it here), **not required** (the cited rules do not ask for a label in this case), or **unknown** (a fact is missing, or the platform's rule was not verified). The output also names the native control to tick, the API field where ReachWeaver already knows one (it sends nothing here), whether the platform reads C2PA Content Credentials, and the consequence the platform states. `--json` prints the same as JSON. The command exits 0 after a check and 2 on an input error.
@@ -57,9 +57,40 @@ The disclosure must be given "in a clear and distinguishable manner at the lates
 
 With `--eu`, `ai-label-check` reports: realistic synthetic media is **required**; AI-generated text on a matter of public interest is **required** unless you answer `--editorial-review yes` (then **not required**, the exemption); `--public-interest no` makes the text duty **not required**; a missing answer, or `ai_assisted` text without review, is **unknown**. The tool cannot decide whether you are a deployer, whether a post is "public interest" or whether your review counts as editorial control.
 
+## When approval asks for an answer
+
+Owner-approved on 2026-10-21 after a security review (decisions D1-D4 and D6; D5, filling TikTok `is_aigc` or YouTube `containsSyntheticMedia` from your answer, is **not** part of it).
+
+**Which posts.** Only posts that carry **images or a video**. `approve` computes the same platform decision `ai-label-check --post-id` prints, for the post's own platform, from what is stored on the post: your `authorship`, your `realistic_synthetic` answer per attachment and the image's recorded `provenance.created_by`. The EU Art. 50 duty is left out (D4: advisory only). When the decision is **required** or **unknown** (D2), approval is refused with `ai_label_unanswered` until you answer. A text-only post is never blocked: `check` and `show` print the advice and nothing else changes.
+
+**How you answer.** Two ways, both recorded by you and bound into the approval:
+
+```bash
+# 1. Record what is true about the post; this may settle it (for example a non-realistic image on Instagram)
+reachweaver ai-declare POST_ID --realistic-synthetic no            # every attachment; --attachment N for one
+reachweaver ai-declare POST_ID --authorship ai_assisted            # who wrote the text (human|ai_assisted|ai_generated)
+reachweaver check POST_ID                                           # prints "AI label (PLATFORM): DECISION; ..."
+
+# 2. Answer the label question itself when you approve (owner, in your own terminal)
+reachweaver approve POST_ID --ai-label applied      # you label it yourself: platform composer or the post text
+reachweaver approve POST_ID --ai-label not_needed   # you decided no label is needed
+```
+
+`applied` records that **you** label the post. ReachWeaver sets no platform label field in this change: for a manual post, tick the control named under "Tick:"; for a disabled video adapter, the TikTok record's own `--aigc` option is separate and unchanged.
+
+Some decisions can only be settled with `--ai-label`: realistic video on Instagram, Facebook, Threads, YouTube or TikTok is **required**, and a platform with no recorded rule (Mastodon, for example, or X, whose page was not read) is always **unknown**.
+
+**What is bound.** For a post with media, the approval hash binds `authorship`, `realistic_synthetic_json` and `approved_ai_label` under the add-on tag `reachweaver.storage.approval/media-3` (key `ai_label_binding`, next to the media-1, media-2 or video-1 tag) whenever one of them is set. Changing any of them after approval refuses the send with `approval_hash_mismatch_reapproval_required`. Declarations can only change on a draft. The `approve` audit event records `ai_label_decision=DECISION ai_label=ANSWER|none`. The registry file is **not** bound: updating it never silently invalidates an approval.
+
+**At send time.** `publish` (dry run and `--live`), `schedule`, `health` and the claim re-run the same decision on the bound values and the bundled registry (no fetch, no network). A media post that needs an answer and has none bound is refused with `ai_label_unanswered` and stays approved or scheduled. This happens to a media post approved **before** the upgrade (no grandfathering), and to one whose decision became required or unknown because the bundled rules changed in an update. Re-approve it: `reachweaver unapprove POST_ID`, `reachweaver show POST_ID`, then approve with `--ai-label`.
+
+**Registry age.** `health` adds `ai_disclosure_registry_aging` (attention, never blocks) when the oldest checked date in `ai_disclosure_registry.json` is more than 90 days old, and `ai_disclosure_registry_invalid` when the file cannot be loaded; in that case every media post needs an explicit `--ai-label`.
+
+**Limits.** Every input is your declaration: ReachWeaver cannot see how a file was made. A bound answer proves that you answered, not that the answer or the label was right; the platform may still label or act on the post itself.
+
 ## What it is not
 
-- **Not an approval gate.** The answer is advice. Wiring it into `approve`, `check` or `publish` would change approval behaviour and needs the owner's security review first; it is not implemented.
+- **Not a label setter.** The approval precondition above makes you answer for posts with media; it does not set any label on the platform, and `ai-label-check` itself still blocks nothing.
 - **Not an AI detector.** ReachWeaver cannot see how a file or text was made. It uses what you record: `authorship`, `provenance.created_by` and `realistic_synthetic`.
 - **Not a guarantee.** A platform may label your post itself (from C2PA metadata or its own classifiers) whatever you tick.
 

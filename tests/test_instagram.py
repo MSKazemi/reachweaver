@@ -253,7 +253,7 @@ class CliMixin:
 
     def approved_with_image(self, fake, caption=CAPTION):
         pid = self.draft_with_image(fake, caption)
-        status, out, err = self.cli("approve", pid)
+        status, out, err = self.cli("approve", pid, "--ai-label", "not_needed")
         assert status == 0, out + err
         return pid
 
@@ -584,7 +584,7 @@ class BindingTests(CliMixin, Base):
         self.assertEqual(shown["media"]["attachments"][0]["sha256"], IMAGE_SHA)
         self.assertIn("refused", shown["media"]["live_image_publish"])
         self.assertEqual(self.cli("check", pid)[0], 0)
-        status, out, _ = self.cli("approve", pid)
+        status, out, _ = self.cli("approve", pid, "--ai-label", "not_needed")
         self.assertEqual(status, 0)
         self.assertIn("media=1 (sha256, mime, alt, focus, url each)", out)
         status, _, err = self.cli("media-detach", pid)
@@ -619,7 +619,7 @@ class BindingTests(CliMixin, Base):
         with connect(str(self.db)) as con:
             pid = add_post(con, "ig-me", "instagram", CAPTION)
             con.execute("UPDATE posts SET media_json='[{\"url\":1}]' WHERE id=?", (pid,))
-        status, _, err = self.cli("approve", pid)
+        status, _, err = self.cli("approve", pid, "--ai-label", "not_needed")
         self.assertEqual(status, 2)
         self.assertIn("media", err)
         self.assertEqual(self.row(pid)["status"], "draft")
@@ -997,7 +997,7 @@ class FlippedCliTests(CliMixin, FlippedRegistry):
         fake = FakeMeta()
         self.assertEqual(self.live(fake, pid)[0], 2)
         self.assertEqual(self.row(pid)["status"], "draft")
-        self.cli("approve", pid)
+        self.cli("approve", pid, "--ai-label", "not_needed")
         with patch("reachweaver.publishers._send_http", side_effect=fake):
             status, out, _ = self.cli("publish")
             self.assertEqual(status, 0)
@@ -1017,7 +1017,7 @@ class FlippedCliTests(CliMixin, FlippedRegistry):
         with connect(str(self.db)) as con:
             pid = add_post(con, "bsky-pz", "bluesky", "Hello")
             con.execute("UPDATE posts SET media_json=? WHERE id=?", (remote_media.encode_media([record()]), pid))
-            transition(con, pid, "approve")
+            transition(con, pid, "approve", ai_label="not_needed")
         with patch.dict(os.environ, LIVE_ENV), patch("reachweaver.publishers._send_http") as send:
             status, out, err = self.cli("publish", "--live", "--post-id", pid)
         self.assertEqual(status, 2, out + err)

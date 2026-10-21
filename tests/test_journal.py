@@ -55,7 +55,8 @@ class Workspace(unittest.TestCase):
             set_post_media(db, pid, [attachments.build_attachment(media, "A described chart")])
         if video:
             set_post_video(db, pid, tiktok.build_video_record(video))
-        transition(db, pid, "approve", approver=approver, approval_channel="cli_flag")
+        transition(db, pid, "approve", approver=approver, approval_channel="cli_flag",
+                   ai_label="not_needed" if media or video else None)  # AI-label precondition: media needs an answer
         claim_sending(db, pid)
         finish_send(db, pid, "rid-" + pid[:6], url)
         return pid

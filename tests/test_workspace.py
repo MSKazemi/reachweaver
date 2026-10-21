@@ -60,7 +60,7 @@ class Folder(unittest.TestCase):
             finish_send(db, sent, "rid-1", "https://bsky.app/profile/me/post/1")
             pending = add_post(db, "my-mastodon", "mastodon", "Waiting with a chart")
             set_post_media(db, pending, [attachments.build_attachment(self.image, "A described chart")])
-            transition(db, pending, "approve", approver="tester", approval_channel="cli_flag")
+            transition(db, pending, "approve", approver="tester", approval_channel="cli_flag", ai_label="not_needed")
             draft = add_post(db, "my-bluesky", "bluesky", "Just a draft")
         return sent, pending, draft
 

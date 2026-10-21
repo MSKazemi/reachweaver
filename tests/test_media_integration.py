@@ -55,7 +55,7 @@ class KeyedBindingCoversMediaBytes(Workspace):
 
     def _approve_keyed(self, db, pid):
         with patch.dict(os.environ, WITH_KEY, clear=True):
-            transition(db, pid, "approve")
+            transition(db, pid, "approve", ai_label="not_needed")
             row = get_post(db, pid)
             self.assertTrue(row["approved_payload_mac"].startswith(APPROVAL_MAC_PREFIX))
             self.assertIsNone(approval_binding_problem(row, approval_key_mode(db)))
@@ -236,7 +236,7 @@ class BundledRegistryRefusesEveryMediaMode(Workspace):
             masto_account = next(a for a in self.ACCOUNTS if a["id"] == "masto")
             for pid in (masto, insta, yt, tt):
                 # Sheet items 5/9: bind the account's send options as `reachweaver approve` does.
-                transition(db, pid, "approve",
+                transition(db, pid, "approve", ai_label="not_needed",
                            send_options=send_options.fingerprint(masto_account) if pid == masto else None)
         return {"mastodon": masto, "instagram": insta, "youtube": yt, "tiktok": tt}
 

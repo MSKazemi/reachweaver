@@ -210,7 +210,7 @@ class Flipped(VideoFile):
             pid = add_post(con, "tt-me", "tiktok", text)
         status, out, err = self.cli("video-attach", pid, "--file", str(self.video), *attach_args, env={})
         self.assertEqual(status, 0, out + err)
-        status, out, err = self.cli("approve", pid, "--approver", "owner", env={})
+        status, out, err = self.cli("approve", pid, "--approver", "owner", "--ai-label", "not_needed", env={})
         self.assertEqual(status, 0, out + err)
         return pid
 
@@ -268,7 +268,7 @@ class UnreachableTests(VideoFile):
         with connect(str(db)) as con:
             pid = add_post(con, "tt-me", "tiktok", CAPTION)
             set_post_video(con, pid, tiktok.build_video_record(self.video))
-            transition(con, pid, "approve")
+            transition(con, pid, "approve", ai_label="not_needed")
             post = get_post(con, pid)
             out = io.StringIO()
             with patch("reachweaver.publishers._send_http") as send, patch("reachweaver.tiktok.credential") as cred, \
@@ -288,7 +288,7 @@ class UnreachableTests(VideoFile):
         with connect(str(db)) as con:
             pid = add_post(con, "tt-me", "tiktok", CAPTION)
             set_post_video(con, pid, tiktok.build_video_record(self.video))
-            transition(con, pid, "approve")
+            transition(con, pid, "approve", ai_label="not_needed")
         out = io.StringIO()
         with patch.dict(os.environ, LIVE_ENV), patch("reachweaver.publishers._send_http") as send, \
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
@@ -436,7 +436,7 @@ class ApprovalBindingTests(VideoFile):
             self.assertEqual(payload["binding"], APPROVAL_BINDING_TAG_VIDEO)
             self.assertEqual(payload["video"]["sha256"], hashlib.sha256(self.video.read_bytes()).hexdigest())
             self.assertNotIn("path", payload["video"])  # the local path is never sent, so never bound
-            transition(con, pid, "approve")
+            transition(con, pid, "approve", ai_label="not_needed")
             self.assertEqual(get_post(con, pid)["approved_payload_sha256"], approval_payload_sha256(get_post(con, pid)))
             with self.assertRaisesRegex(ValidationError, "unapprove it first"):
                 set_post_video(con, pid, None)

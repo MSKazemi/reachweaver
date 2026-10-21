@@ -286,7 +286,14 @@ def _check_report(args, db, post, found=None) -> dict:
     return {"post_id": post["id"], "ok": not issues, "findings": issues,
             "warnings": [repeat_guard.describe(hit) for hit in repeats if hit not in blocking_repeats],
             "blocking_repeat": bool(blocking_repeats),
-            "manual_only": post["platform"] not in SUPPORTED_LIVE}
+            "manual_only": post["platform"] not in SUPPORTED_LIVE,
+            "ai_label": _ai_label_advice(post)}
+
+
+def _ai_label_advice(post) -> dict | None:
+    """AI-content label advice for ``check``/``show`` (read-only; the approve precondition is in storage)."""
+    from .ai_label_gate import advice
+    return advice(post)
 
 
 def _draft_reply(db, args, account: dict, content: str, optout: list[dict]) -> int:
@@ -2454,6 +2461,22 @@ def execute(args) -> int:
                 removed = "malformed"  # detaching is the repair for an invalid stored record
             set_post_media(db, args.post_id, [])
             print(f"Removed {removed} attachment(s) from draft {args.post_id}; local files and hosted images untouched")
+        elif args.command == "ai-declare":  # owner declarations on a draft; bound at approval for media posts
+            from . import ai_label_gate
+            row = ai_label_gate.declare(db, args.post_id, authorship=args.authorship,
+                                        realistic=args.realistic_synthetic, attachment=args.attachment)
+            view = ai_label_gate.advice(row)
+            if args.json:
+                print(json.dumps({"post_id": args.post_id, "authorship": row["authorship"],
+                                  "realistic_synthetic": ai_label_gate.decode_realism(row["realistic_synthetic_json"]),
+                                  "advice": view}, indent=2, ensure_ascii=False))
+            else:
+                print(f"Recorded on draft {args.post_id}: authorship={row['authorship'] or '-'}; realistic_synthetic "
+                      + (", ".join(f"{item['id']}={ai_label_gate.answer_text(item['realistic_synthetic'])}"
+                                   for item in view["media"])
+                         if view and view["media"] else "-"))
+                for line in ai_label_gate.advice_lines(view):
+                    print(line)
         elif args.command == "campaign-stage":
             campaign, brand = read_json(args.file),read_json(args.brand)
             accounts = _accounts(args)
@@ -2582,6 +2605,9 @@ def execute(args) -> int:
                     print(f"Warning: {repeat_guard.describe(hit)}")
             if blocking_repeats:
                 print("Pass --allow-repeat to approve if sharing it again is intended.")
+            from .ai_label_gate import advice_lines
+            for line in advice_lines(_ai_label_advice(post)):
+                print(line)
             if post["platform"] not in SUPPORTED_LIVE:
                 print("Note: this platform is draft/manual only")
             return 1 if issues else 0
@@ -2611,6 +2637,13 @@ def execute(args) -> int:
                 raise ValidationError(f"Refusing to approve {args.post_id}: {repeat_guard.describe(blocking_repeats[0])}. "
                                       "Check `repeat-check --post-id` for the full list; pass --allow-repeat only if "
                                       "sharing it again is intended. Nothing changed")
+            # AI-label precondition (owner-approved 2026-10-21): checked here, before any confirmation prompt, and
+            # again inside transition() on the exact values it binds.
+            from . import ai_label_gate
+            ai_decision, ai_refusal = ai_label_gate.approve_check(
+                {**{key: post[key] for key in post.keys()}, "approved_ai_label": args.ai_label}, args.ai_label)
+            if ai_refusal:
+                raise ValidationError(f"Refusing to approve {args.post_id}: {ai_refusal}")
             for hit in repeats:
                 print(f"Warning: {repeat_guard.describe(hit)}")
             queued_exact = [hit for hit in repeats if hit["kind"] in repeat_guard.BLOCKING_KINDS
@@ -2658,13 +2691,14 @@ def execute(args) -> int:
                 expected = approval_payload_sha256(post, scheduled_at=None, use_row_schedule=False, identity=bound_identity)
                 confirmation.show_payload(post, expected, heading="CONFIRM approval of",
                                           send_options=send_options_describe(send_account),
-                                          allow_repeat=bool(args.allow_repeat))
+                                          allow_repeat=bool(args.allow_repeat), ai_label=args.ai_label)
                 confirmed = confirmation.confirm_post(db, args.post_id, expected, action="approve")
             from .storage import _atomic
             with _atomic(db):  # an --allow-repeat override is recorded only with the approval it belongs to
                 target = transition(db, args.post_id, "approve", approver=approver, approval_channel=channel,
                                     expected_sha256=expected, confirmation=confirmed, identity=bound_identity,
-                                    send_options=options_fp, allow_repeat=bool(args.allow_repeat))
+                                    send_options=options_fp, allow_repeat=bool(args.allow_repeat),
+                                    ai_label=args.ai_label)
                 if blocking_repeats:  # --allow-repeat: an audit trace tied to this approval. Never read as
                     # permission: the send-time check reads the bound approved_allow_repeat.
                     approved_hash = get_post(db, args.post_id)["approved_payload_sha256"] or ""
@@ -2679,6 +2713,9 @@ def execute(args) -> int:
                   + (", identity bound (approval/id-1)" if bound_identity else "")
                   + (", send options bound (approval/options-1)" if options_fp else "")
                   + (", --allow-repeat bound (approval/repeat-1)" if args.allow_repeat else "")
+                  + (f", AI label {ai_decision}"
+                     + (f", --ai-label {args.ai_label} bound (approval/media-3)" if args.ai_label else "")
+                     if ai_decision else "")
                   + (f", confirmed {confirmed}" if confirmed else "") + ")")
             if options_fp:
                 print(f"Bound send options: {send_options_describe(send_account)}; changing them in the account "
