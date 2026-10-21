@@ -381,6 +381,17 @@ def analyze(con: sqlite3.Connection, *, account_id: str | None = None, platform:
             resamples: int = 1000, confidence: float = 0.95, seed: int = 21,
             limit: int = TOP_LINES) -> dict[str, Any]:
     """The full ``insights`` report (schema ``reachweaver.insights`` v1). Reads ``con``; never writes it."""
+    return _analyze(con, account_id=account_id, platform=platform, since=since, now=now,
+                    timezone_name=timezone_name, source=source, metric=metric, denominator=denominator,
+                    age_hours=age_hours, tolerance_hours=tolerance_hours, min_posts=min_posts,
+                    resamples=resamples, confidence=confidence, seed=seed, limit=limit)[0]
+
+
+def _analyze(con: sqlite3.Connection, *, account_id: str | None, platform: str | None, since: str | None,
+             now: datetime | None, timezone_name: str, source: str | None, metric: str, denominator: str | None,
+             age_hours: int, tolerance_hours: int, min_posts: int, resamples: int, confidence: float, seed: int,
+             limit: int) -> tuple[dict[str, Any], dict[tuple[str, str], list[dict]]]:
+    """``analyze`` plus each cohort's per-post rows (kept out of the report), for the learning loops below."""
     if account_id is not None and (not isinstance(account_id, str) or not account_id.strip()):
         raise ValidationError("--account must be a nonempty account id")
     if platform is not None and platform not in PLATFORMS:
@@ -420,6 +431,7 @@ def analyze(con: sqlite3.Connection, *, account_id: str | None = None, platform:
         by_cohort[(post["account_id"], post["platform"])].append((post, sent))
 
     cohorts: list[dict[str, Any]] = []
+    kept: dict[tuple[str, str], list[dict]] = {}
     for (account, plat) in sorted(by_cohort):
         members = by_cohort[(account, plat)]
         candidates = [source] if source is not None else _sources(con, [p["id"] for p, _ in members])
@@ -461,6 +473,7 @@ def analyze(con: sqlite3.Connection, *, account_id: str | None = None, platform:
         }
         cohort["suggestions"] = _suggestions(cohort, rows, denominator=denominator, limit=limit) if comparable else []
         cohorts.append(cohort)
+        kept[(account, plat)] = rows
 
     status = "ok" if any(c["status"] == "ok" for c in cohorts) else "not_enough_data"
     return {
@@ -481,7 +494,7 @@ def analyze(con: sqlite3.Connection, *, account_id: str | None = None, platform:
         "how_to_get_data": list(HOW_TO_GET_DATA) if status != "ok" else [],
         "limits": list(LIMITS),
         "disclaimer": DISCLAIMER,
-    }
+    }, kept
 
 
 def top_insights(con: sqlite3.Connection, *, account_id: str | None = None, platform: str | None = None,
@@ -496,6 +509,120 @@ def top_insights(con: sqlite3.Connection, *, account_id: str | None = None, plat
     report = analyze(con, account_id=account_id, platform=platform, since=since, now=now,
                      timezone_name=timezone_name, resamples=0, limit=limit)
     return report["suggestions"]
+
+
+# --- Learning loops: the same matched-age rows, read by other commands -------------------------
+#
+# discovery-plan, calendar-plan and followup-suggest show the owner's own results next to their fixed
+# rules with these helpers. Same defaults as ``insights`` (interactions at 168 h +/- 24 h, the source with
+# the most matched posts, groups of at least 5), no bootstrap, SELECT only. They return evidence to show;
+# none of them changes a score, a slot, an approval or a schedule (docs/INSIGHTS.md "Where your results
+# are used").
+
+LOOP_LABEL = "observation from your own published posts; not a cause, not a forecast"
+LOOP_NOTE = ("Your own results at the same post age (about 7 days), one account at a time. An observation, "
+             "not a cause and not a forecast: nothing was re-ranked, scheduled or changed because of it.")
+_EVIDENCE_KEYS = ("n", "median", "rest_n", "rest_median", "difference", "relative_difference", "strength")
+
+
+def _quick(con: sqlite3.Connection, *, account_id: str | None, platform: str | None, now: datetime | None,
+           timezone_name: str = "UTC") -> tuple[dict[str, Any], dict[tuple[str, str], list[dict]]]:
+    return _analyze(con, account_id=account_id, platform=platform, since=None, now=now,
+                    timezone_name=timezone_name, source=None, metric="interactions", denominator=None,
+                    age_hours=168, tolerance_hours=24, min_posts=MIN_POSTS_DEFAULT, resamples=0,
+                    confidence=0.95, seed=21, limit=TOP_LINES)
+
+
+def evidence_text(item: dict[str, Any]) -> str:
+    """One short line for a group: ``n=6, median 12 vs 8 for the rest (+50%), observation``."""
+    if not item.get("n"):
+        return "not in your posts with a result yet"
+    text = f"n={item['n']}, median {_fmt(item['median'], None)} vs {_fmt(item['rest_median'], None)} for the rest"
+    if item["strength"] != STRENGTH_OBSERVATION:
+        return text + f" ({STRENGTH_TOO_LITTLE})"
+    rel = item.get("relative_difference")
+    return text + (f" ({rel:+.0%})" if rel is not None else "") + f", {STRENGTH_OBSERVATION}"
+
+
+def _cohort_head(cohort: dict[str, Any]) -> dict[str, Any]:
+    return {"account_id": cohort["account_id"], "platform": cohort["platform"], "source": cohort["source"],
+            "posts_with_result": cohort["posts_with_result"], "median": cohort["overall"]["median"]}
+
+
+def tag_evidence(con: sqlite3.Connection, tags: list[str], *, platform: str, account_id: str | None = None,
+                 now: datetime | None = None) -> dict[str, Any]:
+    """For each tag, how this account's own posts carrying it did against its posts without it.
+
+    Tags match the lowercased hashtags of the post text (``#OpenSource`` = ``#opensource``). Every account on
+    ``platform`` (or only ``account_id``) is its own cohort. Reads only; never changes any score.
+    """
+    base = {"label": LOOP_LABEL, "unit": _unit("interactions", None), "post_age_hours": 168,
+            "min_posts_per_group": MIN_POSTS_DEFAULT, "note": LOOP_NOTE}
+    if platform not in PLATFORMS:
+        return {**base, "status": "no_results", "cohorts": []}
+    report, rows_by = _quick(con, account_id=account_id, platform=platform, now=now)
+    keys = [(tag, "#" + tag.lstrip("#").lower()) for tag in tags]
+    cohorts = []
+    for cohort in report["cohorts"]:
+        rows = rows_by.get((cohort["account_id"], cohort["platform"]), [])
+        items = []
+        for shown, key in keys:
+            group = _compare(rows, "tag", key, min_posts=MIN_POSTS_DEFAULT, resamples=0, confidence=0.95, seed=21,
+                             cohort_key="", timezone_name="UTC")
+            item = {"tag": shown, **{k: group[k] for k in _EVIDENCE_KEYS}}
+            item["text"] = evidence_text(item)
+            items.append(item)
+        cohorts.append({**_cohort_head(cohort), "tags": items})
+    status = "ok" if any(c["posts_with_result"] for c in cohorts) else "no_results"
+    return {**base, "status": status, "cohorts": cohorts}
+
+
+def time_evidence(con: sqlite3.Connection, *, account_id: str, platform: str, timezone_name: str,
+                  slots: list[tuple[int, Any]] | None = None, now: datetime | None = None) -> dict[str, Any]:
+    """This account's own results by 6-hour block and weekday (in ``timezone_name``), plus the block each
+    ``(weekday, time)`` slot falls in. Reads only; the caller's slots are never changed."""
+    base: dict[str, Any] = {"label": LOOP_LABEL, "account_id": account_id, "platform": platform,
+                            "timezone": timezone_name, "unit": _unit("interactions", None), "post_age_hours": 168,
+                            "min_posts_per_group": MIN_POSTS_DEFAULT, "note": LOOP_NOTE}
+    if platform not in PLATFORMS:
+        return {**base, "status": "no_results", "posts_with_result": 0}
+    report, _ = _quick(con, account_id=account_id, platform=platform, now=now, timezone_name=timezone_name)
+    cohort = next((c for c in report["cohorts"] if c["platform"] == platform), None)
+    if cohort is None or not cohort["posts_with_result"]:
+        return {**base, "status": "no_results", "posts_with_result": 0}
+    groups = {f["feature"]: f["groups"] for f in cohort["features"]}
+
+    def rows(feature: str, key: str) -> list[dict[str, Any]]:
+        out = []
+        for group in groups[feature]:
+            item = {key: group["value"], **{k: group[k] for k in _EVIDENCE_KEYS}}
+            item["text"] = evidence_text(item)
+            out.append(item)
+        return out
+
+    dayparts, weekdays = rows("time_of_day", "block"), rows("weekday", "weekday")
+    by_block = {d["block"]: d for d in dayparts}
+    compared = []
+    for weekday, clock in slots or []:
+        block = DAYPARTS[clock.hour // 6]
+        mine = by_block.get(block)
+        compared.append({"slot": f"{_WEEKDAYS[weekday]}@{clock.strftime('%H:%M')}", "block": block,
+                         "your_result": mine["text"] if mine else "no posts of yours in this block yet"})
+    return {**base, "status": "ok" if cohort["status"] == "ok" else "too_little_data",
+            "source": cohort["source"], "posts_with_result": cohort["posts_with_result"],
+            "median": cohort["overall"]["median"], "blocks": dayparts, "weekdays": weekdays,
+            "better_blocks": [d["block"] for d in dayparts
+                              if d["strength"] == STRENGTH_OBSERVATION and (d["difference"] or 0) > 0],
+            "better_weekdays": [d["weekday"] for d in weekdays
+                                if d["strength"] == STRENGTH_OBSERVATION and (d["difference"] or 0) > 0],
+            "fixed_slots": compared}
+
+
+def typical_results(con: sqlite3.Connection, *, account_id: str | None = None,
+                    now: datetime | None = None) -> list[dict[str, Any]]:
+    """Per account x platform: posts with a matched-age result, their median and the source used. Reads only."""
+    report, _ = _quick(con, account_id=account_id, platform=None, now=now)
+    return [{**_cohort_head(c), "published": c["published_in_window"]} for c in report["cohorts"]]
 
 
 # --- Output -----------------------------------------------------------------------------------

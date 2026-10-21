@@ -1036,6 +1036,15 @@ READ_ONLY_DB_COMMANDS = ("engagement-fetch", "ops-metrics", "youtube-analytics",
 OPS_METRICS_TABLES = ("posts", "event_log", "settings")
 
 
+def _registry_warning() -> str | None:
+    """``freshness.warning_line()`` for ``suggest``: None when nothing is aging or stale (offline, bundled files)."""
+    from . import freshness
+    try:
+        return freshness.warning_line()
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
 def _bare_suggest(args) -> int:
     """``suggest`` with no input flag: an EXISTING database read-only (as --include-db) plus the open ideas count.
     A missing database is skipped, never created; with nothing to rank it prints next steps, not an error."""
@@ -1048,11 +1057,12 @@ def _bare_suggest(args) -> int:
         print(f"WARNING: ideas inbox skipped: {exc}", file=sys.stderr)
         open_ideas = 0
     database = database_path(args.db)
+    warning = _registry_warning()
     if database.is_file():
         with connect_readonly(database) as db:
-            result = build_suggestions(con=db, open_ideas=open_ideas, limit=args.limit)
+            result = build_suggestions(con=db, open_ideas=open_ideas, limit=args.limit, registry_warning=warning)
     else:
-        result = build_suggestions(open_ideas=open_ideas, limit=args.limit)
+        result = build_suggestions(open_ideas=open_ideas, limit=args.limit, registry_warning=warning)
     if not result["actions"]:
         result["next_steps"] = [dict(step) for step in EMPTY_NEXT_STEPS]
     if args.json:
@@ -1378,7 +1388,20 @@ def execute(args) -> int:
         print(json.dumps(result, indent=2))
         return 0 if result["match"] else 1
     if args.command == "experiment-next":
-        result = next_hypotheses(load_results(args.results))
+        if args.results is None and not args.readout and args.readout_dir is None:
+            raise ValidationError("experiment-next needs --results FILE, --readout FILE or --readout-dir DIR")
+        prior = load_results(args.results) if args.results is not None else []
+        if not isinstance(prior, list):
+            raise ValidationError("results must be a list of classified experiment results")
+        sources = None
+        if args.readout or args.readout_dir is not None:  # saved 'experiment-readout --json' files, read-only
+            from .growth_readout import results_from_readouts
+            known = {item.get("experiment_id") for item in prior if isinstance(item, dict)}
+            read, sources = results_from_readouts(args.readout, args.readout_dir, known)
+            prior = prior + [{k: r[k] for k in ("experiment_id", "dimension", "label", "direction")} for r in read]
+        result = next_hypotheses(prior)
+        if sources is not None:  # key only when readouts were read: the --results-only output is unchanged
+            result["sources"] = sources
         print(json.dumps(result, indent=2) if args.json else render_next(result))
         return 0
     if args.command == "experiment-simulate":
@@ -1480,14 +1503,17 @@ def execute(args) -> int:
         if args.include_db:
             with connect_readonly(database_path(args.db)) as db:
                 result = build_suggestions(snapshot=snapshot, engagement=engagement, seo_briefs=seo,
-                                           experiments=experiments, con=db, limit=args.limit)
+                                           experiments=experiments, con=db, limit=args.limit,
+                                           registry_warning=(_registry_warning() if args.command == "suggest"
+                                                             else None))
                 if args.command == "weekly-digest":
                     digest_report = {"generated_at": utc_now(), "platforms": report(db),
                                      "note": "Coverage varies. Counts are latest-per-post snapshots, "
                                              "not unique people or comparable cross-platform views."}
         else:
             result = build_suggestions(snapshot=snapshot, engagement=engagement, seo_briefs=seo,
-                                       experiments=experiments, limit=args.limit)
+                                       experiments=experiments, limit=args.limit,
+                                       registry_warning=_registry_warning() if args.command == "suggest" else None)
         if csv_info is not None:
             result["source_coverage"]["normalized_csv"] = csv_info
             result["sources_used"].append("owner_authorized_local_csv_readonly")
@@ -1606,8 +1632,16 @@ def execute(args) -> int:
     if args.command in ("profile", "account-route", "account-kit"):
         return _run_identity_command(args)
     if args.command == "discovery-plan":
-        from .discovery import check_file as discovery_check_file, render_text as discovery_render
+        from .discovery import add_your_results, check_file as discovery_check_file, render_text as discovery_render
+        from .storage import connect_readonly, database_path, schema_gaps
         plan = discovery_check_file(args.file)
+        database = database_path(args.db)  # read-only and only when it exists: never created or migrated
+        if database.is_file():
+            with connect_readonly(database) as db:
+                usable = not schema_gaps(db, ("posts", "metric_snapshots"))
+                add_your_results(plan, db if usable else None, account_id=args.account)
+        else:
+            add_your_results(plan, None)
         print(json.dumps(plan, indent=2, ensure_ascii=False) if args.json else discovery_render(plan))
         return 0
     if args.command == "seo-content-check":
@@ -2341,6 +2375,8 @@ def execute(args) -> int:
         return _execute_read_only(args)
     # `report --since`: a bad window fails here, before the database is opened.
     report_window = (report_since(args.since) if args.command == "report" and args.since is not None else None)
+    if args.command == "report":  # read-only: mode=ro, never creates, migrates or writes the database
+        return _run_report(args, report_window)
     with connect(args.db) as db:
         if args.command == "init":
             print("Initialized local database. No accounts were accessed.")
@@ -2828,6 +2864,12 @@ def execute(args) -> int:
             )
             if args.apply:
                 proposal = apply_calendar(db, proposal)
+            else:  # proposals only: your measured blocks shown NEXT TO the slots; entries and --apply unchanged
+                from .calendar import your_results_for
+                mine = your_results_for(db, proposal, account_id=args.account, platform=account["platform"],
+                                        audience_timezone=args.timezone)
+                if mine is not None:
+                    proposal["your_results"] = mine
             print(json.dumps(proposal, indent=2))
         elif args.command == "publish":
             if args.json:  # dry run only; the live path is never wrapped or changed
@@ -2946,19 +2988,39 @@ def execute(args) -> int:
                                              "runtime_environment": runtime_environment(),
                                              "publish_default_caps": {"max_per_24h": 2, "min_gap_minutes": 60}}
             print(json.dumps(privacy_report, indent=2))
-        elif args.command == "report":
-            data = report(db, since=report_window)
-            envelope = {"generated_at":utc_now(),"platforms":data,
-                        "note":"Coverage varies. Counts are latest-per-post snapshots, not unique people or comparable cross-platform views."}
-            if report_window is not None:  # key only with --since: the JSON without it is unchanged
-                envelope["window"] = {"since": report_window, "until": envelope["generated_at"],
-                                      "basis": "posts sent at or after 'since'; their latest snapshot observed at or "
-                                               "after 'since'"}
-            replies = reply_report(db, since=report_window)
-            if replies:  # issue #17: replies are counted apart from the post totals; key only when present
-                envelope["replies"] = replies
-            print(render_report(envelope, args.report_format), end="")
         return 0
+
+
+def _run_report(args, report_window: str | None) -> int:
+    """``report``: an existing database opened read-only (mode=ro + query_only). A missing database prints the
+    empty report plus a friendly note on stderr and is never created; an older schema is never migrated."""
+    from .storage import connect_readonly, database_path, schema_gaps
+    database = database_path(args.db)
+    envelope: dict = {"generated_at": utc_now(), "platforms": {},
+                      "note": "Coverage varies. Counts are latest-per-post snapshots, not unique people or "
+                              "comparable cross-platform views."}
+    if report_window is not None:  # key only with --since: the JSON without it is unchanged
+        envelope["window"] = {"since": report_window, "until": envelope["generated_at"],
+                              "basis": "posts sent at or after 'since'; their latest snapshot observed at or "
+                                       "after 'since'"}
+    if not database.exists() and not database.is_symlink():
+        print(f"No ReachWeaver database at {database} yet, so there is nothing to report. It was not created. "
+              "Start with 'reachweaver start' (or 'reachweaver init'), publish a post and record its results.",
+              file=sys.stderr)
+        print(render_report(envelope, args.report_format), end="")
+        return 0
+    with connect_readonly(database) as db:
+        gaps = schema_gaps(db, ("posts", "metric_snapshots"))
+        if gaps:
+            raise ValidationError(f"{database} predates this version's schema (missing {', '.join(gaps)}); report "
+                                  "is read-only and never migrates. Run 'reachweaver init' once to upgrade it, "
+                                  "then retry")
+        envelope["platforms"] = report(db, since=report_window)
+        replies = reply_report(db, since=report_window)
+    if replies:  # issue #17: replies are counted apart from the post totals; key only when present
+        envelope["replies"] = replies
+    print(render_report(envelope, args.report_format), end="")
+    return 0
 
 
 def _json_error(parsed, exc: BaseException | None, message: str) -> None:

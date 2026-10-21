@@ -808,7 +808,12 @@ def make_parser() -> argparse.ArgumentParser:
                         "(the --ga4-csv join; key events count as conversions). Never mixed")
     p.add_argument("--json", action="store_true")
     p = sub.add_parser("experiment-next", help="Offline: deterministic next dimension from prior classified results")
-    p.add_argument("--results", type=Path, required=True, help="JSON list of {experiment_id, dimension, label, direction}")
+    p.add_argument("--results", type=Path, help="JSON list of {experiment_id, dimension, label, direction}")
+    p.add_argument("--readout", action="append", type=Path, metavar="FILE",
+                   help="Saved 'experiment-readout --json' file; its label and direction are used unchanged; repeat")
+    p.add_argument("--readout-dir", type=Path, metavar="DIR",
+                   help="Folder of saved 'experiment-readout --json' files (*.json; other JSON files are listed "
+                        "as ignored). Give --results, --readout or --readout-dir")
     p.add_argument("--json", action="store_true")
     p = sub.add_parser("experiment-simulate", help="Offline SIMULATED label distribution for a seeded synthetic experiment")
     p.add_argument("--seed", type=int, required=True)
@@ -1000,6 +1005,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="Machine-readable plan (personal values partly hidden)")
     p = sub.add_parser("discovery-plan", help="Offline platform discovery and topic/hashtag recommendations; not a reach forecast or publisher")
     p.add_argument("--file", type=Path, required=True, help="Owner-reviewed JSON with post text, topics and optional dated trend evidence")
+    p.add_argument("--account", metavar="ID", help="Show only this account's own results per tag (default: every "
+                                                   "account on the plan's platform); read from an existing database "
+                                                   "read-only, never re-ranked")
     p.add_argument("--json", action="store_true", help="Evidence, selected/skipped tags and creative checklist")
     p = sub.add_parser("seo-content-check", help="Discoverability checks on owner-supplied post texts (length, alt text, hashtags, "
                        "UTM links, name spelling, cross-platform duplicates); offline unless --online link previews; read-only, never publishes")
@@ -1134,7 +1142,7 @@ def make_parser() -> argparse.ArgumentParser:
                    help=f"Warn when verified_date is older than N days (default {DEFAULT_MAX_AGE_DAYS})")
     p = sub.add_parser("registry-age", help="Offline age of every dated platform fact in the bundled research "
                                             "registries: fresh/aging (>60 days)/stale (>120 days)/undated; exit 0")
-    p.add_argument("--registry", choices=tuple(REGISTRY_FILES), help="Only this registry (default: all five)")
+    p.add_argument("--registry", choices=tuple(REGISTRY_FILES), help="Only this registry (default: all eight)")
     p.add_argument("--platform", help="Only this platform id, e.g. x or facebook (facebook_pages matches facebook)")
     p.add_argument("--all", action="store_true", help="List fresh facts too (default: aging, stale and undated only)")
     p.add_argument("--as-of", metavar="YYYY-MM-DD", help="Evaluate at this date instead of today (reproducible output)")

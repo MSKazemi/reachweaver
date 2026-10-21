@@ -78,6 +78,22 @@ def _synthetic(today: date) -> dict:
             {"id": "discord", "evidence": {"tier": "editorial_hypothesis_unverified", "official_source": None,
                                            "checked_on": None}}]},
         "signup": lambda: {"reviewed_on": ago(1), "platforms": {"x": {}, "instagram": {}}},
+        "ai-search": lambda: {"reviewed_on": ago(0),
+                              "limitation": {"source_url": "https://example.org/l", "checked_on": ago(1)},
+                              "crawlers": [{"token": "TestBot", "operator": "Example", "evidence": [
+                                  {"source_url": "https://example.org/bot", "checked_on": ago(70)}]}],
+                              "page_signals": [{"id": "noindex", "evidence": [
+                                  {"source_url": "https://example.org/n", "checked_on": ago(2)}]}],
+                              "measurement": []},
+        "ai-disclosure": lambda: {"checked_on": ago(0),
+                                  "sources": {"tt": {"url": "https://example.org/tt", "checked_on": ago(4)},
+                                              "loose": {"url": "https://example.org/u", "checked_on": ago(130)}},
+                                  "platforms": {"tiktok": {"realistic_media_source": ["tt"], "ai_text_source": ["tt"]}},
+                                  "jurisdictions": {}},
+        "social-web": lambda: {"reviewed_on": ago(0), "protocols": [], "bridges": [], "identity_checks": [],
+                               "home_options": [],
+                               "platforms": [{"id": "mastodon", "sources": [
+                                   {"url": "https://example.org/m", "checked_on": ago(3)}]}]},
     }
 
 
@@ -123,7 +139,16 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(rows["discovery"]["counts"], {"fresh": 1, "aging": 1, "stale": 0, "undated": 0})
         self.assertEqual(rows["profile-audit"]["counts"], {"fresh": 1, "aging": 0, "stale": 1, "undated": 1})
         self.assertEqual(rows["signup"]["counts"], {"fresh": 2, "aging": 0, "stale": 0, "undated": 0})
-        signup = [f for f in report["facts"] if f["registry"] == "signup"]
+        # the three registries added in the learning-loops slice: per evidence item, keyed by token/platform/id
+        self.assertEqual(rows["ai-search"]["counts"], {"fresh": 2, "aging": 1, "stale": 0, "undated": 0})
+        self.assertEqual(rows["ai-disclosure"]["counts"], {"fresh": 1, "aging": 0, "stale": 1, "undated": 0})
+        self.assertEqual(rows["ai-disclosure"]["reviewed_on"], today.isoformat())  # its date field is checked_on
+        self.assertEqual(rows["social-web"]["counts"], {"fresh": 1, "aging": 0, "stale": 0, "undated": 0})
+        self.assertEqual(report["platforms"]["testbot"]["status"], "aging")
+        self.assertEqual(report["platforms"]["tiktok"]["registries"], ["ai-disclosure"])
+        self.assertEqual(report["platforms"]["general"]["status"], "stale")
+        self.assertEqual(report["platforms"]["mastodon"]["registries"], ["social-web"])
+        signup =[f for f in report["facts"] if f["registry"] == "signup"]
         self.assertTrue(all(f["date_basis"] == "registry_reviewed_on" for f in signup))
         # aliases group one platform across registries; the oldest checked date and worst status per platform
         x = report["platforms"]["x"]
@@ -171,6 +196,9 @@ class ReportTests(unittest.TestCase):
                    for name in ("capabilities", "distribution", "profile-audit")}
         loaders["discovery"] = lambda: {"platforms": {}}
         loaders["signup"] = lambda: {"reviewed_on": today.isoformat(), "platforms": {"x": {}}}
+        loaders["ai-search"] = lambda: {"reviewed_on": today.isoformat(), "crawlers": []}
+        loaders["ai-disclosure"] = lambda: {"checked_on": today.isoformat(), "sources": {}, "platforms": {}}
+        loaders["social-web"] = lambda: {"reviewed_on": today.isoformat(), "platforms": []}
         self.assertIsNone(freshness.warning_line(report=freshness.build_report(today, loaders=loaders)))
         line = freshness.warning_line(report=freshness.build_report(today, loaders=_synthetic(today)))
         self.assertTrue(line.startswith("WARNING: Research facts as of 2030-06-15:"))
@@ -190,7 +218,12 @@ class ReportTests(unittest.TestCase):
     def test_bundled_registries_all_load_and_undated_matches_the_data(self):
         newest = _newest_bundled_date()
         report = freshness.build_report(newest, include_fresh=True)
-        self.assertEqual([r["error"] for r in report["registries"]], [None] * 5)
+        self.assertEqual([r["error"] for r in report["registries"]], [None] * len(freshness.REGISTRY_FILES))
+        self.assertEqual(len(freshness.REGISTRY_FILES), 8)
+        for name in ("ai-search", "ai-disclosure", "social-web"):  # each bundled file contributes dated facts
+            row = next(r for r in report["registries"] if r["registry"] == name)
+            self.assertGreater(row["facts"], 0, name)
+            self.assertEqual(row["counts"]["undated"], 0, name)
         self.assertEqual(report["counts"]["stale"] + report["counts"]["aging"], 0)
         # undated = exactly the profile-audit entries whose evidence records no date; nothing is inferred
         expected = sorted(p["id"] for p in load_profile()["platforms"] if not p["evidence"].get("checked_on"))

@@ -29,7 +29,7 @@ from typing import Any
 from .attribution import ATTRIBUTION_OUTCOMES, attributed_outcome  # parsing only; no network
 from .experiments import _snapshot_at_age, evaluate_experiment, pooled_readout
 from .growth import (
-    ASSIGNMENTS, LABELS, QUALIFIED_SIGNALS, RECORD_KIND, check_plan, classify_result,
+    ASSIGNMENTS, DIMENSIONS, LABELS, QUALIFIED_SIGNALS, RECORD_KIND, check_plan, classify_result,
     verify_preregistration,
 )
 from .policy import ValidationError
@@ -359,10 +359,86 @@ def load_results(path: str | Path) -> Any:
         raise ValidationError(f"Invalid results JSON: {exc.msg}") from exc
 
 
+READOUT_KIND = "reachweaver.growth-readout"
+MAX_READOUT_FILES = 200
+MAX_READOUT_BYTES = 5_000_000
+
+
+def _readout_file(path: Path) -> Any:
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_READOUT_BYTES:
+        raise ValidationError(f"Readout {path} must be a regular file <= {MAX_READOUT_BYTES} bytes (no symlinks)")
+    try:
+        return read_json_file(path)
+    except (json.JSONDecodeError, UnicodeError, ValueError) as exc:
+        raise ValidationError(f"Readout {path} is not valid JSON") from exc
+
+
+def results_from_readouts(files: list[Path] | None = None, folder: Path | None = None,
+                          known_ids: set[str] | None = None) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Results for ``next_hypotheses`` from saved ``experiment-readout --json`` files (read-only).
+
+    ``experiment-readout`` and ``experiment-evaluate`` keep nothing on disk: the owner saves the readout JSON.
+    ``files`` must each be such a readout (anything else is an error); in ``folder`` every ``*.json`` that is a
+    readout is used and any other JSON file is listed as ignored. One experiment counts once: the readout with
+    the most usable pairs wins (ties: the later file), and an id already in ``known_ids`` (the hand-made
+    ``--results`` list) is kept from that list. Labels and directions are copied unchanged.
+    """
+    candidates: list[tuple[Path, bool]] = [(Path(p), True) for p in files or []]
+    if folder is not None:
+        folder = Path(folder)
+        if folder.is_symlink() or not folder.is_dir():
+            raise ValidationError(f"--readout-dir {folder} must be an existing directory (no symlink)")
+        candidates += [(p, False) for p in sorted(folder.glob("*.json")) if not p.is_symlink() and p.is_file()]
+    if len(candidates) > MAX_READOUT_FILES:
+        raise ValidationError(f"At most {MAX_READOUT_FILES} readout files")
+    chosen: dict[str, tuple[int, dict[str, Any]]] = {}
+    ignored: list[dict[str, str]] = []
+    for path, explicit in candidates:
+        try:
+            data = _readout_file(path)
+        except ValidationError:
+            if explicit:
+                raise
+            ignored.append({"file": path.name, "reason": "not valid JSON or too large"})
+            continue
+        if not isinstance(data, dict) or data.get("kind") != READOUT_KIND:
+            if explicit:
+                raise ValidationError(f"{path} is not saved 'experiment-readout --json' output ({READOUT_KIND})")
+            ignored.append({"file": path.name, "reason": f"not an experiment-readout file ({READOUT_KIND})"})
+            continue
+        experiment_id, dimension, label = data.get("experiment_id"), data.get("dimension"), data.get("label")
+        if not isinstance(experiment_id, str) or dimension not in DIMENSIONS or label not in LABELS:
+            raise ValidationError(f"{path}: readout needs experiment_id, a known dimension and a known label")
+        usable = data.get("pairs_usable") if type(data.get("pairs_usable")) is int else 0
+        entry = {"experiment_id": experiment_id, "dimension": dimension, "label": label,
+                 "direction": data.get("direction"), "readout_file": path.name, "pairs_usable": usable}
+        if experiment_id in (known_ids or set()):
+            ignored.append({"file": path.name, "reason": f"{experiment_id} is already in --results"})
+            continue
+        previous = chosen.get(experiment_id)
+        if previous is not None:
+            loser = previous[1] if usable >= previous[0] else entry
+            ignored.append({"file": loser["readout_file"], "reason": f"another readout of {experiment_id} has "
+                                                                     "at least as many usable pairs"})
+            if usable < previous[0]:
+                continue
+        chosen[experiment_id] = (usable, entry)
+    results = [entry for _, entry in chosen.values()]
+    return results, {"readouts_used": [{k: r[k] for k in ("readout_file", "experiment_id", "dimension", "label",
+                                                          "direction", "pairs_usable")} for r in results],
+                     "readouts_ignored": ignored}
+
+
 def render_next(result: dict[str, Any]) -> str:
     nxt = result["next"]
     lines = [f"NEXT: {nxt['dimension']} ({nxt['rule']}): {nxt['reason']}",
              f"RECORDED: {len(result['results'])} result(s); {len(result['negative_results'])} negative kept"]
+    sources = result.get("sources")
+    if sources:
+        lines += [f"READOUT {r['readout_file']}: {r['experiment_id']} ({r['dimension']}, {r['label']}"
+                  + (f", {r['direction']}" if r["direction"] else "") + f", {r['pairs_usable']} usable pairs)"
+                  for r in sources["readouts_used"]]
+        lines += [f"IGNORED {r['file']}: {r['reason']}" for r in sources["readouts_ignored"]]
     lines += [f"NEGATIVE {item['experiment_id']} ({item['dimension']}, {item['label']})"
               for item in result["negative_results"]]
     lines.append(result["note"])

@@ -27,11 +27,16 @@ def build_suggestions(
     *, snapshot: dict | None = None, engagement: dict | None = None,
     seo_briefs: dict | None = None, experiments: list | None = None,
     con=None, limit: int = 10, now: str | None = None, open_ideas: int | None = None,
+    registry_warning: str | None = None,
 ) -> dict:
     """Collect checks from existing modules; never load accounts or mutate state.
 
     ``open_ideas`` (the count of open ideas in the inbox, read by the caller) is used only when given:
-    bare ``suggest`` passes it; the explicit-input forms do not, so their output is unchanged."""
+    bare ``suggest`` passes it; the explicit-input forms do not, so their output is unchanged.
+
+    With ``con``, "What works for you" lines from ``insights.top_insights`` (the owner's own matched-age
+    results) become P3 ``observational_only`` items. ``registry_warning`` (``freshness.warning_line()``, given
+    by the caller) becomes one P3 item to re-verify the bundled research."""
     if type(limit) is not int or not 1 <= limit <= MAX_ACTIONS:
         raise ValidationError("suggest --limit must be 1..50")
     if open_ideas is not None and (type(open_ideas) is not int or open_ideas < 0):
@@ -114,6 +119,28 @@ def build_suggestions(
                     evidence={"published_posts": published, "views_exact_posts": kinds.get("views", 0),
                               "impressions_exact_posts": kinds.get("impressions", 0)},
                     platform=platform)
+        from .insights import evidence_text
+        for line in _what_works(con):
+            add("P3", "what_works_for_you", f"insight_{line['feature']}_{line['direction']}",
+                f"What works for you: try {line['direction']} of {line['label']} -- {evidence_text(line)}",
+                "Treat it as a hypothesis from your own past posts, not a cause: write a growth plan that alternates "
+                "the two variants, then 'experiment-preregister' before posting and 'experiment-readout' after. "
+                "'reachweaver insights' shows every group.",
+                source="insights_readonly", confidence="observational_only",
+                evidence={"feature": line["feature"], "value": line["value"], "n": line["n"],
+                          "median": line["median"], "rest_n": line["rest_n"], "rest_median": line["rest_median"],
+                          "relative_difference": line["relative_difference"], "strength": line["strength"],
+                          "metric": "interactions at about 7 days (likes + replies + reposts)"},
+                platform=line["platform"], account_id=line["account_id"])
+
+    if registry_warning:
+        sources.append("bundled_registry_freshness")
+        add("P3", "research_freshness", "registry_facts_aging",
+            "Re-verify aging or stale platform research",
+            "Run 'reachweaver registry-age' and re-check the listed facts against their cited official pages "
+            "before relying on them.",
+            source="registry_age_offline", confidence="verified_local_state",
+            evidence={"line": registry_warning})
 
     if snapshot is not None:
         sources.append("owner_supplied_profile_and_post_snapshot")
@@ -297,6 +324,17 @@ def build_suggestions(
             "Do not treat reported improvements as causal without a controlled follow-up and qualified conversion evidence.",
         ],
     }
+
+
+def _what_works(con) -> list[dict]:
+    """``insights.top_insights`` over the read-only connection; an older or partial database gives none."""
+    import sqlite3
+
+    from .insights import top_insights
+    try:
+        return top_insights(con)
+    except (ValidationError, sqlite3.Error):
+        return []
 
 
 def render_text(result: dict) -> str:

@@ -245,7 +245,8 @@ class HealthReportTests(HealthTestBase):
         # NOW predates some registry dates: a fact checked after the evaluation date is fresh, never negative-stale.
         report = self.health()
         fresh = report["global"]["registry_freshness"]
-        self.assertEqual(set(fresh["registries"]), {"capabilities", "distribution", "discovery", "profile-audit", "signup"})
+        self.assertEqual(set(fresh["registries"]), {"capabilities", "distribution", "discovery", "profile-audit", "signup",
+                                                    "ai-search", "ai-disclosure", "social-web"})
         self.assertEqual(fresh["counts"]["stale"], 0)
         row = report["accounts"][0]
         self.assertEqual(row["research_freshness"]["status"], "fresh")

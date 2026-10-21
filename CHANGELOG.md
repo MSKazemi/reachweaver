@@ -6,6 +6,20 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Added
+
+- **Learning loops: your own results wherever ReachWeaver recommends.** These additions use the `insights` method: interactions at about 7 days, one account at a time, n and median against the rest, `observation` or `too little data`. They are read-only and advisory. No scheduling, approval or send path changed ([docs/INSIGHTS.md](docs/INSIGHTS.md#where-your-results-are-used)).
+  - `discovery-plan` shows `your_results` per recommended tag when a local database already exists. It opens the database read-only and never creates it. `--account ID` limits the results to one account. Scores and order never change (`score_adjustment: null`), and [docs/DISCOVERY-OPTIMIZATION.md](docs/DISCOVERY-OPTIMIZATION.md#your-own-results-next-to-each-tag) explains why.
+  - `followup-suggest` without `--rules` sets one "took off" rule per account at `ceil(2 x your median)` interactions, labelled "derived from your N posts". It compares only the same snapshot source within 192 h, needs 10 or more posts with a result, and prints a friendly message when the data is too thin. `--rules` works as before.
+  - `experiment-next --readout FILE` / `--readout-dir DIR` reads saved `experiment-readout --json` files, with labels unchanged and one readout per experiment. `--results` still works, and its output is unchanged.
+  - `suggest` with a database adds P3 "What works for you" items (`observational_only`, with n and medians). When a bundled registry fact is aging or stale, it also adds one P3 research-freshness item.
+  - A `calendar-plan` proposal gains `your_results`: your 6-hour blocks and weekdays that did better, next to the block of each proposed slot. It never picks a slot, and `--apply` is unchanged.
+- `registry-age`, `health` and `doctor` now cover `ai_search_registry.json`, `ai_disclosure_registry.json` and `social_web_registry.json` (eight registries).
+
+### Changed
+
+- `report` opens the database read-only (`mode=ro`). A missing database prints the same empty report plus a note on stderr and is never created. An older schema is refused with a hint to run `init` and is never migrated. The output is otherwise identical.
+
 ## [0.14.0] - 2026-10-21
 
 Handier, smarter and aware of newer distribution paradigms. A short everyday `--help`, a first run that starts in the browser composer, `report --since`, and a `suggest` that works with no flags. `insights` learns what works from your own results. Every platform fact shows how old it is. `ai-visibility` checks what your own pages tell AI answer engines, `ai-label-check` gives per-platform AI-content label rules, and `social-web-plan` maps your reach across the fediverse, Bluesky and bridges. 125 commands (6 more than 0.13.0, none removed). Everything new is read-only or advisory; no live adapter is added.
