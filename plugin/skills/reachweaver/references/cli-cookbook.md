@@ -51,6 +51,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `show` | Exact text, account and platform preview of `POST_ID` | `POST_ID` |
 | `journal` | What was posted, when, where, with files and hashes | `--post-id`, `--platform`, `--account`, `--since`, `--until`, `--all-statuses`, `--format table/json/markdown/csv`, `--out`, `--verify-files` |
 | `capabilities` | Platform capability/API-approval registry; never grants permission | `--platform P`, `--json`, `--max-age-days N` |
+| `registry-age` | Age of every dated platform fact in the five bundled research registries: fresh, aging (>60 days), stale (>120 days) or undated; exit 0; offline. Before quoting a platform fact, re-verify an aging, stale or undated one at its official source | `--registry NAME`, `--platform P`, `--all`, `--as-of YYYY-MM-DD`, `--json` |
 | `completion` | Print a bash/zsh completion script; the owner loads it | `bash` or `zsh` |
 
 ## Draft and approve (nothing is sent)

@@ -15,6 +15,7 @@ from urllib.parse import urlsplit
 
 from .campaigns import _sensitive_keys, public_url
 from .distribution import load_registry as load_distribution
+from .freshness import POLICY as FRESHNESS_POLICY, annotate, suffix
 from .policy import ValidationError
 from .inputs import read_json_file
 
@@ -283,6 +284,12 @@ def build_discovery_plan(raw: object) -> dict:
         remaining = sorted((v for v in valid if v not in selected and v["category"] in ("core", "niche")),
                            key=lambda v: (-v["editorial_relevance_score"], v["tag"].casefold()))
         selected.extend(remaining[:maximum - len(selected)])
+    # Registry freshness at the plan's as_of date: each guidance source keeps its checked_on and gains an
+    # age and a fresh/aging/stale label; the guidance as a whole is as old as its oldest source.
+    sources = [{**src, **{k: v for k, v in annotate(src.get("checked_on"), now).items() if k != "checked_on"}}
+               for src in policy["sources"]]
+    dated = [src["checked_on"] for src in sources if src["age_days"] is not None]
+    guidance_age = annotate(min(dated) if dated else None, now)
     excluded = {v["tag"] for v in selected}
     skipped.extend({"tag": v["tag"], "reason": "editorial_budget_or_category_quota"}
                    for v in valid if v["tag"] not in excluded)
@@ -294,9 +301,12 @@ def build_discovery_plan(raw: object) -> dict:
         "search_keywords": list(dict.fromkeys(keywords)),
         "platform_guidance": {
             "description": policy["description"], "creative_checks": policy["creative_checks"],
-            "measure": policy["measure"], "sources": policy["sources"],
+            "measure": policy["measure"], "sources": sources,
             "evidence_level": specific.get("evidence_level", "source_linked_editorial") if specific else "editorial_only",
+            **guidance_age,
         },
+        "distribution_entry": annotate(target.get("checked_on"), now),
+        "freshness_policy": dict(FRESHNESS_POLICY),
         "experiment": {
             "hypothesis": "A platform-native, audience-relevant creative variant may outperform the current baseline; test before inferring improvement.",
             "primary_metric": policy["measure"][0],
@@ -336,6 +346,8 @@ def render_text(plan: dict) -> str:
         lines.append(f"  SKIP {skip['tag']}: {skip['reason']}")
     for warn in plan["warnings"]:
         lines.append(f"  NOTE {warn}")
+    lines.append(f"Guidance sources: {suffix(plan['platform_guidance'])}; channel entry: "
+                 f"{suffix(plan['distribution_entry'])}")
     lines.append("Creative checklist (platform-dependent):")
     lines.extend("  - " + s for s in plan["platform_guidance"]["creative_checks"])
     lines.append("No accounts, predictions, schedules or posts created. Review claims, trends and eligibility yourself.")

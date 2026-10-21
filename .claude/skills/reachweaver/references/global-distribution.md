@@ -6,6 +6,8 @@
 
 The source repo ships `reachweaver/distribution_registry.json`, and the standalone skill bundles an identical snapshot at `scripts/reachweaver/distribution_registry.json`. Use `RW distribution-plan --region india --goal adoption --json` (`RW` is the command prefix from SKILL.md; it works in a checkout and in a skill copied into another project). Supported goal labels: `contributors`, `adoption`, `awareness`, `collaboration`. Regional markets include China, India, Japan, South Korea, Taiwan, Thailand, Indonesia, Philippines, Vietnam, Russia, Nigeria, Kenya, South Africa, Ghana, Egypt, Morocco and Brazil. A global region cannot produce a time proposal without a target IANA timezone.
 
+Each channel in a plan carries `checked_on` and `freshness` (`fresh`, `aging` after 60 days, `stale` after 120). Never present an aging or stale entry as current: say when it was checked and re-verify it at the official source first. `RW registry-age --registry distribution` lists every such fact.
+
 **Every result is explicitly an offline hypothesis, with no account connection or scheduled post.** The registry records native UI features and platform API separately from current ReachWeaver delivery; only the Bluesky/Mastodon/Telegram/LinkedIn-member text adapters are enabled, and only with mocked tests. Do not mistake a scheduled local-time proposal for a provider queue receipt. Two test windows are synthetic controls for experimentation; choose real first-party audience behavior over fixed generic posting hours.
 
 **Correction from primary source:** DEV Community provides a native article scheduler in its editor: https://dev.to/help/writing-editing-scheduling . This does not confer a ReachWeaver DEV publishing integration.

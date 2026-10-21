@@ -10,7 +10,7 @@ import sqlite3
 import sys
 import time
 from urllib.error import HTTPError, URLError
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from .accounts import bluesky_service, credential_source, load_accounts, missing_credentials
@@ -1428,6 +1428,20 @@ def execute(args) -> int:
                                               args.engagement_export, args.seo_briefs, args.experiments,
                                               args.include_db)):
         return _bare_suggest(args)
+    if args.command == "registry-age":  # offline: bundled registry files only, never the database
+        from . import freshness
+        as_of = None
+        if args.as_of is not None:
+            try:
+                as_of = date.fromisoformat(args.as_of) if len(args.as_of) == 10 else None
+            except ValueError:
+                as_of = None
+            if as_of is None:
+                raise ValidationError("--as-of must be a YYYY-MM-DD date")
+        age_report = freshness.build_report(as_of, registry=args.registry, platform=args.platform,
+                                            include_fresh=args.all)
+        print(json.dumps(age_report, indent=2, ensure_ascii=False) if args.json else freshness.render_text(age_report))
+        return 0
     if args.command in ("suggest", "weekly-digest"):
         from .storage import connect_readonly, database_path
         def _bounded(path: Path) -> Path:
@@ -1496,6 +1510,7 @@ def execute(args) -> int:
         print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else peer_benchmark.render_summary(result))
         return 0
     if args.command == "distribution-plan":
+        from .freshness import suffix as freshness_suffix
         plan = build_distribution_plan(
             args.region, args.goal, limit=args.limit,
             local_date=args.date, audience_timezone=args.timezone,
@@ -1509,7 +1524,8 @@ def execute(args) -> int:
                 print(f"{channel['priority']}. {channel['platform']} | "
                       f"native={channel['native_schedule']} | "
                       f"ReachWeaver={channel['reachweaver_delivery']} | "
-                      f"human-only={channel['requires_human_only']}")
+                      f"human-only={channel['requires_human_only']} | "
+                      f"{freshness_suffix(channel)}")
             if plan["illustrative_time_tests"]:
                 print("Illustrative time hypotheses ONLY; no items scheduled:")
                 for slot in plan["illustrative_time_tests"]:
@@ -2184,19 +2200,22 @@ def execute(args) -> int:
             print(f"reachweaver {result['installed']} is up to date (latest release {result['latest']}).")
         return 0
     if args.command == "doctor":
-        from . import health_view
+        from . import freshness, health_view
         findings = health_view.doctor_findings(_accounts(args))
+        research = freshness.compact(freshness.build_report())  # bundled registry files only; offline
         settings = ["Live opt-in: " + ("enabled" if live_opt_in() else "disabled"),
                     f"Environment: REACHWEAVER_ENV={runtime_environment()} (publish --live requires prod)",
                     f"Credential source: {credential_source()} (names only; values are never shown)",
                     "Credential hygiene: run 'reachweaver credentials-audit [--history FILE]' (offline; names only, never values)",
                     "Metrics polling: 'metrics-fetch --online' reads PUBLIC Bluesky/Mastodon post counters only "
-                    "(read-only GET; not private analytics; views/impressions/clicks stay unknown)"]
+                    "(read-only GET; not private analytics; views/impressions/clicks stay unknown)",
+                    research["line"]]
         if args.json:  # names only, as the text; the same findings
             print(json.dumps({"checks": findings, "ready": sum(1 for f in findings if not f["missing"]),
                               "accounts": len(findings),
                               "settings": {"live_opt_in": live_opt_in(), "runtime_environment": runtime_environment(),
                                            "credential_source": credential_source()},
+                              "registry_freshness": research,
                               "note": "Offline. Credential variable NAMES only; values are never read into this "
                                       "output and no API was called."}, indent=2, ensure_ascii=False))
             return 0

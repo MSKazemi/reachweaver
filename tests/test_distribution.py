@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime
+from datetime import date, datetime, timedelta
 import json
 import os
 from pathlib import Path
@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from freshness_support import assert_checked_since
 
 from reachweaver.distribution import (
     GOALS, build_distribution_plan, load_registry, validate_registry,
@@ -26,7 +27,8 @@ class GlobalDistributionTests(unittest.TestCase):
 
     def test_version_and_complete_channel_coverage(self):
         self.assertEqual(self.data["schema_version"], 1)
-        self.assertEqual(self.data["reviewed_on"], "2026-10-17")
+        # The snapshot date only moves forward: re-reviewing the registry must not break this test.
+        assert_checked_since(self, self.data["reviewed_on"], "2026-10-17")
         ids = {p["id"] for p in self.data["platforms"]}
         self.assertGreaterEqual(len(ids), 30)
         self.assertTrue({
@@ -51,7 +53,7 @@ class GlobalDistributionTests(unittest.TestCase):
             with self.subTest(platform=platform_id):
                 platform = by_id[platform_id]
                 self.assertEqual(platform["reachweaver_delivery"], "manual_only")
-                self.assertEqual(platform["checked_on"], "2026-10-16")
+                assert_checked_since(self, platform["checked_on"], "2026-10-16", self.data["reviewed_on"])
                 self.assertTrue(platform["research_source"].startswith("https://"))
                 self.assertGreater(len(platform["scheduling"]["scope"]), 80)
         # only PeerTube documents a scheduling feature; every other new entry says it could not verify one
@@ -79,9 +81,10 @@ class GlobalDistributionTests(unittest.TestCase):
             self.assertEqual(platform["scheduling"]["official_source"], "")
             # these eight were re-read on 2026-10-15 (docs/COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md)
             reread = {"medium", "substack", "vk", "naver_blog", "naver_cafe", "line_openchat", "kakao_openchat", "snapchat"}
-            self.assertEqual(platform["checked_on"], "2026-10-15" if platform_id in reread else "2026-10-14")
+            assert_checked_since(self, platform["checked_on"], "2026-10-15" if platform_id in reread else "2026-10-14",
+                                 self.data["reviewed_on"])
             self.assertTrue(platform["research_source"].startswith("https://"))
-        self.assertEqual(by_id["bilibili"]["checked_on"], "2026-10-08")
+        assert_checked_since(self, by_id["bilibili"]["checked_on"], "2026-10-08", self.data["reviewed_on"])
         for platform_id in ("baidu_tieba", "douban", "maimai", "qzone", "naver_cafe",
                             "kakao_openchat", "dcard", "ptt", "pantip", "line_openchat",
                             "zalo_official_account", "kaskus", "habr"):
@@ -102,7 +105,7 @@ class GlobalDistributionTests(unittest.TestCase):
         self.assertEqual((pixnet["reachweaver_delivery"], pixnet["scheduling"]["mode"],
                           pixnet["scheduling"]["official_source"]), ("manual_only", "unverified", ""))
         self.assertFalse(pixnet["human_only"])
-        self.assertEqual(pixnet["checked_on"], "2026-10-14")
+        assert_checked_since(self, pixnet["checked_on"], "2026-10-14", self.data["reviewed_on"])
         self.assertEqual(pixnet["research_source"], "https://www.pixnet.net/")
         plan = build_distribution_plan("taiwan", "adoption", limit=20)
         self.assertEqual(plan["channels"][-1]["platform_id"], "pixnet")
@@ -117,13 +120,13 @@ class GlobalDistributionTests(unittest.TestCase):
         self.assertEqual(len(india_ids), 9)
         by_id = {p["id"]: p for p in self.data["platforms"]}
         self.assertNotIn("koo", by_id)  # Service announced closure in July 2024.
-        self.assertEqual(by_id["sharechat"]["checked_on"], "2026-10-14")
+        assert_checked_since(self, by_id["sharechat"]["checked_on"], "2026-10-14", self.data["reviewed_on"])
         for platform_id in india_ids:
             platform = by_id[platform_id]
             self.assertEqual(platform["reachweaver_delivery"], "manual_only")
             self.assertEqual(platform["scheduling"]["mode"], "unverified")
             self.assertEqual(platform["scheduling"]["official_source"], "")
-            self.assertEqual(platform["checked_on"], "2026-10-15")
+            assert_checked_since(self, platform["checked_on"], "2026-10-15", self.data["reviewed_on"])
             self.assertTrue(platform["research_source"].startswith("https://"))
         for platform_id in ("kutumb", "arattai_channels", "localcircles"):
             self.assertTrue(by_id[platform_id]["human_only"], platform_id)
@@ -146,7 +149,8 @@ class GlobalDistributionTests(unittest.TestCase):
     def test_per_platform_evidence_dates_do_not_backfill_false_reviews(self):
         data = deepcopy(self.data)
         self.assertEqual(validate_registry(data), [])
-        data["platforms"][0]["checked_on"] = "2026-10-18"
+        after_snapshot = date.fromisoformat(data["reviewed_on"]) + timedelta(days=1)
+        data["platforms"][0]["checked_on"] = after_snapshot.isoformat()
         self.assertTrue(any("cannot be later" in e for e in validate_registry(data)))
         data["platforms"][0]["checked_on"] = "not-a-date"
         self.assertTrue(any("ISO 8601" in e for e in validate_registry(data)))

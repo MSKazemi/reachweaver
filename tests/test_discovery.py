@@ -7,6 +7,7 @@ import json
 import socket
 import tempfile
 import unittest
+from freshness_support import assert_checked_since
 from pathlib import Path
 from unittest.mock import patch
 
@@ -49,7 +50,8 @@ class DiscoveryTests(unittest.TestCase):
                          "threads", "xiaohongshu", "bilibili", "douyin"):
             item = d["platforms"][platform]
             self.assertTrue(item["sources"])
-            self.assertTrue(all(s["checked_on"] == "2026-10-17" for s in item["sources"]))
+            for source in item["sources"]:
+                assert_checked_since(self, source["checked_on"], "2026-10-17", d["reviewed_on"])
             self.assertIn(item["surface"], ("hashtags", "topic_label", "keywords"))
 
     def test_related_niche_broad_and_core_recommended_with_no_view_prediction(self):

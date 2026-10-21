@@ -14,6 +14,7 @@ import json
 import re
 import unicodedata
 from dataclasses import dataclass
+from datetime import date
 from urllib.parse import urlsplit
 
 from .distribution import GOALS
@@ -138,12 +139,16 @@ def advise(*, region: str = "global", goal: str = "awareness", content_format: s
            weekly_hours: int = 6, limit: int = 4, existing: tuple[str, ...] = (),
            brand: str = "My project", audience: str = "People interested in my topic",
            language: str = "en", setup: str | None = None,
-           registry: dict | None = None) -> dict:
+           registry: dict | None = None, today: date | None = None) -> dict:
     """Rank channel choices offline using the existing regional/goal editorial order.
 
     A user's existing-account list is a hint, not authenticated proof. The effort
     numbers are editorial planning estimates, not engagement/reach predictions.
+    Each recommendation carries the distribution entry's ``checked_on`` date and a
+    fresh/aging/stale label evaluated at ``today`` (default: the local date).
     """
+    from .freshness import POLICY, annotate
+    current = today or date.today()
     if registry is None:
         from .distribution import load_registry
         registry = load_registry()
@@ -192,6 +197,7 @@ def advise(*, region: str = "global", goal: str = "awareness", content_format: s
             "human_only": channel.get("human_only") is True, "reachweaver_delivery": channel["reachweaver_delivery"],
             "account_created": "not_verified", "connection": "not_verified",
             "score": score, "source": "existing_regional_editorial_ranking_plus_format_and_effort_heuristics",
+            **annotate(channel.get("checked_on"), current),
         })
     entries.sort(key=lambda e: (-e["score"], e["platform_id"]))
     chosen: list[dict] = []
@@ -220,6 +226,7 @@ def advise(*, region: str = "global", goal: str = "awareness", content_format: s
         "browser_agent_recommended": False,
         "network_requests": False, "credentials_accessed": False, "accounts_created": 0,
         "posts_published": 0, "planned_automation": False,
+        "freshness_as_of": current.isoformat(), "freshness_policy": dict(POLICY),
     }
     if setup is not None:
         channel = channels[setup]
@@ -229,6 +236,7 @@ def advise(*, region: str = "global", goal: str = "awareness", content_format: s
             "platform_id": setup, "platform": channel["label"], "official_start_url": page.url,
             "account_created": "not_verified", "human_only": human_only,
             "assistant_role": "chat_coaching_only", "browser_agent_recommended": False,
+            **annotate(channel.get("checked_on"), current),
             "requires_user": ["Open the provider's official site or app yourself and follow its own official help pages",
                               "Read eligibility, current terms and any fee yourself",
                               "Complete account registration and accept terms yourself",
@@ -244,6 +252,7 @@ def advise(*, region: str = "global", goal: str = "awareness", content_format: s
 
 
 def render_text(plan: dict) -> str:
+    from .freshness import suffix
     lines = [f"Suggested platforms for {plan['market']} / {plan['goal']} / {plan['format']}:",
              f"Effort budget: {plan['weekly_hours_budget']} estimated hours/week (not platform data)."]
     for n, item in enumerate(plan["recommendations"], 1):
@@ -252,7 +261,7 @@ def render_text(plan: dict) -> str:
             f"   Official start: {item['official_start_url']}",
             f"   Estimated effort: {item['time_hours_per_week_estimate']} h/week; "
             f"format fit: {'yes' if item['fit_for_format'] else 'partial'}; "
-            f"publishing: {item['reachweaver_delivery']}",
+            f"publishing: {item['reachweaver_delivery']} ({suffix(item)})",
             f"   Account setup steps and a chat coaching prompt: reachweaver account-advisor --setup {item['platform_id']}",
         ))
         if item["human_only"]:
@@ -260,7 +269,8 @@ def render_text(plan: dict) -> str:
     if "setup" in plan:
         setup = plan["setup"]
         lines += ["", f"Account setup: {setup['platform']} (you stay in control)",
-                  f"Official start: {setup['official_start_url']}"]
+                  f"Official start: {setup['official_start_url']}",
+                  f"Research entry: {suffix(setup)}"]
         for i, step in enumerate(setup["requires_user"], 1):
             lines.append(f"  {i}. {step}")
         lines += ["", "Copy this into a Claude chat (Claude Code or claude.ai). It coaches from what you tell it "

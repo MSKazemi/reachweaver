@@ -8,6 +8,8 @@ ReachWeaver now compares proposed hashtags and topic labels against the exact po
 python3 -m reachweaver discovery-plan --file examples/discovery-plan.example.json --json
 ```
 
+Every guidance source in `platform_guidance.sources` keeps its `checked_on` date and gains `age_days`, `freshness` and `freshness_label`, measured at the input's `as_of` (or today). `platform_guidance` itself carries the oldest source's date and label, and `distribution_entry` the channel entry's. The text output prints `checked YYYY-MM-DD`, followed by `aging - re-verify` after 60 days or `stale - re-verify` after 120 ([policy](PLATFORMS.md#registry-freshness)). Re-read an aging or stale source before relying on it; `reachweaver registry-age --registry discovery` lists them.
+
 The input contains `platform`, `text`, `audience`, `region`, `language`, `keywords` and optionally `candidates`. Set `kind` to core, niche, broad or trend. Only label a tag as a trend when the owner has personally recorded a real observation with `source_url`, `observed_on`, `region` and `evidence_note`. A web link alone never proves popularity. Dated trends older than 14 days, future-dated observations, mismatched regions and off-topic labels are excluded. The included example intentionally tests rejection of an unrelated tag.
 
 ## Distinct platforms
