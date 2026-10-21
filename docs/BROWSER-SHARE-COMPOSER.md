@@ -35,7 +35,11 @@ There is **no Publish button**, because this UI is a manual handoff, not a new A
 
 The browser composer prepares captions and checklists, **not** media files. Attach your photos/videos yourself in Instagram, TikTok, YouTube Studio, etc. Check copyright, faces/likeness consent, disclosures, subtitle/alt text and each network's current format requirements.
 
-The CLI option share --attach PATH can list local media references for manual attachment, and the existing media-check validates owner-supplied media manifests. The browser does not upload files or inspect images, so an image-format warning does **not** mean the file has been checked.
+The CLI option share --attach PATH checks a local photo or video offline from its header against each network's sourced limits (size, duration, aspect ratio...) and lists the findings, and the existing media-check validates owner-supplied media manifests. The browser does not upload files or inspect images, so an image-format warning does **not** mean the file has been checked.
+
+## LinkedIn, Bluesky, Mastodon and Telegram
+
+These networks are in the list too, marked "Copy and post yourself · or connect it to send from ReachWeaver". The composer prepares copy-ready text for them exactly as for the others and never sends. Each preview card says: *Copy and post it yourself; to send it from ReachWeaver instead, connect the account and use draft → review.* A caption that is too long for a network is shortened at a word boundary for that network only, and its card says so; edit it there if you prefer your own cut.
 
 ## Human-only groups
 

@@ -39,9 +39,17 @@ What it will never do: ask for or store a password or token, open or drive a bro
 ### 1a. Describe the account (no secrets)
 
 ```bash
+reachweaver account-add bluesky --handle name.bsky.social   # one account, public details only
+reachweaver doctor            # offline: lists each account and the env variable NAMES it is missing
+```
+
+`account-add PLATFORM` (bluesky, mastodon, telegram, linkedin, instagram, threads, tiktok, youtube or facebook) appends one entry to `config/accounts.json` (or `--accounts` / `$REACHWEAVER_ACCOUNTS`, inside your workspace when you use one). In a terminal it asks for the public details it still needs (handle, server, chat id and bot username, LinkedIn member id and API version, Page name); in a script give them as flags: `--handle`, `--server`, `--field KEY=VALUE` (for example `--field chat_id=@mychannel --field bot_username=mybot`), `--id`, `--env-prefix`, `--persona`. It never asks for, accepts or writes a password, token or key: a secret-named `--field` is refused, and it prints the environment variable **names** for you to set yourself, then points to `connect --guide`. The new file must load with the normal loader (all its rules unchanged), so a duplicate id, the same identity twice on one network, an overlapping `env_prefix`, an example placeholder value or a non-HTTPS Mastodon server is refused and nothing is written. When the file still holds the unedited example entry for that network (as `workspace --init` creates it), that entry is filled in place with its id and `env_prefix` kept. The previous file is kept as `accounts.json.bak`; `--dry-run` prints the entry and writes nothing. With `--persona`, the [wrong-account guard](PERSONAS-AND-ACCOUNT-KIT.md) applies: the persona must exist in your profile, and a username your profile records under another persona, or one that contradicts the profile, is refused.
+
+Or describe accounts by hand:
+
+```bash
 cp config/accounts.example.json config/accounts.json
 # Edit ids, handles, server, chat_id, channel_username, bot_username and env_prefix only.
-reachweaver doctor            # offline: lists each account and the env variable NAMES it is missing
 ```
 
 An account may carry an optional `"persona": "work"` (a lowercase id) so `draft`, `check` and `approve --persona work` can refuse a post aimed at another persona's account; it is public metadata like `handle` ([personas and the account kit](PERSONAS-AND-ACCOUNT-KIT.md)).

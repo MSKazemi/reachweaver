@@ -66,7 +66,7 @@ Preview before you `schedule`: `publish --post-id` only selects posts that are a
 
 ## 5. Manual alternatives for platforms without an adapter
 
-**Easier than creating JSON:** use `python3 -m reachweaver share --guide` from a real terminal, or `python3 -m reachweaver share --platform instagram,threads --text "Your caption" --out state/my-post`. This prepares handoff files with no account, database, or external request. See [Easy sharing](EASY-SHARING.md).
+**Easier than creating JSON:** use `python3 -m reachweaver share --guide` from a real terminal, or `python3 -m reachweaver share --platform instagram,threads --text "Your caption" --out state/my-post`. This prepares handoff files with no account, database, or external request, for LinkedIn, Bluesky, Mastodon and Telegram too (copy-only). Over-long captions are shortened per network and marked SHORTENED, and `--attach` photos or videos are header-checked offline. See [Easy sharing](EASY-SHARING.md). When you set up your own accounts, `reachweaver account-add PLATFORM` writes a correct `config/accounts.json` entry without ever asking for a secret.
 
 ```bash
 python3 -m reachweaver campaign-export --file examples/campaign.reachweaver.json --brand examples/brand.reachweaver.json --out state/quickstart-drafts

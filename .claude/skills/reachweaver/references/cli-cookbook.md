@@ -32,6 +32,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `connect` | Status table of configured accounts (credential variable names only); never posts | `--account ID`, `--json`; **OWNER** `--guide` (walkthrough, needs a person at a terminal) |
 | `account-advisor` | Ranked channel shortlist and setup coaching; creates no account | `--region R`, `--goal G`, `--format F`, `--weekly-hours N`, `--existing`, `--setup PLATFORM_ID`, `--json` |
 | `profile` | Private `config/profile.json`: personas, usernames, sign-up details | `--init`, `--persona ID`, `--show`, `--check`, `--set PATH=VALUE`, `--handle PLATFORM:PERSONA=NAME` |
+| `account-add` | Append one public account entry to `accounts.json` (loader-validated, duplicates and placeholders refused, `.bak` kept, persona guard); never asks for or stores a secret, prints the variable names | `PLATFORM`, `--handle H`, `--server URL`, `--field KEY=VALUE`, `--id ID`, `--persona ID`, `--env-prefix P`, `--dry-run` |
 | `account-route` | Which account/username to use for a persona on a network | `--platform P`, `--persona ID`, `--json` |
 | `account-kit` | Plan sign-up packets for accounts the user creates; creates none | `--platform P` (repeat), `--persona ID`, `--questions`, `--out NEW_DIR`, `--json`; **OWNER** `--approve-plan SHA` |
 | `context` | Start every session here: one compact read-only summary (accounts, pause, live gate, approval mode, posts waiting for the owner, next steps, owner-only commands); creates nothing | `--json` |
@@ -102,7 +103,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 
 | Command | Purpose | Key flags |
 |---|---|---|
-| `share` | Copy-ready caption files and checklists per network; never sends | `--platform instagram,threads`, `--text T` or `--file F`, `--note` (human-only venues), `--title`, `--format`, `--attach`, `--preview`, `--list`; **OWNER** `--guide`, `--web --open` |
+| `share` | Copy-ready caption files and checklists per network, including copy-only Bluesky/Mastodon/Telegram/LinkedIn (sending them stays draft → review); over-limit captions shortened at a word boundary and marked SHORTENED; `--attach` media header-checked offline; never sends or writes the database | `--platform instagram,threads`, `--text T` or `--file F`, `--note` (human-only venues), `--title`, `--format`, `--attach`, `--no-shorten`, `--preview`, `--list`; **OWNER** `--guide`, `--web --open` |
 | `manual-export` | Creator-ready package for one manual destination | `--platform P`, `--variant FILE`, `--out NEW_DIR`, `--media MANIFEST`, `--account-meta F`, `--json` |
 | `manual-export-batch` | Preflight 1-25 manual-export items, one folder each | `--file BATCH.json`, `--out NEW_DIR`, `--json` |
 | `delivery-options` | Route per registry channel: adapter, manual package, human-only, unsupported | `--platform P`, `--json` |

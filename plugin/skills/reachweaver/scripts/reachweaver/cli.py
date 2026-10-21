@@ -1605,6 +1605,9 @@ def execute(args) -> int:
         return 0
     if args.command in ("profile", "account-route", "account-kit"):
         return _run_identity_command(args)
+    if args.command == "account-add":
+        from .account_add import run as run_account_add
+        return run_account_add(args)
     if args.command == "discovery-plan":
         from .discovery import check_file as discovery_check_file, render_text as discovery_render
         plan = discovery_check_file(args.file)

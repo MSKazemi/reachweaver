@@ -57,8 +57,9 @@ def _open_ideas(db: str | Path | None) -> int:
 
 def _placeholder_step(placeholders: list[str], accounts_file: Path) -> dict:
     return _step(f"{len(placeholders)} account(s) still use example placeholders — edit {_shown_path(accounts_file)}",
-                 None, "Put in your own handles and ids, or delete the accounts you do not use ("
-                       + ", ".join(placeholders) + "). Tokens never go in this file.")
+                 None, "Put in your own handles and ids ('reachweaver account-add PLATFORM' fills the example entry "
+                       "for you), or delete the accounts you do not use (" + ", ".join(placeholders)
+                       + "). Tokens never go in this file.")
 
 
 def _ideas_step(count: int) -> dict:
@@ -82,6 +83,9 @@ def _no_accounts_steps() -> list[dict]:
         steps.append(_step("Or create only the accounts file from the example in this folder",
                            f"cp {EXAMPLE_ACCOUNTS} config/accounts.json",
                            "Edit it to list only accounts you control. Tokens are never stored in it."))
+    steps.append(_step("Or add only the one account you use (asks for public details, never a password)",
+                       "reachweaver account-add bluesky",
+                       "Any of bluesky, mastodon, telegram, linkedin, instagram, threads, tiktok, youtube, facebook."))
     return steps
 
 
