@@ -3,34 +3,33 @@
 This is intentionally a separate, explicit user-run server from the read-only
 operations dashboard. Only 127.0.0.1 is bound; it has no provider API client,
 credentials, automatic sends, remote assets or persistent web session.
-POSTs may create *private local manual-export folders only* after user action.
+POSTs may create *private local manual-export folders only* after user action:
+save a package (new, or a confirmed update of one not marked posted), autosave the
+editor draft, attach a photo/video, and mark one network of a saved package as
+posted by hand (``storage.record_manual_publish``: a terminal record that nothing
+can send). Nothing here can approve, schedule or send; see share_composer_store.
 """
 from __future__ import annotations
 
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
-import os
 from pathlib import Path
 import secrets
-import shutil
-import stat
-import tempfile
+import threading
 import time
-from datetime import datetime
-from typing import Any
-from urllib.parse import urlsplit
+from typing import Any, Callable
+from urllib.parse import unquote, urlsplit
 import webbrowser
 
-from . import home
+from . import share_composer_store as store
 from .distribution import load_registry as load_distribution_registry
 from .inputs import nesting_depth
 from .manual_export import LABELS, MANUAL_PLATFORMS
 from .manual_package import MAX_TALKING_POINT_CHARS
 from .policy import ValidationError
-from .privacy import write_private_file
-from .share import (MAX_DESTINATIONS, MAX_TEXT_BYTES, _human_only, _readme, api_text_platforms, destinations,
-                    make_packages, write_one)
+from .share import (MAX_DESTINATIONS, MAX_TEXT_BYTES, MEDIA_CHECK_NOTE, _human_only, _media_lines,
+                    api_text_platforms, destinations, make_packages)
 from .share_browser_ui import HTML
 
 SEND_PATH = None
@@ -38,7 +37,14 @@ BIND_ADDRESS = "127.0.0.1"
 MAX_REQUEST_BYTES = 96 * 1024
 MAX_BODY_DEPTH = 32  # a composer request nests 3-4 levels; deeper JSON is refused before parsing
 REQUEST_TIMEOUT_SECONDS = 10  # per socket read, and the whole-body deadline for a POST
-_ALLOWED_FIELDS = frozenset({"platforms", "text", "title", "note", "overrides"})
+MEDIA_TIMEOUT_SECONDS = 120  # whole-body deadline for one photo/video upload (at most store.MAX_MEDIA_BYTES)
+_ALLOWED_FIELDS = frozenset({"platforms", "text", "title", "note", "overrides", "media"})
+_SAVE_FIELDS = frozenset({"mode", "package", "revision", "confirm"})
+# Every POST route and the body it takes. Nothing else is routed; there is no send, approve or schedule route.
+JSON_ROUTES = frozenset({"/api/preview", "/api/prepare", "/api/packages", "/api/package/open",
+                         "/api/package/duplicate", "/api/mark-posted", "/api/draft/load", "/api/draft/save",
+                         "/api/draft/clear"})
+MEDIA_ROUTE = "/api/media"
 
 
 def catalog() -> list[dict[str, Any]]:
@@ -63,13 +69,28 @@ def catalog() -> list[dict[str, Any]]:
     ]
 
 
-def _incoming(obj: Any) -> list[tuple[str, dict]]:
-    """Reject unrecognized or oversized fields before invoking existing package rules."""
+def _attachments(obj: dict) -> list[Path]:
+    """The draft media ids the editor attached, resolved inside the private media store (no symlink)."""
+    media = obj.get("media")
+    if media is None:
+        return []
+    if not isinstance(media, list) or len(media) > store.MAX_MEDIA_FILES:
+        raise ValidationError(f"Attach at most {store.MAX_MEDIA_FILES} photos or videos.")
+    if len(set(map(str, media))) != len(media):
+        raise ValidationError("The same file is attached twice.")
+    return [store.media_path(m) for m in media]
+
+
+def _incoming(obj: Any, files: list[Path] | None = None) -> list[tuple[str, dict]]:
+    """Reject unrecognized or oversized fields before invoking existing package rules. ``files`` (a duplicated
+    package's own media) replaces the draft media ids in ``obj['media']``."""
     if not isinstance(obj, dict):
         raise ValidationError("The post must be a JSON object.")
     unknown = set(obj) - _ALLOWED_FIELDS
     if unknown:
         raise ValidationError("Unexpected fields: " + ", ".join(sorted(unknown)))
+    if files is None:
+        files = _attachments(obj)
     raw_platforms = obj.get("platforms")
     if not isinstance(raw_platforms, list) or not all(
         isinstance(p, str) and 0 < len(p) < 100 for p in raw_platforms
@@ -121,12 +142,12 @@ def _incoming(obj: Any) -> list[tuple[str, dict]]:
             source_notes = notes if platform in human else []
             source_title = title if platform == "youtube" else None
             result, problems = make_packages(
-                [platform], post, source_notes, source_title, None, [], None
+                [platform], post, source_notes, source_title, None, files, None
             )
             packages.extend(result)
             errors.extend(problems)
     else:
-        packages, errors = make_packages(selected, text, notes, title, None, [], None)
+        packages, errors = make_packages(selected, text, notes, title, None, files, None)
     if errors:
         raise ValidationError("; ".join(errors))
     return packages
@@ -137,6 +158,9 @@ def _safe_preview(packages: list[tuple[str, dict]]) -> list[dict[str, Any]]:
     for platform, pkg in packages:
         content = pkg["content"]
         human = pkg.get("human_only") is True
+        rows = (pkg.get("share") or {}).get("media_checks") or []
+        media_lines = set(_media_lines(rows)) | {MEDIA_CHECK_NOTE} if rows else set()
+        warnings = pkg["preflight"]["warnings"]
         result.append({
             "id": platform,
             "label": pkg["platform_label"],
@@ -144,7 +168,8 @@ def _safe_preview(packages: list[tuple[str, dict]]) -> list[dict[str, Any]]:
             "text": None if human else content["text"],
             "title": content.get("title"),
             "format": content.get("format", "notes" if human else "text"),
-            "warnings": pkg["preflight"]["warnings"],
+            "warnings": [w for w in warnings if w not in media_lines],
+            "media_checks": [w for w in warnings if w in media_lines],
             "note": "Write this yourself under the community rules" if human else
                     (pkg.get("share") or {}).get("send_from_reachweaver") or
                     "Copy after reviewing the native app's options",
@@ -154,31 +179,101 @@ def _safe_preview(packages: list[tuple[str, dict]]) -> list[dict[str, Any]]:
     return result
 
 
-def _write_private(packages: list[tuple[str, dict]]) -> Path:
-    """All checks first; stage everything privately and rename only on success."""
-    parent = home.default_path(Path("state") / "shares")
-    if parent.is_symlink():
-        raise ValidationError("The Share output directory may not be a symlink.")
-    parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-    if os.name == "posix":
-        mode = stat.S_IMODE(parent.stat().st_mode)
-        if mode & 0o077:
-            raise ValidationError("The Share output folder must be private (chmod 700).")
-    prefix = "share-" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-"
-    target = parent / (prefix + secrets.token_hex(6))
-    stage = Path(tempfile.mkdtemp(prefix=".pending-", dir=parent))
-    try:
-        for platform, pkg in packages:
-            write_one(platform, pkg, stage / platform)
-        write_private_file(stage / "OPEN-FIRST.md", _readme(packages, []))
-        if os.path.lexists(target):
-            raise ValidationError("The generated output destination already exists.")
-        stage.rename(target)
-    except BaseException:
-        if stage.exists():
-            shutil.rmtree(stage)
-        raise
-    return target.absolute()
+def _only(obj: Any, allowed: frozenset[str] | set[str]) -> dict:
+    if not isinstance(obj, dict):
+        raise ValidationError("The request must be a JSON object.")
+    unknown = set(obj) - set(allowed)
+    if unknown:
+        raise ValidationError("Unexpected fields: " + ", ".join(sorted(unknown)[:5]))
+    return obj
+
+
+def _editor_fields(post: dict) -> dict:
+    return {k: v for k, v in post.items() if k in ("platforms", "text", "title", "note", "overrides", "media")}
+
+
+def _write_private(packages: list[tuple[str, dict]], files: list[Path] | None = None, editor: dict | None = None,
+                   *, update: str | None = None, revision: str | None = None) -> Path:
+    """All checks first; stage everything privately and rename only on success (store.write_package)."""
+    media = [(path, path.name) for path in files or []]
+    return store.write_package(packages, media, editor or {}, update=update, expected_revision=revision)
+
+
+def _prepare(obj: Any) -> dict:
+    """Save as a NEW package (default), or update one only with mode "update", its name, the revision the editor
+    loaded and confirm: true. Every network is rechecked first; one failure writes nothing."""
+    obj = _only(obj, _ALLOWED_FIELDS | _SAVE_FIELDS)
+    post = {k: v for k, v in obj.items() if k not in _SAVE_FIELDS}
+    mode = obj.get("mode", "new")
+    update = None
+    if mode == "update":
+        if obj.get("confirm") is not True:
+            raise ValidationError("Updating replaces this package's files: confirm it first. Nothing was saved.")
+        update = obj.get("package")
+        store.package_path(update)
+    elif mode == "new":
+        if any(k in obj for k in ("package", "revision", "confirm")):
+            raise ValidationError("Save as new takes no package name; nothing existing is overwritten.")
+    else:
+        raise ValidationError("Choose save as new or update this package.")
+    packages = _incoming(post)
+    target = _write_private(packages, _attachments(post), _editor_fields(post), update=update,
+                            revision=obj.get("revision"))
+    state = store.package_state(target)
+    return {"ready": True, "saved_to": str(target), "count": len(packages), "published": False,
+            "package": state, "updated": update is not None,
+            "notice": "Private files prepared locally. Open OPEN-FIRST.md and post by hand."}
+
+
+def _open_package(obj: Any) -> dict:
+    """Load a saved package back into the editor. Its media are copied into the draft media store, and the
+    draft becomes this package (so a reload keeps it open)."""
+    pkg = store.package_path(_only(obj, {"package"}).get("package"))
+    editor = store.editor_from_package(pkg)
+    state = store.package_state(pkg)
+    store._sweep_media(keep=())  # opening replaces the editor content, and with it the draft's attachments
+    media = store.media_into_store(pkg)
+    editor["media"] = [m["id"] for m in media]
+    draft = store.save_draft(dict(editor, package=pkg.name, revision=state["revision"]))
+    return {"editor": draft, "media": media, "package": state}
+
+
+def _duplicate_package(obj: Any) -> dict:
+    """A copy of a saved package as a NEW package: rechecked, media copied (no symlink), no posted marks."""
+    pkg = store.package_path(_only(obj, {"package"}).get("package"))
+    editor = store.editor_from_package(pkg)
+    files = store._package_media(pkg)
+    post = {k: v for k, v in editor.items() if k != "media"}
+    packages = _incoming(post, files)
+    target = _write_private(packages, files, editor)
+    return {"ready": True, "saved_to": str(target), "published": False, "package": store.package_state(target),
+            "notice": f"Copied {pkg.name} into a new package. Nothing was uploaded or published."}
+
+
+def _mark_posted(obj: Any, db: str | None) -> dict:
+    obj = _only(obj, {"package", "platform", "url", "posted_at"})
+    record = store.mark_posted(obj.get("package"), obj.get("platform"), obj.get("url"), obj.get("posted_at"), db)
+    return {"posted": record, "package": store.package_state(store.package_path(obj["package"])),
+            "notice": f"Recorded as {store.POSTED_LABEL} (post {record['post_id']}). Nothing was posted or sent, "
+                      "and this record can never be approved, scheduled or sent."}
+
+
+def _draft_load(obj: Any) -> dict:
+    _only(obj, set())
+    draft = store.load_draft()
+    media = [store.media_info(m) for m in draft["media"]] if draft else []
+    return {"draft": draft, "media": media}
+
+
+def _draft_save(obj: Any) -> dict:
+    draft = store.save_draft(obj)
+    return {"saved": True, "media": len(draft["media"])}
+
+
+def _draft_clear(obj: Any) -> dict:
+    _only(obj, set())
+    store.clear_draft()
+    return {"cleared": True}
 
 
 def _json(data: Any) -> bytes:
@@ -202,10 +297,12 @@ class ShareServer(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = False
 
-    def __init__(self, port: int = 0):
+    def __init__(self, port: int = 0, db: str | None = None):
         if not isinstance(port, int) or isinstance(port, bool) or not 0 <= port <= 65535:
             raise ValidationError("Local browser port must be between 0 and 65535.")
         self.token = secrets.token_urlsafe(32)
+        self.db = db  # the history database "Mark as posted" records into (--db, else the workspace default)
+        self.write_lock = threading.Lock()  # one composer request touches the files or the database at a time
         super().__init__((BIND_ADDRESS, port), ShareHandler)
 
     @property
@@ -285,27 +382,31 @@ class ShareHandler(BaseHTTPRequestHandler):
         else:
             self._json_response(404, {"errors": ["Not found."]})
 
-    def _read_body(self, size: int) -> bytes | None:
-        """The whole body within one overall deadline; None for a short or slow-dripped body."""
-        deadline = time.monotonic() + REQUEST_TIMEOUT_SECONDS
-        chunks: list[bytes] = []
+    def _stream_body(self, size: int, sink: Callable[[bytes], None], timeout: float) -> bool:
+        """Feed exactly ``size`` body bytes to ``sink`` within one overall deadline; False when short or slow."""
+        deadline = time.monotonic() + timeout
         remaining = size
         try:
             while remaining:
                 left = deadline - time.monotonic()
                 if left <= 0:
-                    return None
-                self.connection.settimeout(left)
+                    return False
+                self.connection.settimeout(min(left, REQUEST_TIMEOUT_SECONDS))
                 chunk = self.rfile.read1(min(remaining, 65536))
                 if not chunk:
-                    return None
-                chunks.append(chunk)
+                    return False
+                sink(chunk)
                 remaining -= len(chunk)
         except OSError:
-            return None
+            return False
         finally:
             self.connection.settimeout(REQUEST_TIMEOUT_SECONDS)
-        return b"".join(chunks)
+        return True
+
+    def _read_body(self, size: int) -> bytes | None:
+        """The whole body within one overall deadline; None for a short or slow-dripped body."""
+        chunks: list[bytes] = []
+        return b"".join(chunks) if self._stream_body(size, chunks.append, REQUEST_TIMEOUT_SECONDS) else None
 
     def _refuse_method(self) -> None:
         self.close_connection = True  # an unread request body must not desync a kept-alive connection
@@ -314,12 +415,42 @@ class ShareHandler(BaseHTTPRequestHandler):
 
     do_OPTIONS = do_PUT = do_DELETE = do_PATCH = _refuse_method
 
+    def _content_type(self) -> str:
+        return self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+
+    def _post_media(self) -> None:
+        """One photo/video as a raw body (application/octet-stream), its name in X-ReachWeaver-Filename."""
+        self.close_connection = True  # any refusal may leave body bytes unread
+        if self._content_type() != "application/octet-stream":
+            self._json_response(415, {"errors": ["Send the file as application/octet-stream."]})
+            return
+        raw_size = self.headers.get("Content-Length", "")
+        if not raw_size.isdecimal() or not 0 < int(raw_size) <= store.MAX_MEDIA_BYTES:
+            self._json_response(413, {"errors": [
+                f"Each file must be 1 byte to {store.MAX_MEDIA_BYTES // (1024 * 1024)} MiB."]})
+            return
+        size = int(raw_size)
+        try:
+            name = unquote(self.headers.get("X-ReachWeaver-Filename", ""), errors="strict")
+            info = store.store_media(name, size,
+                                     lambda write: self._stream_body(size, write, MEDIA_TIMEOUT_SECONDS))
+            self._json_response(200, {"media": info, "notice": "Kept privately on this computer. Nothing was "
+                                                               "uploaded to a social network."})
+        except (ValidationError, UnicodeError, ValueError) as exc:
+            self._json_response(422, {"errors": [str(exc)]})
+        except OSError:
+            self._json_response(500, {"errors": ["Could not keep the file. Check disk permissions and space."]})
+
     def do_POST(self) -> None:
         if not self._host_ok() or not self._token_ok() or not self._origin_ok():
             self.close_connection = True
             self._json_response(403, {"errors": ["Not authorized from this browser session."]})
             return
-        if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
+        path = urlsplit(self.path).path
+        if path == MEDIA_ROUTE:
+            self._post_media()
+            return
+        if self._content_type() != "application/json":
             self.close_connection = True
             self._json_response(415, {"errors": ["Send application/json only."]})
             return
@@ -328,8 +459,7 @@ class ShareHandler(BaseHTTPRequestHandler):
             self.close_connection = True
             self._json_response(413, {"errors": ["Request is missing or too large."]})
             return
-        path = urlsplit(self.path).path
-        if path not in ("/api/preview", "/api/prepare"):
+        if path not in JSON_ROUTES:
             self.close_connection = True
             self._json_response(404, {"errors": ["Not found."]})
             return
@@ -346,33 +476,52 @@ class ShareHandler(BaseHTTPRequestHandler):
             if _lone_surrogate(obj):  # refuse before any message could quote it back
                 self._json_response(400, {"errors": ["The request contains invalid Unicode (a lone surrogate)."]})
                 return
-            packages = _incoming(obj)
             if path == "/api/preview":
                 self._json_response(200, {
                     "ready": True,
-                    "platforms": _safe_preview(packages),
+                    "platforms": _safe_preview(_incoming(obj)),
                     "notice": "Preview only. Nothing saved, scheduled, uploaded or published.",
                 })
-            else:
-                destination = _write_private(packages)
-                self._json_response(200, {
-                    "ready": True, "saved_to": str(destination), "count": len(packages),
-                    "published": False,
-                    "notice": "Private files prepared locally. Open OPEN-FIRST.md and post by hand.",
-                })
+                return
+            with self.server.write_lock:
+                data = self._route(path, obj)
+            self._json_response(200, data)
+        except store.Conflict as exc:  # the package changed or is marked posted: nothing was written
+            self._json_response(409, {"errors": [str(exc)]})
         except RecursionError:  # deeply nested JSON: refuse it rather than drop the connection
             self._json_response(422, {"errors": ["The request JSON is nested too deeply."]})
         except (ValidationError, UnicodeError, ValueError, TypeError) as exc:
             self._json_response(422, {"errors": [str(exc)]})
         except OSError:
             self._json_response(500, {"errors": [
-                "Could not save local handoff files. Check disk permissions and available space."
+                "Could not read or save local handoff files. Check disk permissions and available space."
             ]})
 
+    def _route(self, path: str, obj: Any) -> dict:
+        """Every POST route except preview and media. None of them approves, schedules or sends anything."""
+        if path == "/api/prepare":
+            return _prepare(obj)
+        if path == "/api/packages":
+            _only(obj, set())
+            return {"packages": store.list_packages()}
+        if path == "/api/package/open":
+            return _open_package(obj)
+        if path == "/api/package/duplicate":
+            return _duplicate_package(obj)
+        if path == "/api/mark-posted":
+            return _mark_posted(obj, self.server.db)
+        if path == "/api/draft/load":
+            return _draft_load(obj)
+        if path == "/api/draft/save":
+            return _draft_save(obj)
+        if path == "/api/draft/clear":
+            return _draft_clear(obj)
+        raise ValidationError("Not found.")
 
-def serve(port: int = 0, open_browser: bool = False) -> int:
+
+def serve(port: int = 0, open_browser: bool = False, db: str | None = None) -> int:
     """Owner-run loopback browser, stopped by Ctrl+C. No scheduled/background tasks."""
-    server = ShareServer(port)
+    server = ShareServer(port, db=db)
     try:
         print("ReachWeaver manual Share Composer (offline, loopback only)")
         print("Open this private local URL in your browser:")

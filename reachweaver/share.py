@@ -47,6 +47,8 @@ API_NOTE = ("Copy and post it yourself; to send it from ReachWeaver instead, con
 MEDIA_TABLES = {"bluesky": "bluesky", "mastodon": "mastodon", "instagram": "instagram", "tiktok": "tiktok",
                 "linkedin": "linkedin", "youtube": "youtube_shorts", "dev": "devto"}
 MEDIA_TABLE_NOTES = {"youtube_shorts": " (YouTube Shorts rules: only if you post it as a Short)"}
+MEDIA_CHECK_NOTE = ("Media header checks ran offline from --attach; alt text, captions, rights and consent "
+                    "were not checked (a media manifest with media-check covers those)")
 
 
 def api_text_platforms() -> tuple[str, ...]:
@@ -288,8 +290,7 @@ def _share_section(platform: str, package: dict, tailoring: dict | None, media: 
     if media:
         warnings[:] = [w for w in warnings if not w.startswith("no media manifest supplied")]
         warnings.extend(_media_lines(media))
-        warnings.append("Media header checks ran offline from --attach; alt text, captions, rights and consent "
-                        "were not checked (a media manifest with media-check covers those)")
+        warnings.append(MEDIA_CHECK_NOTE)
 
 
 def write_one(platform: str, package: dict, destination: Path) -> None:
@@ -370,7 +371,7 @@ def run(args) -> int:
                 "browser. Run 'reachweaver share --web [--open]' without caption flags."
             )
         from .share_browser import serve
-        return serve(port=args.port, open_browser=args.open)
+        return serve(port=args.port, open_browser=args.open, db=getattr(args, "db", None))
     if args.open or args.port:
         raise ValidationError("--open and --port need --web (local browser composer).")
     if args.list:
