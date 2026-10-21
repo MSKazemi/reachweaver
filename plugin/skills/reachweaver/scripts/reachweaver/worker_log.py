@@ -42,7 +42,7 @@ from .identity import IDENTITY_MISMATCH, IDENTITY_MISSING
 
 SCHEMA_VERSION = 1
 EVENTS = ("run_start", "gate_refused", "post_skipped", "post_claimed", "post_published",
-          "post_needs_review", "run_end")
+          "post_needs_review", "preflight_retry", "run_end")
 GATE_REASONS = ("live_gate", "emergency_pause", "human_confirmation")
 SKIP_REASONS = (
     "dry_run",                    # preview only: nothing blocks it, a live run would try it
@@ -72,7 +72,8 @@ SEND_CLASSES = ("certain_not_sent", "likely_not_created", "ambiguous", "unknown"
 BUDGET_CODES = ("account_rolling_24h_send_attempt_cap_reached", "account_minimum_send_attempt_gap_not_elapsed")
 BINDING_CODES = (BINDING_MISSING, BINDING_MISMATCH, BINDING_UNAVAILABLE, BINDING_MEDIA_CHANGED,
                 IDENTITY_MISMATCH, IDENTITY_MISSING)
-COUNT_KEYS = ("due", "skipped", "claimed", "published", "needs_review")
+COUNT_KEYS = ("due", "skipped", "claimed", "published", "needs_review", "preflight_retries")
+MAX_RETRY_DELAY_MS = 3_600_000  # a logged delay is clamped to one hour (the real cap is 30 s)
 
 _POST_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _REMOTE_ID = re.compile(r"^[A-Za-z0-9._:/~@+=-]{1,512}$")
@@ -276,6 +277,34 @@ class WorkerLog:
                                           "send_class": _send_class(send_class),
                                           "error_code": code if _CODE.fullmatch(code) else "unclassified",
                                           "rate_limited": bool(rate_limited)})
+
+    def preflight_retry(self, post, retry: object, delay_seconds: object, code: object) -> None:
+        """One read-only identity-preflight retry before the claim (security decision item 3, log only).
+
+        Fields: the post triple, ``attempt`` (the retry number, 1 or 2), ``delay_ms`` (the chosen wait)
+        and ``code`` (a sanitized error code). No database write; never raises."""
+        self.counts["preflight_retries"] += 1
+        if not self.enabled:
+            return
+        try:
+            attempt = retry if type(retry) is int and 0 < retry <= 10 else None
+            delay = float(delay_seconds) if isinstance(delay_seconds, (int, float)) else -1.0
+            delay_ms = int(round(delay * 1000)) if 0.0 <= delay < float("inf") else None
+            if delay_ms is not None:
+                delay_ms = min(delay_ms, MAX_RETRY_DELAY_MS)
+            fields = {**self._post_fields(post), "attempt": attempt, "delay_ms": delay_ms,
+                      "code": code if isinstance(code, str) and _CODE.fullmatch(code) else "unclassified"}
+        except Exception:  # observational only: never interrupt the preflight
+            self.dropped += 1
+            return
+        self._write("preflight_retry", fields)
+
+    def retry_hook(self, post) -> Callable[[int, float, str], None] | None:
+        """The ``on_retry`` observer for ``ratelimit.preflight_with_backoff``; None when logging is off,
+        so a run without ``--log-json`` passes no observer at all."""
+        if not self.enabled:
+            return None
+        return lambda retry, delay_seconds, code: self.preflight_retry(post, retry, delay_seconds, code)
 
     def backend_result(self, con, post, code: int, *, backend: str) -> None:
         """After a backend hand-off: read the post's local outcome (SELECT only) and record it."""

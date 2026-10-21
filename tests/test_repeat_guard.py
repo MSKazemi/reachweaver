@@ -24,8 +24,8 @@ from test_media import av_mp4  # noqa: E402
 from reachweaver import attachments, repeat_guard, tiktok  # noqa: E402
 from reachweaver.cli import main  # noqa: E402
 from reachweaver.policy import ValidationError  # noqa: E402
-from reachweaver.storage import (add_post, connect, get_post, record_shared, set_post_media,  # noqa: E402
-                                 set_post_video, transition)
+from reachweaver.storage import (add_post, connect, get_post, latch_identity_mode, record_shared,  # noqa: E402
+                                 set_post_media, set_post_video, transition)
 
 ROOT = Path(__file__).resolve().parents[1]
 EARLIER = "Our new release adds a faster importer, clearer errors and a safer default for everyone"
@@ -233,10 +233,48 @@ class CommandsAndApproval(Workspace):
         code, out, _ = self.run_cli("appr" + "ove", pid, "--approver", "tester", "--allow-repeat")
         self.assertEqual(code, 0, out)
         with connect(self.db_path) as db:
-            self.assertEqual(get_post(db, pid)["status"], "approved")
-            events = db.execute("SELECT detail FROM event_log WHERE post_id=? AND action='repeat_override'",
-                                (pid,)).fetchall()
-        self.assertEqual([e["detail"] for e in events], ["kinds=same_text"])
+            row = get_post(db, pid)
+            self.assertEqual(row["status"], "approved")
+            events = db.execute("SELECT action, detail FROM event_log WHERE post_id=? AND action IN "
+                                "('approve','repeat_override') ORDER BY id", (pid,)).fetchall()
+        bound = row["approved_payload_sha256"][:12]
+        # Recorded after the approval, in the same transaction, and tied to it by the approval hash prefix
+        # (which covers the per-approval nonce), so it never outlives a refused approve.
+        self.assertEqual([e["action"] for e in events], ["approve", "repeat_override"])
+        self.assertIn(f"approval_sha256={bound}", events[0]["detail"])
+        self.assertEqual(events[1]["detail"], f"kinds=same_text approval_sha256={bound}")
+
+    def override_events(self, pid):
+        with connect(self.db_path) as db:
+            return db.execute("SELECT detail FROM event_log WHERE post_id=? AND action='repeat_override'",
+                              (pid,)).fetchall()
+
+    def test_a_refused_override_approval_leaves_no_override_event(self):
+        """Security decision sheet finding 4: a refusal after the repeat check must not log an override."""
+        pid = self.seed()
+        with connect(self.db_path) as db:
+            latch_identity_mode(db)  # approval-mode --require-identity: plain approve is refused
+        code, _, err = self.run_cli("appr" + "ove", pid, "--approver", "tester", "--allow-repeat")
+        self.assertEqual(code, 2)
+        self.assertIn("approval_identity_required", err)
+        self.assertEqual(self.override_events(pid), [])
+        with connect(self.db_path) as db:
+            self.assertEqual(get_post(db, pid)["status"], "draft")
+
+    def test_an_override_refused_inside_the_transition_is_rolled_back_with_it(self):
+        pid = self.seed()
+        with connect(self.db_path) as db:
+            other = add_post(db, "my-bluesky", "bluesky", OTHER)
+            transition(db, other, "approve")  # a nonce now exists, so a deleted ledger is not recreated
+        (Path(self.db_path).parent / "approval-ledger.jsonl").unlink()
+        code, _, err = self.run_cli("appr" + "ove", pid, "--approver", "tester", "--allow-repeat")
+        self.assertEqual(code, 2)
+        self.assertIn("approval_ledger_unavailable", err)
+        self.assertEqual(self.override_events(pid), [])
+        with connect(self.db_path) as db:
+            self.assertEqual(get_post(db, pid)["status"], "draft")
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM event_log WHERE post_id=? AND action='approve'",
+                                        (pid,)).fetchone()[0], 0)
 
     def test_a_different_post_is_approved_without_any_flag(self):
         with connect(self.db_path) as db:

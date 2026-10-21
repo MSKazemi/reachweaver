@@ -33,7 +33,8 @@ MAX_EVENTS = 1000
 RUN_EVENTS = ("run_start", "run_end")
 # Worker-log fields shown in a trace. Everything else on a line is ignored.
 KEEP = ("run_id", "seq", "dry_run", "event", "ts", "post_id", "account_id", "platform", "reason", "backend",
-        "send_class", "code", "rate_limited", "remote_url", "live_requested", "outcome", "exit_code", "counts")
+        "send_class", "code", "rate_limited", "remote_url", "live_requested", "outcome", "exit_code", "counts",
+        "attempt", "delay_ms")
 SOURCE_ORDER = {"database": 0, "worker_log": 1}
 _RUN_ID = re.compile(r"^[0-9A-Za-z.:_-]{1,64}$")
 
@@ -187,7 +188,8 @@ def render_text(trace: dict) -> str:
     lines.append("Timeline (UTC):")
     for item in trace["timeline"]:
         where = "db " if item["source"] == "database" else "log"
-        extra = item.get("detail") or ", ".join(f"{k}={item[k]}" for k in ("reason", "send_class", "code", "remote_url")
+        extra = item.get("detail") or ", ".join(f"{k}={item[k]}" for k in ("reason", "send_class", "code", "attempt",
+                                                                          "delay_ms", "remote_url")
                                                 if item.get(k) not in (None, ""))
         run = f" [{item['run_id']}#{item['seq']}]" if item["source"] == "worker_log" else ""
         lines.append(f"  {item['at']}  {where}  {item['event']}{run}" + (f"  {extra}" if extra else ""))

@@ -817,8 +817,8 @@ def _record_binding_failure(con, row, reason: str, now: str) -> None:
         return
     stored = row["approved_payload_sha256"]
     con.execute("UPDATE posts SET last_error=? WHERE id=?", (reason, row["id"]))
-    from .ledger import REPLAY, REPLAY_EVENT
-    event(con, REPLAY_EVENT if reason == REPLAY else "approval_binding_failed", row["id"],
+    from .ledger import REPLAY, REPLAY_EVENT, WITHDRAWN
+    event(con, REPLAY_EVENT if reason in (REPLAY, WITHDRAWN) else "approval_binding_failed", row["id"],
           f"reason={reason} stored={stored[:12] if stored else 'none'} "
           f"current={approval_payload_sha256(row)[:12]}", at=now)
 
@@ -923,6 +923,25 @@ def _ledger_problem(con, row) -> str | None:
     return ledger.check(con, row["id"], row["approval_nonce"])
 
 
+# Security decision item 12: the token an unapprove/cancel event carries when its withdrawal could
+# not be written to the approval ledger (the CLI warns on it).
+LEDGER_UNRECORDED = "ledger=unrecorded"
+
+
+def _withdraw_in_ledger(con, row) -> str:
+    """Unapprove/cancel, inside the caller's lock and BEFORE the row changes: close this approval's
+    nonce in the ledger. Returns the event-detail suffix ('' when the row carries no nonce).
+
+    Written first so a failure after it leaves an approved row whose nonce is withdrawn: refused at
+    the claim (safe direction). A ledger problem never blocks the withdrawal itself."""
+    from . import ledger
+    nonce = row["approval_nonce"] if "approval_nonce" in row.keys() else None
+    if not isinstance(nonce, str) or not ledger.is_nonce(nonce):
+        return ""
+    problem = ledger.withdraw(con, row["id"], nonce, row["approved_payload_sha256"], utc_now())
+    return " ledger=withdrawn" if problem is None else f" {LEDGER_UNRECORDED} reason={problem}"
+
+
 def check_approval_binding(con, post_id: str, now: str | None = None, *,
                            identity_fingerprint: str | None = None) -> str | None:
     """Pre-claim, pre-network gate for one approved/scheduled post.
@@ -994,7 +1013,10 @@ def transition(con, post_id, command: str, scheduled_at: str | None = None, *,
     unapprove/cancel clear it. ``nonce`` (approve only; wave 9 item 1): the approval nonce, drawn
     fresh by default (``ledger.new_nonce``); ``expected_sha256`` is the content digest WITHOUT it.
     Every approve stores it in ``approval_nonce`` and binds it (``approval/2``); schedule keeps it;
-    unapprove/cancel clear it. Approving needs a usable approval ledger (``ledger.ensure``)."""
+    unapprove/cancel clear it. Approving needs a usable approval ledger (``ledger.ensure``).
+    Unapprove/cancel of a row with a nonce first append a ``withdrawn`` line (``ledger.withdraw``,
+    security decision item 12), so a restored older copy of the row is refused at the claim; an
+    unusable ledger never blocks the withdrawal and is noted as ``ledger=unrecorded`` in the event."""
     with _atomic(con):  # P3: the row is re-read and every UPDATE is status-guarded under one lock
         return _transition_locked(con, post_id, command, scheduled_at, approver=approver,
                                   approval_channel=approval_channel, expected_sha256=expected_sha256,
@@ -1109,6 +1131,8 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
                                       "choose an earlier time or re-approve closer to the due time. Nothing scheduled")
         new_hash = approval_payload_sha256(row, scheduled_at=scheduled_at, use_row_schedule=False)
     new_mac = approval_mac(mode.key, post_id, new_hash) if new_hash and mode.key is not None else None
+    if command in ("unapprove", "cancel"):
+        detail += _withdraw_in_ledger(con, row)
     # unapprove/cancel: new_hash/by/channel/mac stay None, clearing the binding.
     _guarded_update(con, post_id, row["status"], command,
                     """UPDATE posts SET status=?, approved_at=?, scheduled_at=?, last_error=NULL,
