@@ -927,6 +927,8 @@ def record_precheck(ledger: str, link: str, posted_at: object, db: str | None) -
     ``record_manual_publish`` checks both again under its own write lock."""
     from .storage import (MANUAL_FUTURE_SKEW_MINUTES, connect_readonly, database_path, find_manual_duplicate,
                           parse_utc, utc_now)
+    if posted_at is not None and not isinstance(posted_at, str):
+        raise ValidationError("The posted time must be an ISO 8601 date with a timezone.")
     try:
         current = parse_utc(utc_now())
         when = parse_utc(posted_at) if posted_at else current
@@ -975,12 +977,13 @@ def mark_posted(name: object, platform: object, url: object, posted_at: object, 
     images = [sha256_file(p) for p in files if media_kind(p.name) == "image"]
     videos = [sha256_file(p) for p in files if media_kind(p.name) == "video"]
     observed = None
+    declared = posted_at if isinstance(posted_at, str) else None  # mark_checks refused any other non-None type
     try:
-        when = parse_utc(posted_at) if posted_at else utc_now()
+        when = parse_utc(declared) if declared else utc_now()
         with connect(db) as con:
             made = record_manual_publish(con, platform=ledger, url=link, account_id=account, content=text,
                                          images=images, video=videos[0] if videos else None,
-                                         posted_at=posted_at or None)
+                                         posted_at=declared or None)
             if values:
                 observed = _store_numbers(con, made["post_id"], values)
     except ValidationError as exc:
