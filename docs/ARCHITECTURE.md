@@ -821,16 +821,36 @@ With `--attach` and no `--media` manifest, `share.media_findings` runs `media.ch
 browser --GET /            --> page (share_browser_ui.HTML, CSP nonce per response)
         --GET /api/catalog --> share_browser.catalog()  (copy-only destinations from the registries; api_capable flag)
         --POST /api/preview -> _incoming() -> share.make_packages()   (validation only, nothing written)
-        --POST /api/prepare -> _incoming() -> make_packages() -> private folder below state/shares (atomic rename)
+        --POST /api/prepare -> _incoming() -> make_packages() -> store.write_package(): new share-* folder, or
+                               mode "update" + confirm + loaded revision -> staged swap of an unposted package
+        --POST /api/packages          -> store.list_packages()   (read; per network exported | posted)
+        --POST /api/package/open      -> store.editor_from_package() + media_into_store() -> draft = that package
+        --POST /api/package/duplicate -> editor_from_package() -> _incoming(files=package media) -> new package
+        --POST /api/draft/load|save|clear -> state/composer/draft.json (0600, editor fields only; atomic replace)
+        --POST /api/media (octet-stream) -> store.store_media(): state/composer/media/<16 hex>/<safe name>
+        --POST /api/mark-posted -> store.mark_posted() -> storage.record_manual_publish() + <network>/POSTED.json
 ```
+
+Composer write endpoints and their guards (`share_browser.py` routes, `share_composer_store.py` file work; owner-approved 2026-10-21). Every POST first passes Host = `127.0.0.1:<port>`, the per-run token (constant-time) and Origin = the server origin, else 403 with nothing read; JSON routes then need `application/json`, at most 96 KiB within one 10 s deadline, depth ≤ 32 and no lone surrogate. Routes with a write run under one server lock.
+
+| Endpoint | Writes | Guards beyond the common ones |
+| --- | --- | --- |
+| `/api/prepare` | new `state/shares/share-*` or replaces one | every network rechecked by `make_packages`; `mode` new (default; refuses `package`/`revision`/`confirm`) or update (needs `confirm: true`, a valid existing name and the revision it loaded, else 409; refused with 409 if any network has `POSTED.json`); staged in `.pending-*` and renamed, old copy removed only after the swap |
+| `/api/package/open` | the draft; copies package media into the media store | strict name; package `media/` entries must be regular files, a symlink refuses the whole open |
+| `/api/package/duplicate` | a new package | as open; rechecked like prepare; no `POSTED.json` is copied |
+| `/api/draft/save`, `/clear` | `state/composer/draft.json` | allowlisted editor fields only (no token); types and sizes checked; `os.replace` of a 0600 temp file; a symlinked draft is refused |
+| `/api/media` | `state/composer/media/<16 hex>/<name>` | `application/octet-stream`, `Content-Length` 1 B..256 MiB checked before reading, one 120 s deadline, extension allowlist `share.IMAGE_SUFFIXES` plus `VIDEO_SUFFIXES`, name reduced to `[A-Za-z0-9._-]`, `O_CREAT`, `O_EXCL` and `O_NOFOLLOW`, at most 30 waiting files; a short body keeps nothing |
+| `/api/mark-posted` | one `posts` row + ledger entry via `storage.record_manual_publish`, then `POSTED.json` (`O_EXCL`) | network must be in the package, not human-only, measurable (`policy.PLATFORMS`, `dev` → `devto`) and not already marked (409); the store's refusals (link, duplicate, future time, no material) come back as 422 with plain words |
+
+Every name from the browser matches a fixed pattern (`share-YYYYMMDD-HHMMSS-<12 hex>`, 16-hex media id, a known network id) and is resolved and confirmed to be a direct child of its folder; no folder component below the workspace may be a symlink, and every file open uses `O_NOFOLLOW`. There is no send, approve or schedule route; the history database is opened only by `/api/mark-posted`, and the record it makes is the terminal `published_manual` that no send, schedule, claim or reconcile path selects. The read-only dashboard (`ui_server.py`) still refuses POST, PUT, DELETE and PATCH.
 
 Invariants:
 
 - **Same rules as `share`.** Every request goes through `share.make_packages` and the existing manual-export preflight. Per-network edits (`overrides`) are validated one network at a time, may target only a selected network, and are refused for human-only destinations, which receive notes and never post text.
-- **No send path.** The module imports no publisher, storage outbox, credential or network client (`SEND_PATH = None`); there is no Publish action. The approval, dry-run, emergency-pause, credential and reconciliation rules are untouched.
+- **No send path.** The modules import no publisher, outbox, credential or network client (`SEND_PATH = None`); there is no Publish action. The one storage call is `record_manual_publish` (Mark as posted). The approval, dry-run, emergency-pause, credential and reconciliation rules are untouched.
 - **Loopback and token.** It binds `127.0.0.1` only. The per-run token travels in the URL fragment (never sent to the server or in a Referer) and then in the `X-ReachWeaver-Token` header, compared as bytes in constant time. The Host must be exactly `127.0.0.1:<port>` on every request, and POSTs need the exact Origin and `application/json`. No CORS header is sent; other methods get a JSON 405.
 - **Bounded input.** Unknown fields are refused, a body is at most 96 KiB and must arrive within one 10 s deadline (408), and parse errors, including deeply nested JSON, are a 422, never a dropped connection.
 - **Private output.** Preview writes nothing. Saving rechecks every rule, stages the whole handoff and renames it into a fresh 0700 folder with 0600 files; the browser cannot choose the path, and the response reports the absolute folder.
 - **Untrusted text.** User text reaches the page only as text (no `innerHTML`); the CSP forbids remote resources and framing. Requests are not logged.
 
-Not implemented: media upload or inspection in the browser, a cap on concurrent local connections, and keeping per-network edits when the main caption changes (they are discarded). With `--open` the token URL is handed to the system browser launcher, as `ui --open` does, so it may be visible in the local process list.
+Not implemented: image thumbnails in the page (the CSP keeps `img-src 'none'`), choosing an account when marking as posted (the record is made without one, like `mark-shared --url` without `--account`, so `metrics-fetch` cannot derive a platform id from it), a cap on concurrent local connections, and keeping per-network edits when the main caption changes (they are discarded). With `--open` the token URL is handed to the system browser launcher, as `ui --open` does, so it may be visible in the local process list.

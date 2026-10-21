@@ -12,7 +12,7 @@ From the ReachWeaver folder:
 python3 -m reachweaver share --web --open
 ```
 
-Use its editor, tap the social-network choices, preview the exact captions and save a new private folder. Then open the native platforms and publish yourself. It never connects to a social account, uploads files or publishes. See [the browser workflow guide](BROWSER-SHARE-COMPOSER.md).
+Use its editor, tap the social-network choices, attach a photo or video if you like, preview the exact captions and save a new private folder. Then open the native platforms and publish yourself. Your draft is kept as you type, saved packages can be reopened, updated (after a confirmation) or duplicated, and once you have posted by hand you can paste the post's link under **Mark as posted** so ReachWeaver can measure it. It never connects to a social account, uploads files to a network or publishes. See [the browser workflow guide](BROWSER-SHARE-COMPOSER.md).
 
 ## Option A: answer a few questions
 
