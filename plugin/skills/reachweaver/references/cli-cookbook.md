@@ -172,6 +172,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | Command | Purpose | Key flags |
 |---|---|---|
 | `distribution-plan` | Regional channel research + hypothetical timing; never schedules | `--region R`, `--goal contributors/adoption/awareness/collaboration`, `--limit`, `--date`, `--timezone` (needed for `global` with a date), `--json` |
+| `social-web-plan` | Open social web map: which accounts are on ActivityPub / AT Protocol / Nostr / Farcaster, bridges (Bridgy Fed, opt-in), canonical-home hypothesis, duplicate-reach warnings, identity checklist, gaps; reads accounts metadata only, never the queue | `--accounts A`, `--setup FILE`, `--presence PLATFORM`, `--bridged ID`, `--fediverse-sharing ID`, `--site URL`, `--site-kind ghost/wordpress_activitypub/bridgy_fed_web/plain`, `--json` |
 | `discovery-plan` | Platform discovery and topic/hashtag ideas; no reach forecast | `--file F`, `--json` |
 | `sources-scan` | Rank opt-in GitHub/feed/changelog/DOI signals | `--config F`, `--online` (**online**), `--state F`, `--mark-seen`, `--top N`, `--json` |
 | `signal-brief` | One signal -> NEW campaign scaffold + brief; never stages | `--scan F`, `--signal-id ID`, `--brand B`, `--out F`, `--objective`, `--json` |

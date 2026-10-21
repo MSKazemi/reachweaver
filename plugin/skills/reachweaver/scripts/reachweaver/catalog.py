@@ -162,6 +162,7 @@ COMMANDS: dict[str, dict] = {
     "media-cutlist": _c(R),
     # Research channels and sources
     "distribution-plan": _c(R),
+    "social-web-plan": _c(R, note="offline open social web map; reads accounts metadata only, never the queue"),
     "discovery-plan": _c(R),
     "sources-scan": _c(NW, note="network only with --online; --state/--mark-seen write"),
     "signal-brief": _c(W),

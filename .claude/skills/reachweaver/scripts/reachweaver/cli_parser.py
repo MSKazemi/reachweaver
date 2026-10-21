@@ -723,6 +723,25 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--date", help="YYYY-MM-DD audience-local day for illustrative time tests, not an actual queue")
     p.add_argument("--timezone", help="IANA timezone override, required with --date for global audiences")
     p.add_argument("--json", action="store_true", help="Return machine-readable RESEARCH-ONLY plan")
+    p = sub.add_parser("social-web-plan", help="Offline open social web map: which accounts are on ActivityPub, AT "
+                       "Protocol, Nostr or Farcaster, bridges, canonical home, duplicate reach, identity checklist; "
+                       "NEVER sends or touches the queue")
+    p.add_argument("--accounts", dest="social_accounts", type=Path, metavar="A",
+                   help="PUBLIC accounts config (same as global --accounts); a missing file counts as no accounts")
+    p.add_argument("--setup", type=Path, metavar="FILE",
+                   help="Your own setup JSON (schema reachweaver.social-web-setup.v1): site, extra presences, "
+                        "bridges, fediverse sharing, identity steps done; see examples/social-web-setup.example.json")
+    p.add_argument("--presence", action="append", default=[], metavar="PLATFORM",
+                   help="A network you are on that accounts.json cannot hold, by registry id (e.g. pixelfed, ghost, "
+                        "nostr); repeat")
+    p.add_argument("--bridged", action="append", default=[], metavar="ID",
+                   help="Account id (or platform id) you bridged with Bridgy Fed, an opt-in bridge; repeat")
+    p.add_argument("--fediverse-sharing", action="append", default=[], metavar="ID",
+                   help="Threads account id (or 'threads') with fediverse sharing turned on; repeat")
+    p.add_argument("--site", metavar="URL", help="Your owned site or newsletter, https:// only")
+    p.add_argument("--site-kind", choices=("ghost", "wordpress_activitypub", "bridgy_fed_web", "plain"),
+                   help="How the site connects to the open social web (default plain)")
+    p.add_argument("--json", action="store_true", help="Machine-readable plan (schema reachweaver.social-web-plan.v1)")
     p = sub.add_parser("timing-evaluate", help="Read-only per-account matched-age outcome analysis; NOT optimal-time proof")
     p.add_argument("--account", required=True, help="Configured account ID; exact cohort only")
     p.add_argument("--timezone", required=True, help="Audience IANA timezone for posting time groups")

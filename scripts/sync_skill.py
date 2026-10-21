@@ -22,7 +22,7 @@ PLUGIN_ROOT_FILES = ("LICENSE", "NOTICE", "DISCLAIMER.md")  # copied verbatim in
 SKILL_ROOT_FILES = ("LICENSE", "NOTICE", "DISCLAIMER.md")  # accompany standalone skill ZIP and local install
 REGISTRIES = ("distribution_registry.json", "platform_registry.json", "profile_audit_registry.json",
               "accounts.example.json", "discovery_registry.json", "signup_registry.json",
-              "voice_tells.json", "ai_search_registry.json", "ai_disclosure_registry.json")  # accounts.example.json: the example accounts file `workspace --init` copies; kept equal to config/
+              "voice_tells.json", "ai_search_registry.json", "ai_disclosure_registry.json", "social_web_registry.json")  # accounts.example.json: the example accounts file `workspace --init` copies; kept equal to config/
 # Canonical files mirrored into the skill's assets/ (flat, by basename).
 ASSET_SOURCES = (
     "examples/brand.reachweaver.json", "examples/campaign.reachweaver.json",
@@ -38,6 +38,7 @@ ASSET_SOURCES = (
     "examples/profile-post-metrics.example.csv",
     "examples/followup-rules.example.json",
     "examples/engage-scout.example.json", "examples/engage-candidates.example.json",
+    "examples/social-web-setup.example.json",
 )
 RUN_PY = '''#!/usr/bin/env python3
 """Standalone bundled ReachWeaver CLI; runs against the current project directory."""

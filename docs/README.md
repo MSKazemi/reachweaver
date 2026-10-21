@@ -40,6 +40,7 @@ Pick the line that matches what you want to do. If you are new, read the first g
 | Run a work and a family account on one network; prepare sign-up details for a network you are not on | [Personas, usernames and the account kit](PERSONAS-AND-ACCOUNT-KIT.md) |
 | Choose channels for a region or goal | [Global strategy](GLOBAL-DISTRIBUTION-2026-10-08.md), [distribution governance](DISTRIBUTION-GOVERNANCE.md), [regional channels](REGIONAL-CHANNELS-2026-10-14.md), [community and creator platforms](COMMUNITY-AND-CREATOR-PLATFORMS-2026-10-15.md) |
 | See what works for you (your own past results; hypotheses, not causes) | [What works for you (`insights`)](INSIGHTS.md) |
+| Fediverse, Bluesky, bridges and duplicate reach | [Open social web](OPEN-SOCIAL-WEB.md) |
 | Pick times to post | [Calendar planner](CALENDAR-PLANNER.md), [timing evaluation](TIMING-EVALUATION.md), [platform algorithm and scheduling evidence](PLATFORM-ALGORITHMS-SCHEDULING-2026-10-08.md) |
 | Check images and video | [Media assets](MEDIA-ASSETS.md) |
 | Improve profiles and posts | [Profile and post audits](PROFILE-AND-POST-AUDITS.md), [profile metrics CSV](PROFILE-METRICS-CSV.md), [peer benchmark](PEER-BENCHMARK.md) |
