@@ -147,9 +147,87 @@
     "invite_link": [
       "Owner-approved working channel/group invite",
       "url"
+    ],
+    "search_profile_claimed": [
+      "Claim your Google Search profile (only where eligible)",
+      "bool"
+    ],
+    "search_console_platform_properties": [
+      "Check Search Console platform properties for your TikTok, Instagram, X or YouTube accounts",
+      "bool"
     ]
   },
   "platforms": [
+    {
+      "id": "google_search",
+      "label": "Google Search (Search profile and Search Console)",
+      "account_type": "creator",
+      "profile_checks": [
+        "search_profile_claimed",
+        "search_console_platform_properties",
+        "website"
+      ],
+      "profile_bio_limit": null,
+      "profile_bio_limit_scope": "unverified",
+      "profile_field_limits": [],
+      "post_strategy": {
+        "formats": [
+          "web_page",
+          "short_video",
+          "post"
+        ],
+        "test_hypothesis": "Compare Search Console clicks and impressions per platform property before and after a content change; observational, not causal",
+        "action_metric": "clicks",
+        "exposure_metric": "impressions",
+        "secondary_metrics": [],
+        "comparison": "same_account_same_format_same_metric_definition_matched_post_age"
+      },
+      "evidence": {
+        "tier": "official_guidance",
+        "official_source": "https://developers.google.com/search/docs/appearance/search-profiles",
+        "checked_on": "2026-10-21"
+      },
+      "check_sources": {
+        "search_profile_claimed": [
+          {
+            "quote": "A Search profile brings together your content from across the web and social platforms into a single destination on Google.",
+            "source_url": "https://developers.google.com/search/docs/appearance/search-profiles",
+            "checked_on": "2026-10-21",
+            "label": "official"
+          },
+          {
+            "quote": "You must have a minimum number of subscribers or followers on at least one content platform",
+            "source_url": "https://support.google.com/websearch/answer/16904498?hl=en",
+            "checked_on": "2026-10-21",
+            "label": "official"
+          }
+        ],
+        "search_console_platform_properties": [
+          {
+            "quote": "This information is also available for your TikTok, Instagram, X, or YouTube content.",
+            "source_url": "https://developers.google.com/search/docs/monitor-debug/analyze-social-video-content",
+            "checked_on": "2026-10-21",
+            "label": "official"
+          },
+          {
+            "quote": "We’re rolling out this feature gradually, so it might not be available to everyone yet.",
+            "source_url": "https://support.google.com/webmasters/answer/17148418?hl=en",
+            "checked_on": "2026-10-21",
+            "label": "official"
+          }
+        ],
+        "website": [
+          {
+            "quote": "such as your content on Instagram, TikTok, YouTube, X, Facebook, and your website",
+            "source_url": "https://developers.google.com/search/docs/appearance/search-profiles",
+            "checked_on": "2026-10-21",
+            "label": "official"
+          }
+        ]
+      },
+      "eligibility_note": "Google's help (checked 2026-10-21) lists Search profiles as available in Canada, India and the United States, for people aged 18 or over with at least 10,000 subscribers or followers on YouTube, Instagram, X or TikTok; check whether Google already generated a profile for you before creating one. Search Console platform properties are rolling out gradually. Not eligible or not available is a fact to record, not a fault.",
+      "human_only": false
+    },
     {
       "id": "linkedin",
       "label": "LinkedIn",

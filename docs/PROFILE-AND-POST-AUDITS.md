@@ -41,6 +41,7 @@ The machine-readable source of truth is `reachweaver/profile_audit_registry.json
 | **GitHub** | Pinned repos, concise README, correct About/topics, quickstart, contributor guide | Useful actual release, architecture guide, reproducible example | Qualified traffic and accepted contributions; GitHub is not a generic social impression feed |
 | **Snapchat** | Clear creator identity and proven mobile-native content | Original short vertical demo, tested with a defined audience | Native views/shares when exported; suitability for technical B2B is **hypothesis** |
 | **WhatsApp Channels** | Owner-controlled opt-in identity and accurate channel description | Permissioned high-value subscriber announcements | Forwarding/retention only where available; **no unsolicited DMs or mass invitations** |
+| **Google Search** (Search profile and Search Console) | Claim your Google Search profile where eligible (`search_profile_claimed`); check Search Console platform properties for your TikTok, Instagram, X and YouTube accounts (`search_console_platform_properties`); website linked from the profile. Each check carries official sources (`check_sources`, checked 2026-10-21) | Not a posting channel: look at how your existing posts and pages are found on Google | Search Console clicks and impressions per platform property; Search profiles are limited to some countries and follower counts (see [AI answer engines and search visibility](AI-SEARCH-VISIBILITY.md)), and not qualifying is not a fault |
 
 Primary documentation and evidence dates are saved per platform in [the registry](../reachweaver/profile_audit_registry.json). High-confidence **capability facts**, not undocumented secret weights, include:
 
@@ -49,13 +50,14 @@ Primary documentation and evidence dates are saved per platform in [the registry
 - [TikTok content recommendation](https://support.tiktok.com/en/using-tiktok/exploring-videos/how-tiktok-recommends-content); [Instagram Professional Dashboard](https://about.fb.com/news/2024/10/best-practices-education-hub-creators-instagram/); [Facebook original content](https://about.fb.com/news/2026/03/rewarding-original-creators-on-facebook/).
 - [X profile fields](https://help.x.com/en/managing-your-account/how-to-customize-your-profile) (behind a bot challenge for `curl`; its 160-character bio limit was read in a real browser on 2026-10-16); [Bluesky custom feeds](https://bsky.social/about/blog/7-27-2023-custom-feeds); [Mastodon default bio/profile metadata](https://docs.joinmastodon.org/user/profile/).
 - [DEV editor, analytics and article scheduling](https://dev.to/help/writing-editing-scheduling); [Pinterest claimed website](https://help.pinterest.com/en/business/article/claim-your-website); [Product Hunt launch guide](https://help.producthunt.com/en/articles/17350772-launch-guide), including its prohibition on soliciting upvotes.
+- [Google Search profiles](https://developers.google.com/search/docs/appearance/search-profiles), [creating a Search profile](https://support.google.com/websearch/answer/16904498?hl=en) (eligibility) and [Search Console platform properties](https://support.google.com/webmasters/answer/17148418?hl=en), all checked 2026-10-21.
 - [Reddit policies](https://redditinc.com/policies/reddit-rules) and [Hacker News submission guidelines](https://news.ycombinator.com/newsguidelines.html). Neither permits the generic bulk automation playbook.
 
 ## Sourced profile field limits
 
 `profile-audit` checks a text field's length only when `profile_field_limits` in the registry holds a **sourced** limit: the official URL, the checked date and a short verbatim quote that was confirmed with `curl -sL URL | grep -o '<quote>'` on **2026-10-15**. The loader refuses an entry without a `https://` URL, an ISO date, or a quote that contains the number. A field over its limit raises an advisory `length_review` alert (with the field, measured length, limit, unit, scope and source). Each report also carries `field_limits`, which shows every audited text field and the handle as either its sourced limit or `"unknown"`. An unknown limit is never guessed and never checked. API and protocol-schema limits are labeled as such: they describe what the API or record accepts, which can differ from the app editor.
 
-**16 sourced limits on 9 of 25 networks** (all checked 2026-10-15):
+**16 sourced limits on 9 of 26 networks** (all checked 2026-10-15):
 
 | Network | Field | Max | Scope | Source |
 | --- | --- | --- | --- | --- |

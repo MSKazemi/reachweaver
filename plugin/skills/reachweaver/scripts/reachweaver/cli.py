@@ -2228,6 +2228,12 @@ def execute(args) -> int:
         result = landing_check(args.briefs, args.campaign, online=args.online, allow_origins=args.allow_origin)
         print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else render_landing(result))
         return landing_exit_code(result)
+    if args.command == "ai-visibility":  # offline unless --online (own brief pages only); no database
+        from .ai_visibility import ai_visibility, exit_code as ai_exit_code, render_text as render_ai
+        result = ai_visibility(briefs=args.briefs, page_ids=args.page_id, url=args.url, html=args.html,
+                               robots=args.robots, online=args.online, allow_origins=args.allow_origin)
+        print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else render_ai(result))
+        return ai_exit_code(result)
     if args.command == "completion":  # generated from the parser; no database, no account, no network
         from .completion import render as render_completion
         print(render_completion(args.shell, make_parser()), end="")

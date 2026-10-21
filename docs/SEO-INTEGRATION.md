@@ -108,6 +108,10 @@ Every page, and the campaign, gets a status of `ok`, `warning` or `error`. The c
 
 Untagged links in a variant body that are not declared CTAs (for example, a reference link) are not CTA errors. They still map that variant to a brief's page for the claim check below.
 
+## AI answer engines and crawler rules (`ai-visibility`)
+
+`landing-check` checks that a page fits its campaign. `ai-visibility` checks what the same page and its robots.txt ask AI answer engines and search crawlers to do (ChatGPT search, Perplexity, Google, Bing). It takes the page address from these briefs and, with `--online`, fetches only their canonical pages. See [AI answer engines and search visibility](AI-SEARCH-VISIBILITY.md).
+
 ## Monitoring links already in your posts (`link-health`)
 
 ```bash
