@@ -135,6 +135,10 @@ COMMANDS: dict[str, dict] = {
     "timing-evaluate": _c(W, note=DB_NOTE),
     "baseline-eval": _c(W, note=DB_NOTE),
     "insights": _c(R, note="database mode=ro; never creates the database; observations to test, never causes"),
+    "platform-risk": _c(R, note="database mode=ro; reach share per platform, concentration and sourced risk flags; "
+                                "hypotheses, never forecasts"),
+    "eu-review-evidence": _c(R, note="database mode=ro and approval ledger read-only (never repaired); human-review "
+                                     "evidence per published post; not legal advice"),
     "attribution-report": _c(W, note=DB_NOTE),
     "pilot-report": _c(R),
     "peer-benchmark": _c(R),

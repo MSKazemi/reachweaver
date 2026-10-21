@@ -1531,6 +1531,11 @@ def execute(args) -> int:
             args.region, args.goal, limit=args.limit,
             local_date=args.date, audience_timezone=args.timezone,
         )
+        from .platform_risk import market_notices, parse_market
+        notices = market_notices([c["platform_id"] for c in plan["channels"]],
+                                 [parse_market(m) for m in args.market])
+        if notices:  # sourced flag only (e.g. TikTok US since 2026-01-23); the ranking is unchanged
+            plan["market_notices"] = notices
         if args.json:
             print(json.dumps(plan, indent=2, ensure_ascii=False))
         else:
@@ -1546,6 +1551,8 @@ def execute(args) -> int:
                 print("Illustrative time hypotheses ONLY; no items scheduled:")
                 for slot in plan["illustrative_time_tests"]:
                     print(f"  {slot['label']}: {slot['local']} = {slot['utc']} UTC")
+            for notice in notices:
+                print(f"Market notice ({notice['platform']}): {notice['notice']} Source: {notice['sources'][0]['url']}")
             print("No network, accounts, drafts, schedules or publishing operations performed.")
         return 0
     if args.command == "utm-link":
@@ -2148,6 +2155,18 @@ def execute(args) -> int:
     if args.command == "insights":  # database mode=ro only; never writes, never contacts a network
         from .insights import run_cli as run_insights
         return run_insights(args)
+    if args.command == "platform-risk":  # database mode=ro only; accounts metadata optional; no network
+        from .platform_risk import run_cli as run_platform_risk
+        try:
+            risk_accounts = load_accounts(args.accounts)
+        except ValidationError as exc:
+            if not str(exc).startswith("Missing "):
+                raise
+            risk_accounts = {}
+        return run_platform_risk(args, risk_accounts)
+    if args.command == "eu-review-evidence":  # database mode=ro, ledger read-only; never writes or repairs
+        from .review_evidence import run_cli as run_review_evidence
+        return run_review_evidence(args)
     if args.command == "followup-suggest":  # database mode=ro only; --record writes only the --state file
         from .followups import run_cli as run_followups
         return run_followups(args)
@@ -2807,6 +2826,8 @@ def execute(args) -> int:
                 raise ValidationError("Unknown calendar account; configure the owner account and run doctor")
             if args.apply and args.include_drafts:
                 raise ValidationError("--apply cannot be combined with --include-drafts; approve exact content first")
+            from .platform_risk import market_notices, parse_market
+            calendar_markets = [parse_market(m) for m in args.market]  # validated before anything is planned
             audience = None
             if args.audience_activity is not None:
                 today = datetime.now(timezone.utc).date()
@@ -2828,6 +2849,9 @@ def execute(args) -> int:
             )
             if args.apply:
                 proposal = apply_calendar(db, proposal)
+            notices = market_notices([account["platform"]], calendar_markets)
+            if notices:  # sourced flag only (TikTok US since 2026-01-23); slots and --apply are unchanged
+                proposal["market_notices"] = notices
             print(json.dumps(proposal, indent=2))
         elif args.command == "publish":
             if args.json:  # dry run only; the live path is never wrapped or changed

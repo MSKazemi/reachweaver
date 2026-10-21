@@ -66,3 +66,33 @@ With `--eu`, `ai-label-check` reports: realistic synthetic media is **required**
 ## Keeping it current
 
 The rules live in `reachweaver/ai_disclosure_registry.json`: each entry cites a URL, the exact quote read there and the date. `tests/test_ai_labels.py` checks the file's structure (every decision cites a page that was actually read, EU sources are marked secondary, an unverified platform can only answer unknown). It cannot check that a page still says the same thing: re-read each source, update the quote and `checked_on`, then run `python3 scripts/sync_skill.py` and the tests.
+
+## Human review evidence report (`eu-review-evidence`)
+
+> **Evidence of human review recorded by ReachWeaver; not legal advice; wording from a secondary source (artificialintelligenceact.eu); verify on EUR-Lex.**
+
+The Article 50(4) text duty does not apply "where the AI-generated content has undergone a process of human review or editorial control and where a natural or legal person holds editorial responsibility for the publication of the content" ([Art. 50](https://artificialintelligenceact.eu/article/50/), secondary site, checked 2026-10-21). `reachweaver eu-review-evidence` lists, for each published post, what ReachWeaver recorded about the human approval, so you can keep it with your own records:
+
+```bash
+python3 -m reachweaver eu-review-evidence                                   # text, newest first
+python3 -m reachweaver eu-review-evidence --since 30d --account my-linkedin --format markdown > review-evidence.md
+python3 -m reachweaver eu-review-evidence --post-id ID --json
+```
+
+Per post it shows:
+
+| Field | Where it comes from |
+|---|---|
+| `approved_at`, `approved_by`, `approver_source` | The post row. `approver_source` says how the name was obtained: typed with `approve --approver`, the operating-system user name, none, or a library call. |
+| `approved_payload_sha256` | The approval hash stored at `approve` (it binds the exact text, account, media and schedule). |
+| `text_sha256` | SHA-256 of the stored post text, to match the published text. |
+| `human_confirmation` | `tty_hash_prefix` when the opt-in human-presence check (`approval-mode --confirmation`) was used for the approval; only that fixed token of the audit event is read. |
+| `ledger` | The approval-ledger line for the post's approval nonce: `consumed` with its time and whether its payload hash equals the row's; `no_nonce` for posts approved before the ledger existed; `ledger_unreadable` when the ledger is missing or its hash chain is broken. The report also carries `ledger.audit`'s integrity status. |
+| `authorship` | The stored authorship declaration, when the database has an authorship column; otherwise "not recorded". |
+| `evidence` | `recorded` (approval time, payload hash, a named approver and a matching consumed ledger line), `partial` (time and hash, but no name or no matching ledger line) or `missing` (no approval time or no payload hash). `gaps` lists what is missing. |
+
+`--json` and `--format markdown` carry the same notice, the exemption wording with its source and date, and the limits below.
+
+**Strictly read-only.** The database is opened read-only and the ledger file is opened read-only through the ledger's own reader and chain check. Nothing is created, migrated, repaired, approved or sent; a missing or broken ledger is reported, never fixed.
+
+**What it does not show.** An approval records that someone ran `approve` for this exact payload, not that the text was read, edited or fact-checked. ReachWeaver does not record who holds editorial responsibility for the publication, which the exemption also requires. `approved_by` is what the approver typed or what the operating system reported, not an authenticated identity. The ledger is editable by the same Unix user; its hash chain makes in-place edits detectable, not impossible. Whether you are a deployer, whether a post informs the public on matters of public interest and whether your review counts as editorial control are legal questions for you or a qualified lawyer.

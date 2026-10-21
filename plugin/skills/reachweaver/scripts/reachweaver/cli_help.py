@@ -35,12 +35,14 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Monitor", ("statusline", "queue-health", "dead-letter", "ops-metrics", "ops-summary", "credentials-audit", "link-health", "trace")),
     ("Measure and learn", (
         "metrics", "import-metrics", "metrics-fetch", "report", "youtube-analytics", "timing-evaluate",
-        "baseline-eval", "insights", "attribution-report", "pilot-report", "peer-benchmark", "suggest", "weekly-digest")),
+        "baseline-eval", "insights", "platform-risk", "attribution-report", "pilot-report", "peer-benchmark", "suggest",
+        "weekly-digest")),
     ("Experiments", (
         "experiment-preregister", "experiment-verify", "experiment-evaluate", "experiment-readout", "experiment-next",
         "experiment-simulate")),
     ("Audit profiles and content", ("profile-audit", "post-audit", "seo-destinations", "seo-content-check",
                                     "landing-check", "ai-visibility", "utm-link", "creative-preflight", "voice-profile", "voice-check", "ai-label-check",
+                                    "eu-review-evidence",
                                     "media-check", "media-storyboard", "media-cutlist")),
     ("Research channels and sources", ("distribution-plan", "social-web-plan", "discovery-plan", "sources-scan", "signal-brief",
                                        "release-brief")),
