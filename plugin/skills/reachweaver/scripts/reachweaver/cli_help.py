@@ -35,7 +35,7 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Monitor", ("statusline", "queue-health", "dead-letter", "ops-metrics", "ops-summary", "credentials-audit", "link-health", "trace")),
     ("Measure and learn", (
         "metrics", "import-metrics", "metrics-fetch", "report", "youtube-analytics", "timing-evaluate",
-        "baseline-eval", "attribution-report", "pilot-report", "peer-benchmark", "suggest", "weekly-digest")),
+        "baseline-eval", "insights", "attribution-report", "pilot-report", "peer-benchmark", "suggest", "weekly-digest")),
     ("Experiments", (
         "experiment-preregister", "experiment-verify", "experiment-evaluate", "experiment-readout", "experiment-next",
         "experiment-simulate")),

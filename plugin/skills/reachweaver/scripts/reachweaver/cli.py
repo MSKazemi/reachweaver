@@ -2124,6 +2124,9 @@ def execute(args) -> int:
     if args.command == "idea":  # ideas inbox file next to the database; never opens the database
         from .ideas import run_cli as run_ideas
         return run_ideas(args)
+    if args.command == "insights":  # database mode=ro only; never writes, never contacts a network
+        from .insights import run_cli as run_insights
+        return run_insights(args)
     if args.command == "followup-suggest":  # database mode=ro only; --record writes only the --state file
         from .followups import run_cli as run_followups
         return run_followups(args)

@@ -32,7 +32,7 @@ from itertools import combinations
 from math import comb
 from pathlib import Path
 from statistics import median
-from typing import Any, cast
+from typing import Any, Callable, cast
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .attribution import ATTRIBUTION_OUTCOMES, attributed_outcome  # parsing only; no network
@@ -271,10 +271,16 @@ def _sent_at(row: sqlite3.Row) -> datetime | None:
         return None
 
 
-def _matched_rate(con: sqlite3.Connection, post_id: str, sent: datetime, *, source: str, metric: str,
-                  denominator: str, age_hours: int, tolerance_hours: int,
-                  skipped: Counter[str] | None = None) -> float | None:
-    """metric/denominator from the ONE source-matched snapshot nearest the target age, else None."""
+def matched_snapshot(con: sqlite3.Connection, post_id: str, sent: datetime, *, source: str, age_hours: int,
+                     tolerance_hours: int, usable: Callable[[sqlite3.Row], bool],
+                     skipped: Counter[str] | None = None) -> sqlite3.Row | None:
+    """The ONE source-matched, non-windowed snapshot nearest ``sent + age_hours``, else None.
+
+    Only snapshots with the exact ``source`` label, an observation time within
+    ``tolerance_hours`` of the target age and ``usable(row)`` true are candidates; the nearest
+    wins (ties: the earlier observation). Cumulative snapshots are never summed. Shared by
+    ``baseline-eval`` and ``insights`` so both read a post's result at the same matched age.
+    """
     target_seconds = sent.timestamp() + age_hours * 3600
     choices = []
     for row in snapshots_for(con, post_id, source=source):  # exact counts only (#15)
@@ -282,7 +288,7 @@ def _matched_rate(con: sqlite3.Connection, post_id: str, sent: datetime, *, sour
             if skipped is not None:
                 skipped["windowed_snapshots_skipped"] += 1
             continue
-        if row[metric] is None or row[denominator] is None or row[denominator] <= 0:
+        if not usable(row):
             continue
         try:
             observed = datetime.fromisoformat(parse_utc(row["observed_at"]))
@@ -290,10 +296,20 @@ def _matched_rate(con: sqlite3.Connection, post_id: str, sent: datetime, *, sour
             continue
         distance = abs(observed.timestamp() - target_seconds) / 3600
         if distance <= tolerance_hours:
-            choices.append((distance, observed, row[metric] / row[denominator]))
+            choices.append((distance, observed, row))
     if not choices:
         return None
     return min(choices, key=lambda item: (item[0], item[1]))[2]
+
+
+def _matched_rate(con: sqlite3.Connection, post_id: str, sent: datetime, *, source: str, metric: str,
+                  denominator: str, age_hours: int, tolerance_hours: int,
+                  skipped: Counter[str] | None = None) -> float | None:
+    """metric/denominator from the ONE source-matched snapshot nearest the target age, else None."""
+    row = matched_snapshot(
+        con, post_id, sent, source=source, age_hours=age_hours, tolerance_hours=tolerance_hours, skipped=skipped,
+        usable=lambda r: r[metric] is not None and r[denominator] is not None and r[denominator] > 0)
+    return None if row is None else row[metric] / row[denominator]
 
 
 def _summary(values: list[float]) -> dict[str, Any]:
