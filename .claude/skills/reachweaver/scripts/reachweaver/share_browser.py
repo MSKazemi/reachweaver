@@ -28,7 +28,7 @@ import webbrowser
 from . import share_composer_store as store
 from .distribution import load_registry as load_distribution_registry
 from .inputs import nesting_depth
-from .manual_export import LABELS, MANUAL_PLATFORMS
+from .manual_export import LABELS, MANUAL_PLATFORMS, YOUTUBE_TITLE_MISSING
 from .manual_package import MAX_TALKING_POINT_CHARS
 from .policy import ValidationError
 from .share import (MAX_DESTINATIONS, MAX_TEXT_BYTES, MEDIA_CHECK_NOTE, _human_only, _media_lines,
@@ -54,6 +54,7 @@ PLAIN_WORDS = (
     ("variant.text must contain substantive text", "needs a caption: write a few words first"),
     ("YouTube needs platform_options.title (the video title); variant.text is the description",
      "YouTube needs a video title; your caption becomes the description"),
+    (YOUTUBE_TITLE_MISSING, "YouTube needs a video title; your caption becomes the description"),
     ("Human-only communities need --note, not pre-written post text",
      "Human-only communities get your own community note, never a prepared post"),
     ("This selection is human-only. Remove --text/--file and supply --note",
@@ -68,6 +69,9 @@ PLAIN_WORDS = (
 )
 _NO_MEDIA = re.compile(r"no media manifest supplied: (?P<kinds>[a-z, ]+) not validated; attach the file yourself "
                        r"and run media-check before posting")
+# manual_export.media_unchecked's wording; the CLI-only hint in brackets has no meaning on this page
+_MEDIA_UNCHECKED = re.compile(r"(?P<need>[^.:]+ needs (?:a photo or video|a photo|a video|photos or videos)): "
+                              r"attach it in the app\. .*?\(share --attach FILE or media-check MANIFEST checks it first\)")
 METRICS_NEXT = "reachweaver metrics {post_id} --likes N --replies N"  # --observed-at defaults to now, --source to entered-by-hand
 
 
@@ -78,6 +82,10 @@ def plain(message: str, label: str = "") -> str:
         need = "a photo or video" if "image" in found.group("kinds") else "a video"
         message = message.replace(found.group(0), f"{label} needs {need}. Add it here or attach it in the "
                                                   f"{label} app.")
+    unchecked = _MEDIA_UNCHECKED.search(message)
+    if unchecked and label:
+        need = unchecked.group("need").replace("This post needs", f"{label} needs", 1)  # the card names its network
+        message = message.replace(unchecked.group(0), f"{need}. Add it here or attach it in the {label} app.")
     for old, new in PLAIN_WORDS:
         message = message.replace(old, new)
     return message
