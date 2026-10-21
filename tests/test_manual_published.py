@@ -106,7 +106,8 @@ class RecordTests(Base):
     def test_url_creates_a_terminal_measurable_record_linked_to_its_ledger_entry(self):
         code, out, err = self.mark("--account", "my-masto")
         self.assertEqual(code, 0, out + err)
-        self.assertIn("posted by hand, published_manual", out)
+        self.assertIn("(posted by hand on mastodon)", out)
+        self.assertNotIn("shared-", out)  # one id: the measurable post
         self.assertIn("can never be approved, scheduled or sent", out)
         with connect(self.db) as db:
             post = dict(db.execute("SELECT * FROM posts").fetchone())

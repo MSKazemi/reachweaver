@@ -10,6 +10,7 @@ from __future__ import annotations
 import textwrap
 
 from . import term
+from .results import account_label
 
 METER_WIDTH = 20
 # platform_preview keys that carry the platform's own count and limit, per platform.
@@ -57,6 +58,8 @@ def approval_sentence(view: dict) -> str:
         return "A send ended in an unknown state; check the native platform before anything else"
     if status == "published":
         return "Published"
+    if status == "published_manual":
+        return "Posted by hand: ReachWeaver never sent it and can never approve, schedule or send it"
     if status == "cancelled":
         return "Cancelled; it will never be sent"
     if status == "sending":
@@ -80,11 +83,14 @@ def render_sheet(view: dict, steps: list[dict], stream, *, columns: int | None =
     colour = term.STATUS_COLOUR.get(status, "grey")
     head = f"POST {term.clean(view['id'])}  " + term.style(f"[{status.replace('_', ' ')}]", colour, stream)
     lines = [head,
-             f"{view['account_id']} on {view['platform']}" + (f" · campaign {view['campaign']}" if view.get("campaign") else ""),
+             f"{account_label(view['account_id'])} on {view['platform']}"
+             + (f" · campaign {view['campaign']}" if view.get("campaign") else ""),
              "", term.style("EXACT TEXT", "bold", stream), *_box(view["content"], columns)]
     length = length_of(view)
     if length:
         lines.append("Length  " + meter(length, stream) + (term.style("  OVER THE LIMIT", "red", stream) if length["state"] == "over" else ""))
+    if "results" in view:
+        lines += ["", term.style("RESULTS", "bold", stream), *results_lines(view["results"])]
     lines += ["", term.style("APPROVAL", "bold", stream), approval_sentence(view)]
     options = (view.get("approval") or {}).get("send_options")
     if isinstance(options, dict):  # sheet items 5/9: Mastodon visibility/language/CW, Postiz server/integration
@@ -117,6 +123,26 @@ def render_sheet(view: dict, steps: list[dict], stream, *, columns: int | None =
             lines += [f"  {step['label']}", f"    {step['command']}"]
     lines += ["", "Full details as JSON: reachweaver --plain show " + view["id"]]
     return "\n".join(lines)
+
+
+def results_lines(results: dict) -> list[str]:
+    """The RESULTS block: the latest numbers per source, with when and how long after posting."""
+    from .results import numbers_text
+    latest = results.get("latest_by_source") or []
+    if not latest:
+        return ["No numbers recorded yet. When you have them:", f"  {results['record_more']}"]
+    lines = []
+    for item in latest[:5]:
+        age = item.get("hours_after_posting")
+        when = f"{str(item['observed_at'])[:16].replace('T', ' ')} UTC" + (
+            f", {age} hours after posting" if isinstance(age, int) and age >= 0 else "")
+        numbers = numbers_text(item["numbers"], ("likes", "replies", "reposts", "views", "impressions", "saves",
+                                                 "clicks", "signups"))
+        other = ", ".join(f"{key} {label}" for key, label in sorted(item.get("other_states", {}).items()))
+        extra = f" ({other})" if other else ""
+        lines.append(term.clean(f"{numbers}{extra}  [{when}; source '{item['source']}']"))
+    lines.append(f"Record newer numbers: {results['record_more']}")
+    return lines
 
 
 def _one_line(value) -> str:

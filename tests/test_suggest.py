@@ -201,7 +201,7 @@ class BareSuggestTests(unittest.TestCase):
     def test_nothing_at_all_prints_next_steps_and_creates_nothing(self):
         code, out, err = self.run_cli()
         self.assertEqual(code, 0, err)
-        self.assertIn("Nothing to rank yet. Next:", out)
+        self.assertIn("What to do next", out)  # the same plain view as `reachweaver next`
         self.assertIn("reachweaver share --web --open", out)
         self.assertIn("reachweaver idea add", out)
         self.assertFalse(self.state.exists())

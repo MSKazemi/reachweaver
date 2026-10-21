@@ -91,6 +91,7 @@ rm -rf state/quickstart.sqlite state/quickstart-drafts state/quickstart-threads
 
 ## Next steps
 
+- Posting by hand already? Record a post with `reachweaver mark-shared --platform instagram --text '...' --url LINK --at yesterday`, add its numbers with `reachweaver metrics POST_ID --likes 40`, then `reachweaver report --week` and `reachweaver next` (what to post next: your ideas by name).
 - Write your own campaign: [schemas](SCHEMAS.md), [campaign preview](CAMPAIGN-PREVIEW.md) and the Claude Code skill (`/reachweaver`, see the [README](../README.md#option-1-with-claude-code-recommended)).
 - Before any live send, go through the [security checklist](SECURITY-CHECKLIST.md), then [account onboarding](ACCOUNT-ONBOARDING.md) and the [first live pilot](FIRST-LIVE-PILOT.md) (Bluesky: the [one-post pilot runbook](BLUESKY-PILOT.md)). A live send needs your own account, credentials entered privately on your machine, an approved post, `--live`, `REACHWEAVER_ALLOW_LIVE=1` **and** `REACHWEAVER_ENV=prod` (set only on the machine you publish from):
 

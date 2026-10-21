@@ -15,7 +15,7 @@ from .policy import CONSERVATIVE_TEXT_LIMITS, LINKEDIN_ESCAPED_MAX, ValidationEr
 from .richtext import bluesky_preview, deterministic_tid, mastodon_length
 from .accounts import bluesky_service
 from .storage import (
-    APPROVAL_KEY_UNAVAILABLE, MANUAL_PROVENANCE, MANUAL_STATUS, approval_binding_problem, approval_payload_sha256,
+    APPROVAL_KEY_UNAVAILABLE, MANUAL_PROVENANCE, MANUAL_STATUS, MEASURED_STATUSES, approval_binding_problem, approval_payload_sha256,
     binding_refusal,
     offline_key_mode, parse_utc, post_media, post_video,
 )
@@ -251,6 +251,14 @@ def build_post_view(db, post, account: dict | None) -> dict:
                                    "note": "You published this yourself; ReachWeaver never sent it and can never "
                                            "approve, schedule or send it. Record its results with metrics, "
                                            "import-metrics or metrics-fetch."}
+    if post["status"] in MEASURED_STATUSES:  # its latest recorded numbers per source (exact counts only)
+        from .results import latest_by_source, metrics_command
+        try:
+            latest = latest_by_source(db, post)
+        except sqlite3.Error:  # an older database without snapshots: nothing recorded to show
+            latest = []
+        shown["results"] = {"latest_by_source": latest, "record_more": metrics_command(post["id"]),
+                            "note": "Exact counts only; a count not listed was not recorded (unknown, not zero)."}
     shown["approval"] = approval_view(post, offline_key_mode(db))
     options = send_options_view(post, account)
     if options is not None:

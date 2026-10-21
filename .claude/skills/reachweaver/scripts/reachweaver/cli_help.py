@@ -22,7 +22,7 @@ import textwrap
 
 # (title, command names in the order a person meets them)
 GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Get started and look around", ("start", "help", "context", "describe", "connect", "account-add", "account-remove", "account-advisor", "profile", "account-route", "account-kit", "version", "init", "doctor", "health", "workspace", "ui", "list", "show", "journal", "capabilities", "registry-age", "completion", "mcp-serve")),
+    ("Get started and look around", ("start", "next", "help", "context", "describe", "connect", "account-add", "account-remove", "account-advisor", "profile", "account-route", "account-kit", "version", "init", "doctor", "health", "workspace", "ui", "list", "show", "journal", "capabilities", "registry-age", "completion", "mcp-serve")),
     ("Draft and approve (nothing is sent)", (
         "idea", "draft", "check", "repeat-check", "mark-shared", "review", "approve", "unapprove", "cancel", "schedule", "media-attach", "media-detach", "ai-declare",
         "video-attach", "video-detach", "youtube-attach", "youtube-detach", "campaign-check", "campaign-preview",
@@ -57,7 +57,9 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
 # docs walk a creator through, in that order: README "Easy sharing" and docs/START-HERE.md (share, share --web,
 # draft, check, approval, the dry-run publish), docs/QUICKSTART.md (draft, check, publish preview, list), the
 # bundled skill's everyday loop (.claude/skills/reachweaver/SKILL.md: idea inbox, draft, review, report,
-# metrics-fetch, suggest) and the setup pages (connect, workspace, update, ui). They are also the commands the
+# metrics-fetch, suggest) and the setup pages (connect, workspace, update, ui). 2026-10-21: `next` replaced
+# `suggest` here: bare `suggest` now prints the same view as `next`, so listing both would show one answer twice,
+# and `next` answers the everyday question ("what should I post next?") by name; `suggest` stays in `--help all`. They are also the commands the
 # user docs name most often (share, publish, workspace, connect, idea and draft lead that count). The single-post
 # approval command is reached through `review`, which walks the drafts and runs it for each one with the same
 # checks; agent-facing commands (context, describe, mcp-serve) and specialist ones stay in `--help all`. The
@@ -72,9 +74,10 @@ EVERYDAY: tuple[tuple[str, ...], ...] = (
     ("review", "Go through your drafts one by one and approve the ones you want (you only)"),
     ("publish", "Preview what would be sent; a dry run unless you, the owner, turn on live"),
     ("list", "See your posts and where each one stands"),
-    ("report", "What your published posts achieved, from the numbers recorded so far"),
+    ("next", "What to post next: your ideas by name, each with a ready command"),
+    ("report", "How your posts did: a short summary, your best posts first",
+     "report --week for the last 7 days"),
     ("metrics-fetch", "Fetch the public like, repost and reply counts of your Bluesky/Mastodon posts"),
-    ("suggest", "A ranked list of things worth improving, for you to review"),
     ("ui", "Open a read-only dashboard of your posts in your browser"),
     ("connect", "See which accounts are ready, or walk through connecting them"),
     ("workspace", "What lives in this folder and whether it moves to another computer"),

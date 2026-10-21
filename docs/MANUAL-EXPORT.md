@@ -199,7 +199,7 @@ With `--url`, `mark-shared` does two things and sends nothing:
 
 Then record its results as for any published post:
 
-- `reachweaver metrics POST_ID --observed-at TIME --source native-export --views N --likes N`, or `import-metrics --csv FILE` with that `post_id`, from the platform's own analytics.
+- `reachweaver metrics POST_ID --likes N --replies N --reposts N` (recorded now, source `entered-by-hand`; add `--observed-at yesterday` or `--source native-export` when that is true), or `import-metrics --csv FILE` with that `post_id`, from the platform's own analytics.
 - `metrics-fetch --online` reads public counters for a Mastodon link on your configured server and handle, and for a Bluesky link of the form `https://bsky.app/profile/did:.../post/...` (the post must be by your configured handle). For a Bluesky link with a handle instead of a `did:`, or for any other platform, use `metrics` or `import-metrics`; `metrics-fetch` lists the record as `posted_by_hand_without_platform_id`.
 
 `report`, `insights`, `journal` and the dashboard's Posted and Results pages include these posts and label them "posted by hand". `journal --no-by-hand` leaves them out.

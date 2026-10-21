@@ -24,6 +24,8 @@ SHARE_WEB = "reachweaver share --web --open"
 SHARE_GUIDE = "reachweaver share --guide"
 REVIEW = "reachweaver review"
 REPORT = "reachweaver report --since 30d --format markdown"
+REPORT_WEEK = "reachweaver report --week"
+NEXT = "reachweaver next"
 INSIGHTS = "reachweaver insights"
 
 
@@ -64,7 +66,47 @@ def _placeholder_step(placeholders: list[str], accounts_file: Path) -> dict:
 
 def _ideas_step(count: int) -> dict:
     return _step(f"{count} saved idea(s) in your inbox: pick one to write next", "reachweaver idea list --status open",
-                 "Turn one into a campaign outline with 'reachweaver idea promote IDEA_ID --campaign NAME --out NEW_DIR'.")
+                 f"'{NEXT}' names each one with a ready command that makes a copy-ready post for your networks.")
+
+
+def _hand_posting_guide(db: str | Path | None, database: Path) -> dict | None:
+    """No accounts file, but you already post by hand (posts recorded in the database) or saved ideas: show your
+    progress and the everyday loop instead of the first-time setup. None for a brand-new user."""
+    from datetime import datetime, timezone
+
+    from . import results
+    open_ideas = _open_ideas(db)
+    posts = drafts = 0
+    due: list[dict] = []
+    if database.is_file():
+        try:
+            with open_database(database) as con:
+                for row in post_status_counts(con):
+                    if row["status"] in ("published", "published_manual"):
+                        posts += row["count"]
+                    elif row["status"] == "draft":
+                        drafts += row["count"]
+                due = results.results_due(con, datetime.now(timezone.utc))
+        except (ValidationError, sqlite3.Error):
+            pass  # an unreadable database: the first-time steps below still apply
+    if not (posts or open_ideas or drafts):
+        return None
+    facts = [f"{posts} post(s) recorded", f"{open_ideas} open idea(s)"] + ([f"{drafts} draft(s)"] if drafts else [])
+    steps = [_step("What to post next: your ideas by name, each with a ready command" if open_ideas else
+                   "What to do next: one short list of concrete steps", NEXT,
+                   "Read-only; it also says how many days since you last posted on each network.")]
+    if due:
+        steps.append(_step(f"{len(due)} post(s) are ready for their 7-day numbers: copy them from the app's insights",
+                           due[0]["command"], "Leave out any count you cannot see (unknown is not zero)."))
+    if posts:
+        steps.append(_step("How your posts did this week", REPORT_WEEK,
+                           "A short summary at your terminal; exact numbers from your own records only."))
+    steps.append(_step("Write another post in your browser and post it by hand", SHARE_WEB,
+                       "After posting, record it so it counts: reachweaver mark-shared --platform NAME --text '...' "
+                       "--url LINK"))
+    steps += [step for step in _no_accounts_steps() if step["command"] not in (SHARE_WEB, SHARE_GUIDE)]
+    return {"state": "posting_by_hand", "summary": "You post by hand (no accounts file yet): " + ", ".join(facts) + ".",
+            "steps": steps}
 
 
 def _no_accounts_steps() -> list[dict]:
@@ -127,6 +169,9 @@ def _build_guide(db: str | Path | None, accounts_path: str | None) -> dict:
         accounts, accounts_error = {}, str(exc)
     database = database_path(db)
     if accounts_error is not None and accounts_error.startswith("Missing "):
+        progress = _hand_posting_guide(db, database)
+        if progress is not None:
+            return progress
         return {"state": "no_accounts_file", "summary": "No accounts file yet.", "steps": _no_accounts_steps()}
     if accounts_error is not None:  # the file exists but cannot be used: never suggest overwriting it
         return {"state": "accounts_invalid", "summary": f"The accounts file cannot be used: {accounts_error}",

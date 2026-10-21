@@ -2,6 +2,30 @@
 
 **Status:** offline, deterministic, read-only. This is a prioritization helper, **not a prediction of social views**, a hidden platform ranking algorithm or permission to publish. All actions require human review.
 
+## "What should I post next?" — `reachweaver next`
+
+For a creator the everyday question is simpler than a ranked review, so `reachweaver next` answers it with **at most five concrete steps, each with one command to type**:
+
+1. **Safety first** (only when present): a send that ended in an unknown state (`dead-letter`), a stalled send (`queue-health`), an approval that no longer matches its post (`review`), a missed schedule, or the emergency stop.
+2. **Drafts waiting** -> `reachweaver review` (your own approval loop; nothing is sent by looking).
+3. **Posts due for their 7-day numbers**: a post 6 to 30 days old with no numbers from day 6 on -> the exact `reachweaver metrics POST_ID --likes N --replies N --reposts N` line (and how many more are due).
+4. **Each open idea by name** (oldest first) -> `reachweaver share --platform <your usual networks> --text '<the idea>'`. "Usual networks" are the ones you posted on most in the last 90 days (posts sent, posts recorded with `mark-shared`), at most three, that `share` accepts and that are not human-only. The idea is quoted with `shlex.quote`, so it is one shell argument whatever it contains. With no posting history yet, or an idea over 280 characters, the step is the browser composer (`share --web --open`). `share` only writes a copy-ready package; nothing is posted.
+5. **Days since you last posted** on each network you use (`Instagram 8 days ago, Bluesky yesterday`), with the composer when one network has been quiet for 7 days or more.
+6. **The strongest "what works for you" line** from `insights`, when your own results support one (an observation to test, not a cause).
+
+Ideas fill the slots the other steps leave, and at least one idea is shown when you have any. With nothing recorded yet it points at the browser composer and `idea add`.
+
+```bash
+reachweaver next
+reachweaver next --json     # schema reachweaver.next.v1
+```
+
+`--json` keys (stable within `reachweaver.next.v1`; keys may be added, never renamed): `schema`, `generated_at`, `actions[]` (`rank`, `kind` = `safety` | `drafts` | `results_due` | `idea` | `rhythm` | `what_works` | `first_post` | `save_idea`, `text`, `command` or null, `note` or null, `evidence`), `counts` (`open_ideas`, `posts_recorded`, `drafts`, `results_due`), `usual_networks`, `warnings`, `read_only` (always true), `note`.
+
+`next` reads the ideas inbox and an **existing** database (`mode=ro` plus query-only; a missing one is never created, an older one is never migrated). It drafts, approves, schedules and sends nothing, and it is not a prediction of reach: the order is the fixed rule above. Because it prints your idea text and the first words of your posts, `mcp-serve` does not offer it as a tool (`mcp_server.WITHHELD_COMMANDS`); `suggest --json` stays counts-only.
+
+Bare `reachweaver suggest` prints this same view, followed by a pointer to the full ranked review below (`suggest --include-db`). `suggest --include-db` now also counts open ideas (one P3 `open_ideas` item pointing at `next`; counts only, never the text).
+
 ## Purpose
 
 A maintainer has multiple sources of truth: a manually inspected LinkedIn profile, owner-exported TikTok/YouTube post metrics, a local ReachWeaver outbox, DEV.to technical questions, SEO destination briefs, and classified content experiments. ReachWeaver should combine them into **one ranked review queue** without pretending missing analytics mean poor performance or ranking profiles by likes.
@@ -24,7 +48,7 @@ If you have a lawful owner export, normalized to `examples/profile-post-metrics.
 
 ## Safe quickstart
 
-With **no input flag**, `suggest` looks at what is already on your computer: an existing local database, opened query-only exactly as with `--include-db` (a missing one is skipped and never created), plus the number of open ideas in your ideas inbox (counts only, never the idea text). If there is nothing to rank yet, it prints where to go next (`share --web --open`, `idea add`, `start`) instead of an error, and `--json` adds a `next_steps` list. Explicit input flags work exactly as before.
+With **no input flag**, `suggest` prints the same plain view as `reachweaver next` (above). `suggest --json` without an input flag keeps its `reachweaver.suggestions.v1` schema: it looks at what is already on your computer, an existing local database opened query-only exactly as with `--include-db` (a missing one is skipped and never created), plus the number of open ideas in your ideas inbox (counts only, never the idea text); with nothing to rank it adds a `next_steps` list (`share --web --open`, `idea add`, `start`). Explicit input flags work exactly as before.
 
 ```bash
 reachweaver suggest

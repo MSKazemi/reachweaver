@@ -289,9 +289,9 @@ def build_suggestions(
         sources.append("ideas_inbox_readonly")
         coverage["ideas"] = {"open": open_ideas}
         if open_ideas:
-            add("P3", "content", "open_ideas", "Write a post from a saved idea",
-                "List them with 'reachweaver idea list --status open', pick one, and promote it to a campaign "
-                "outline with 'reachweaver idea promote IDEA_ID --campaign NAME --out NEW_DIR'.",
+            add("P3", "content", "open_ideas", f"Write a post from one of your {open_ideas} saved idea(s)",
+                "Run 'reachweaver next': it names each idea and gives one ready command that makes a copy-ready "
+                "version for the networks you use ('reachweaver idea list --status open' lists them all).",
                 source="ideas_inbox", confidence="verified_local_state", evidence={"open_ideas": open_ideas})
 
     # Pre-declared order, not a model trained on engagement data. Sort IDs for stable runs.
@@ -361,9 +361,3 @@ EMPTY_NEXT_STEPS = (
     {"label": "Save an idea to post about later", "command": "reachweaver idea add 'Your idea'"},
     {"label": "See where you are and what to type next", "command": "reachweaver start"},
 )
-
-
-def render_next_steps(steps) -> str:
-    lines = ["Nothing to rank yet. Next:"]
-    lines += [f"  {step['label']}:\n    {step['command']}" for step in steps]
-    return "\n".join(lines)

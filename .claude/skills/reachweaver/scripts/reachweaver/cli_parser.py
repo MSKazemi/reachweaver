@@ -25,6 +25,7 @@ from .media import CREATORS
 from .metrics_fetch import DEFAULT_MAX_POSTS, MAX_POSTS_LIMIT
 from .pilot import DEFAULT_MIN_WEEKS
 from .report_format import REPORT_FORMATS
+from .results import HAND_ENTERED_SOURCE
 from .schema_export import EXPORT_TYPES
 from .schemas import TYPES as SCHEMA_TYPES
 from .storage import METRIC_FIELDS, POST_STATUSES
@@ -344,8 +345,10 @@ def make_parser() -> argparse.ArgumentParser:
                                              "measurable: a 'published_manual' record that metrics, import-metrics, "
                                              "report, insights and the dashboard include, labelled posted by hand; it "
                                              "can never be approved, scheduled or sent")
-    p.add_argument("--at", help="When it was shared, ISO 8601 with a timezone (default: now); with --url this is the "
-                                "post's send time for report --since and insights")
+    p.add_argument("--at", metavar="WHEN",
+                   help="When it was shared (default: now): now, today, yesterday, YYYY-MM-DD (midday), "
+                        "'YYYY-MM-DD HH:MM' (your computer's time zone) or ISO 8601 with a timezone; with --url "
+                        "this is the post's send time for report --since and insights")
     p.add_argument("--note", default="", help="A short label for yourself")
     p = sub.add_parser("disconnect", help="Stop publishing to one account on this installation (#38): tighten-only, local; "
                        "lists the credential variable names and the steps to revoke at the provider; revokes nothing itself")
@@ -637,14 +640,21 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true",
                    help="Display the current mode as JSON; only without the options above, which stay text-only")
     sub.add_parser("resume", help="Explicitly lift the emergency stop")
-    p = sub.add_parser("metrics", help="Record one snapshot from a native platform export")
+    p = sub.add_parser("metrics", help="Record one post's numbers (likes, replies...) that you read in the "
+                                        "platform's insights or a native export")
     p.add_argument("post_id")
-    p.add_argument("--observed-at", required=True, help="ISO 8601 timestamp WITH timezone")
-    p.add_argument("--source", required=True)
+    p.add_argument("--observed-at", default="now", metavar="WHEN",
+                   help="When you read the numbers (default: now): now, today, yesterday, YYYY-MM-DD, "
+                        "'YYYY-MM-DD HH:MM' (your computer's time zone) or ISO 8601 with a timezone")
+    p.add_argument("--source", default=HAND_ENTERED_SOURCE,
+                   help=f"Where the numbers come from (default '{HAND_ENTERED_SOURCE}': you typed them from the "
+                        "platform's own insights; ReachWeaver did not fetch them). Use a label such as "
+                        "native-export for an exported file")
     for key in METRIC_FIELDS:
         p.add_argument("--" + key, metavar="VALUE",
                        help="Count, or unknown / suppressed / not_available / delayed / estimated:N")
-    p.add_argument("--window-start", help="Optional start of the period the counts cover (ISO 8601 with timezone)")
+    p.add_argument("--window-start", help="Optional start of the period the counts cover (same forms as "
+                                          "--observed-at)")
     p.add_argument("--window-end", help="Optional end of that period; give both or neither (neither = unknown)")
     p = sub.add_parser("import-metrics", help="Import native-analytics snapshots normalized as CSV (all rows or none)")
     p.add_argument("--csv", required=True, type=Path,
@@ -676,12 +686,15 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-quotes", type=int, default=100,
                    help="Quote posts kept per Bluesky post with --quotes (1..500, default 100, at most 5 pages)")
     p = sub.add_parser("report", help="Coverage-aware local analytics; no fabricated reach or results")
-    p.add_argument("--format", choices=REPORT_FORMATS, default="json", dest="report_format",
-                   help="json (default, unchanged envelope), markdown, or csv (one row per platform and metric; "
-                        "spreadsheet-formula cells neutralised)")
-    p.add_argument("--since", metavar="WHEN",
-                   help="Only posts sent in this window and their snapshots observed in it: 24h, 7d, 30d, a date "
-                        "(2026-10-01, midnight UTC) or an ISO time with a timezone. Read-only")
+    p.add_argument("--format", choices=REPORT_FORMATS, default=None, dest="report_format",
+                   help="text (the default at a terminal: a short summary, a table per network and your top 5 "
+                        "posts), json (the default when the output is piped or redirected; unchanged envelope), "
+                        "markdown, or csv (one row per platform and metric; spreadsheet-formula cells neutralised)")
+    when = p.add_mutually_exclusive_group()
+    when.add_argument("--since", metavar="WHEN",
+                      help="Only posts sent in this window and their snapshots observed in it: 24h, 7d, 30d, a date "
+                           "(2026-10-01, midnight UTC) or an ISO time with a timezone. Read-only")
+    when.add_argument("--week", action="store_true", help="The last 7 days: the same as --since 7d")
     p = sub.add_parser("youtube-analytics", help="#22: offline sampling report over stored metric snapshots of "
                        "published YouTube videos (exact/sampled/unknown labels); read-only, fetches nothing")
     p.add_argument("--account", help="Only this YouTube account id")
@@ -722,6 +735,10 @@ def make_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("completion", help="Print a shell completion script for commands, options and fixed choices "
                                           "(bash, or zsh via bashcompinit); reads no database and runs nothing")
     p.add_argument("shell", choices=("bash", "zsh"))
+    p = sub.add_parser("next", help="What to post next: at most 5 concrete steps (your open ideas by name with a "
+                                    "ready share command, drafts waiting, posts due for their 7-day numbers, days "
+                                    "since you last posted per network); read-only, runs nothing")
+    p.add_argument("--json", action="store_true", help="Machine-readable view (schema reachweaver.next.v1)")
     p = sub.add_parser("start", help="Read-only guide: look at your accounts file, database and queue and print the "
                                      "exact next command to run; runs nothing and never creates the database")
     p.add_argument("--json", action="store_true", help="Machine-readable guide")
