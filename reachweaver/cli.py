@@ -128,7 +128,7 @@ def _connect_first_account(args) -> str | None:
     """
     from . import account_add, connect_guide
     if args.json:
-        print(json.dumps({"accounts": [], "note": "No accounts yet. Add one: reachweaver account-add PLATFORM "
+        print(json.dumps({"accounts": [], "note": f"No accounts yet. Add one: {home.command('account-add PLATFORM')} "
                           "(public details only). Offline; no request was made."}, indent=2))
         return None
     print(connect_guide.render_no_accounts(in_workspace=home.root() is not None))
@@ -2561,6 +2561,10 @@ def execute(args) -> int:
                     print(json.dumps(_drafts_document([(post_id, args.account)], accounts), indent=2))
                 else:
                     print(f"Created draft {post_id} for {args.account}; not published")
+                    from . import term
+                    if term.interactive(sys.stdout):  # a person gets the next step; scripts keep the one line
+                        print(f"Next: {home.command('review')} (go through your drafts) or "
+                              f"{home.command('show ' + post_id)}")
             else:
                 return _draft_reply(db, args, account, content, optout)
         elif args.command == "media-attach":
@@ -3250,9 +3254,10 @@ def _report_text_parts(db, window: str | None) -> dict:
     now = datetime.now(timezone.utc)
     posts = results.post_results(db, since=window)
     note = results.early_note_for(db, posts, now)
+    measured = [row for row in posts if row["observed_at"] is not None]
+    by_hand = bool(measured) and all(row["posted_by_hand"] for row in measured)
     return {"posts": posts, "due": results.results_due(db, now),
-            "early": (results.early_note_text(note, age_hint="run 'reachweaver insights --age-hours {n}'")
-                      if note else None)}
+            "early": results.early_note_advice(note, by_hand=by_hand) if note else None}
 
 
 def _report_handles(args) -> dict[str, str]:
@@ -3290,7 +3295,33 @@ def _json_error(parsed, exc: BaseException | None, message: str) -> None:
         print(json_error(error_code(exc) if exc is not None else "invalid_input", message))
 
 
+def _remember_typed_paths(parsed) -> None:
+    """The global path options that differ from what this run would use without them; printed next steps repeat
+    them (``home.command``) so following one reaches the same files (UX 2026-10-21). An option equal to its default
+    (the workspace's, or the REACHWEAVER_* setting's) is left out."""
+    from .accounts import accounts_path
+    from .profile import profile_path
+    from .storage import database_path
+
+    def differs(value, default: Path):
+        return value if value and Path(value).resolve() != Path(default).resolve() else None
+
+    typed_home = None
+    if parsed.home is not None and home.root() is not None and home.find_root(Path.cwd()) != home.root():
+        typed_home = home.root()
+    home.remember_flags(home_dir=typed_home, db=differs(parsed.db, database_path(None)),
+                        accounts=differs(parsed.accounts, accounts_path(None)),
+                        profile=differs(parsed.profile, profile_path(None)))
+
+
 def main(argv=None) -> int:
+    try:
+        return _main(argv)
+    finally:
+        home.remember_flags()  # the options typed for this run end with it (tests call main again and again)
+
+
+def _main(argv=None) -> int:
     argv_list = sys.argv[1:] if argv is None else list(argv)
     if argv_list[:1] == ["statusline"]:  # status bar fast path: skip building ~100 subparsers
         from .statusline import main as statusline_main
@@ -3301,6 +3332,7 @@ def main(argv=None) -> int:
         if parsed.show_version:  # `reachweaver --version` prints exactly what `reachweaver version` prints
             parsed.command, parsed.json, parsed.verbose = "version", False, False
         home.activate(parsed.home if parsed.command != "workspace" or parsed.init is None else None, Path.cwd())
+        _remember_typed_paths(parsed)
         if parsed.command is None:  # bare `reachweaver`: where you are and what to type next, not a usage error
             from .start import build_guide, render as render_guide
             guide = build_guide(parsed.db, parsed.accounts)

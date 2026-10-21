@@ -222,8 +222,38 @@ class AccountAddTests(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertTrue(prompts[-1].endswith("[Y/n]: "), prompts)
         self.assertEqual(load_accounts(self.accounts)["my-bluesky"]["handle"], "maker.bsky.social")
-        self.assertIn("Next: reachweaver connect --guide --account my-bluesky", out)
-        self.assertIn("reachweaver share --platform bluesky", out)
+        # The run's --db/--accounts/--profile are repeated so the next step uses the same files (UX 2026-10-21).
+        flags = f"--db {self.db} --accounts {self.accounts} --profile {self.profile}"
+        self.assertIn(f"Next: reachweaver {flags} connect --guide --account my-bluesky", out)
+        self.assertIn(f"reachweaver {flags} share --platform bluesky", out)
+        self.assertIn(f"After that, write your first post: reachweaver {flags} draft --account my-bluesky", out)
+        self.assertNotIn("Then draft and review as usual", out)
+        # Wording only: the credential names are still printed, never a value (credential isolation unchanged).
+        self.assertIn(f"Set these yourself with reachweaver {flags} connect --guide (it shows the exact lines), "
+                      "never in accounts.json: REACHWEAVER_BSKY_IDENTIFIER, REACHWEAVER_BSKY_APP_PASSWORD", out)
+        self.assertNotIn("systemd credentials", out)
+
+    def test_default_paths_are_not_repeated_and_a_named_file_is(self):
+        """--accounts equal to the default adds nothing; a named file is carried into every next step."""
+        cwd = os.getcwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, cwd)
+        env = patch.dict(os.environ, {k: v for k, v in os.environ.items() if not k.startswith("REACHWEAVER_")},
+                         clear=True)
+        env.start()
+        self.addCleanup(env.stop)
+        out = io.StringIO()
+        with NetworkGuard(), contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["--accounts", "config/accounts.json", "account-add", "bluesky", "--handle",
+                                   "maker.bsky.social"]), 0)
+        self.assertIn("Next: reachweaver connect --guide --account my-bluesky", out.getvalue())
+        out = io.StringIO()
+        with NetworkGuard(), contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["--accounts", "my accounts.json", "account-add", "mastodon", "--handle", "maker",
+                                   "--server", "https://mastodon.example"]), 0)
+        self.assertTrue((self.root / "my accounts.json").is_file(), "account-add honours the global --accounts")
+        self.assertIn("Next: reachweaver --accounts 'my accounts.json' connect --guide --account my-mastodon",
+                      out.getvalue())
 
     def test_output_and_file_never_hold_a_secret_shaped_field(self):
         self.assertEqual(self.cli("linkedin", "--field", "person_id=abc123", "--field", "linkedin_version=202610")[0], 0)

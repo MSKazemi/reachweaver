@@ -255,7 +255,10 @@ class NoAccountsTests(unittest.TestCase):
         code, out, err = self.run_cli("connect")
         self.assertEqual((code, err), (0, ""))
         self.assertIn("No accounts yet, so there is nothing to connect.", out)
-        self.assertIn("reachweaver account-add bluesky", out)
+        # The run's own --db/--accounts are repeated, so following the step fills the same file (UX 2026-10-21).
+        self.assertIn(f"reachweaver --db {self.db} --accounts {self.config} account-add bluesky", out)
+        self.assertIn(f"--accounts {self.config} account-add mastodon (or telegram, linkedin)", out)
+        self.assertNotIn("workspace --init", out, "a workspace would not create the named accounts file")
         self.assertIn("Posting by hand needs no account: reachweaver share --guide", out)
         self.assertIn(cg.DOCS_BASE + "docs/ACCOUNT-ONBOARDING.md", out)
         self.assertNotIn("Add one now?", out, "no question without a terminal")

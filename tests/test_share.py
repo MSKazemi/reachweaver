@@ -238,7 +238,7 @@ class ShareTests(unittest.TestCase):
         self.assertEqual(code, 0, errors)
         self.assertIn("Attach a photo or video? (path, or Enter to skip)", output)
         self.assertIn("File not found: nope.jpg", output)
-        self.assertIn("Media: 1 file(s) checked offline", output)
+        self.assertIn("Attached media: 1 file, checked on this computer", output)
         self.assertTrue((self.out / "bluesky" / "post.txt").is_file())
 
     def test_youtube_without_title_names_the_flag(self):
@@ -285,7 +285,7 @@ class ShareOnboardingTests(unittest.TestCase):
         self.assertTrue((self.out / "tiktok" / "caption.txt").is_file())
         self.assertFalse((self.out / "youtube").exists())
         self.assertNotIn("YouTube", (self.out / "OPEN-FIRST.md").read_text(encoding="utf-8"))
-        self.assertIn("Prepared 2 private manual packages", out)
+        self.assertIn("Prepared 2 private packages to copy from", out)
 
     def test_strict_keeps_all_or_nothing(self):
         code, _, errors = self.cli("share", "--platform", "instagram,youtube", "--strict",

@@ -59,7 +59,7 @@ Here is one post, step by step. The commands are real and work offline. The name
 reachweaver draft --account my-bluesky --file examples/example-post.txt --campaign first-campaign
 ```
 
-ReachWeaver prints `Created draft POST_ID for my-bluesky; not published`. The draft is stored in a private database on your computer.
+ReachWeaver prints `Created draft POST_ID for my-bluesky; not published` and, in a terminal, the next step: `Next: reachweaver review (go through your drafts) or reachweaver show POST_ID`. The draft is stored in a private database on your computer.
 
 **2. Review.** See exactly what would be sent:
 

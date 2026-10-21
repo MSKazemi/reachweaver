@@ -31,7 +31,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from . import persona_guard
+from . import home, persona_guard
 from . import profile as profile_store
 from .accounts import (PLACEHOLDER_VALUES, SECRET_FIELD, account_credential_suffixes, accounts_path,
                        env_prefix_conflicts, load_accounts, placeholder_fields)
@@ -352,17 +352,20 @@ def run(args) -> int:
     backup = _write(path, candidate)
     print(f"Added account {account_id} ({LABELS[platform]}) to {path}."
           + (f" The previous file is kept as {backup}." if backup else ""))
+    # Every next step repeats the options this run was given (--accounts, --db ...), so following one reaches
+    # this accounts file, not the default one (UX 2026-10-21).
     if platform in SUPPORTED_LIVE:
-        print("Set these yourself, as environment variables or systemd credentials, never in accounts.json: "
-              + ", ".join(names))
-        print(f"Next: reachweaver connect --guide --account {account_id}  (official sign-in steps; you type any "
-              "secret yourself, ReachWeaver never asks for it here). Then draft and review as usual.")
-        print(f"Or post by hand now, no sign-in needed: reachweaver share --platform {platform} --text '...'")
+        print(f"Set these yourself with {home.command('connect --guide')} (it shows the exact lines), never in "
+              "accounts.json: " + ", ".join(names))
+        print(f"Next: {home.command(f'connect --guide --account {account_id}')}  (official sign-in steps; you type "
+              "any secret yourself, ReachWeaver never asks for it here). After that, write your first post: "
+              f"{home.command(f'draft --account {account_id}')} --text '...'")
+        print(f"Or post by hand now, no sign-in needed: {home.command(f'share --platform {platform}')} --text '...'")
     else:
         print(f"ReachWeaver has no enabled {LABELS[platform]} adapter, so this entry is public metadata for "
               "manual-export, the calendar and the wrong-account guard."
               + (f" Credential names reserved for a future supervised pilot: {', '.join(names)}." if names else ""))
-        print(f"Next: reachweaver share --platform {platform} --text '...'  (copy-ready text you post by hand)")
+        print(f"Next: {home.command(f'share --platform {platform}')} --text '...'  (copy-ready text you post by hand)")
     return 0
 
 

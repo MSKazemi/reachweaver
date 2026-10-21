@@ -196,6 +196,21 @@ COMMAND_ALIASES: dict[str, tuple[str, ...]] = {
     "post": ("share", "draft"), "write": ("share", "draft"), "compose": ("share", "draft"),
     "undo": ("cancel", "unapprove"), "results": ("report",), "stats": ("report",),
 }
+# Words the apps use for a count that has another name here. METRIC_FLAG_ALIASES are accepted as the same option
+# by `posted` and `metrics` (--comments 4 is --replies 4); FLAG_SYNONYMS are suggested first by "Did you mean",
+# before spelling (UX 2026-10-21: --comments was answered with --account), and only when the command has the
+# target option.
+METRIC_FLAG_ALIASES: dict[str, tuple[str, ...]] = {"replies": ("--comments",)}
+FLAG_SYNONYMS: dict[str, str] = {
+    "--comments": "--replies", "--comment": "--replies", "--shares": "--reposts", "--share": "--reposts",
+    "--retweets": "--reposts", "--boosts": "--reposts", "--impressions": "--views", "--favorites": "--likes",
+    "--favourites": "--likes", "--hearts": "--likes",
+}
+
+
+def _alias_note(key: str) -> str:
+    aliases = METRIC_FLAG_ALIASES.get(key, ())
+    return f" ({' or '.join(aliases)} is the same option)" if aliases else ""
 
 
 def _command_suggestions(typed: str, commands: list[str]) -> list[str]:
@@ -226,7 +241,8 @@ def _unrecognized_hint(top: argparse.ArgumentParser, message: str) -> tuple[str,
         if command and flag in top_level:
             hints.append(f"{flag} is a global option: put it before the command (reachweaver {flag} ... {command} ...).")
             continue
-        close = difflib.get_close_matches(flag, own, n=1, cutoff=0.6)
+        synonym = FLAG_SYNONYMS.get(flag.casefold())
+        close = [synonym] if synonym in own else difflib.get_close_matches(flag, own, n=1, cutoff=0.6)
         if close:
             hints.append(f"Did you mean {close[0]}?")
     help_cmd = f"reachweaver {command} --help" if command else "reachweaver --help"
@@ -379,9 +395,9 @@ def make_parser() -> argparse.ArgumentParser:
                        "them, in one step; run it again with new numbers to update them; local, never sends")
     p.add_argument("url", nargs="?", metavar="URL", help="The link of your post (copy it from the app's share menu)")
     for key in ("likes", "replies", "reposts", "views"):
-        p.add_argument("--" + key, metavar="N",
+        p.add_argument("--" + key, *METRIC_FLAG_ALIASES.get(key, ()), dest=key, metavar="N",
                        help=f"{key.capitalize()} you see now: a count, or unknown / suppressed / not_available / "
-                            "delayed / estimated:N")
+                            "delayed / estimated:N" + _alias_note(key))
     p.add_argument("--text", help="The post text (optional; reports show its first words). Again on a post you "
                                   "recorded by hand: corrects its text")
     p.add_argument("--at", metavar="WHEN",
@@ -694,8 +710,8 @@ def make_parser() -> argparse.ArgumentParser:
                         "platform's own insights; ReachWeaver did not fetch them). Use a label such as "
                         "native-export for an exported file")
     for key in METRIC_FIELDS:
-        p.add_argument("--" + key, metavar="VALUE",
-                       help="Count, or unknown / suppressed / not_available / delayed / estimated:N")
+        p.add_argument("--" + key, *METRIC_FLAG_ALIASES.get(key, ()), dest=key, metavar="VALUE",
+                       help="Count, or unknown / suppressed / not_available / delayed / estimated:N" + _alias_note(key))
     p.add_argument("--window-start", help="Optional start of the period the counts cover (same forms as "
                                           "--observed-at)")
     p.add_argument("--window-end", help="Optional end of that period; give both or neither (neither = unknown)")

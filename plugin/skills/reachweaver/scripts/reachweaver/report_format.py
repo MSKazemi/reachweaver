@@ -232,9 +232,9 @@ def render_text(result: dict, posts: list[dict] | None = None, *, window_label: 
         lines += ["", "Top posts by interactions (likes + replies + reposts recorded):"]
         for number, row in enumerate(ranked[:TOP_POSTS], 1):
             when = (row["posted_at"] or "")[:10]
+            # No post id in this summary (UX 2026-10-21); 'reachweaver list' shows them.
             lines.append(f"  {number}. {row['interactions']:>5}  {res.quoted_title(row)}  "
-                         f"{res.platform_name(row['platform'])}, {res.account_label(row['account_id'], handles)}, {when}  "
-                         f"[{row['post_id']}]")
+                         f"{res.platform_name(row['platform'])}, {res.account_label(row['account_id'], handles)}, {when}")
     missing = [row for row in posts if row["observed_at"] is None]
     if missing:
         lines += ["", f"{len(missing)} post(s) have no numbers yet, for example:",
@@ -251,8 +251,8 @@ def render_text(result: dict, posts: list[dict] | None = None, *, window_label: 
             f"{res.platform_name(p)} {int(item['published'])}" for p, item in replies.items())]
     lines += ["", "Exact counts only; '-' = not recorded (unknown, not zero). Counts are each post's latest numbers, "
                   "not unique people.",
-              "Other views: --format markdown | csv | json; 'reachweaver show POST_ID' for one post; "
-              "'reachweaver insights' for what works."]
+              "Other views: --format markdown | csv | json; 'reachweaver list' shows the post ids for "
+              "'reachweaver show POST_ID'; 'reachweaver insights' for what works."]
     return term_clean("\n".join(lines)) + "\n"
 
 

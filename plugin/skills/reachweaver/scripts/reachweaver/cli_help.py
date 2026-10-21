@@ -211,9 +211,18 @@ _HINTS = (
 
 
 def error_hint(message: str) -> str | None:
-    """A one-line next step for a common, harmless failure, or None. Shown only to a person at a terminal."""
+    """A one-line next step for a common, harmless failure, or None. Shown only to a person at a terminal.
+
+    Commands repeat the options this run was given (``home.command``: --accounts, --db ...), so following one
+    reaches the same files. A missing-accounts message that already names its account-add command (with the
+    right file) only gains the no-account way to post."""
+    from . import home
     for pattern, hint in _HINTS:
         if pattern.search(message):
+            if hint is _HINTS[0][1] and "account-add" in message:
+                return "Or post by hand with no account at all: 'reachweaver share --guide'."
+            if "'reachweaver account-add" in hint:
+                hint = hint.replace("'reachweaver account-add", "'" + home.command("account-add"))
             return hint
     return None
 

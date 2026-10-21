@@ -79,11 +79,17 @@ class ReportTests(Base):
         self.assertIn("Top posts by interactions", text)
         lines = text.splitlines()
         top = [line for line in lines if line.startswith("  1.") or line.startswith("  2.")]
-        self.assertIn(glaze, top[0])
-        self.assertIn(thread, top[1])
+        self.assertIn("My new ceramic glaze test", top[0])
+        self.assertIn("Thread on how I photograph", top[1])
+        for post in (glaze, thread):  # no hex ids in the human summary (UX 2026-10-21)
+            self.assertNotIn(post, "\n".join(top))
         self.assertIn("posted by you (no account)", top[0])
         self.assertIn(f"reachweaver metrics {quiet} --likes N", text)  # the post with no numbers yet
-        self.assertIn("insights compares results about 7 days after posting", text)
+        # Plain advice, not an insights option: every measured post was recorded by hand, so `posted LINK`.
+        self.assertIn("You recorded these numbers between 30 and 60 hours after posting. Record numbers again "
+                      "around ", text)
+        self.assertIn(" to compare after 7 days: reachweaver posted LINK --likes N", text)
+        self.assertNotIn("--age-hours", text)
         self.assertNotIn("{", text)
         code, piped, _ = self.cli("report", "--week")  # not a terminal: the JSON envelope, as before
         self.assertEqual(json.loads(piped)["platforms"]["instagram"]["likes"], 95)
@@ -140,13 +146,32 @@ class ShowTests(Base):
         self.assertIn("95 likes, 7 replies", sheet)
         self.assertIn("source 'entered-by-hand'", sheet)
         self.assertIn("posted by you (no account) on instagram", sheet)
-        self.assertIn("Posted by hand", sheet)
+        self.assertIn("Posted by you on ", sheet)
+        self.assertIn(" · https://example.org/instagram/s", sheet)
+        self.assertIn("Glaze test", sheet)
+        # Never sent by ReachWeaver: no length meter and no approval section (UX 2026-10-21).
+        for absent in ("APPROVAL", "graphemes", "characters", "EXACT TEXT", "Not approved"):
+            self.assertNotIn(absent, sheet)
+        self.assertIn("Record newer numbers: reachweaver posted https://example.org/instagram/s --likes N", sheet)
 
     def test_a_post_without_numbers_says_how_to_add_them(self):
         post = self.by_hand("bluesky", "Thread", hours=5, slug="n")
         _, sheet, _ = self.cli("show", post, tty=True)
         self.assertIn("No numbers recorded yet", sheet)
-        self.assertIn(f"reachweaver metrics {post} --likes N --replies N --reposts N", sheet)
+        self.assertIn("reachweaver posted https://example.org/bluesky/n --likes N --replies N --reposts N", sheet)
+        _, piped, _ = self.cli("show", post)  # the JSON for scripts is unchanged
+        self.assertEqual(json.loads(piped)["results"]["record_more"],
+                         f"reachweaver metrics {post} --likes N --replies N --reposts N")
+
+    def test_a_post_made_by_hand_without_text_says_how_to_add_it(self):
+        with connect(str(self.db)) as con:  # what `posted LINK` records: the link, no text
+            post = record_manual_publish(con, platform="bluesky", url="https://example.org/bluesky/x",
+                                         posted_at=ago(hours=5), link_is_enough=True)["post_id"]
+        _, sheet, _ = self.cli("show", post, tty=True)
+        self.assertIn('(text not recorded — add it with reachweaver posted https://example.org/bluesky/x --text "...")',
+                      sheet)
+        self.assertNotIn("0/300", sheet)
+        self.assertNotIn("┌", sheet, "no empty text box")
 
 
 class MetricsTests(Base):

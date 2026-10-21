@@ -67,7 +67,7 @@ def _open_ideas(db: str | Path | None) -> int:
 
 def _placeholder_step(placeholders: list[str], accounts_file: Path) -> dict:
     return _step(f"{len(placeholders)} account(s) still use example placeholders — edit {_shown_path(accounts_file)}",
-                 None, "Put in your own handles and ids ('reachweaver account-add PLATFORM' fills the example entry "
+                 None, f"Put in your own handles and ids ('{home.command('account-add PLATFORM')}' fills the example entry "
                        "for you), or delete the accounts you do not use (" + ", ".join(placeholders)
                        + "). Tokens never go in this file.")
 
@@ -120,21 +120,24 @@ def _hand_posting_guide(db: str | Path | None, database: Path) -> dict | None:
 def _no_accounts_steps() -> list[dict]:
     steps = _share_steps()
     root = home.root()
-    if root is None:
+    # With --accounts FILE, a workspace or a copy of the example makes config/accounts.json, not that file:
+    # only the account-add step (which carries --accounts FILE) is offered.
+    named = home.typed_accounts()
+    if named is None and root is None:
         steps.append(_step("To post from ReachWeaver itself, make this folder a workspace first",
                            "reachweaver workspace --init .",
                            "Creates config/accounts.json (example accounts to edit), state/, media/ and logs/ here. "
                            "It holds no secrets and contacts nothing."))
-    else:
+    elif named is None:
         steps.append(_step("Restore this workspace's accounts file (existing files are kept)",
                            f"reachweaver workspace --init {shlex.quote(str(root))}",
                            "Then edit config/accounts.json to list only accounts you control."))
-    if Path(EXAMPLE_ACCOUNTS).is_file():  # only in a source checkout: never suggest copying a file that is not there
+    if named is None and Path(EXAMPLE_ACCOUNTS).is_file():  # only in a source checkout: never suggest copying a file that is not there
         steps.append(_step("Or create only the accounts file from the example in this folder",
                            f"cp {EXAMPLE_ACCOUNTS} config/accounts.json",
                            "Edit it to list only accounts you control. Tokens are never stored in it."))
     steps.append(_step("Or add only the one account you use (asks for public details, never a password)",
-                       "reachweaver account-add bluesky",
+                       home.command("account-add bluesky"),
                        "Any of bluesky, mastodon, telegram, linkedin, instagram, threads, tiktok, youtube, facebook."))
     return steps
 

@@ -305,25 +305,56 @@ def media_findings(files: list[Path], platforms: list[str]) -> dict[str, list[di
 MEDIA_NOT_READ = "some details could not be checked from the file header (that's normal)"
 
 
+def _media_head(row: dict) -> str:
+    detected = row["detected"]
+    known = []
+    if detected["width"] != "unknown" and detected["height"] != "unknown":
+        known.append(f"{detected['width']}x{detected['height']}")
+    if row["kind"] == "video" and detected["duration_seconds"] != "unknown":
+        known.append(f"{detected['duration_seconds']}s")
+    return f"Media {Path(row['path']).name}" + (f" ({', '.join(known)})" if known else "")
+
+
+def attachment_lines(rows: list[dict]) -> list[str]:
+    """Findings about the file itself (its header, extension, EXIF): the same for every network."""
+    lines = []
+    for row in rows:
+        if row["kind"] is None:
+            lines.append(f"Media {Path(row['path']).name}: " + "; ".join(row["notes"]))
+        else:
+            lines += [f"{_media_head(row)}: {note}" for note in row["notes"]]
+    return lines
+
+
+MEDIA_LINE_STARTS = ("Media ", "MEDIA PROBLEM", "Media advice")
+
+
+def shared_media_lines(packages: list[tuple[str, dict]]) -> list[str]:
+    """The media findings to print once, before the per-network sections: the file findings, any media line every
+    chosen network has word for word, and the note on what the check reads. The package files keep them all; only
+    the terminal plan stops repeating them per network (2026-10-21 UX re-measure: the same two lines printed three
+    times for three networks). A finding only some networks have stays with those networks."""
+    rows = next((package["share"]["media_checks"] for _, package in packages
+                 if (package.get("share") or {}).get("media_checks")), None)
+    if not rows:
+        return []
+    lines = attachment_lines(rows)
+    if len(packages) > 1:
+        first = packages[0][1]["preflight"]["warnings"]
+        lines += [w for w in first if w.startswith(MEDIA_LINE_STARTS)
+                  and all(w in package["preflight"]["warnings"] for _, package in packages[1:])]
+    return list(dict.fromkeys(lines + [MEDIA_CHECK_NOTE]))
+
+
 def _media_lines(rows: list[dict]) -> list[str]:
     """Plain warnings for the package: per file, only the problems found (and sourced advice), else that none was
     found, plus one line when some details could not be read. The checker's field names are never shown
     (2026-10-21 UX re-measure: "moov_before_mdat" and "size unknown" read as errors next to "no problem")."""
-    lines = []
+    lines = attachment_lines(rows)
     for row in rows:
-        name = Path(row["path"]).name
-        detected = row["detected"]
         if row["kind"] is None:
-            lines.append(f"Media {name}: " + "; ".join(row["notes"]))
             continue
-        known = []
-        if detected["width"] != "unknown" and detected["height"] != "unknown":
-            known.append(f"{detected['width']}x{detected['height']}")
-        if row["kind"] == "video" and detected["duration_seconds"] != "unknown":
-            known.append(f"{detected['duration_seconds']}s")
-        head = f"Media {name}" + (f" ({', '.join(known)})" if known else "")
-        for note in row["notes"]:
-            lines.append(f"{head}: {note}")
+        head = _media_head(row)
         if row["table"] is None:
             lines.append(f"{head}: ReachWeaver has no sourced {row['kind']} limits for this network; check the "
                          "app's own requirements")
@@ -587,7 +618,7 @@ def _run(args, skipped: list[str]) -> int:
         print("Facebook means a managed Page, never a profile or group.")
         print("Bluesky, LinkedIn, Mastodon and Telegram: copy and post yourself, or connect the account and use "
               "the separate draft, review and approval flow to send from ReachWeaver.")
-        print("Share is offline: it prepares handoff files, never publishing or scheduling.")
+        print("Share is offline: it prepares files you copy and post yourself; it never publishes or schedules.")
         return 0
     guided = bool(args.guide or not args.platform)
     platforms = _guided(args) if guided else destinations(args.platform)
@@ -612,17 +643,23 @@ def _run(args, skipped: list[str]) -> int:
         for line in skip_lines(blocked, guided=guided):
             print(" - " + line, file=sys.stderr)
         skipped.extend(platform for platform, _, _ in blocked)
-    print("Review the handoff plan:")
+    shared = shared_media_lines(packages)
+    if files:  # once for the attachment, before the networks (UX 2026-10-21)
+        print(f"Attached media: {len(files)} {'file' if len(files) == 1 else 'files'}, checked on this computer from "
+              "the file header; not copied or uploaded")
+        for line in shared:
+            print("   Check: " + line)
+    print("Check what will be created:")
     for platform, pkg in packages:
-        mode = "YOU WRITE IT" if pkg.get("human_only") else "MANUAL COPY"
+        mode = ("You write the post yourself (notes only)" if pkg.get("human_only")
+                else f"Copy and post it yourself ({pkg['content'].get('format')})")
         tailoring = (pkg.get("share") or {}).get("tailoring") or {}
         fitted = (f"; SHORTENED {tailoring['original_chars']} -> {tailoring['chars']} characters"
                   if tailoring.get("shortened") else "")
-        print(f" - {pkg['platform_label']}: {mode}; format {pkg['content'].get('format')}{fitted}")
+        print(f" - {pkg['platform_label']}: {mode}{fitted}")
         for warning in pkg["preflight"]["warnings"]:
-            print("   Check: " + warning)
-    if files:
-        print(f"Media: {len(files)} file(s) checked offline from their headers; not copied or uploaded")
+            if warning not in shared:  # printed once above
+                print("   Check: " + warning)
     for line in terminal_texts(packages):
         print(line)
     if args.preview:
@@ -640,7 +677,8 @@ def _run(args, skipped: list[str]) -> int:
     for platform, package in packages:
         write_one(platform, package, out / platform)
     write_private_file(out / "OPEN-FIRST.md", _readme(packages, files))
-    print(f"Prepared {len(packages)} private manual packages in {out}")
+    count = len(packages)
+    print(f"Prepared {count} private {'package' if count == 1 else 'packages'} to copy from, in {out}")
     print("Start with: " + str(out / "OPEN-FIRST.md"))
     print("NOT PUBLISHED: open each social app and share manually after review.")
     print("After you post, record it: reachweaver posted LINK --likes N")
