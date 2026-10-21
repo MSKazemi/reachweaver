@@ -3,7 +3,8 @@
 Local file work only, below the workspace: packages in ``state/shares/share-*``, the editor draft and media the
 owner picked in ``state/composer``. The one database write is :func:`storage.record_manual_publish`, which makes a
 terminal ``published_manual`` record that no approval, schedule, claim or send path selects. No network call, no
-send queue, no approval, no schedule.
+send queue, no approval, no schedule. :func:`mark_checks` and :func:`record_precheck` (read-only) let the composer
+refuse a Mark as posted before it saves a new package for it (save and mark in one step).
 
 Every name that arrives from the browser is checked against a strict pattern, then resolved and confirmed to sit
 directly inside its private folder; symlinks are refused and never followed (``O_NOFOLLOW`` on every open), and
@@ -21,7 +22,7 @@ import secrets
 import shutil
 import stat
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Callable, Iterable
 import unicodedata
 
@@ -881,35 +882,31 @@ def check_account(account_id: object, ledger: str, label: str, accounts: str | P
     return account_id
 
 
-def mark_posted(name: object, platform: object, url: object, posted_at: object, db: str | None,
-                account_id: object = None, accounts: str | Path | None = None, numbers: object = None) -> dict:
-    """Record that the owner published one network of a saved package BY HAND, via record_manual_publish.
-
-    Refused before any write: an unknown package or network, a human-only venue, a network the history database
-    cannot measure, a network already marked, an ``account_id`` that is not in accounts.json for this network's
-    platform or that the link contradicts (:func:`resolve_account`; with no account chosen, the one the link names
-    is used), a bad link, or bad ``numbers`` (:func:`clean_numbers`). record_manual_publish's own refusals
-    (duplicate link, a future time, no material) come back as ValidationError with the CLI flag names replaced by
-    plain words. Numbers, when given, are stored for the new post only (``storage.store_metrics``, entered by hand).
-    """
-    from .repeat_guard import sha256_file
-    from .results import has_control
+def markable_ledger(platform: str) -> str:
+    """The history platform of a network that can be marked as posted. Refused: a human-only venue, and a network
+    the history database cannot measure."""
     from .share import _human_only
-    from .storage import connect, manual_url_problem, parse_utc, record_manual_publish, utc_now
-    pkg = package_path(name)
-    if not isinstance(platform, str) or platform not in _network_dirs(pkg):
-        raise ValidationError("That network is not in this package.")
     if platform in _human_only():
         raise ValidationError("This is a human-only venue: record your own post with 'reachweaver mark-shared' in "
                               "the terminal if you want it in your history.")
     ledger = LEDGER_ID.get(platform, platform)
     if not _measurable(ledger):
         raise ValidationError("ReachWeaver cannot measure posts on this network yet, so nothing was recorded.")
-    if posted_record(pkg, platform) is not None:
-        raise Conflict("This network is already marked as posted in this package.")
+    return ledger
+
+
+def mark_checks(platform: str, label: str, url: object, posted_at: object, account_id: object, numbers: object,
+                accounts: str | Path | None = None) -> dict:
+    """Every refusal of Mark as posted that needs neither a saved package nor any write, in one place:
+    :func:`markable_ledger`, a malformed posted time, bad ``numbers`` (:func:`clean_numbers`), a bad link, and an
+    ``account_id`` that is not in accounts.json for this network's platform or that the link contradicts
+    (:func:`resolve_account`; with no account chosen, the one the link names is used). Read-only: accounts.json is
+    only read. Returns ``{"ledger", "link", "numbers", "account_id", "account_from"}``."""
+    from .results import has_control
+    from .storage import manual_url_problem
+    ledger = markable_ledger(platform)
     if posted_at is not None and (not isinstance(posted_at, str) or len(posted_at) > 64):
         raise ValidationError("The posted time must be an ISO 8601 date with a timezone.")
-    export = _export(pkg, platform)
     values = clean_numbers(numbers)
     link = url if isinstance(url, str) else ""  # record_manual_publish refuses an empty link
     problem = manual_url_problem(link)
@@ -918,8 +915,60 @@ def mark_posted(name: object, platform: object, url: object, posted_at: object, 
     if has_control(link):
         raise ValidationError("The link contains control or text-direction characters; copy it again from the app's "
                               "share menu. Nothing was recorded.")
-    account, account_from = resolve_account(account_id, ledger, str(export.get("platform_label") or platform),
-                                            link.strip(), accounts)
+    account, account_from = resolve_account(account_id, ledger, label, link.strip(), accounts)
+    return {"ledger": ledger, "link": link, "numbers": values, "account_id": account, "account_from": account_from}
+
+
+def record_precheck(ledger: str, link: str, posted_at: object, db: str | None) -> None:
+    """Strictly read-only: the refusals ``storage.record_manual_publish`` gives for a posted time in the future or
+    a link already recorded for this platform, checked BEFORE the composer saves a new package to mark it as posted
+    in the same step (``/api/save-and-mark``). The database is opened read-only (``connect_readonly``) and only
+    when it already exists, since a missing database holds no link yet; nothing is created or written.
+    ``record_manual_publish`` checks both again under its own write lock."""
+    from .storage import (MANUAL_FUTURE_SKEW_MINUTES, connect_readonly, database_path, find_manual_duplicate,
+                          parse_utc, utc_now)
+    try:
+        current = parse_utc(utc_now())
+        when = parse_utc(posted_at) if posted_at else current
+    except ValidationError as exc:
+        raise ValidationError(_plain(str(exc))) from None
+    if datetime.fromisoformat(when) > datetime.fromisoformat(current) + timedelta(minutes=MANUAL_FUTURE_SKEW_MINUTES):
+        raise ValidationError("The posted time is in the future: give the time you actually posted it. Nothing was "
+                              "saved or recorded.")
+    database = database_path(db)
+    if database.is_symlink() or not database.is_file():
+        return
+    with connect_readonly(database) as con:
+        duplicate = find_manual_duplicate(con, ledger, link.strip())
+    if duplicate is not None:
+        raise ValidationError(f"{link.strip()[:200]} is already recorded for {ledger} as post {duplicate}; nothing "
+                              f"was saved or recorded. Record its results with: reachweaver metrics {duplicate} ...")
+
+
+def mark_posted(name: object, platform: object, url: object, posted_at: object, db: str | None,
+                account_id: object = None, accounts: str | Path | None = None, numbers: object = None) -> dict:
+    """Record that the owner published one network of a saved package BY HAND, via record_manual_publish.
+
+    Refused before any write: an unknown package or network, a human-only venue, a network the history database
+    cannot measure, a network already marked, and the other refusals of :func:`mark_checks` (an ``account_id``
+    that is not in accounts.json for this network's platform or that the link contradicts; with no account chosen,
+    the one the link names is used; a bad link, or bad ``numbers``). record_manual_publish's own refusals
+    (duplicate link, a future time, no material) come back as ValidationError with the CLI flag names replaced by
+    plain words. Numbers, when given, are stored for the new post only (``storage.store_metrics``, entered by hand).
+    """
+    from .repeat_guard import sha256_file
+    from .storage import connect, parse_utc, record_manual_publish, utc_now
+    pkg = package_path(name)
+    if not isinstance(platform, str) or platform not in _network_dirs(pkg):
+        raise ValidationError("That network is not in this package.")
+    markable_ledger(platform)
+    if posted_record(pkg, platform) is not None:
+        raise Conflict("This network is already marked as posted in this package.")
+    export = _export(pkg, platform)
+    checked = mark_checks(platform, str(export.get("platform_label") or platform), url, posted_at, account_id,
+                          numbers, accounts)
+    ledger, link, values = checked["ledger"], checked["link"], checked["numbers"]
+    account, account_from = checked["account_id"], checked["account_from"]
     content = export.get("content") or {}
     text: str = content["text"] if isinstance(content.get("text"), str) else ""
     files = _package_media(pkg)

@@ -6,6 +6,18 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Changed
+
+- Fewer clicks in the studio, measured with the same strict rule as 0.16.0 (every click counts, a click into a text field included; typing, Tab and Enter do not) in headless Chrome at 1280 and 375 px on a synthetic workspace: "what next via ideas" 2 -> 1, "write and copy for my 3 networks" 5 -> 3 (4 on a phone when the composer is opened directly rather than from a dashboard Write link, because the keyboard is not opened unasked), "mark as posted with the right account and numbers" 4 -> 1 (2 if you click **Record as posted** instead of pressing Enter); "write from the dashboard" and "weekly results" stay at 1. No page wider than the screen, no console error and no control under 44 px at 375.
+- Dashboard: when the next steps include your ideas, the Overview lists your newest open ideas (at most three), each with **Write this**, which opens the composer with that idea as the caption (`reachweaver studio`); the dashboard alone shows `reachweaver share --web --open --idea ID` with a Copy button.
+- Composer: the previews follow what you type (checked again 400 ms after you stop; a newer check cancels an older one and a stale answer is dropped), so **Preview my posts** is now only a **Refresh previews** fallback, and **Copy caption** is there as soon as a card exists. An empty caption has the cursor on a wide screen, and on a phone when you came from a dashboard **Write** link.
+- Composer: **Mark *network* as posted** on each preview card. The form opens with the cursor in the link field; Tab goes to Likes, Replies, Reposts and Views, then the optional account and time; Enter records. Account preselection is unchanged.
+- Dashboard: platforms by name as the terminal prints them ("Bluesky", "LinkedIn"); results say "3 days after posting" instead of "83.7 h"; the Ideas filters are read out as "All (2)" and its search box is labelled "Search your ideas"; the two Settings checkboxes are 44 px tap rows. A fresh composer no longer says "Saving…" before you type.
+
+### Security
+
+- New composer route `/api/save-and-mark` (owner approved 2026-10-21): "Save as new package" and Mark as posted in one request, behind the composer's existing loopback, token, Host/Origin, JSON size and write-lock checks. Every check of both runs before anything is written (the post for every network, the network, link, account, numbers, a posted time in the future and a link already recorded, the last one with the database opened read-only and only if it exists); a refusal writes nothing and never creates the database. It always saves a NEW package (never an update). If the database refuses the record after the save, the answer names the package that was kept. The record is the usual terminal `published_manual` one, which can never be approved, scheduled or sent. The dashboard stays GET/HEAD-only.
+
 ## [0.16.0] - 2026-10-22
 
 Much easier to use, measured. `reachweaver studio` opens one browser app where you write a post (your networks preselected), copy it for each network, mark it as posted with its numbers and see how it did. In the terminal, `posted LINK --likes N` records a post you made by hand in one step, `next` answers "what should I post next?" with your ideas by name, `report --week` gives a short summary instead of JSON, and every error says what to do. Measured against 0.15.0 with the same journeys: failed commands, dead ends, errors without a next step, hand-edited files and web steps that needed the terminal all went to zero; phone tap targets under 44 px went from 71 to 2; journey friction is about 3x lower. 133 commands (4 more than 0.15.0, none removed). No live adapter is added.
