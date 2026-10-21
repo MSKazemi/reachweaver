@@ -9,7 +9,7 @@ import socket
 import unittest
 from unittest.mock import patch
 
-from reachweaver import engage_sources
+from reachweaver import engage_sources, netconnect
 
 V6 = (socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("2001:db8::1", 443, 0, 0))
 V4 = (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("192.0.2.1", 443))
@@ -42,9 +42,9 @@ class ConnectOrderTests(unittest.TestCase):
         FakeSocket.unreachable = set()
 
     def connect(self, infos):
-        with patch.object(engage_sources.socket, "getaddrinfo", return_value=list(infos)), \
-                patch.object(engage_sources.socket, "socket", FakeSocket):
-            return engage_sources._connect_ipv4_first(("example.org", 443), 15)
+        with patch.object(netconnect.socket, "getaddrinfo", return_value=list(infos)), \
+                patch.object(netconnect.socket, "socket", FakeSocket):
+            return engage_sources.connect_ipv4_first(("example.org", 443), 15)
 
     def test_ipv4_is_tried_first_with_a_short_connect_timeout_then_the_read_timeout(self):
         sock = self.connect([V6, V4])
@@ -64,9 +64,30 @@ class ConnectOrderTests(unittest.TestCase):
 
     def test_the_opener_uses_the_ipv4_first_handler_and_keeps_certificate_checks(self):
         import ssl
-        context = engage_sources._IPv4FirstHTTPSHandler()._context
+        context = engage_sources.IPv4FirstHTTPSHandler()._context
         self.assertTrue(context.check_hostname)
         self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
+
+
+
+class SharedConnectorTests(unittest.TestCase):
+    """The send path, the updater and the scout all open HTTPS through netconnect (draft for owner review)."""
+
+    def test_every_opener_uses_the_ipv4_first_handler(self):
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1] / "reachweaver"
+        for name in ("publishers.py", "updater.py", "engage_sources.py"):
+            with self.subTest(module=name):
+                self.assertIn("IPv4FirstHTTPSHandler()", (root / name).read_text(encoding="utf-8"))
+
+    def test_a_proxy_tunnel_keeps_the_stdlib_connect(self):
+        conn = netconnect.IPv4FirstHTTPSConnection("example.org", 443, timeout=5)
+        conn.set_tunnel("target.example", 443)
+        with patch.object(netconnect.http.client.HTTPSConnection, "connect", return_value=None) as stdlib, \
+                patch.object(netconnect, "connect_ipv4_first") as ours:
+            conn.connect()
+        stdlib.assert_called_once()
+        ours.assert_not_called()
 
 
 if __name__ == "__main__":

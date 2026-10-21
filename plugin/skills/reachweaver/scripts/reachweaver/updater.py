@@ -21,11 +21,18 @@ import zipfile
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request, build_opener
 
 from . import __version__, home
 from .policy import PLATFORMS, ValidationError
 from .inputs import read_json_file
+from .netconnect import IPv4FirstHTTPSHandler
+
+
+def urlopen(request: Request, timeout: float):
+    """``urllib.request.urlopen`` that connects IPv4 first (netconnect); redirects and TLS checks as before."""
+    return build_opener(IPv4FirstHTTPSHandler()).open(request, timeout=timeout)
+
 
 REPO = "MSKazemi/reachweaver"
 LATEST_API = f"https://api.github.com/repos/{REPO}/releases/latest"
