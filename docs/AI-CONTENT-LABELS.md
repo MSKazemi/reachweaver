@@ -1,6 +1,6 @@
 # AI content labels: which label to apply, per platform
 
-**Status: `ai-label-check` released in 0.14.0 (advisory); the approval precondition for posts with media is unreleased.** Platforms and lawmakers now ask people to say when what they post was made with AI. The rules differ by platform, change often, and mostly concern **realistic** images, video and audio rather than text. `ai-label-check` reads one draft and tells you, for each platform you target, whether the platform's own rule asks for a label, what to tick in the platform's own composer, and which page says so.
+**Status: `ai-label-check` released in 0.14.0 (advisory); the approval precondition for posts with media since 0.15.0.** Platforms and lawmakers now ask people to say when what they post was made with AI. The rules differ by platform, change often, and mostly concern **realistic** images, video and audio rather than text. `ai-label-check` reads one draft and tells you, for each platform you target, whether the platform's own rule asks for a label, what to tick in the platform's own composer, and which page says so.
 
 The command itself never blocks, approves, schedules or sends anything. Since the owner-approved change of 2026-10-21, **`approve` of a post with images or a video asks for your answer** when the decision for the post's platform is `required` or `unknown`; see [When approval asks for an answer](#when-approval-asks-for-an-answer). Text-only posts are never blocked.
 

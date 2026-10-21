@@ -6,6 +6,8 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-21
+
 One place to write, share and learn. The browser composer reopens, autosaves and attaches media, and "Mark as posted" makes a post you shared by hand measurable. `share` now also makes copy-ready Bluesky, Mastodon, Telegram and LinkedIn posts, and `account-add` writes a valid account entry without a secret. Your own results feed hashtag ideas, follow-up thresholds, `suggest` and `calendar-plan`. `platform-risk` shows how dependent you are on each network, and `eu-review-evidence` lists the human review recorded for each published post. Media posts now need an explicit AI-label answer at approval where a platform requires a label (owner-approved; see Upgrade notes). 129 commands (4 more than 0.14.0, none removed). No live adapter is added.
 
 ### Security
