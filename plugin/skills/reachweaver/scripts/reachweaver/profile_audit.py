@@ -38,6 +38,7 @@ BOOL_FIELDS = frozenset({
     "opt_in", "welcome_post", "business_details", "maker_story", "product_gallery",
     "claimed_domain", "boards", "portfolio", "project_page", "featured_projects",
     "contribution_guide", "starter_pack", "readme",
+    "search_profile_claimed", "search_console_platform_properties",
 })
 URL_FIELDS = frozenset({"website", "invite_link"})
 TEXT_FIELDS = frozenset({"display_name", "bio", "headline", "cta", "category", "about"})
@@ -109,8 +110,29 @@ def load_registry() -> dict:
                 or strategy.get("exposure_metric") not in METRICS):
             raise ValidationError("Invalid platform outcome metric mapping")
         _check_field_limits(p)
+        _check_sources(p)
         seen.add(p["id"])
     return registry
+
+
+def _check_sources(p: dict) -> None:
+    """Optional per-check sources: each audited field maps to official quotes with URL and checked date."""
+    sources = p.get("check_sources", {})
+    note = p.get("eligibility_note")
+    if note is not None and (not isinstance(note, str) or not 0 < len(note) <= 600):
+        raise ValidationError(f"Invalid eligibility note for {p['id']}")
+    if not isinstance(sources, dict) or set(sources) - set(p["profile_checks"]):
+        raise ValidationError(f"Invalid check sources for {p['id']}")
+    for items in sources.values():
+        if not isinstance(items, list) or not items:
+            raise ValidationError(f"Invalid check sources for {p['id']}")
+        for item in items:
+            if (not isinstance(item, dict) or set(item) != {"quote", "source_url", "checked_on", "label"}
+                    or item["label"] != "official"
+                    or not isinstance(item["source_url"], str) or not item["source_url"].startswith("https://")
+                    or not isinstance(item["checked_on"], str) or not ISO_DATE.match(item["checked_on"])
+                    or not isinstance(item["quote"], str) or not 0 < len(item["quote"]) <= 300):
+                raise ValidationError(f"Invalid sourced check for {p['id']}")
 
 
 def _check_field_limits(p: dict) -> None:
@@ -473,7 +495,13 @@ def audit_profiles(snapshot: dict, *, platform: str | None = None) -> dict:
                     fixes.append({"priority": "P1" if field in ("bio","headline","website","avatar","display_name") else "P2",
                                   "field":field,"action": registry["field_labels"][field][0],
                                   "reason": reason})
+            if field in rule.get("check_sources", {}):
+                checklist_sources = [{k: s[k] for k in ("source_url", "checked_on", "label")}
+                                     for s in rule["check_sources"][field]]
+            else:
+                checklist_sources = None
             checklist.append({"field": field, "description": registry["field_labels"][field][0],
+                              **({"sources": checklist_sources} if checklist_sources else {}),
                               "status": status, "evidence": "owner_supplied_snapshot" if status != "unknown" else "not_observed"})
         alerts = _length_alerts(rule, p)
         bio = fields.get("bio")
@@ -498,6 +526,8 @@ def audit_profiles(snapshot: dict, *, platform: str | None = None) -> dict:
         if (brand and p.get("profile_kind") in ("organization", "community")
                 and isinstance(name, str) and name.strip() and brand.casefold() not in name.casefold()):
             alerts.append({"kind":"brand_consistency","message":"Organization/community display name differs from declared brand. Confirm intentional naming."})
+        if rule.get("eligibility_note"):
+            alerts.append({"kind": "eligibility", "message": rule["eligibility_note"]})
         if rule["human_only"]:
             alerts.append({"kind":"human_only","message":"Community participation and submissions require human policy review; this command never writes posts/replies."})
         total = len(rule["profile_checks"])

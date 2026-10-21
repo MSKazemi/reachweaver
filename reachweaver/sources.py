@@ -272,6 +272,9 @@ class RobotsCache:
     def __init__(self) -> None:
         self._hosts: dict[tuple, RobotFileParser | str] = {}
         self.fetches = 0
+        # robots.txt URL -> (outcome, decoded text or None): "ok" with the text, else the fetch error code.
+        # Kept so a report (``ai-visibility``) can read the same file without a second request.
+        self.documents: dict[str, tuple[str, str | None]] = {}
 
     def skip_reason(self, url: str) -> str | None:
         try:
@@ -296,6 +299,7 @@ class RobotsCache:
             raw = _fetch(robots_url, max_bytes=MAX_ROBOTS_BYTES, headers={"Accept": "text/plain"})
         except SourceError as exc:
             code = str(exc)
+            self.documents[robots_url] = (code, None)
             if code in ("http_401", "http_403"):
                 cast(Any, parser).disallow_all = True
                 return parser
@@ -303,7 +307,9 @@ class RobotsCache:
                 cast(Any, parser).allow_all = True
                 return parser
             return "robots_unavailable"
-        parser.parse(raw.decode("utf-8", errors="replace").splitlines())
+        text = raw.decode("utf-8", errors="replace")
+        self.documents[robots_url] = ("ok", text)
+        parser.parse(text.splitlines())
         return parser
 
 

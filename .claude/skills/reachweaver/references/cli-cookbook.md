@@ -157,6 +157,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `seo-destinations` | Canonical landing page + competing-message check | `--briefs F`, `--type release/paper/product/docs`, `--project`, `--suggest-for` |
 | `seo-content-check` | Discoverability of post texts: length, alt text, hashtags, UTM, duplicates | `FILE`, `--name`, `--online` (**online** link previews), `--json` |
 | `landing-check` | SEO brief + campaign CTA landing-page checks | `--briefs F`, `--campaign`, `--online` (**online**), `--allow-origin`, `--json` |
+| `ai-visibility` | Your own pages vs AI answer engines and search: robots.txt per crawler (search / training / user fetch), noindex, nosnippet, canonical, JSON-LD, `fediverse:creator`, llms.txt as info only; never guarantees citation | `--url U --html F --robots F` (offline), `--briefs F`, `--page-id`, `--online` (**online**, brief pages only), `--allow-origin`, `--json` |
 | `utm-link` | Canonical UTM-tagged URL | `URL`, `--platform`, `--campaign`, `--content`, `--term` |
 | `creative-preflight` | Editorial checklist for 1-6 drafts; not a reach prediction | `--file F`, `--voice-profile F`, `--json` |
 | `voice-profile` | Statistics of how the owner writes, from their own past posts; writes one NEW private file, stores no post text | `--from F` or `--from-db`, `--account ID`, `--platform P`, `--out NEW`, `--json` |

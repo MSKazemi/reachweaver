@@ -153,6 +153,7 @@ COMMANDS: dict[str, dict] = {
     "seo-destinations": _c(R),
     "seo-content-check": _c(NR, note="network only with --online"),
     "landing-check": _c(NR, note="network only with --online"),
+    "ai-visibility": _c(NR, note="network only with --online (own brief pages, their robots.txt and /llms.txt)"),
     "utm-link": _c(R),
     "creative-preflight": _c(R),
     "media-check": _c(R),

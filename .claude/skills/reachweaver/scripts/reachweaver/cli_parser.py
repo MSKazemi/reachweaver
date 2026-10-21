@@ -1108,6 +1108,20 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-origin", nargs="+",
                    help="https origins a redirect may move to outside the brief's registrable domain")
     p.add_argument("--json", action="store_true", help="Machine-readable report")
+    p = sub.add_parser("ai-visibility", help="AI answer-engine and search visibility of your own pages: robots.txt "
+                       "per crawler (search, training, user fetch), noindex/nosnippet, canonical, JSON-LD, "
+                       "fediverse:creator, llms.txt as info; offline unless --online; never publishes")
+    p.add_argument("--briefs", type=Path, help="Local SEO briefs JSON; --online checks only their canonical_url pages")
+    p.add_argument("--page-id", nargs="+", help="Brief page_id(s) to check (offline: exactly one)")
+    p.add_argument("--url", help="Offline only: the address of the saved page (instead of --briefs)")
+    p.add_argument("--html", type=Path, help="Offline: saved HTML of the page")
+    p.add_argument("--robots", type=Path, help="Offline: saved robots.txt of the site")
+    p.add_argument("--online", action="store_true",
+                   help="Explicit GET of each brief page, its robots.txt and /llms.txt (robots.txt honoured, "
+                        "redirects inspected)")
+    p.add_argument("--allow-origin", nargs="+",
+                   help="https origins a redirect may move to outside the brief's registrable domain")
+    p.add_argument("--json", action="store_true", help="Machine-readable report")
     from .cli_help import grouped_index  # after every subcommand exists, so the index cannot miss one
     parser.epilog = grouped_index(parser)
     parser.usage = "reachweaver [-h] [--db DB] [--accounts ACCOUNTS] [--plain] COMMAND [options]"  # after the subparsers exist

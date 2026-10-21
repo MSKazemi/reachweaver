@@ -1,0 +1,318 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-10-21",
+  "decision_type": "documented_crawler_controls_not_ranking_or_citation_guarantees",
+  "citation_guarantee": false,
+  "notes": "What each operator documents about its own crawlers and page controls, read from official pages with curl -4 on the checked date. A robots.txt verdict says what the file asks; it is not proof of how an operator behaves. Allowing a search crawler makes a page eligible, never cited, ranked or shown. Training and user-fetch tokens are reported separately because their operators document different meanings.",
+  "limitation": {
+    "quote": "Just because a page meets all requirements, best practices, and complies with the policies, doesn't mean that Google will crawl, index, or serve its content.",
+    "source_url": "https://developers.google.com/search/docs/appearance/ai-features",
+    "checked_on": "2026-10-21",
+    "tier": "official_docs"
+  },
+  "crawlers": [
+    {
+      "token": "Googlebot",
+      "operator": "Google",
+      "role": "search",
+      "surface": "Google Search, including AI Overviews and AI Mode",
+      "robots_txt": "documented",
+      "if_blocked": "Google Search cannot crawl the page. Google says robots.txt rules for Googlebot are also the control for its AI features in Search.",
+      "evidence": [
+        {
+          "quote": "AI is built into Search and integral to how Search functions, which is why robots.txt directives for Googlebot is the control for site owners to manage access to how their sites are crawled for Search.",
+          "source_url": "https://developers.google.com/search/docs/appearance/ai-features",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "token": "Google-Extended",
+      "operator": "Google",
+      "role": "training_and_grounding",
+      "surface": "Gemini model training and grounding in Gemini Apps and Vertex AI (a robots.txt token only; it sends no requests of its own)",
+      "robots_txt": "documented",
+      "if_blocked": "Content Google crawls may not be used to train future Gemini models or for grounding in Gemini Apps and Grounding with Google Search on Vertex AI. Google says this does not change Google Search inclusion or ranking.",
+      "evidence": [
+        {
+          "quote": "Google-Extended does not impact a site's inclusion in Google Search nor is it used as a ranking signal in Google Search.",
+          "source_url": "https://developers.google.com/crawling/docs/crawlers-fetchers/google-common-crawlers",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        },
+        {
+          "quote": "Google-Extended doesn't have a separate HTTP request user agent string.",
+          "source_url": "https://developers.google.com/crawling/docs/crawlers-fetchers/google-common-crawlers",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "token": "OAI-SearchBot",
+      "operator": "OpenAI",
+      "role": "search",
+      "surface": "ChatGPT search",
+      "robots_txt": "documented",
+      "if_blocked": "OpenAI says the site will not be shown in ChatGPT search answers (it can still appear as a navigational link).",
+      "evidence": [
+        {
+          "quote": "Sites that are opted out of OAI-SearchBot will not be shown in ChatGPT search answers, though can still appear as navigational links.",
+          "source_url": "https://platform.openai.com/docs/bots",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        },
+        {
+          "quote": "Each setting is independent of the others",
+          "source_url": "https://platform.openai.com/docs/bots",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "token": "GPTBot",
+      "operator": "OpenAI",
+      "role": "training",
+      "surface": "Training of OpenAI generative AI foundation models",
+      "robots_txt": "documented",
+      "if_blocked": "Signals that the content should not be used to train OpenAI foundation models. OpenAI documents it separately from OAI-SearchBot, which controls ChatGPT search.",
+      "evidence": [
+        {
+          "quote": "Disallowing GPTBot indicates a site’s content should not be used in training generative AI foundation models.",
+          "source_url": "https://platform.openai.com/docs/bots",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "token": "ChatGPT-User",
+      "operator": "OpenAI",
+      "role": "user_fetch",
+      "surface": "Pages fetched when a ChatGPT user asks for them",
+      "robots_txt": "may_not_apply",
+      "if_blocked": "OpenAI says robots.txt rules may not apply to these user-initiated fetches, and that this agent does not decide search inclusion.",
+      "evidence": [
+        {
+          "quote": "Because these actions are initiated by a user, robots.txt rules may not apply.",
+          "source_url": "https://platform.openai.com/docs/bots",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        },
+        {
+          "quote": "ChatGPT-User is not used to determine whether content may appear in Search.",
+          "source_url": "https://platform.openai.com/docs/bots",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "token": "PerplexityBot",
+      "operator": "Perplexity",
+      "role": "search",
+      "surface": "Perplexity search results",
+      "robots_txt": "documented",
+      "if_blocked": "Perplexity says this crawler surfaces and links sites in its search results; blocking it asks Perplexity not to crawl the page for that.",
+      "evidence": [
+        {
+          "quote": "PerplexityBot is designed to surface and link websites in search results on Perplexity. It is not used to crawl content for AI foundation models.",
+          "source_url": "https://docs.perplexity.ai/guides/bots",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "token": "Perplexity-User",
+      "operator": "Perplexity",
+      "role": "user_fetch",
+      "surface": "Pages fetched when a Perplexity user asks a question",
+      "robots_txt": "generally_ignored",
+      "if_blocked": "Perplexity says this user-requested fetcher generally ignores robots.txt rules, so a block may have no effect.",
+      "evidence": [
+        {
+          "quote": "Since a user requested the fetch, this fetcher generally ignores robots.txt rules.",
+          "source_url": "https://docs.perplexity.ai/guides/bots",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "token": "Bingbot",
+      "operator": "Microsoft",
+      "role": "search",
+      "surface": "Bing search and Bing AI answers (Microsoft Copilot, AI-generated summaries in Bing)",
+      "robots_txt": "documented",
+      "if_blocked": "Bing says it respects robots.txt for its AI experiences. Bing's help pages need JavaScript and could not be read with curl on 2026-10-21, so the exact effect of a Bingbot block on each Bing surface is not stated here.",
+      "evidence": [
+        {
+          "quote": "Bing respects all content owner preferences expressed through robots.txt and other supported control mechanisms.",
+          "source_url": "https://blogs.bing.com/webmaster/2026/2/Introducing-AI-Performance-in-Bing-Webmaster-Tools-Public-Preview/",
+          "checked_on": "2026-10-21",
+          "tier": "official_blog"
+        },
+        {
+          "quote": "<meta name=\"bingbot\" content=\"nocache\">",
+          "source_url": "https://blogs.bing.com/webmaster/september-2023/Announcing-new-options-for-webmasters-to-control-usage-of-their-content-in-Bing-Chat",
+          "checked_on": "2026-10-21",
+          "tier": "official_blog"
+        }
+      ]
+    }
+  ],
+  "page_signals": [
+    {
+      "id": "noindex",
+      "status": "documented_control",
+      "meaning": "Google: a page must be indexed and eligible to be shown with a snippet to be a supporting link in AI Overviews or AI Mode, so noindex removes that eligibility.",
+      "evidence": [
+        {
+          "quote": "To be eligible to be shown as a supporting link in AI Overviews or AI Mode, a page must be indexed and eligible to be shown in Google Search with a snippet",
+          "source_url": "https://developers.google.com/search/docs/appearance/ai-features",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "id": "nosnippet",
+      "status": "documented_control",
+      "meaning": "Google: nosnippet also keeps the page from being a direct input for AI Overviews and AI Mode.",
+      "evidence": [
+        {
+          "quote": "will also prevent the content from being used as a direct input for AI Overviews and AI Mode",
+          "source_url": "https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "id": "max_snippet",
+      "status": "documented_control",
+      "meaning": "Google: max-snippet also limits how much of the page may be a direct input for AI Overviews and AI Mode.",
+      "evidence": [
+        {
+          "quote": "will also limit how much of the content may be used as a direct input for AI Overviews and AI Mode",
+          "source_url": "https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "id": "noarchive_nocache",
+      "status": "documented_control",
+      "meaning": "Bing (2023 announcement about Bing Chat): NOARCHIVE content is not included in or linked from chat answers; NOCACHE content may be included with URL, title and snippet only. Bing said both still appear in its search results. This is a 2023 statement; check current Bing documentation.",
+      "evidence": [
+        {
+          "quote": "Content tagged NOARCHIVE will not be included in Bing Chat answers, not be linked to in the answers.",
+          "source_url": "https://blogs.bing.com/webmaster/september-2023/Announcing-new-options-for-webmasters-to-control-usage-of-their-content-in-Bing-Chat",
+          "checked_on": "2026-10-21",
+          "tier": "official_blog"
+        }
+      ]
+    },
+    {
+      "id": "structured_data",
+      "status": "informational",
+      "meaning": "Google uses structured data to understand a page and recommends JSON-LD. Google also says no special markup is needed to appear in its generative AI features, so missing JSON-LD is information, not a fault.",
+      "evidence": [
+        {
+          "quote": "Google recommends using JSON-LD for structured data if your site's setup allows it",
+          "source_url": "https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        },
+        {
+          "quote": "You don't need to create new machine readable files, AI text files, markup, or Markdown to appear in Google Search (including its generative AI capabilities), as Google Search itself doesn't use them.",
+          "source_url": "https://developers.google.com/search/docs/fundamentals/ai-optimization-guide",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "id": "fediverse_creator",
+      "status": "informational",
+      "meaning": "Mastodon shows the named fediverse account as the author when the page is shared; it is an attribution tag, not a search control.",
+      "evidence": [
+        {
+          "quote": "The handle can be any fediverse account, not just Mastodon.",
+          "source_url": "https://blog.joinmastodon.org/2024/07/highlighting-journalism-on-mastodon/",
+          "checked_on": "2026-10-21",
+          "tier": "official_blog"
+        }
+      ]
+    },
+    {
+      "id": "llms_txt",
+      "status": "optional_unconfirmed",
+      "affects_ranking": false,
+      "label": "optional; no major engine has confirmed it reads it",
+      "meaning": "llms.txt is a community proposal. Google says Google Search does not use such files; no major answer engine has confirmed that it reads them. Reported as information only.",
+      "evidence": [
+        {
+          "quote": "We propose adding a /llms.txt markdown file to websites to provide LLM-friendly content.",
+          "source_url": "https://llmstxt.org/",
+          "checked_on": "2026-10-21",
+          "tier": "proposal"
+        },
+        {
+          "quote": "For Google Search, you can ignore tactics like \"chunking\" content, creating unnecessary AI text files (like llms.txt), or pursuing inauthentic mentions.",
+          "source_url": "https://developers.google.com/search/docs/fundamentals/ai-optimization-guide",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    }
+  ],
+  "measurement": [
+    {
+      "id": "google_search_console_generative_ai",
+      "label": "Google Search Console: Generative AI performance report",
+      "evidence": [
+        {
+          "quote": "To measure how your content is performing in generative AI features on Google Search and Discover, use the Generative AI performance report in Search Console.",
+          "source_url": "https://developers.google.com/search/docs/fundamentals/ai-optimization-guide",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "id": "google_search_console_platform_properties",
+      "label": "Google Search Console: platform properties for Instagram, TikTok, X and YouTube accounts",
+      "evidence": [
+        {
+          "quote": "This information is also available for your TikTok, Instagram, X, or YouTube content.",
+          "source_url": "https://developers.google.com/search/docs/monitor-debug/analyze-social-video-content",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        },
+        {
+          "quote": "We’re rolling out this feature gradually, so it might not be available to everyone yet.",
+          "source_url": "https://support.google.com/webmasters/answer/17148418?hl=en",
+          "checked_on": "2026-10-21",
+          "tier": "official_docs"
+        }
+      ]
+    },
+    {
+      "id": "bing_webmaster_ai_performance",
+      "label": "Bing Webmaster Tools: AI Performance (public preview)",
+      "evidence": [
+        {
+          "quote": "For the first time, you can understand how often your content is cited in generative answers",
+          "source_url": "https://blogs.bing.com/webmaster/2026/2/Introducing-AI-Performance-in-Bing-Webmaster-Tools-Public-Preview/",
+          "checked_on": "2026-10-21",
+          "tier": "official_blog"
+        }
+      ]
+    }
+  ]
+}

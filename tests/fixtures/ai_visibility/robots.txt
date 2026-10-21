@@ -1,0 +1,17 @@
+# Synthetic robots.txt for offline ai-visibility tests.
+User-agent: GPTBot
+Disallow: /
+
+User-agent: Google-Extended
+User-agent: PerplexityBot
+Disallow: /private/
+
+User-agent: oai-searchbot
+Disallow: /guide
+Allow: /guide$
+
+User-agent: *
+Disallow: /admin/
+Allow: /
+
+Sitemap: https://docs.example.org/sitemap.xml
