@@ -385,8 +385,8 @@ class MetricsFetchTests(Base):
         derive = metrics_fetch.platform_id_from_url
         self.assertEqual(derive("mastodon", MASTO_URL, MASTO), "109876543210")
         self.assertEqual(derive("mastodon", f"{SERVER}/users/owner/statuses/42", MASTO), "42")
-        for url in (f"https://other.example.org/@owner/42", f"{SERVER}/@someone/42", f"{SERVER}/@owner/abc",
-                    f"{SERVER}/@owner/42?x=1", f"http://social.example.org/@owner/42"):
+        for url in ("https://other.example.org/@owner/42", f"{SERVER}/@someone/42", f"{SERVER}/@owner/abc",
+                    f"{SERVER}/@owner/42?x=1", "http://social.example.org/@owner/42"):
             self.assertIsNone(derive("mastodon", url, MASTO), url)
         self.assertIsNone(derive("mastodon", MASTO_URL, None))
         self.assertIsNone(derive("mastodon", MASTO_URL, BSKY))
