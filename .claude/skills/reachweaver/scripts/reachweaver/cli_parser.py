@@ -313,6 +313,20 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--optout", type=Path, help=optout_help + "; a mention is BLOCKED")
     p.add_argument("--sources", type=Path, metavar="CONFIG",
                    help="sources-scan config (#9): refuse when any published text (post, alt texts, video title/tags), a hosted image URL or the source URL links into any visibility:private repository of that config (private repository URLs are never public links)")
+    p = sub.add_parser("review", help="Owner-only guided approval (#11): walk the drafts one by one, oldest first, in your own "
+                       "terminal; each shows its review sheet and check result, then a approves it through the approve "
+                       "command, s skips, c cancels (type CANCEL), q quits. Needs an interactive terminal; never batches; "
+                       "reply drafts are left out")
+    p.add_argument("--campaign", help="Only drafts of this campaign")
+    p.add_argument("--account", help="Only drafts of this account id")
+    p.add_argument("--approver", help="Passed to each approve (attribution, not authentication); defaults to $USER/$LOGNAME")
+    p.add_argument("--persona", metavar="ID", help="Passed to each check and approve: refuse an account of another persona")
+    p.add_argument("--optout", type=Path, help=optout_help + "; passed to each check and approve")
+    p.add_argument("--sources", type=Path, metavar="CONFIG",
+                   help="sources-scan config (#9), passed to each check and approve: refuse links into private repositories")
+    p.add_argument("--verify-identity", action="store_true",
+                   help="Each approve runs its one read-only identity check (needs --online), as approve --verify-identity")
+    p.add_argument("--online", action="store_true", help="Required with --verify-identity")
     p = sub.add_parser("approve", help="Approve the exact current text; binds an immutable payload hash (#7)")
     p.add_argument("post_id")
     p.add_argument("--persona", metavar="ID",

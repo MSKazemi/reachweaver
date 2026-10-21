@@ -7,8 +7,8 @@ call a server's tools without asking a person before each call, so this server i
   is not ``interactive``, ``owner_only`` or ``network``, has no ``owner_only_flags``, prints JSON, and is not in
   ``WITHHELD_COMMANDS``. With ``--allow-drafts`` the one extra tool is ``draft`` (it writes a local draft that
   still needs the owner's own approval). ``NEVER_EXPOSED`` is a backstop: building the tool list fails if any
-  of those commands would ever pass the filter. There is no approve, publish, resume, reconcile, reconnect,
-  connect or approval-mode tool, so a client cannot run them even when told to.
+  of those commands would ever pass the filter. There is no approve, review, publish, resume, reconcile,
+  reconnect, connect or approval-mode tool, so a client cannot run them even when told to.
 * **Arguments.** Each tool's input schema is generated from the command's argparse definition, like
   ``describe``. Arguments are checked against it (unknown, wrong type, too long, not a choice), flags in
   ``WITHHELD_FLAGS`` (network, human attestations, output format) do not exist, and every file argument must
@@ -61,7 +61,7 @@ DRAFT_COMMAND = "draft"
 WITHHELD_COMMANDS = {"credentials-audit": "reads credential values (never prints them); the owner runs it"}
 # Commands that must never become a tool, whatever the catalog says. A backstop, not the rule.
 NEVER_EXPOSED = frozenset({
-    "approve", "unapprove", "publish", "resume", "reconcile", "reconnect", "approval-mode", "connect",
+    "approve", "review", "unapprove", "publish", "resume", "reconcile", "reconnect", "approval-mode", "connect",
     "connect-check", "account-kit", "update", "schedule", "cancel", "pause", "disconnect", "mcp-serve", "ui",
     "share", "data-purge", "metrics-fetch", "engagement-fetch", "sources-scan", "postiz-check"})
 # Flags no tool offers: network switches, human attestations and overrides, and output-format flags (the

@@ -131,7 +131,7 @@ class CookbookDriftTests(unittest.TestCase):
     def test_cookbook_uses_the_rw_prefix_and_marks_owner_only_steps(self):
         self.assertIn("`RW` means `python3 <skill-dir>/scripts/run.py`", self.text)
         self.assertNotRegex(self.text, r"python3? -m reachweaver\.cli \w", "write `RW COMMAND`, as SKILL.md does")
-        for owner_only in ("`approve`", "`resume`", "`reconcile`", "`reconnect`", "`ui`"):
+        for owner_only in ("`approve`", "`review`", "`resume`", "`reconcile`", "`reconnect`", "`ui`"):
             row = next(line for line in self.text.splitlines() if line.startswith(f"| {owner_only} |"))
             self.assertIn("**OWNER**", row, owner_only)
         for flag in ("--live", "--approve-plan", "--guide"):

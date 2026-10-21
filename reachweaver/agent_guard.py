@@ -8,8 +8,8 @@ code 2 blocks a ``PreToolUse`` tool call and Claude reads the stderr text as the
 (https://code.claude.com/docs/en/hooks, sections "Exit code 2" and "PreToolUse decision
 control", checked 2026-10-20). Exit 0 leaves the call to the normal permission flow.
 
-Owner-only actions: ``approve``, ``account-kit --approve-plan``, ``publish --live``, ``resume``,
-``reconcile``, ``reconnect``, ``approval-mode --confirmation off``, and setting
+Owner-only actions: ``approve``, ``review`` (the guided approval loop), ``account-kit --approve-plan``,
+``publish --live``, ``resume``, ``reconcile``, ``reconnect``, ``approval-mode --confirmation off``, and setting
 ``REACHWEAVER_ALLOW_LIVE``, ``REACHWEAVER_ENV=prod`` or any use of ``REACHWEAVER_APPROVAL_SECRET``.
 An invocation is any of ``reachweaver``, ``run.py``, ``python -m reachweaver[.cli|.__main__]``,
 ``reachweaver/__main__.py`` or ``reachweaver/cli.py``, after any wrapper (``env``, ``sudo``,
@@ -42,7 +42,7 @@ from typing import Iterator, TextIO
 
 ASK_OWNER = "Owner-only: ask the owner to run this in their own terminal."
 
-OWNER_ONLY_COMMANDS = frozenset({"approve", "resume", "reconcile", "reconnect"})
+OWNER_ONLY_COMMANDS = frozenset({"approve", "review", "resume", "reconcile", "reconnect"})
 # Top-level options that take a value (reachweaver/cli.py make_parser); the value is skipped
 # when looking for the subcommand.
 GLOBAL_VALUE_OPTIONS = ("--db", "--accounts", "--profile", "--home")
@@ -61,6 +61,7 @@ _PYTHON = re.compile(r"^(?:python(?:\d+(?:\.\d+)?)?w?|pypy\d*|py)(?:\.exe)?$")
 _PYTHON_VALUE_FLAGS = frozenset({"-W", "-X", "-Q"})
 _MENTION = re.compile(r"reachweaver|run\.py", re.I)
 _OWNER_WORD = re.compile(r"\b(?:approve|approve-plan|resume|reconcile|reconnect|approval-mode)\b"
+                         r"|\breview\b(?!-)"  # the review loop, not review-packet, review-comment, review-status
                          r"|--l(?:i(?:ve?)?)?\b", re.I)
 _SECRET = re.compile(r"REACHWEAVER_APPROVAL_SECRET", re.I)
 _ALLOW_LIVE_SET = re.compile(
