@@ -2237,6 +2237,10 @@ def execute(args) -> int:
         context = build_context(args.db, args.accounts, args.profile)
         print(json.dumps(context, ensure_ascii=False, separators=(",", ":")) if args.json else render_context(context))
         return 0
+    if args.command == "help":  # text from the parser only; no database, no account, no network
+        from .cli_help import help_text
+        print(help_text(make_parser(), args.topic), end="")
+        return 0
     if args.command == "describe":  # generated from the parser; no database, no account, no network
         from .catalog import describe, render_text as render_catalog
         document = describe(make_parser(), args.name)
@@ -2890,7 +2894,7 @@ def main(argv=None) -> int:
             from .start import build_guide, render as render_guide
             guide = build_guide(parsed.db, parsed.accounts)
             print(render_guide(guide))
-            print("\nEvery command, grouped by task: reachweaver --help")
+            print("\nEveryday commands: reachweaver --help   Every command, by task: reachweaver --help all")
             return 1 if guide["state"] in ("accounts_invalid", "database_unreadable") else 0
         status = execute(parsed)
         sys.stdout.flush()  # a reader that left early (`| head`) surfaces here, inside the handlers below

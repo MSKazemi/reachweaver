@@ -6,6 +6,16 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Changed
+
+- **`reachweaver --help` is now short.** It lists 16 everyday commands (start, share, idea, draft, check, review, publish, list, report, metrics-fetch, suggest, ui, connect, workspace, update, help) with one plain-language line each, then points to `reachweaver --help all`, which prints the full grouped list and the global options as before. `reachweaver --help COMMAND` prints that command's own help. `reachweaver COMMAND --help` is unchanged, every command is still callable, and no behaviour of any command changed. Scripts that read the whole command list from `reachweaver --help` should use `reachweaver --help all` or `reachweaver describe --json`.
+- The "unknown command" hint and the pointer printed by bare `reachweaver` now name `reachweaver --help all` for the full list.
+
+### Added
+
+- **`reachweaver help [all|COMMAND]`**: the same text as `--help`, `--help all` and `COMMAND --help`. Read-only and offline; tagged `read_only` in the catalog. 120 commands (1 more than 0.13.0, none removed).
+- **`describe --json` marks the everyday commands** with a boolean `everyday` on every command entry (additive; `schema_version` stays 1). Every command is still listed.
+
 ## [0.13.0] - 2026-10-21
 
 Approval covers more of what is actually sent, and stays withdrawn when you withdraw it. A Mastodon post's visibility, language and content warning and a Postiz post's server and integration are bound into the approval; an exact repeat of material already shared on the same account is refused at send time unless you approved it with `--allow-repeat`; `unapprove` and `cancel` are recorded in the approval ledger, so a restored backup cannot send a withdrawn post. New owner-only `review` walks your drafts one by one in your own terminal. Preflight retries appear in the worker log. 119 commands (1 more than 0.12.0, none removed). No live adapter is added; dry-run, emergency-stop, credential isolation and reconciliation are unchanged.

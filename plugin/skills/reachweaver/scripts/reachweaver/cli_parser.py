@@ -147,14 +147,18 @@ class _TopParser(argparse.ArgumentParser):
             action = next(a for a in self._actions if isinstance(a, argparse._SubParsersAction))
             close = difflib.get_close_matches(found.group(1), list(action.choices), n=3, cutoff=0.6)
             hint = f" Did you mean: {', '.join(close)}?" if close else ""
-            message = f"unknown command '{found.group(1)}'.{hint} 'reachweaver --help' lists every command by task"
+            message = f"unknown command '{found.group(1)}'.{hint} 'reachweaver --help all' lists every command by task"
         self.print_usage(sys.stderr)
         self.exit(2, f"{self.prog}: error: {message}\n")
 
 
 def make_parser() -> argparse.ArgumentParser:
     parser = _TopParser(prog="reachweaver", description="Approval-first social publishing; dry-run by default.\n\nUsage: reachweaver [--db DB] [--accounts FILE] COMMAND [options]",
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+                                     formatter_class=argparse.RawDescriptionHelpFormatter, add_help=False)
+    from .cli_help import TieredHelpAction  # -h: everyday view; --help all: every command; --help COMMAND: one
+    parser.add_argument("-h", "--help", action=TieredHelpAction,
+                        help="Show the everyday commands; --help all lists every command by task, "
+                             "--help COMMAND shows one command's options")
     parser.add_argument("--db", help="Local persistent SQLite database path (defaults to state/reachweaver.sqlite)")
     parser.add_argument("--accounts", help="Accounts config path (defaults to config/accounts.json)")
     parser.add_argument("--profile", help="Profile knowledge base path (defaults to config/profile.json in the workspace); "
@@ -615,6 +619,9 @@ def make_parser() -> argparse.ArgumentParser:
                                        "live gate, approval mode, post counts, posts waiting for the owner, next steps "
                                        "and owner-only commands, in one call; never creates the database")
     p.add_argument("--json", action="store_true", help="Compact machine-readable summary")
+    p = sub.add_parser("help", help="Show the everyday commands; 'help all' lists every command by task and "
+                                     "'help COMMAND' shows one command's options; offline, prints text only")
+    p.add_argument("topic", nargs="?", metavar="TOPIC", help="'all' for every command, or a command name")
     p = sub.add_parser("describe", help="Machine-readable command catalog generated from the parser: flags, choices, "
                                         "defaults, JSON support and owner-only/network/writes/read-only tags")
     p.add_argument("name", nargs="?", metavar="COMMAND", help="Describe one command, with the help of each flag")

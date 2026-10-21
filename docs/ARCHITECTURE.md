@@ -704,7 +704,7 @@ Not implemented: HEAD requests (one bounded GET is enough), JavaScript rendering
 
 ## Local dashboard and terminal presentation (GUI/UX slice)
 
-`reachweaver ui` serves a read-only dashboard; `start`, the grouped `--help`, `--plain`, and terminal tables/colour make the CLI easier to read. User guide: [DASHBOARD.md](DASHBOARD.md).
+`reachweaver ui` serves a read-only dashboard; `start`, the tiered `--help` (everyday commands; `--help all` for every command by task), `--plain`, and terminal tables/colour make the CLI easier to read. User guide: [DASHBOARD.md](DASHBOARD.md).
 
 ```text
 browser --GET /<token>/api/*--> ui_server.Handler  (loopback, token, Host/Origin/Fetch-Metadata checks, GET only, CSP)
@@ -734,7 +734,7 @@ browser --GET /<token>/api/*--> ui_server.Handler  (loopback, token, Host/Origin
                        JSON; ui_assets.APP_JS inserts it as text (never HTML)
 ```
 
-Modules: `post_view.py` holds the offline views moved out of `cli.py` (`show` and the dashboard share `build_post_view`); `ui_data.py` (read-only data layer), `ui_prompts.py` (the pure prompt builder of the "Work with Claude" page: no model call, no environment read, no file), `ui_server.py` (HTTP), `ui_assets.py` (page, CSS, JS as Python strings so `sync_skill.py` ships them in the bundle), `start.py` (state-aware next steps), `show_view.py` (the terminal review sheet and the length/approval-sentence facts the dashboard shares), `term.py` (colour, tables, control-character cleaning), `completion.py` (bash/zsh completion generated from the parser) and `cli_help.py` (grouped command index, error hints; the top-level parser also turns a mistyped command into a short suggestion). `cli_parser.py` builds the whole argument parser (every subcommand, flag and help text; moved out of `cli.py` on 2026-10-20 to keep each file under the plugin directory's 256 KiB limit); `cli.py` re-exports `make_parser` and dispatches, and `scripts/release_gate.py` reads subcommands from both files.
+Modules: `post_view.py` holds the offline views moved out of `cli.py` (`show` and the dashboard share `build_post_view`); `ui_data.py` (read-only data layer), `ui_prompts.py` (the pure prompt builder of the "Work with Claude" page: no model call, no environment read, no file), `ui_server.py` (HTTP), `ui_assets.py` (page, CSS, JS as Python strings so `sync_skill.py` ships them in the bundle), `start.py` (state-aware next steps), `show_view.py` (the terminal review sheet and the length/approval-sentence facts the dashboard shares), `term.py` (colour, tables, control-character cleaning), `completion.py` (bash/zsh completion generated from the parser) and `cli_help.py` (the tiered help: `EVERYDAY` for `--help` and `help`, `GROUPS` for `--help all`, the `-h/--help [TOPIC]` action, error hints; the top-level parser also turns a mistyped command into a short suggestion). `cli_parser.py` builds the whole argument parser (every subcommand, flag and help text; moved out of `cli.py` on 2026-10-20 to keep each file under the plugin directory's 256 KiB limit); `cli.py` re-exports `make_parser` and dispatches, and `scripts/release_gate.py` reads subcommands from both files.
 
 Invariants:
 
@@ -759,6 +759,9 @@ context  -> context.build_context: accounts file + profile (names, persona) + co
             runtime_environment reduced to booleans; catalog.owner_only_commands; privacy.redact_value last
 describe -> catalog.describe(make_parser()): flags, choices, defaults, groups, JSON option from argparse itself
             + catalog.COMMANDS (hand-kept tags: owner_only, network, writes, read_only, interactive; owner-only flags)
+            + everyday: true for the commands in cli_help.EVERYDAY (the short --help view); every command is listed
+help     -> cli_help.help_text(make_parser(), TOPIC): everyday view, "all" (grouped index) or one command's own help;
+            -h/--help [TOPIC] on the top-level parser (cli_help.TieredHelpAction) prints the same text
 main()   -> on an error: "ERROR: ..." on stderr as before; with --json also {"error": {code, message}} on stdout
             (error_codes.error_code: exception class, refined for common ValidationError messages)
 ```

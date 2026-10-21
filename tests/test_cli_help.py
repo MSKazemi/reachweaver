@@ -34,16 +34,125 @@ class GroupTests(unittest.TestCase):
         helps = {choice.dest: choice.help for choice in self.action._choices_actions}
         self.assertEqual([n for n in self.names if not helps.get(n)], [])
 
-    def test_top_level_help_lists_every_command_grouped(self):
+    def _help(self, argv):
         out = io.StringIO()
         with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as raised:
-            self.parser.parse_args(["--help"])
+            make_parser().parse_args(argv)
         self.assertEqual(raised.exception.code, 0)
-        text = out.getvalue()
+        return out.getvalue()
+
+    def test_help_all_lists_every_command_grouped(self):
+        text = self._help(["--help", "all"])
         for name in self.names:
             self.assertRegex(text, rf"(?m)^  {re.escape(name)}\s", name)
         self.assertLess(text.index("Get started"), text.index("Draft and approve"))
         self.assertNotRegex(text, r"\{init,", "the flat argparse command list must not come back")
+        self.assertIn("--home DIR", text)  # the global options stay in the full view
+        self.assertEqual(text, self._help(["-h", "all"]))
+        self.assertEqual(text, self._help(["--help=all"]))
+        self.assertEqual(text, cli_help.full_help(make_parser()))
+
+
+class EverydayHelpTests(unittest.TestCase):
+    def setUp(self):
+        self.parser = make_parser()
+        self.action, self.names = subcommands(self.parser)
+
+    def _help(self, argv):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit) as raised:
+            make_parser().parse_args(argv)
+        self.assertEqual(raised.exception.code, 0)
+        return out.getvalue()
+
+    def _main(self, argv):
+        from reachweaver.cli import main
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = main(argv)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_everyday_names_are_real_grouped_and_unique(self):
+        names = [entry[0] for entry in cli_help.EVERYDAY]
+        self.assertEqual(len(names), len(set(names)))
+        self.assertEqual(sorted(set(names) - set(self.names)), [], "EVERYDAY names a command that does not exist")
+        grouped = {name for _, group in cli_help.GROUPS for name in group}
+        self.assertTrue(set(names) <= grouped)
+        self.assertTrue(12 <= len(names) <= 16, len(names))
+        self.assertEqual(cli_help.EVERYDAY_NAMES, frozenset(names))
+
+    def test_plain_help_is_the_short_everyday_view(self):
+        text = self._help(["--help"])
+        self.assertEqual(text, self._help(["-h"]))
+        rows = re.findall(r"(?m)^  ([a-z][a-z-]*)  +\S", text)
+        self.assertEqual(rows, [entry[0] for entry in cli_help.EVERYDAY])
+        self.assertIn("share --web", text)
+        self.assertIn(f"to see all {len(self.names)} commands by group", text)
+        self.assertIn("`reachweaver --help all` (or `reachweaver help all`)", text)
+        self.assertLess(len(text.splitlines()), 40)
+        for line in text.splitlines():
+            self.assertLessEqual(len(line), 100, line)
+            self.assertNotRegex(line, r"#\d+|issue \d+", line)
+        for name in ("approve", "approval-mode", "reconcile", "context", "mcp-serve"):
+            self.assertNotRegex(text, rf"(?m)^  {re.escape(name)}\s", name)
+
+    def test_everyday_lines_never_promise_a_send(self):
+        lines = {entry[0]: " ".join(entry[1:]) for entry in cli_help.EVERYDAY}
+        self.assertIn("dry run", lines["publish"])
+        self.assertIn("you only", lines["review"])
+        self.assertIn("nothing is sent", lines["draft"])
+        self.assertIn("nothing goes online", lines["share"])
+
+    def test_help_command_matches_the_help_flag(self):
+        code, out, _ = self._main(["help"])
+        self.assertEqual((code, out), (0, self._help(["--help"])))
+        code, out, _ = self._main(["help", "all"])
+        self.assertEqual((code, out), (0, self._help(["--help", "all"])))
+
+    def test_help_for_one_command_is_that_commands_own_help(self):
+        own = self._help(["list", "--help"])
+        self.assertTrue(own.startswith("usage: reachweaver list"))
+        self.assertEqual(self._help(["--help", "list"]), own)
+        code, out, _ = self._main(["help", "list"])
+        self.assertEqual((code, out), (0, own))
+
+    def test_unknown_help_topic_is_a_short_error_with_a_suggestion(self):
+        code, out, err = self._main(["help", "lst"])
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("unknown help topic 'lst'", err)
+        self.assertIn("Did you mean: list?", err)
+        err_io = io.StringIO()
+        with contextlib.redirect_stderr(err_io), contextlib.redirect_stdout(io.StringIO()), \
+                self.assertRaises(SystemExit) as raised:
+            make_parser().parse_args(["--help", "lst"])
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("Did you mean: list?", err_io.getvalue())
+        self.assertLess(len(err_io.getvalue()), 400)
+
+    def test_every_command_stays_callable(self):
+        for name in self.names:
+            with self.subTest(command=name):
+                self.assertIn(name, self.action.choices)
+                self.assertTrue(self.action.choices[name].format_help().startswith(f"usage: reachweaver {name}"))
+
+    def test_describe_marks_everyday_commands_and_still_lists_all(self):
+        import json
+        code, out, _ = self._main(["describe", "--json"])
+        self.assertEqual(code, 0)
+        commands = json.loads(out)["commands"]
+        self.assertEqual(sorted(c["name"] for c in commands), self.names)
+        self.assertTrue(all(isinstance(c["everyday"], bool) for c in commands))
+        self.assertEqual({c["name"] for c in commands if c["everyday"]}, set(cli_help.EVERYDAY_NAMES))
+        code, out, _ = self._main(["describe", "help", "--json"])
+        entry = json.loads(out)["command"]
+        self.assertEqual((entry["everyday"], entry["tags"]), (True, ["read_only"]))
+
+    def test_help_flag_is_not_a_value_flag_for_completion_or_a_global_option(self):
+        from reachweaver import catalog, completion
+        script = completion.render("bash", make_parser())
+        self.assertNotRegex(script, r"\|--help\)|'--help'\)|--help\|", "completion must not treat --help as taking a value")
+        names = [flag["name"] for flag in catalog.describe(make_parser())["global_options"]]
+        self.assertNotIn("--help", names)
 
     def test_index_lines_are_short_and_without_issue_numbers(self):
         index = cli_help.grouped_index(self.parser)

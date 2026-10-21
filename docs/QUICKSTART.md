@@ -21,11 +21,13 @@ The runtime has no third-party dependencies, so there is nothing to install. All
 
 ```bash
 python3 -m reachweaver --help
+python3 -m reachweaver --help all
 python3 -m reachweaver --db state/quickstart.sqlite --accounts config/accounts.example.json doctor
 python3 -m reachweaver capabilities
 python3 -m reachweaver distribution-plan --region global --goal contributors --limit 5
 ```
 
+- `--help` prints the 16 everyday commands with one plain line each. `--help all` lists every command grouped by task, and `--help COMMAND` (or `COMMAND --help`) shows one command's options.
 - `doctor` reads `config/accounts.example.json`, which holds public metadata only (handles, servers, environment-variable **names**). It lists the variables that would hold credentials as missing and ends with `Live opt-in: disabled`. That is the expected state.
 - `capabilities` prints the dated capability registry. Only `bluesky`, `mastodon`, `telegram` and `linkedin` have live text adapters. Instagram, Threads, TikTok and YouTube have mock-tested adapters that stay disabled in the registry until the owner records a live receipt, so for now every other platform is manual. See [blocked platforms and their alternatives](TROUBLESHOOTING.md#blocked-platforms-and-their-alternatives).
 - `distribution-plan` ranks channels for a region and goal from a research registry. It is an editorial hypothesis, not a reach forecast, and it never schedules anything.
