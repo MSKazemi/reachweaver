@@ -296,9 +296,13 @@ def run(args, accounts: dict, placeholders: list[str]) -> int:
             print(f"Updated numbers for {label}." if values else f"Updated {label}.")
             for line in fixed:
                 print(line)
+            sent = results.to_time(post["send_started_at"])
             if values:
-                print(_numbers_line(values, results.to_time(post["send_started_at"]),
-                                    datetime.fromisoformat(observed)))
+                print(_numbers_line(values, sent, datetime.fromisoformat(observed)))
+            elif args.at is not None and sent is not None and post["status"] == "published_manual" and \
+                    results.hours_between(sent, datetime.fromisoformat(observed)) < results.DUE_AFTER_HOURS:
+                again = results.local_date(sent + timedelta(hours=results.MATCH_AGE_HOURS))
+                print(f"For the 7-day comparison, record its numbers around {again}.")
             print(f"Next: {NEXT_STEP}")
             return 0
     account_id, account_note = pick_account(platform, url, accounts, args.account, placeholders)

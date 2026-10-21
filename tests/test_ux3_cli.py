@@ -216,6 +216,12 @@ class PostedCorrectionTests(Base):
         _, out, _ = self.cli("posted", BSKY_URL)
         self.assertIn("--at yesterday", out)
 
+    def test_a_date_correction_alone_gives_the_new_7_day_date(self):
+        code, out, _ = self.cli("posted", BSKY_URL, "--at", "yesterday")
+        self.assertEqual(code, 0)
+        reminder = results.local_date(results.to_time(self.post()["send_started_at"]) + timedelta(hours=168))
+        self.assertIn(f"For the 7-day comparison, record its numbers around {reminder}.", out)
+
 
 class SentPostsAreNeverCorrectedTests(Base):
     def test_a_post_reachweaver_sent_keeps_time_text_and_account(self):
