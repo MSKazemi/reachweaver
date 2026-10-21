@@ -480,7 +480,9 @@ class WritePathSecurityTests(ComposerBase):
                   "/api/mark-posted": {"package": name, "platform": "threads", "url": URL},
                   "/api/draft/save": {"platforms": ["threads"], "text": "x"}, "/api/draft/clear": {},
                   "/api/draft/load": {}, "/api/packages": {}, "/api/prepare": {"platforms": ["threads"], "text": "x"},
-                  "/api/accounts": {}, "/api/idea": {"idea": "idea-0a1b2c3d"}}
+                  "/api/accounts": {}, "/api/idea": {"idea": "idea-0a1b2c3d"},
+                  "/api/numbers": {"package": name, "platform": "threads", "numbers": {"likes": 3}},
+                  "/api/link-account": {"platform": "threads", "url": URL}}
         self.assertEqual(set(bodies) | {"/api/preview"}, set(JSON_ROUTES))
         port = self.srv.server_port
         variants = [
@@ -661,10 +663,12 @@ class AccountChoiceTests(ComposerBase):
         threads = next(n for n in data["package"]["networks"] if n["id"] == "threads")
         self.assertEqual(threads["posted"]["account_id"], "owner-threads")
         post_id = data["posted"]["post_id"]
-        self.assertEqual(data["next"], f"reachweaver metrics {post_id} --likes N --replies N")
+        # No numbers given: the hint is `posted LINK --likes N`, which adds them to this recorded link later.
+        self.assertEqual(data["next"], f"reachweaver posted {URL} --likes N")
+        self.assertEqual(data["results"], "reachweaver ui")
         from reachweaver.cli_parser import make_parser
         args = make_parser().parse_args(data["next"].split()[1:])  # the suggested command parses as given
-        self.assertEqual((args.command, args.post_id, args.likes), ("metrics", post_id, "N"))
+        self.assertEqual((args.command, args.url, args.likes), ("posted", URL, "N"))
         with connect(self.db) as con:
             row = con.execute("SELECT account_id, status, approved_at FROM posts WHERE id=?", (post_id,)).fetchone()
             self.assertEqual(tuple(row), ("owner-threads", "published_manual", None))
@@ -749,7 +753,7 @@ class DisplayNameAndPlainWordsTests(ComposerBase):
                        "@media (prefers-color-scheme: dark)", 'role="status"', '"aria-current", "step"',
                        "Ready to post", "Paste the full link to your post, starting with https://",
                        "See how your posts did: run ", '"reachweaver ui"', "Copy folder path",
-                       "Recorded as posted by you on ", "Next: when you have numbers, run ", "Which account? (optional)",
+                       "Recorded as posted by you on ", "No numbers yet. When the app shows them", "Which account? (optional)",
                        "min-height: 44px", "Write", "Choose", "Preview", "Save", "Post"):
             self.assertIn(needed, HTML)
         for gone in ("innerHTML", "Exported", "outerHTML", "insertAdjacentHTML", "eval(", "✦"):

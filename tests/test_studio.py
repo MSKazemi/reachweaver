@@ -290,8 +290,8 @@ class PageWiringTests(unittest.TestCase):
         html = share_browser.HTML
         self.assertIn('link.rel = "noopener noreferrer"', html)
         self.assertIn("DASHBOARD_URL.test(data.dashboard)", html)
-        self.assertIn("if (mine.length === 1) select.value = mine[0].id;", html)
-        self.assertIn('select.appendChild(text("option", "Not sure / skip"))', html)  # still changeable
+        self.assertIn("else if (mine.length === 1 && !select.dataset.touched) select.value = mine[0].id;", html)
+        self.assertIn('select.replaceChildren(text("option", "Not sure / skip"))', html)  # still changeable
         self.assertIn('<div class="picked hidden" id="picked"', html)
         self.assertIn("previewedKey !== null", html)  # "Your post changed" only against the last preview
 

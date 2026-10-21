@@ -8,8 +8,11 @@ save a package (new, or a confirmed update of one not marked posted), autosave t
 editor draft, attach a photo/video, and mark one network of a saved package as
 posted by hand (``storage.record_manual_publish``: a terminal record that nothing
 can send), optionally naming an account that the server checks against
-accounts.json (read, never written). Nothing here can approve, schedule or send;
-see share_composer_store.
+accounts.json (read, never written; with no account chosen, the account the link
+names is used, as ``reachweaver posted`` does), optionally with the numbers the
+owner read in the app, and later add numbers to such a hand-recorded post
+(``storage.store_metrics``, source entered-by-hand). Nothing here can approve,
+schedule or send; see share_composer_store.
 
 ``/api/idea`` only READS one open idea's text from the ideas inbox (the page offers it as the caption; the inbox
 is never changed). ``share --web --text/--idea`` seeds the autosaved draft through the same store, and never
@@ -25,6 +28,7 @@ import json
 from pathlib import Path
 import re
 import secrets
+import shlex
 import threading
 import time
 from typing import Any, Callable
@@ -52,7 +56,8 @@ _SAVE_FIELDS = frozenset({"mode", "package", "revision", "confirm"})
 # Every POST route and the body it takes. Nothing else is routed; there is no send, approve or schedule route.
 JSON_ROUTES = frozenset({"/api/preview", "/api/prepare", "/api/packages", "/api/package/open",
                          "/api/package/duplicate", "/api/mark-posted", "/api/draft/load", "/api/draft/save",
-                         "/api/draft/clear", "/api/accounts", "/api/idea"})
+                         "/api/draft/clear", "/api/accounts", "/api/idea", "/api/numbers",
+                         "/api/link-account"})
 IDEA_ID = re.compile(r"idea-[0-9a-f]{8}")
 SEED_TEXT_BYTES = 8 * 1024  # an idea is at most ideas.TEXT_MAX characters; --text for the composer stays short too
 MEDIA_ROUTE = "/api/media"
@@ -80,7 +85,11 @@ _NO_MEDIA = re.compile(r"no media manifest supplied: (?P<kinds>[a-z, ]+) not val
 # manual_export.media_unchecked's wording; the CLI-only hint in brackets has no meaning on this page
 _MEDIA_UNCHECKED = re.compile(r"(?P<need>[^.:]+ needs (?:a photo or video|a photo|a video|photos or videos)): "
                               r"attach it in the app\. .*?\(share --attach FILE or media-check MANIFEST checks it first\)")
-METRICS_NEXT = "reachweaver metrics {post_id} --likes N --replies N"  # --observed-at defaults to now, --source to entered-by-hand
+# After Mark as posted without numbers: the command that adds them later (``posted`` finds the recorded link and adds
+# the numbers to it); the page also offers "Update numbers". With numbers, the page links to Results instead.
+POSTED_NEXT = "reachweaver posted {url} --likes N"
+RESULTS_CMD = "reachweaver ui"
+IDEA_LABEL_CHARS = 60
 
 
 def plain(message: str, label: str = "") -> str:
@@ -299,26 +308,45 @@ def _duplicate_package(obj: Any) -> dict:
     files = store._package_media(pkg)
     post = {k: v for k, v in editor.items() if k != "media"}
     packages = _incoming(post, files)
-    target = _write_private(packages, files, editor)
-    return {"ready": True, "saved_to": str(target), "published": False, "package": store.package_state(target),
-            "notice": f"Copied {pkg.name} into a new package. Nothing was uploaded or published."}
+    target = store.write_package(packages, [(path, path.name) for path in files], editor, copy=True)
+    state = store.package_state(target)
+    return {"ready": True, "saved_to": str(target), "published": False, "package": state,
+            "notice": f"Duplicated as a new package: {state['display_name']} (in {state['folder']}). The original is "
+                      "unchanged. Nothing was uploaded or published."}
 
 
 def _mark_posted(obj: Any, db: str | None, accounts: str | None = None) -> dict:
-    """``account_id`` is optional; when given it must exist in accounts.json for this network's platform."""
-    obj = _only(obj, {"package", "platform", "url", "posted_at", "account_id"})
+    """``account_id`` is optional; when given it must exist in accounts.json for this network's platform (and the
+    link must not name another account). ``numbers`` is optional: likes/replies/reposts/views as the app shows."""
+    obj = _only(obj, {"package", "platform", "url", "posted_at", "account_id", "numbers"})
     record = store.mark_posted(obj.get("package"), obj.get("platform"), obj.get("url"), obj.get("posted_at"), db,
-                               account_id=obj.get("account_id"), accounts=accounts)
+                               account_id=obj.get("account_id"), accounts=accounts, numbers=obj.get("numbers"))
     return {"posted": record, "package": store.package_state(store.package_path(obj["package"])),
-            "next": METRICS_NEXT.format(post_id=record["post_id"]),
+            "next": POSTED_NEXT.format(url=shlex.quote(record["url"])), "results": RESULTS_CMD,
             "notice": f"Recorded as {store.POSTED_LABEL} (post {record['post_id']}). Nothing was posted or sent, "
                       "and this record can never be approved, scheduled or sent."}
 
 
+def _numbers(obj: Any, db: str | None) -> dict:
+    """"Update numbers" on a network this composer marked as posted: a metric snapshot for that post only."""
+    obj = _only(obj, {"package", "platform", "numbers"})
+    saved = store.record_numbers(obj.get("package"), obj.get("platform"), obj.get("numbers"), db)
+    return dict(saved, results=RESULTS_CMD,
+                notice="Numbers kept on this computer (entered by hand, as of now). Nothing was posted or sent.")
+
+
+def _link_account(obj: Any, accounts: str | None) -> dict:
+    """Read-only: which configured account a post link names, so the page can preselect it (None when unclear)."""
+    obj = _only(obj, {"platform", "url"})
+    return {"account_id": store.link_account(obj.get("platform"), obj.get("url"), accounts)}
+
+
 def _accounts(obj: Any, accounts: str | None) -> dict:
-    """Read-only: public ids, platforms and handles from accounts.json for the optional account choice."""
+    """Read-only: public ids, platforms and handles from accounts.json for the optional account choice, and the
+    composer ids of the workspace's own networks ("Your networks", preselected on a fresh draft)."""
     _only(obj, set())
-    return {"accounts": store.list_accounts(accounts), "ledger_ids": dict(store.LEDGER_ID)}
+    return {"accounts": store.list_accounts(accounts), "ledger_ids": dict(store.LEDGER_ID),
+            "your_networks": store.configured_networks(accounts)}
 
 
 def _draft_load(obj: Any, server: "ShareServer | None" = None) -> dict:
@@ -341,6 +369,16 @@ def idea_text(idea_id: object, db: str | None) -> dict:
         if item["id"] == idea_id:
             return {"id": item["id"], "text": item["text"]}
     raise ValidationError(f"No open idea called {idea_id}. It may have been dropped or promoted already.")
+
+
+def idea_label(text: str) -> str:
+    """How the page and the terminal name an idea: its own first words (about 60 characters), never its id."""
+    words = store._plain_words(text)
+    if len(words) > IDEA_LABEL_CHARS:
+        cut = words[:IDEA_LABEL_CHARS + 1]
+        space = cut.rfind(" ")
+        words = (cut[:space] if space >= IDEA_LABEL_CHARS // 2 else cut[:IDEA_LABEL_CHARS]).rstrip(" .,;:-") + "…"
+    return f"your idea “{words}”"
 
 
 def _idea(obj: Any, db: str | None) -> dict:
@@ -629,6 +667,10 @@ class ShareHandler(BaseHTTPRequestHandler):
             return _mark_posted(obj, self.server.db, self.server.accounts)
         if path == "/api/accounts":
             return _accounts(obj, self.server.accounts)
+        if path == "/api/link-account":  # read-only: the account a post link names
+            return _link_account(obj, self.server.accounts)
+        if path == "/api/numbers":  # a metric snapshot for a post this composer marked as posted by hand
+            return _numbers(obj, self.server.db)
         if path == "/api/draft/load":
             return _draft_load(obj, self.server)
         if path == "/api/idea":  # read-only: one open idea's text, which the page offers as the caption
@@ -646,7 +688,7 @@ def seed_from(text: str | None, idea: str | None, db: str | None) -> tuple[str, 
         raise ValidationError("Choose --text or --idea for the composer, not both.")
     if idea is not None:
         found = idea_text(idea.strip().casefold(), db)
-        return found["text"], f"the text of idea {found['id']}"
+        return found["text"], idea_label(found["text"])
     if text is not None:
         return text, "your --text"
     return None
