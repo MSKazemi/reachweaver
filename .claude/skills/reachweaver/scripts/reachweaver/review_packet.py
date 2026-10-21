@@ -57,7 +57,8 @@ MAX_EXCERPT_CHARS = 500
 MAX_FILE_BYTES = 4_000_000
 
 DIGEST_KIND = ("approval content digest: the approval payload (account, platform, exact text, source URL, campaign, "
-               "reply target, media and video records) without schedule time, identity or per-approval nonce; the "
+               "reply target, media and video records) without schedule time, identity, per-approval nonce, bound "
+               "send options or repeat override; the "
                "value 'show' prints as approve_would_bind_sha256 for a draft")
 NOT_APPROVAL = ("A review comment is an opinion, not approval. 'looks_good' approves, schedules and changes nothing. "
                 "Only the owner approves, in their own terminal, after reading 'reachweaver show POST_ID'.")
@@ -73,10 +74,11 @@ def content_sha256(post) -> str:
     """The approval content digest of a stored post (see module docstring). Read-only; no new hash kind.
 
     For a draft this equals ``approve_would_bind_sha256`` in ``show`` and the digest ``approve`` confirms.
-    The nonce and identity columns are set to None on a COPY of the row so that the value is the same before
+    The nonce, identity, send-options and repeat-override columns are set to None on a COPY of the row so
+    that the value is the same before
     and after approval; the row itself is never modified."""
     row = {key: post[key] for key in post.keys()}
-    for column in ("approval_nonce", "approved_identity"):
+    for column in ("approval_nonce", "approved_identity", "approved_send_options", "approved_allow_repeat"):
         if column in row:
             row[column] = None
     return storage.approval_payload_sha256(row, scheduled_at=None, use_row_schedule=False)

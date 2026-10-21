@@ -68,7 +68,7 @@ Short, plain explanations, in alphabetical order. For the bigger picture read th
 
 **Reconcile** — Telling ReachWeaver, after you looked at the real account, whether an uncertain post was published or not (`reconcile POST_ID --published ...` or `--not-published`).
 
-**Repeat check / repeat guard** — The comparison of a draft with what a platform has already received from you: the same video or image file, identical wording, or the same link. Identical files and wording by the same account block approval unless you pass `--allow-repeat`. See [repeat guard](REPEAT-GUARD.md).
+**Repeat check / repeat guard** — The comparison of a draft with what a platform has already received from you: the same video or image file, identical wording, or the same link. Identical files and wording by the same account block approval unless you pass `--allow-repeat`, and block the send too, so two approved copies never both go out (the bound `--allow-repeat` is the only exception). See [repeat guard](REPEAT-GUARD.md).
 
 **Registry** — A versioned data file used by the offline tools: the capability registry, the distribution registry (channels and markets) and the audit registry (profile checklists).
 

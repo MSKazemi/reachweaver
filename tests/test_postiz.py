@@ -17,7 +17,7 @@ from reachweaver.cli import main
 from reachweaver.connections import check_connection
 from reachweaver.policy import ValidationError
 from reachweaver.publishers import PublishError
-from gate_support import publish  # noqa: E402
+from gate_support import bound_send_options, publish  # noqa: E402
 from reachweaver.storage import add_post, connect, event, get_post, set_paused, transition
 
 FAKE_KEY = "pz-fake-key-for-tests-0001"
@@ -93,7 +93,8 @@ class PostizTests(unittest.TestCase):
     def approved(self, account="pz-blue", platform="bluesky", text="Release notes https://example.org/r"):
         with connect(str(self.db)) as db:
             pid = add_post(db, account, platform, text)
-            transition(db, pid, "approve")
+            # Sheet items 5/9: bind the account's send options as `reachweaver approve` does.
+            transition(db, pid, "approve", send_options=bound_send_options(self.config, account))
         return pid
 
     def cli(self, *args, env=ENV):
@@ -430,7 +431,8 @@ class PostizFixtureTests(unittest.TestCase):
     def approved(self, text="Fixture release notes https://example.org/r"):
         with connect(str(self.db)) as db:
             pid = add_post(db, "pz-fx", "bluesky", text)
-            transition(db, pid, "approve")
+            # Sheet items 5/9: bind the account's send options as `reachweaver approve` does.
+            transition(db, pid, "approve", send_options=bound_send_options(self.config, "pz-fx"))
         return pid
 
     def live(self, fake, pid):

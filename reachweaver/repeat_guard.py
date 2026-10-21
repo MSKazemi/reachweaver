@@ -14,8 +14,12 @@ shared-material ledger, where ``mark-shared`` records what you posted by hand (m
 
 Honest limits. Matching is exact for files: a re-encoded or re-cropped video has different bytes and is not caught,
 and nothing is compared with what exists on the platform itself. A repeat the owner really wants (an evergreen
-reminder) is allowed with ``approve --allow-repeat``, which records an audit event. Findings never carry the earlier
-post's text, only its id, status and date.
+reminder) is allowed with ``approve --allow-repeat``, which is bound into that approval and records an audit event.
+Findings never carry the earlier post's text, only its id, status and date.
+
+Send time (owner-approved 2026-10-21, sheet item 1): ``storage.claim_sending`` re-runs :func:`blocking` under its lock
+(``storage.repeat_send_problem``), so two copies approved before either was sent cannot both go out; only a bound
+``--allow-repeat`` passes.
 
 Pure functions over a SQLite connection, plus :func:`sha256_file` for files you name. No network, browser or
 credential is involved.
@@ -146,6 +150,19 @@ def find_repeats(con, *, platform: str, account_id: str | None, material: dict, 
     findings.sort(key=lambda f: (f["state"] != "already_shared", order[f["strength"]], not f["same_account"],
                                  f["when"] or "", f["ref"]))
     return findings[:MAX_FINDINGS]
+
+
+def findings_for_post(con, post: Mapping, days: int = DEFAULT_DAYS) -> list[dict]:
+    """Findings for a stored post against its platform's history (read-only; never carries earlier text).
+
+    A malformed stored attachment is refused elsewhere; the text is still compared."""
+    from .policy import ValidationError
+    try:
+        material = material_of_post(post)
+    except ValidationError:
+        material = {"text": post["content"], "images": [], "video": None, "links": []}
+    return find_repeats(con, platform=post["platform"], account_id=post["account_id"], material=material,
+                        exclude_post_id=post["id"], days=days)
 
 
 def blocking(findings: list[dict]) -> list[dict]:

@@ -86,6 +86,14 @@ def render_sheet(view: dict, steps: list[dict], stream, *, columns: int | None =
     if length:
         lines.append("Length  " + meter(length, stream) + (term.style("  OVER THE LIMIT", "red", stream) if length["state"] == "over" else ""))
     lines += ["", term.style("APPROVAL", "bold", stream), approval_sentence(view)]
+    options = (view.get("approval") or {}).get("send_options")
+    if isinstance(options, dict):  # sheet items 5/9: Mastodon visibility/language/CW, Postiz server/integration
+        state = str(options.get("state", ""))
+        changed = state.startswith("approval_send_options_")
+        lines.append(term.style(f"Send options: {term.clean(str(options.get('values', '')))} ({state})",
+                                "red" if changed else "grey", stream))
+    if (view.get("approval") or {}).get("allow_repeat"):
+        lines.append("Repeat override: approved with --allow-repeat")
     if view.get("scheduled_at"):
         lines.append(f"Due: {view['scheduled_at']}")
     for key, label in (("media", "Images"), ("video", "Video"), ("reply", "Reply")):

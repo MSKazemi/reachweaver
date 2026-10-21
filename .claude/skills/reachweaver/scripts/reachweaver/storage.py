@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS posts (
   last_error TEXT,
   approved_identity TEXT,  -- wave 9 item 2; placed here so the legacy-DDL guard test stays untouched
   approval_nonce TEXT,  -- wave 9 item 1 (same placement rule): per-approval random id, see reachweaver/ledger.py
+  approved_send_options TEXT,  -- 2026-10-21 items 5/9 (same placement rule): see reachweaver/send_options.py
+  approved_allow_repeat TEXT,  -- 2026-10-21 item 1 D2 (same placement rule): '1' = approved with --allow-repeat
   send_started_at TEXT,
   approved_payload_sha256 TEXT,
   approved_by TEXT,
@@ -218,10 +220,21 @@ IDENTITY_FIELDS = ("approved_identity",)
 # 128-bit id drawn at every approve, bound into the hash under ``approval/2`` and consumed once in
 # the append-only ledger (reachweaver/ledger.py). NULL = approved before the change: not grandfathered.
 NONCE_FIELDS = ("approval_nonce",)
+# Sheet items 5 and 9 (owner-approved 2026-10-21): fingerprint of the account's send options (Mastodon
+# visibility/language/spoiler_text; Postiz server + integration), stored at approve time and bound under
+# ``approval/options-1`` (reachweaver/send_options.py). NULL = nothing bound; the payload is then unchanged.
+SEND_OPTIONS_FIELDS = ("approved_send_options",)
+# Sheet item 1 D2 (owner-approved 2026-10-21): '1' when the approval was made with ``--allow-repeat``,
+# bound under ``approval/repeat-1``. Only a bound value lets an exact repeat pass the send-time repeat
+# guard; the ``repeat_override`` audit event is never read as permission.
+REPEAT_FIELDS = ("approved_allow_repeat",)
+REPEAT_TAG = "reachweaver.storage.approval/repeat-1"
+REPEAT_ALLOWED = "1"
+REPEAT_REFUSAL = "repeat_of_shared_material"
 _MIGRATIONS = (("metric_snapshots", WINDOW_FIELDS), ("posts", APPROVAL_BINDING_FIELDS),
                ("metric_snapshots", STATUS_FIELDS), ("posts", APPROVAL_MAC_FIELDS), ("posts", MEDIA_FIELDS),
                ("posts", VIDEO_FIELDS), ("posts", REPLY_TARGET_FIELDS), ("posts", IDENTITY_FIELDS),
-               ("posts", NONCE_FIELDS))
+               ("posts", NONCE_FIELDS), ("posts", SEND_OPTIONS_FIELDS), ("posts", REPEAT_FIELDS))
 
 
 def migrate(con: sqlite3.Connection) -> list[str]:
@@ -467,7 +480,13 @@ def approval_payload(row, *, scheduled_at: str | None = None, use_row_schedule: 
     ``approval/2``) and ``approval_nonce`` (wave 9 item 1, ``reachweaver.ledger``). ``identity`` and
     ``nonce`` override the row's columns (used by ``transition`` while approving); with neither the
     payload is byte-identical to before. The keys are distinct and the JSON is canonical (sorted), so
-    the combined tags have one fixed byte order."""
+    the combined tags have one fixed byte order.
+
+    Sheet items 5/9 and 1 D2 (2026-10-21), read from the row only: ``send_options_binding`` (tag
+    ``approval/options-1``) plus ``send_options`` when ``approved_send_options`` is set, and
+    ``repeat_binding`` (tag ``approval/repeat-1``) plus ``allow_repeat`` when ``approved_allow_repeat``
+    is set. Each key is present only when its column holds a value, so every approval made without them
+    keeps its hash; the stored value is bound as is, so an edited one is a mismatch."""
     payload = _approval_payload_base(row, scheduled_at=scheduled_at, use_row_schedule=use_row_schedule)
     bound = identity or (row["approved_identity"] if "approved_identity" in row.keys() else None)
     if bound:
@@ -479,6 +498,15 @@ def approval_payload(row, *, scheduled_at: str | None = None, use_row_schedule: 
         from .ledger import NONCE_TAG
         payload["nonce_binding"] = NONCE_TAG
         payload["approval_nonce"] = bound_nonce
+    options = row["approved_send_options"] if "approved_send_options" in row.keys() else None
+    if options:
+        from .send_options import SEND_OPTIONS_TAG
+        payload["send_options_binding"] = SEND_OPTIONS_TAG
+        payload["send_options"] = str(options)
+    allow_repeat = row["approved_allow_repeat"] if "approved_allow_repeat" in row.keys() else None
+    if allow_repeat:
+        payload["repeat_binding"] = REPEAT_TAG
+        payload["allow_repeat"] = str(allow_repeat)
     return payload
 
 
@@ -695,6 +723,49 @@ def approval_identity_problem(row, fingerprint: str | None) -> str | None:
     return None
 
 
+def approval_send_options_problem(row, fingerprint: str | None) -> str | None:
+    """Sheet items 5/9: None, or the reason code when the account's send options are not the bound ones.
+
+    Pure. ``fingerprint``: ``send_options.fingerprint(account)`` of the account the sender is about to
+    use; None means that account has no send options (or the caller passed none). A stored fingerprint
+    needs an equal current one (``..._changed_...``); an account with send options needs a stored one
+    (``..._missing_...``: approved before the binding existed, never grandfathered). Call after
+    ``approval_binding_problem``: the payload hash already covers a tampered stored value.
+    """
+    from .send_options import problem
+    stored = row["approved_send_options"] if "approved_send_options" in row.keys() else None
+    return problem(stored, fingerprint)
+
+
+def repeat_allowed(row) -> bool:
+    """Sheet item 1 D2: the approval itself carries a bound ``--allow-repeat`` (the hash covers it)."""
+    return "approved_allow_repeat" in row.keys() and row["approved_allow_repeat"] == REPEAT_ALLOWED
+
+
+def repeat_send_problem(con, row) -> dict | None:
+    """Sheet item 1 (D1, D3, D4): the first exact repeat that blocks sending this approved row, or None.
+
+    Read-only. An exact video, image or wording match on the same account with a post that is
+    ``published``, ``sending`` or ``needs_review``, or with a ``mark-shared`` entry, as ``approve`` checks
+    (``repeat_guard.blocking``); ``also_queued`` siblings do not count until one of them is claimed. A row
+    approved with a bound ``--allow-repeat`` passes. Returns the finding (ids, kinds, statuses; never text).
+    """
+    if repeat_allowed(row):
+        return None
+    from . import repeat_guard
+    hits = repeat_guard.blocking(repeat_guard.findings_for_post(con, row))
+    return hits[0] if hits else None
+
+
+def repeat_refusal(post_id: str, finding: dict) -> str:
+    """Fixed-shape operator text for a send-time repeat refusal: kinds, ids and statuses only, never text."""
+    from .repeat_guard import describe
+    return (f"{REPEAT_REFUSAL}: post {post_id} is an exact repeat: {describe(finding)}; it stays approved/scheduled and is "
+            f"re-refused on every run until a human acts: cancel it (reachweaver cancel {post_id}), or if sharing it "
+            f"again is intended: reachweaver unapprove {post_id}; reachweaver show {post_id}; "
+            f"reachweaver approve {post_id} --allow-repeat")
+
+
 def approval_key_mode(con, env=None) -> ApprovalKeyMode:
     key, error = load_approval_key(env)
     return ApprovalKeyMode(key=key, key_error=error, latched=keyed_mode_latched(con),
@@ -776,6 +847,10 @@ def binding_refusal(reason: str, post_id: str) -> str:
     from .identity import IDENTITY_CODES, refusal_text
     if reason in IDENTITY_CODES:
         return refusal_text(reason, post_id)
+    from .send_options import SEND_OPTIONS_CODES
+    from .send_options import refusal_text as send_options_refusal_text
+    if reason in SEND_OPTIONS_CODES:
+        return send_options_refusal_text(reason, post_id)
     from .ledger import LEDGER_CODES
     from .ledger import refusal_text as ledger_refusal_text
     if reason in LEDGER_CODES:
@@ -943,7 +1018,8 @@ def _withdraw_in_ledger(con, row) -> str:
 
 
 def check_approval_binding(con, post_id: str, now: str | None = None, *,
-                           identity_fingerprint: str | None = None) -> str | None:
+                           identity_fingerprint: str | None = None,
+                           send_options_fingerprint: str | None = None) -> str | None:
     """Pre-claim, pre-network gate for one approved/scheduled post.
 
     Returns None when the binding holds (or the post is not approved/scheduled, which
@@ -953,6 +1029,8 @@ def check_approval_binding(con, post_id: str, now: str | None = None, *,
     ``identity_fingerprint`` (wave 9 item 2): ``identity.current_fingerprint(account)``, compared
     offline with the identity stored at approval, so a re-pointed account entry is refused before
     any request. A row approved with an identity and a caller that passes none fails closed.
+    ``send_options_fingerprint`` (sheet items 5/9): ``send_options.fingerprint(account)``, compared
+    the same way with the send options bound at approval (``approval_send_options_problem``).
     """
     now = parse_utc(now or utc_now())
     key, key_error = load_approval_key()
@@ -968,6 +1046,8 @@ def check_approval_binding(con, post_id: str, now: str | None = None, *,
         problem = approval_binding_problem(row, mode, now=now) if row is not None else None
         if problem is None and row is not None:
             problem = approval_identity_problem(row, identity_fingerprint)
+        if problem is None and row is not None:
+            problem = approval_send_options_problem(row, send_options_fingerprint)
         if problem is None and row is not None:
             problem = _ledger_problem(con, row)  # wave 9 item 1: replay / ledger, before any request
         if problem:
@@ -998,7 +1078,8 @@ def _guarded_update(con, post_id: str, expected: str, command: str, sql: str, pa
 def transition(con, post_id, command: str, scheduled_at: str | None = None, *,
                approver: str | None = None, approval_channel: str | None = None,
                expected_sha256: str | None = None, confirmation: str | None = None,
-               identity: str | None = None, nonce: str | None = None) -> str:
+               identity: str | None = None, nonce: str | None = None,
+               send_options: str | None = None, allow_repeat: bool = False) -> str:
     """Local state change (#7): approve binds a payload hash; schedule verifies it and
     rebinds the new time (an unbound or changed post is refused, never laundered);
     unapprove/cancel clear it. See docs/SECURITY-REVIEW-PROPOSAL-7-11.md.
@@ -1016,15 +1097,22 @@ def transition(con, post_id, command: str, scheduled_at: str | None = None, *,
     unapprove/cancel clear it. Approving needs a usable approval ledger (``ledger.ensure``).
     Unapprove/cancel of a row with a nonce first append a ``withdrawn`` line (``ledger.withdraw``,
     security decision item 12), so a restored older copy of the row is refused at the claim; an
-    unusable ledger never blocks the withdrawal and is noted as ``ledger=unrecorded`` in the event."""
+    unusable ledger never blocks the withdrawal and is noted as ``ledger=unrecorded`` in the event.
+
+    ``send_options`` (approve only; sheet items 5/9): ``send_options.fingerprint(account)`` of the account
+    the post will be sent with, stored in ``approved_send_options`` and bound under ``approval/options-1``.
+    ``allow_repeat`` (approve only; sheet item 1 D2): the human passed ``--allow-repeat``; stored as
+    ``approved_allow_repeat='1'`` and bound under ``approval/repeat-1``. Like the nonce, neither is part of
+    ``expected_sha256`` (the content digest); schedule keeps both; unapprove/cancel clear both."""
     with _atomic(con):  # P3: the row is re-read and every UPDATE is status-guarded under one lock
         return _transition_locked(con, post_id, command, scheduled_at, approver=approver,
                                   approval_channel=approval_channel, expected_sha256=expected_sha256,
-                                  confirmation=confirmation, identity=identity, nonce=nonce)
+                                  confirmation=confirmation, identity=identity, nonce=nonce,
+                                  send_options=send_options, allow_repeat=allow_repeat)
 
 
 def _transition_locked(con, post_id, command, scheduled_at, *, approver, approval_channel,
-                       expected_sha256, confirmation, identity, nonce) -> str:
+                       expected_sha256, confirmation, identity, nonce, send_options, allow_repeat) -> str:
     allowed = {
         "approve": {"draft": "approved"},
         "unapprove": {"approved": "draft", "scheduled": "draft"},
@@ -1041,7 +1129,8 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
         raise ValidationError("Scheduling needs --at with a timezone")
     if command != "approve" and (approver is not None or approval_channel is not None
                                  or expected_sha256 is not None or confirmation is not None
-                                 or identity is not None or nonce is not None):
+                                 or identity is not None or nonce is not None
+                                 or send_options is not None or allow_repeat):
         raise ValidationError("Approver attribution only applies to approve")
     values = (target, utc_now() if command == "approve" else row["approved_at"] if target == "scheduled" else None,
               scheduled_at if command == "schedule" else None)
@@ -1074,6 +1163,14 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
         from .identity import IDENTITY_REQUIRED, is_fingerprint, refusal_text
         if identity is not None and not is_fingerprint(identity):
             raise ValidationError(refusal_text("approval_identity_unavailable", post_id) + ". Nothing approved")
+        from . import send_options as _send_options
+        if send_options is not None and not _send_options.is_fingerprint(send_options):
+            raise ValidationError(_send_options.refusal_text(_send_options.SEND_OPTIONS_UNAVAILABLE, post_id))
+        if type(allow_repeat) is not bool:
+            raise ValidationError("allow_repeat must be True or False. Nothing approved")
+        if (send_options is not None and "approved_send_options" not in row.keys()) or (
+                allow_repeat and "approved_allow_repeat" not in row.keys()):
+            raise ValidationError(binding_refusal(BINDING_UNAVAILABLE, post_id) + ". Nothing approved")
         if mode.identity_required and identity is None:
             raise ValidationError(refusal_text(IDENTITY_REQUIRED, post_id))
         from . import ledger
@@ -1107,7 +1204,14 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
             from .video import file_problem
             if file_problem(video):
                 raise ValidationError(binding_refusal(BINDING_VIDEO_CHANGED, post_id) + ". Nothing approved")
-        new_hash = approval_payload_sha256(row, scheduled_at=None, use_row_schedule=False, identity=identity,
+        # The new send-option and repeat columns are bound with exactly the values written below, never
+        # with a stale value a reconciled draft may still carry.
+        bound_row = {key: row[key] for key in row.keys()}
+        if "approved_send_options" in bound_row:
+            bound_row["approved_send_options"] = send_options
+        if "approved_allow_repeat" in bound_row:
+            bound_row["approved_allow_repeat"] = REPEAT_ALLOWED if allow_repeat else None
+        new_hash = approval_payload_sha256(bound_row, scheduled_at=None, use_row_schedule=False, identity=identity,
                                            nonce=nonce)
         # What a human confirms (D6) is the content digest; the random per-approval nonce is not
         # human-reviewable, so ``expected_sha256`` is compared without it.
@@ -1146,6 +1250,12 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
     if "approval_nonce" in row.keys() and command != "schedule":
         con.execute("UPDATE posts SET approval_nonce=? WHERE id=? AND status=?",
                     (nonce if command == "approve" else None, post_id, target))
+    if "approved_send_options" in row.keys() and command != "schedule":
+        con.execute("UPDATE posts SET approved_send_options=? WHERE id=? AND status=?",
+                    (send_options if command == "approve" else None, post_id, target))
+    if "approved_allow_repeat" in row.keys() and command != "schedule":
+        con.execute("UPDATE posts SET approved_allow_repeat=? WHERE id=? AND status=?",
+                    (REPEAT_ALLOWED if command == "approve" and allow_repeat else None, post_id, target))
     if new_mac:
         latch_keyed_mode(con)
     if new_hash:
@@ -1156,6 +1266,10 @@ def _transition_locked(con, post_id, command, scheduled_at, *, approver, approva
             detail += f" approver={by or 'unattributed'} channel={channel}"
             if identity:
                 detail += " identity=bound"
+            if send_options:
+                detail += " send_options=bound"
+            if allow_repeat:
+                detail += " allow_repeat=bound"
             if confirmation:
                 detail += f" confirmation={confirmation}"
     event(con, command, post_id, detail)
@@ -1514,15 +1628,16 @@ def _register_send_claim(row, max_per_24h, min_gap_minutes) -> None:
         media = post_media(row)
     except ValidationError:
         media = [{"sha256": "unreadable"}]  # never matches what a sender passes: fails closed at the gate
+    options = row["approved_send_options"] if "approved_send_options" in row.keys() else None
     sendgate.register_claim(row["id"], account_id=row["account_id"], platform=row["platform"],
                             content=row["content"], media=media, max_per_24h=max_per_24h,
-                            min_gap_minutes=min_gap_minutes)
+                            min_gap_minutes=min_gap_minutes, send_options=options or None)
 
 
 def claim_sending(con, post_id: str, now: str | None = None, *,
                   max_per_24h: int | None = None, min_gap_minutes: int = 0,
                   expected_sha256: str | None = None, cooldown_scopes: tuple[str, ...] = (),
-                  identity_fingerprint: str | None = None) -> bool:
+                  identity_fingerprint: str | None = None, send_options_fingerprint: str | None = None) -> bool:
     """Atomic claim + optional per-account rolling safety budget.
 
     The CLI live sender supplies safe defaults; legacy direct callers can omit the
@@ -1545,6 +1660,16 @@ def claim_sending(con, post_id: str, now: str | None = None, *,
     one; a mismatch, or no fingerprint, is ``approval_identity_mismatch_reapproval_required`` and the
     post stays approved. With ``approval-mode --require-identity`` latched, a row without a stored
     identity is ``approval_identity_missing_reapproval_required``.
+
+    Send options (sheet items 5/9): the sender passes ``send_options_fingerprint``
+    (``send_options.fingerprint(account)``); a difference from the fingerprint bound at approval, or an
+    account with send options and a row approved without them, is recorded and refused exactly like a
+    binding failure (``approval_send_options_*_reapproval_required``; post stays approved/scheduled).
+
+    Repeat guard (sheet item 1, D1-D4): after the account hold and before the budgets, an exact repeat
+    of material this account has already shared or may have shared (``repeat_send_problem``) raises
+    ``repeat_of_shared_material``; nothing is written, no budget is used, the post stays
+    approved/scheduled. Only a bound ``--allow-repeat`` (``approved_allow_repeat``) passes.
     """
     if max_per_24h is not None and (type(max_per_24h) is not int or not 1 <= max_per_24h <= 10):
         raise ValidationError("max_per_24h must be 1..10")
@@ -1581,6 +1706,8 @@ def claim_sending(con, post_id: str, now: str | None = None, *,
         if binding_failure is None:
             binding_failure = approval_identity_problem(row, identity_fingerprint)
         if binding_failure is None:
+            binding_failure = approval_send_options_problem(row, send_options_fingerprint)  # items 5/9
+        if binding_failure is None:
             binding_failure = _ledger_problem(con, row)  # wave 9 item 1: before cooldowns, budgets, any request
             if binding_failure in _CONFIG_REASONS:
                 raise ValidationError(binding_refusal(binding_failure, post_id) + ". No social post sent")
@@ -1603,6 +1730,11 @@ def claim_sending(con, post_id: str, now: str | None = None, *,
             hold = account_send_hold(con, row["account_id"], post_id, now)
             if hold:
                 raise ValidationError(hold_refusal(hold) + "; post stays approved/scheduled")
+            # Sheet item 1: under this lock a sibling that was just claimed is already 'sending', so two
+            # approved copies can never both be claimed. Nothing is written.
+            repeat = repeat_send_problem(con, row)
+            if repeat:
+                raise ValidationError(repeat_refusal(post_id, repeat))
             if max_per_24h is not None or min_gap_minutes:
                 attempts = _recent_send_claims(con, row["account_id"], now)
                 if max_per_24h is not None and len(attempts) >= max_per_24h:
@@ -1651,9 +1783,10 @@ def approval_rebind_required(con, mode: ApprovalKeyMode | None = None) -> list[d
     """
     out = []
     mode = offline_key_mode(con) if mode is None else mode
+    from .send_options import row_problem as send_options_row_problem
     for row in con.execute("""SELECT * FROM posts WHERE status IN ('approved','scheduled')
                               ORDER BY account_id,id""").fetchall():
-        problem = approval_binding_problem(row, mode)
+        problem = approval_binding_problem(row, mode) or send_options_row_problem(row)  # 5b: no grandfathering
         if problem and problem != APPROVAL_KEY_UNAVAILABLE:
             out.append({"post_id": row["id"], "account_id": row["account_id"], "platform": row["platform"],
                         "status": row["status"], "reason": problem})

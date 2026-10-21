@@ -163,8 +163,12 @@ def confirm_post(con, post_id: str, payload_sha256: str, *, action: str, **io) -
     return mode
 
 
-def show_payload(post, digest: str, *, heading: str) -> None:
-    """Print exactly what the confirmation binds: destination, time, text and its payload sha256."""
+def show_payload(post, digest: str, *, heading: str, send_options: str | None = None,
+                 allow_repeat: bool = False) -> None:
+    """Print exactly what the confirmation binds: destination, time, text and its payload sha256.
+
+    ``send_options`` / ``allow_repeat`` (approve only; sheet items 5/9 and 1): also bound by the approval,
+    like the nonce, but outside this content digest, so they are shown as their own lines."""
     print(f"{heading} post {post['id']}: account={post['account_id']} platform={post['platform']} "
           f"campaign={post['campaign'] or '-'} source_url={post['source_url'] or '-'} "
           f"scheduled_at={post['scheduled_at'] or '-'}")
@@ -173,6 +177,10 @@ def show_payload(post, digest: str, *, heading: str) -> None:
     print("--------------------")
     _show_attachments(post)
     _show_reply_target(post)
+    if send_options:
+        print(f"send options (also bound): {send_options}")
+    if allow_repeat:
+        print("repeat override (also bound): --allow-repeat")
     print(f"payload sha256 {digest}")
 
 

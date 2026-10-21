@@ -628,7 +628,8 @@ def run_live_send(con, post, account: dict, *, max_per_24h: int, min_gap_minutes
                             preflight_with_backoff, record_rate_limit)
     from .storage import (BINDING_VIDEO_CHANGED, active_provider_cooldown, approval_payload_sha256,
                           binding_refusal, check_approval_binding, claim_sending, cooldown_refusal, finish_send,
-                          is_paused, post_video, published_text, record_binding_failure, uncertain_send)
+                          is_paused, post_video, published_text, record_binding_failure, repeat_refusal,
+                          repeat_send_problem, uncertain_send)
     from .worker_log import claim_refusal_reason, error_code
     pid = post["id"]
     try:
@@ -659,6 +660,11 @@ def run_live_send(con, post, account: dict, *, max_per_24h: int, min_gap_minutes
     if cooldown:
         print(f"SKIPPED {pid}: {cooldown_refusal(cooldown)}; not claimed, no request sent")
         wlog.skipped(post, "cooldown")
+        return 2
+    repeat = repeat_send_problem(con, post)  # sheet item 1: same video again; claim_sending re-checks under lock
+    if repeat:
+        print(f"SKIPPED {pid}: {repeat_refusal(pid, repeat)}; not claimed, nothing uploaded")
+        wlog.skipped(post, "repeat_of_shared_material")
         return 2
     try:
         if record is None:

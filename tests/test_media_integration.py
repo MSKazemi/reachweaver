@@ -24,7 +24,7 @@ from test_media import av_mp4, mp4_bytes  # noqa: E402
 from test_instagram import account as ig_account, record as ig_record  # noqa: E402
 from test_youtube import account as yt_account  # noqa: E402
 
-from reachweaver import accounts, attachments, confirmation, tiktok, youtube  # noqa: E402
+from reachweaver import accounts, attachments, confirmation, send_options, tiktok, youtube  # noqa: E402
 from reachweaver.capabilities import VIDEO_MODES, load_registry, require_capability, require_video_mode  # noqa: E402
 from reachweaver.policy import SUPPORTED_LIVE, SUPPORTED_LIVE_VIDEO  # noqa: E402
 from reachweaver.cli import main  # noqa: E402
@@ -233,8 +233,11 @@ class BundledRegistryRefusesEveryMediaMode(Workspace):
             set_post_video(db, yt, record)
             tt = add_post(db, "tt-me", "tiktok", CAPTION)
             set_post_video(db, tt, tiktok.build_video_record(self.video))
+            masto_account = next(a for a in self.ACCOUNTS if a["id"] == "masto")
             for pid in (masto, insta, yt, tt):
-                transition(db, pid, "approve")
+                # Sheet items 5/9: bind the account's send options as `reachweaver approve` does.
+                transition(db, pid, "approve",
+                           send_options=send_options.fingerprint(masto_account) if pid == masto else None)
         return {"mastodon": masto, "instagram": insta, "youtube": yt, "tiktok": tt}
 
     def test_publish_live_refuses_before_any_platform_credential_read(self):

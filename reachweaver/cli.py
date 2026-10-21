@@ -22,6 +22,10 @@ from .attribution import ATTRIBUTION_SOURCES
 from .web_analytics import combine_ga4, combine_gsc, load_ga4_csv, load_gsc_csv
 from .connections import check_connection, mastodon_instance_limits
 from .identity import IDENTITY_REQUIRED, current_fingerprint, refusal_text, verify_identity_online
+from .send_options import ALWAYS_BOUND_PLATFORMS as SEND_OPTIONS_ALWAYS_BOUND
+from .send_options import SEND_OPTIONS_UNAVAILABLE
+from .send_options import describe as send_options_describe
+from .send_options import fingerprint as send_options_fingerprint
 from .credential_hygiene import audit_environment, render_audit
 from .audience import DEFAULT_MAX_AGE_DAYS as AUDIENCE_MAX_AGE_DAYS
 from .audience import DEFAULT_TOP_HOURS as AUDIENCE_TOP_HOURS
@@ -93,7 +97,7 @@ from .storage import (
     provider_cooldowns, published_text, queue_health, reconcile, record_binding_failure, reply_report, reply_target_text, report, set_paused,
     set_post_media, set_post_video, store_metrics, sync_cooldown_scopes, transition, uncertain_send, utc_now,
     connect_readonly as storage_connect_readonly, database_path as storage_database_path, event as record_event,
-    record_shared,
+    record_shared, repeat_refusal, repeat_send_problem,
 )
 from .inputs import read_json_file
 from .cli_parser import make_parser  # noqa: F401  (re-exported: tests and tools use cli.make_parser)
@@ -430,7 +434,7 @@ def _publish(db, args, wlog) -> int:
         # A dry run never loads accounts (#5). Shared scopes and the Bluesky createSession
         # counter (#11) are read from the state database: the scope membership the last
         # live run recorded, and each account's recorded session-counter key.
-        blocked = unbound = cooling = sessions = replies_held = 0
+        blocked = unbound = cooling = sessions = replies_held = repeats_held = 0
         planned_sessions: dict[str, int] = {}
         preview_paused = wlog.probe(lambda: is_paused(db), default=False)  # read only for the log line
         for post in due:
@@ -483,8 +487,13 @@ def _publish(db, args, wlog) -> int:
             hold = account_send_hold(db, post["account_id"], post["id"])
             if hold:
                 print(f"    SKIPPED {post['id']}: {hold_refusal(hold)}; --live would skip it before any claim or request")
+            repeat = repeat_send_problem(db, post)  # sheet item 1: read-only, as the live run checks it
+            if repeat:
+                repeats_held += 1
+                print(f"    SKIPPED {post['id']}: {repeat_refusal(post['id'], repeat)}; --live would skip it before "
+                      "any claim or request")
             budget: str | None = None
-            if post["platform"] == "bluesky" and not (reason or problem or cooldown or hold):
+            if post["platform"] == "bluesky" and not (reason or problem or cooldown or hold or repeat):
                 key = post["account_id"]
                 usage = recorded_session_usage(db, key)  # None: never metered, nothing to refuse
                 if usage is not None:
@@ -509,12 +518,15 @@ def _publish(db, args, wlog) -> int:
             # One decision per post, first reason in live-run order; nothing is ever sent here.
             wlog.skipped(post, "paused" if preview_paused else "optout_blocked" if reason
                          else reply_reason if reply_reason else "rebind_required" if problem else "cooldown"
-                         if cooldown else "session_budget" if budget else "capability_refused" if media_refused
-                         else "dry_run")
+                         if cooldown else "repeat_of_shared_material" if repeat else "session_budget" if budget
+                         else "capability_refused" if media_refused else "dry_run")
         if replies_held:
             print(f"Replies: {replies_held} due reply post(s) would be HELD before any claim; they stay approved.")
         if cooling:
             print(f"Provider cooldown: {cooling} due post(s) would be SKIPPED; they stay approved/scheduled.")
+        if repeats_held:
+            print(f"Repeat guard: {repeats_held} due post(s) would be SKIPPED as exact repeats; they stay "
+                  "approved/scheduled until cancelled or re-approved with --allow-repeat.")
         if sessions:
             print(f"Bluesky createSession budget: {sessions} due post(s) would be SKIPPED; they stay "
                   "approved/scheduled.")
@@ -640,7 +652,9 @@ def _publish(db, args, wlog) -> int:
             continue
         # Approval binding (#7): pre-claim, pre-network; claim_sending re-checks under lock.
         account_fingerprint = current_fingerprint(account)  # wave 9 item 2: offline; None fails closed if bound
-        problem = check_approval_binding(db, post["id"], identity_fingerprint=account_fingerprint)
+        options_fingerprint = send_options_fingerprint(account)  # sheet item 5: offline; the account sent with below
+        problem = check_approval_binding(db, post["id"], identity_fingerprint=account_fingerprint,
+                                         send_options_fingerprint=options_fingerprint)
         if problem:
             print(f"BLOCKED {post['id']}: {binding_refusal(problem, post['id'])}; no social post sent")
             wlog.skipped(post, "rebind_required")
@@ -676,6 +690,14 @@ def _publish(db, args, wlog) -> int:
         if hold:
             print(f"SKIPPED {post['id']}: {hold_refusal(hold)}; not claimed, post stays {post['status']}, no request sent")
             wlog.skipped(post, "unresolved_send_hold")
+            if args.post_id:
+                return 2
+            continue
+        # Repeat guard at send time (sheet item 1): pre-claim and pre-network; claim_sending re-checks under its lock.
+        repeat = repeat_send_problem(db, post)
+        if repeat:
+            print(f"SKIPPED {post['id']}: {repeat_refusal(post['id'], repeat)}; not claimed, no request sent")
+            wlog.skipped(post, "repeat_of_shared_material")
             if args.post_id:
                 return 2
             continue
@@ -793,6 +815,7 @@ def _publish(db, args, wlog) -> int:
                 expected_sha256=approval_payload_sha256(post),  # the exact text sent below
                 cooldown_scopes=scopes,
                 identity_fingerprint=account_fingerprint,
+                send_options_fingerprint=options_fingerprint,  # the same account dict publish() receives
             )
         except ValidationError as exc:
             print(f"BLOCKED {post['id']}: {exc}; no social post sent")
@@ -2503,8 +2526,21 @@ def execute(args) -> int:
                                       "sharing it again is intended. Nothing changed")
             for hit in repeats:
                 print(f"Warning: {repeat_guard.describe(hit)}")
-            reply_problems = _reply_problems(post, _optional_account(args, post["account_id"], post["platform"]),
-                                             optout)
+            queued_exact = [hit for hit in repeats if hit["kind"] in repeat_guard.BLOCKING_KINDS
+                            and hit["strength"] == "exact" and hit["state"] == "also_queued" and hit["same_account"]]
+            if queued_exact and not args.allow_repeat:  # sheet item 1: say now what the send-time check will do
+                print("Note: once one of these copies is claimed for sending, the send-time repeat check refuses the "
+                      "others (repeat_of_shared_material); approve with --allow-repeat only if every copy should go out")
+            # Sheet items 5/9: the account's send-shaping settings are bound with the text. A Mastodon post
+            # always has them, so it is not approved without its account entry.
+            send_account = _optional_account(args, post["account_id"], post["platform"])
+            options_fp = send_options_fingerprint(send_account)
+            if options_fp is None and post["platform"] in SEND_OPTIONS_ALWAYS_BOUND:
+                raise ValidationError(f"Refusing to approve {args.post_id}: {SEND_OPTIONS_UNAVAILABLE}: the "
+                                      f"{post['platform']} account entry {post['account_id']} could not be loaded, so "
+                                      "its send options (visibility, language, spoiler_text) cannot be bound; fix "
+                                      "the account configuration ('doctor'). Nothing approved")
+            reply_problems = _reply_problems(post, send_account, optout)
             if reply_problems:
                 raise ValidationError(f"Refusing to approve reply {args.post_id}: {'; '.join(reply_problems)}. "
                                       "Nothing changed")
@@ -2533,13 +2569,17 @@ def execute(args) -> int:
             if confirmation.confirmation_mode(db) and post["status"] == "draft":
                 # #7 D6 (opt-in): show what would be bound, then the TTY + typed-prefix check.
                 expected = approval_payload_sha256(post, scheduled_at=None, use_row_schedule=False, identity=bound_identity)
-                confirmation.show_payload(post, expected, heading="CONFIRM approval of")
+                confirmation.show_payload(post, expected, heading="CONFIRM approval of",
+                                          send_options=send_options_describe(send_account),
+                                          allow_repeat=bool(args.allow_repeat))
                 confirmed = confirmation.confirm_post(db, args.post_id, expected, action="approve")
             from .storage import _atomic
             with _atomic(db):  # an --allow-repeat override is recorded only with the approval it belongs to
                 target = transition(db, args.post_id, "approve", approver=approver, approval_channel=channel,
-                                    expected_sha256=expected, confirmation=confirmed, identity=bound_identity)
-                if blocking_repeats:  # --allow-repeat: leave a trace of the decision, tied to this approval
+                                    expected_sha256=expected, confirmation=confirmed, identity=bound_identity,
+                                    send_options=options_fp, allow_repeat=bool(args.allow_repeat))
+                if blocking_repeats:  # --allow-repeat: an audit trace tied to this approval. Never read as
+                    # permission: the send-time check reads the bound approved_allow_repeat.
                     approved_hash = get_post(db, args.post_id)["approved_payload_sha256"] or ""
                     record_event(db, "repeat_override", args.post_id,
                                  "kinds=" + ",".join(sorted({hit["kind"] for hit in blocking_repeats}))
@@ -2550,7 +2590,12 @@ def execute(args) -> int:
                   f"approver {approver or 'unattributed'} via {channel}"
                   + (", keyed hmac-sha256/1" if post["approved_payload_mac"] else "")
                   + (", identity bound (approval/id-1)" if bound_identity else "")
+                  + (", send options bound (approval/options-1)" if options_fp else "")
+                  + (", --allow-repeat bound (approval/repeat-1)" if args.allow_repeat else "")
                   + (f", confirmed {confirmed}" if confirmed else "") + ")")
+            if options_fp:
+                print(f"Bound send options: {send_options_describe(send_account)}; changing them in the account "
+                      "file refuses the send until re-approved")
             print(f"Bound: account={post['account_id']} platform={post['platform']} "
                   f"campaign={post['campaign'] or '-'} source_url={post['source_url'] or '-'} "
                   f"content={len(post['content'])} chars"

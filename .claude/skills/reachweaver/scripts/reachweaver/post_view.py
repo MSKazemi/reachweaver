@@ -22,8 +22,14 @@ from .video import mode as video_mode
 
 
 def offline_binding_problem(post, mode) -> str | None:
-    """Binding check without the key (#7 D7): a keyed tag is verified only where the key is read."""
+    """Binding check without the key (#7 D7): a keyed tag is verified only where the key is read.
+
+    Also reports, without loading accounts, a Mastodon approval that carries no send-options fingerprint
+    (sheet item 5b: approved before the binding existed, so ``publish --live`` refuses it)."""
     problem = approval_binding_problem(post, mode)
+    if problem is None:
+        from .send_options import row_problem
+        problem = row_problem(post)
     return None if problem == APPROVAL_KEY_UNAVAILABLE else problem
 
 
@@ -47,7 +53,9 @@ def approval_view(post, mode=None) -> dict:
     elif post["status"] == "draft":
         # What 'approve' would bind right now (approve always clears scheduled_at).
         view["approve_would_bind_sha256"] = approval_payload_sha256(post, scheduled_at=None, use_row_schedule=False)
-        view["approve_adds"] = "a fresh per-approval nonce (approval/2) that this digest does not include"
+        view["approve_adds"] = ("a fresh per-approval nonce (approval/2) that this digest does not include; for a "
+                                "Mastodon or Postiz account also the fingerprint of its send options "
+                                "(approval/options-1), and with --allow-repeat the repeat override (approval/repeat-1)")
     return view
 
 
@@ -197,12 +205,30 @@ def video_view(post) -> dict | None:
 
 def repeat_findings(db, post, days: int = repeat_guard.DEFAULT_DAYS) -> list[dict]:
     """Repeat findings for a stored post against the platform's history (read-only; never carries earlier text)."""
-    try:
-        material = repeat_guard.material_of_post(post)
-    except ValidationError:  # a malformed attachment is refused elsewhere; still compare the text
-        material = {"text": post["content"], "images": [], "video": None, "links": []}
-    return repeat_guard.find_repeats(db, platform=post["platform"], account_id=post["account_id"], material=material,
-                                     exclude_post_id=post["id"], days=days)
+    return repeat_guard.findings_for_post(db, post, days)
+
+
+def send_options_view(post, account: dict | None) -> dict | None:
+    """Sheet items 5/9, offline: which account send options apply and whether they are the approved ones.
+
+    The values come from the local account file (no credential is among them); None when neither the
+    account nor the row has any."""
+    from . import send_options
+    stored = post["approved_send_options"] if "approved_send_options" in post.keys() else None
+    current = send_options.fingerprint(account)
+    if current is None and not stored and send_options.row_problem(post) is None:
+        return None
+    view: dict = {"values": send_options.describe(account) if account is not None else "account config not loaded"}
+    if post["status"] == "draft":
+        view["state"] = "approve binds these values (approval/options-1)" if current else "nothing to bind"
+    elif post["status"] in ("approved", "scheduled"):
+        problem = send_options.row_problem(post) if account is None else send_options.problem(stored, current)
+        view["state"] = problem or ("bound; the account file matches" if account is not None else "bound")
+        if problem:
+            view["reapprove"] = send_options.refusal_text(problem, post["id"])
+    else:
+        view["state"] = "bound at approval" if stored else "not bound"
+    return view
 
 
 SHOW_FIELDS = ("id", "account_id", "platform", "status", "content", "campaign", "source_url", "scheduled_at",
@@ -215,6 +241,11 @@ def build_post_view(db, post, account: dict | None) -> dict:
     ``db`` is only read (``offline_key_mode`` inspects settings); ``account`` is metadata or None."""
     shown = {key: post[key] for key in SHOW_FIELDS}
     shown["approval"] = approval_view(post, offline_key_mode(db))
+    options = send_options_view(post, account)
+    if options is not None:
+        shown["approval"]["send_options"] = options
+    if "approved_allow_repeat" in post.keys() and post["approved_allow_repeat"]:
+        shown["approval"]["allow_repeat"] = "bound (approval/repeat-1): an exact repeat may be sent"
     media = media_view(post)
     if media is not None:
         shown["media"] = media

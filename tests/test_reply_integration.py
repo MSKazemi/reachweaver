@@ -21,7 +21,7 @@ from test_reply_send import BSKY_ENV, LIVE, MASTO_ENV, Base, enabled_registry
 from reachweaver import confirmation, storage
 from reachweaver.attachments import build_attachment
 from reachweaver.policy import ValidationError
-from gate_support import publish  # noqa: E402
+from gate_support import bound_send_options, publish  # noqa: E402
 from reachweaver.ratelimit import POSTIZ_WORKSPACE_SCOPE
 from reachweaver.replies import canonical_target
 from reachweaver.storage import (
@@ -125,7 +125,9 @@ class CooldownAndSessionBudgetApplyToReplies(Base):
             pid = self.approved_reply(db, "my-masto", "mastodon", self.masto_target(db))
             record_provider_cooldown(db, "other", _later(600), "default", stage="send", scope=POSTIZ_WORKSPACE_SCOPE + "acme")
             with self.assertRaisesRegex(ValidationError, "account_provider_cooldown_active"):
-                claim_sending(db, pid, cooldown_scopes=(POSTIZ_WORKSPACE_SCOPE + "acme",))
+                # Sheet item 5: a sender names the send options of the account it sends with.
+                claim_sending(db, pid, cooldown_scopes=(POSTIZ_WORKSPACE_SCOPE + "acme",),
+                              send_options_fingerprint=bound_send_options(self.config, "my-masto"))
             self.assertEqual(_claims(db, pid), 0)
 
     def test_bluesky_reply_reserves_the_create_session_budget(self):

@@ -19,7 +19,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gate_support import grant  # noqa: E402
+from gate_support import bound_send_options, grant  # noqa: E402
 from test_postiz import FakePostiz, pz_fixture  # noqa: E402
 
 from reachweaver import publishers  # noqa: E402
@@ -183,7 +183,8 @@ class ReconciliationHandOffTests(ContractBase):
     def approved(self, account_id):
         with connect(self.db) as db:
             pid = add_post(db, account_id, "bluesky", TEXT)
-            transition(db, pid, "approve")
+            # Sheet items 5/9: bind the account's send options as `reachweaver approve` does.
+            transition(db, pid, "approve", send_options=bound_send_options(self.config, account_id))
         return pid
 
     def status(self, pid):

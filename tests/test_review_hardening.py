@@ -159,7 +159,10 @@ class ExperimentVerdictTests(unittest.TestCase):
     def add_pair(self, con, control=10, treatment=18, windowed=False):
         ids = []
         for idx in range(2):
-            post = add_post(con, "my-bluesky", "bluesky", f"A good original observation {idx} {len(self.plan['pairs'])}")
+            # Distinct wording per post: this fixture publishes several posts on one account and is not about
+            # repeats; the send-time repeat guard (sheet item 1) refuses an exact copy of a published post.
+            serial = con.execute("SELECT COUNT(*) FROM posts").fetchone()[0] + 1
+            post = add_post(con, "my-bluesky", "bluesky", f"A good original observation {idx} number {serial}")
             transition(con, post, "approve")
             claim_sending(con, post)
             finish_send(con, post, "remote-id", "https://example.com/post")

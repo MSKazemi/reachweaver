@@ -11,7 +11,8 @@ from reachweaver.accounts import MAX_SPOILER_CHARS, load_accounts
 from reachweaver.cli import make_parser
 from reachweaver.policy import CONSERVATIVE_TEXT_LIMITS, MASTODON_MEDIA_DEFAULTS, MASTODON_VISIBILITIES
 from reachweaver.richtext import MASTODON_URL_WEIGHT
-from reachweaver.storage import add_post, approval_payload_sha256, connect, get_post
+from reachweaver import send_options
+from reachweaver.storage import add_post, approval_payload, connect, get_post, transition
 
 ROOT = Path(__file__).resolve().parents[1]
 DOC = (ROOT / "docs/MASTODON.md").read_text(encoding="utf-8")
@@ -83,8 +84,12 @@ class MastodonDocTests(unittest.TestCase):
         self.assertEqual(classify_send_failure("mastodon", None, PublishError("http_429", status=429), write_started=True),
                          LIKELY_NOT_CREATED)
 
-    def test_account_send_options_are_read_when_the_post_is_sent(self):
-        """The doc says where they come from. If the approval ever binds them, change the doc and this test."""
+    def test_account_send_options_are_bound_by_the_approval(self):
+        """Sheet item 5 (owner-approved 2026-10-21): the approval binds visibility, language and spoiler_text.
+
+        This test used to pin the opposite (the options were read at send time and not hashed); it was changed
+        deliberately with the binding. The same draft approved under three account configurations now gets three
+        different approval hashes, and the doc says so."""
         base = {"id": "doc-masto", "platform": "mastodon", "env_prefix": "REACHWEAVER_DOC_MASTO",
                 "server": "https://social.example.org", "handle": "alice"}
         hashes = set()
@@ -93,14 +98,20 @@ class MastodonDocTests(unittest.TestCase):
             for options in ({}, {"visibility": "unlisted"}, {"visibility": "private", "language": "en", "spoiler_text": "cw"}):
                 config = Path(work) / "a.json"
                 config.write_text(json.dumps({"accounts": [{**base, **options}]}), encoding="utf-8")
-                self.assertIn("doc-masto", load_accounts(config))
+                account = load_accounts(config)["doc-masto"]
                 with connect(db) as con:
                     pid = add_post(con, "doc-masto", "mastodon", "Hello https://example.com") if not hashes else \
                         con.execute("SELECT id FROM posts").fetchone()["id"]
-                    hashes.add(approval_payload_sha256(get_post(con, pid)))
-        self.assertEqual(len(hashes), 1, "the approval hash is computed from the post row, not the account options")
-        self.assertIn("are read from the account file when the post is sent", DOC)
-        self.assertIn("run `show` again after any change to the account file", DOC)
+                    if get_post(con, pid)["status"] != "draft":
+                        transition(con, pid, "unapprove")
+                    transition(con, pid, "approve", send_options=send_options.fingerprint(account))
+                    row = get_post(con, pid)
+                    self.assertEqual(approval_payload(row)["send_options"], send_options.fingerprint(account))
+                    hashes.add(approval_payload(row)["send_options"])
+        self.assertEqual(len(hashes), 3, "each set of account options is a different bound value")
+        self.assertIn("and the account's `visibility`, `language` and `spoiler_text`", DOC)
+        self.assertIn("approval_send_options_changed_reapproval_required", DOC)
+        self.assertIn("approval_send_options_missing_reapproval_required", DOC)
 
 
 if __name__ == "__main__":

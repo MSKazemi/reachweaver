@@ -6,6 +6,7 @@
 
 - The existing SQLite outbox only sends exact approved content after explicit live opt-in and account identity preflight.
 - **Approval payload binding (issue #7):** every approval is bound to a SHA-256 of the exact account, platform, text, schedule time, source URL and campaign. A post that changed after approval, or that was approved before this binding existed, is `BLOCKED` before the identity preflight and again inside the claim lock. It stays approved/scheduled until a human re-approves it. See the [upgrade note](#upgrade-note-approval-payload-binding-issue-7).
+- **Send options and repeats (2026-10-21):** a Mastodon account's visibility, language and content warning, and a Postiz account's server and integration, are bound into each approval; an exact repeat of material the same account already shared is refused inside the claim, so two approved copies never both go out. See the [upgrade note](#upgrade-note-send-option-binding-and-the-send-time-repeat-guard-2026-10-21).
 - **Per-account rolling 24-hour cap:** default two send attempts, configurable with --max-per-24h (1–10); default 60-minute gap configurable with --min-gap-minutes (15–1440). These are ReachWeaver operator safeguards, **not provider API quotas or dollar-cost ceilings**.
 - Both are checked inside the SQLite BEGIN IMMEDIATE claim. Durable send_claimed audit events count even after uncertainty or human reconciliation, so a restart or draft reset does not restore quota.
 - **Provider cooldowns after a 429 (issue #11):** a rate-limit answer from a provider records a per-account cooldown. Until it ends, that account's **other, unclaimed** posts are `SKIPPED` before any claim or request and stay approved/scheduled. The post that got the 429 goes to `needs_review` as before and is **never resent automatically**. Read-only identity checks (not Bluesky) may be retried twice with jitter before the claim; no content write is ever retried. See [provider cooldowns](#provider-rate-limits-and-cooldowns-issue-11).
@@ -99,6 +100,24 @@ reachweaver schedule POST_ID --at 2026-10-15T09:00:00+02:00   # only if it was s
 - **Ledger problems fail closed.** A missing, unreadable, symlinked, wrongly-permissioned (not 0600 or not owned by the running user) or chain-broken ledger prints `approval_ledger_unavailable` and nothing is claimed or approved. Restore the file from a backup taken with the database; back both up together, and keep them in the same private directory. The ledger is never silently recreated once any post carries a nonce. If the file is lost and cannot be restored, the owner decides after review whether to create an empty one by hand; that forgets every earlier consumption, so check the account for duplicates first.
 - **Where it lives.** The ledger sits in the database's directory and is shared by every database file in that directory. Copying a database to another directory also needs its ledger copy. An in-memory database cannot approve or claim.
 - **Limits.** The ledger is writable by the same Unix user. It makes silent edits detectable and a naive or accidental restore refused (of a used or a withdrawn approval); it does not stop an attacker who rewrites the whole chain, and a withdrawal made while the ledger was unusable is not recorded. Run the worker as its own system user so the ledger is not writable from the agent's account (THREAT-MODEL.md T7). Rollback is a code revert; the extra column and file are ignored by older code, and the replay gap returns.
+
+## Upgrade note: send-option binding and the send-time repeat guard (2026-10-21)
+
+Owner-approved 2026-10-21. Opening an existing database adds two nullable columns, `posts.approved_send_options` and `posts.approved_allow_repeat`. Nothing else is rewritten, and every stored approval hash stays valid: the new payload keys exist only when a column is set.
+
+- **Mastodon and Postiz approvals need one re-approval.** `approve` now binds a Mastodon account's `visibility`, `language` and `spoiler_text`, and a Postiz account's `postiz_base_url` and `postiz_integration_id`. A Mastodon or Postiz post that is `approved` or `scheduled` at upgrade time has no binding and is not grandfathered: `publish --live` prints `BLOCKED POST_ID: approval_send_options_missing_reapproval_required` before the identity preflight and any request, and the post stays approved. `health` and the dry run list Mastodon rows under `approval_rebind_required` without loading accounts; a Postiz row is listed by the live run. Bluesky, Telegram, LinkedIn and the video platforms are unaffected. Clear the list before you enable a timer:
+
+~~~bash
+reachweaver health                 # lists Mastodon posts needing re-approval
+reachweaver unapprove POST_ID
+reachweaver show POST_ID           # check approval.send_options: the values that will be bound
+reachweaver approve POST_ID        # prints "Bound send options: ..."
+reachweaver schedule POST_ID --at 2026-10-15T09:00:00+02:00   # only if it was scheduled before
+~~~
+
+- **Changing those settings later** refuses the send with `approval_send_options_changed_reapproval_required` (post stays approved, one `approval_binding_failed` event). Restore the approved values or re-approve.
+- **Exact repeats are refused at send time.** A post whose video, image or exact wording the same account has already published, is sending, has in `needs_review` or recorded with `mark-shared` is `SKIPPED ... repeat_of_shared_material` before any claim or request (worker log reason `repeat_of_shared_material`). Nothing is written and it stays approved, so an unattended worker repeats the line on every run until you `cancel` it or re-approve it with `approve --allow-repeat`. Approvals made with `--allow-repeat` before this upgrade carry no bound flag; re-approve them with `--allow-repeat` if every copy should still go out.
+- Rollback is a code revert; the extra columns are ignored by older code.
 
 ## Health and dead-letter view (issue #26)
 

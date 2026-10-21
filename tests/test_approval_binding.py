@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from reachweaver import postiz
+from reachweaver import postiz, send_options
 from reachweaver.accounts import load_accounts
 from reachweaver.calendar import apply_calendar, propose_calendar
 from reachweaver.cli import main
@@ -575,7 +575,8 @@ class ApprovalBindingPostizTests(Base):
 
     def pz_approved(self, db):
         pid = add_post(db, "pz-blue", "bluesky", "Release notes https://example.org/r")
-        transition(db, pid, "approve")
+        # Sheet items 5/9: bind the account's send options as `reachweaver approve` does.
+        transition(db, pid, "approve", send_options=send_options.fingerprint(self.account))
         return pid
 
     def test_postiz_run_live_send_blocks_tampered_post(self):

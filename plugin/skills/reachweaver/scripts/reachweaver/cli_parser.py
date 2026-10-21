@@ -327,7 +327,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--verify-identity", action="store_true",
                    help="Each approve runs its one read-only identity check (needs --online), as approve --verify-identity")
     p.add_argument("--online", action="store_true", help="Required with --verify-identity")
-    p = sub.add_parser("approve", help="Approve the exact current text; binds an immutable payload hash (#7)")
+    p = sub.add_parser("approve", help="Approve the exact current text; binds an immutable payload hash (#7), plus "
+                                       "a Mastodon account's visibility/language/spoiler_text or a Postiz account's "
+                                       "server and integration")
     p.add_argument("post_id")
     p.add_argument("--persona", metavar="ID",
                    help="Which of your personas this post is for (for example work or family). Refuses an account that belongs "
@@ -340,8 +342,9 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--online", action="store_true", help="Required with --verify-identity: allow that one read-only identity request")
     p.add_argument("--optout", type=Path, help=optout_help + "; a mention refuses approval")
     p.add_argument("--allow-repeat", action="store_true",
-                   help="Approve even though this account has already shared the same video, image or wording on this "
-                        "platform (repeat-check shows what matched); recorded as an audit event")
+                   help="Approve even though this account has already shared (or has another approved copy of) the same "
+                        "video, image or wording on this platform (repeat-check shows what matched). Bound into the "
+                        "approval, so the send-time repeat check lets this one post through; also an audit event")
     p.add_argument("--sources", type=Path, metavar="CONFIG",
                    help="sources-scan config (#9): refuse when any published text (post, alt texts, video title/tags), a hosted image URL or the source URL links into any visibility:private repository of that config (private repository URLs are never public links)")
     p = sub.add_parser("youtube-attach", help="#22 (owner-approved; disabled until a live receipt): attach one local MP4 + upload metadata to a YouTube "
