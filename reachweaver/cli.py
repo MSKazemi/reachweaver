@@ -98,7 +98,7 @@ from .storage import (
     report_since, set_paused,
     set_post_media, set_post_video, store_metrics, sync_cooldown_scopes, transition, uncertain_send, utc_now,
     connect_readonly as storage_connect_readonly, database_path as storage_database_path, event as record_event,
-    record_shared, repeat_refusal, repeat_send_problem,
+    record_shared, repeat_refusal, repeat_send_problem, MANUAL_STATUS, manual_url_problem, record_manual_publish,
 )
 from .inputs import read_json_file
 from .cli_parser import make_parser  # noqa: F401  (re-exported: tests and tools use cli.make_parser)
@@ -1925,6 +1925,8 @@ def execute(args) -> int:
         statuses = tuple(args.status) if args.status else (
             tuple(s for s in posting_journal.ALL_STATUSES if s != "cancelled") if args.all_statuses
             else posting_journal.POSTED_STATUSES)
+        if args.no_by_hand and not args.status:  # posts made measurable with mark-shared --url are by hand too
+            statuses = tuple(s for s in statuses if s != MANUAL_STATUS)
         if not storage_database_path(args.db).is_file():
             print("No posts recorded yet: there is no database, so there is nothing to show or archive.")
             return 0
@@ -1992,6 +1994,26 @@ def execute(args) -> int:
                     raise ValidationError("Unknown account for that platform. Run 'doctor' for account IDs")
             if not (text or images or video_sha or clean_links):
                 raise ValidationError("Give at least one of --text/--file, --image, --video or --link")
+            if args.url:  # 2026-10-21: a link makes the by-hand post measurable (a terminal published_manual record)
+                from .metrics_fetch import platform_id_from_url
+                problem = manual_url_problem(args.url)
+                if problem:
+                    raise ValidationError(problem)
+                remote_id = platform_id_from_url(args.platform, args.url,
+                                                 _accounts(args).get(args.account) if args.account else None)
+                with connect(args.db) as db:
+                    made = record_manual_publish(db, platform=args.platform, url=args.url, account_id=args.account,
+                                                 content=text or "", images=images, video=video_sha,
+                                                 links=clean_links, posted_at=args.at, note=args.note,
+                                                 remote_id=remote_id)
+                print(f"Recorded {made['shared_id']}: later drafts for {args.platform} are checked against this "
+                      "material.")
+                print(f"Measurable as post {made['post_id']} (posted by hand, {MANUAL_STATUS}): record its results "
+                      f"with 'reachweaver metrics {made['post_id']} ...' or import-metrics; report, insights and the "
+                      "dashboard include it, labelled posted by hand"
+                      + ("; metrics-fetch --online can read its public counters." if remote_id else "."))
+                print("Nothing was posted or sent, and this record can never be approved, scheduled or sent.")
+                return 0
             with connect(args.db) as db:
                 entry_id = record_shared(db, platform=args.platform, account_id=args.account, content=text or "",
                                          images=images, video=video_sha, links=clean_links, posted_at=args.at,

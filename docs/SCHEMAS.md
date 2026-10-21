@@ -96,6 +96,7 @@ draft/reviewed/approved/scheduled -> cancelled            published, cancelled: 
 | `published` | `published` | `remote_id` ≈ `remote_post_id` |
 | `needs_review` | `unknown` | `last_error` ≈ `error_code`; never auto-retried |
 | `cancelled` | `cancelled` | |
+| `published_manual` | none (unmapped) | posted by hand and recorded with `mark-shared --url`; never approved, queued or sent, so `schema-export` lists it as unmapped and never invents a `PublishJob` or `Approval` |
 | — | `failed` | `reconcile --not-published` goes straight from `needs_review` to `draft`, collapsing `unknown -> failed -> draft` |
 
 ## Migration rules

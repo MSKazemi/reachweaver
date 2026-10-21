@@ -198,7 +198,7 @@ h3 { font-size: 15px; margin: 18px 0 8px; }
 .chip { display: inline-block; font-size: 12px; padding: 1px 9px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; line-height: 18px; }
 .chip.draft { color: var(--muted); } .chip.approved, .chip.scheduled { color: var(--info); }
 .chip.sending { color: var(--warn); } .chip.needs_review { color: var(--bad); font-weight: 700; }
-.chip.published { color: var(--ok); } .chip.cancelled { color: var(--muted); text-decoration: line-through; }
+.chip.published, .chip.published_manual { color: var(--ok); } .chip.cancelled { color: var(--muted); text-decoration: line-through; }
 .chip.ok { color: var(--ok); } .chip.attention, .chip.warn { color: var(--warn); } .chip.blocked, .chip.bad { color: var(--bad); }
 .chip.info { color: var(--info); }
 .chip.solid.bad { background: var(--bad); border-color: var(--bad); color: #fff; }
@@ -313,7 +313,7 @@ dialog.palette { width: min(620px, calc(100vw - 32px)); max-width: none; padding
 .stack span { height: 100%; }
 .stack span + span { border-left: 2px solid var(--panel); }
 .s-needs_review { background: var(--bad); } .s-sending { background: var(--warn); } .s-approved { background: #5b8def; }
-.s-scheduled { background: var(--info); } .s-draft { background: #9aa5b3; } .s-published { background: var(--ok); } .s-cancelled { background: var(--line); }
+.s-scheduled { background: var(--info); } .s-draft { background: #9aa5b3; } .s-published, .s-published_manual { background: var(--ok); } .s-cancelled { background: var(--line); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; }
 .legend a { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); text-decoration: none; font-size: 14px; }
 .legend a:hover { text-decoration: underline; }
@@ -530,8 +530,8 @@ const REASON_HELP = {
   threads_authorization_expiry_invalid: "authorization_expires_at for Threads cannot be read, so the token is treated as expired. Fix the date in the accounts file."
 };
 const STATUS_LABEL = { draft: "draft", approved: "approved", scheduled: "scheduled", sending: "sending",
-  needs_review: "needs review", published: "published", cancelled: "cancelled" };
-const STATUS_ORDER = ["needs_review", "sending", "approved", "scheduled", "draft", "published", "cancelled"];
+  needs_review: "needs review", published: "published", cancelled: "cancelled", published_manual: "posted by hand" };
+const STATUS_ORDER = ["needs_review", "sending", "approved", "scheduled", "draft", "published", "published_manual", "cancelled"];
 const SENT_STATUSES = ["sending", "published", "needs_review"];
 const STATUS_MEANING = {
   draft: ["Draft", "Not approved yet. Nothing can be sent until you approve this exact text."],
@@ -540,10 +540,11 @@ const STATUS_MEANING = {
   sending: ["Sending", "A send is in progress or was interrupted. If it stays here, treat it as uncertain."],
   needs_review: ["Needs your review", "A send ended in an unknown state. Check the native platform first; never resend blindly."],
   published: ["Published", "Sent. Open the remote post to confirm it looks right."],
-  cancelled: ["Cancelled", "This post will never be sent."]
+  cancelled: ["Cancelled", "This post will never be sent."],
+  published_manual: ["Posted by hand", "You published this yourself and recorded it with mark-shared --url, so its results can be measured. ReachWeaver never sent it and can never send, approve or schedule it."]
 };
 const STATUS_GROUP = { needs_review: "Needs your review", sending: "Sending", approved: "Approved, waiting", scheduled: "Scheduled",
-  draft: "Drafts", published: "Published", cancelled: "Cancelled" };
+  draft: "Drafts", published: "Published", cancelled: "Cancelled", published_manual: "Posted by hand" };
 // Why a post is on the "Needs you" list (ui_data.ATTENTION_KINDS): label, what to do, colour.
 const KIND = {
   needs_review: ["Needs review", "Check the platform, then reconcile in your terminal. Never resend blindly.", "bad"],
@@ -919,10 +920,11 @@ async function viewSchedule(params) {
 
 // ---- Posted (the journal: what was sent, and what you recorded as shared by hand)
 function postedRow(e) {
-  const link = safeLink(e.remote_url), files = Object.entries(e.files || {}), byHand = e.source === "by_hand";
+  const link = safeLink(e.remote_url), files = Object.entries(e.files || {}), measured = e.source === "posted_by_hand";
+  const byHand = e.source === "by_hand" || measured; // measured: a published_manual record with its own post page
   return row({ search: e.excerpt + " " + e.id + " " + (e.account || "") + " " + e.platform + " " + (e.campaign || "") + " " + (e.note || ""),
-    badge: byHand ? h("span", { class: "src" }, "shared by hand") : chip(e.status),
-    href: byHand ? null : postHref(e.id), text: e.excerpt, secret: e.looks_like_secret,
+    badge: byHand ? h("span", { class: "src" }, measured ? "posted by hand" : "shared by hand") : chip(e.status),
+    href: byHand && !measured ? null : postHref(e.id), text: e.excerpt, secret: e.looks_like_secret,
     meta: [pf(e.platform), e.account || "account unknown", byHand ? "by you" : "approved by " + (e.approved_by || "unknown"),
       files.length ? files.map(([k, n]) => n + " " + k).join(", ") : null],
     extra: [!byHand && e.status !== "published" ? h("div", { class: "note" }, "possibly posted: check the platform") : null,
@@ -1002,7 +1004,7 @@ async function viewResults(params) {
   if (d.platforms.length) {
     out.push(h("h2", null, "By platform"), h("p", { class: "note" }, "Totals of exact values over " + d.platform_totals_scope + "; the coverage says how many posts have a value."));
     out.push(table(["Platform", "Published", "With data", ...used], d.platforms.map(p => h("tr", null,
-      h("td", null, pf(p.platform)), h("td", { class: "num" }, p.published), h("td", { class: "num" }, p.with_snapshot),
+      h("td", null, pf(p.platform)), h("td", { class: "num" }, p.published, p.posted_by_hand ? h("div", { class: "note" }, p.posted_by_hand + " posted by hand") : null), h("td", { class: "num" }, p.with_snapshot),
       used.map(k => { const m = p.metrics[k]; return h("td", { class: "num" }, m.value == null ? h("span", { class: "muted" }, "unknown") : NUM.format(m.value),
         h("div", { class: "note" }, m.coverage + (m.estimated ? " · ~" + NUM.format(m.estimated.sum) + " est." : ""))); })))));
     if (unused.length) out.push(h("p", { class: "note" }, (used.length ? "Nothing recorded yet for: " : "No value recorded yet for any metric: ") + unused.join(", ") + ". They stay unknown, not zero."));
@@ -1020,10 +1022,12 @@ async function viewResults(params) {
   out.push(d.posts.length ? table(["Posted", "Text", "Account", "Latest record"], d.posts.map(p => h("tr", null,
     h("td", null, when(p.when)),
     h("td", null, h("a", { class: "row-link", href: postHref(p.id) }, p.excerpt || "(empty)"),
+      p.posted_by_hand ? h("div", null, h("span", { class: "src" }, "posted by hand")) : null,
       p.campaign ? h("div", { class: "note" }, "campaign " + p.campaign) : null),
-    h("td", null, p.account, h("div", { class: "muted" }, pf(p.platform))),
+    h("td", null, p.account || "account unknown", h("div", { class: "muted" }, pf(p.platform))),
     h("td", null, snapshotCell(p.latest, d.metrics, barKey, max))))) :
-    empty("Nothing published yet", "Results appear here once a post is published and you record its numbers.", "results"));
+    empty("Nothing published yet", h("span", null, "Results appear here once a post is published and you record its numbers. Posted it yourself? Make it measurable with ",
+      h("code", null, "reachweaver mark-shared --platform PLATFORM --url URL --text '...'"), "."), "results"));
   if (d.posts.length && !d.with_snapshot) out.push(h("div", { class: "card" }, h("strong", null, "Record results in your terminal"),
     command("reachweaver metrics POST_ID --observed-at 2026-10-20T09:00:00+02:00 --source native_export --views 120 --likes 4"),
     h("p", { class: "note" }, "Or import a native export with reachweaver import-metrics --csv FILE. Bluesky and Mastodon public counters: reachweaver metrics-fetch --online.")));
@@ -1226,7 +1230,7 @@ async function viewPost(id) {
       h("td", null, when(r.observed_at)), h("td", null, r.age_hours != null ? r.age_hours + " h" : h("span", { class: "muted" }, "unknown")),
       h("td", null, r.source), h("td", null, metricLine(r.metrics, keys))))),
       h("p", { class: "note" }, "From the platform's own analytics as you recorded them; unknown is never shown as zero."));
-  } else if (p.status === "published") left.push(h("p", { class: "muted" }, "No results recorded for this post yet. Record them with reachweaver metrics " + p.id + " ..."));
+  } else if (p.status === "published" || p.status === "published_manual") left.push(h("p", { class: "muted" }, "No results recorded for this post yet. Record them with reachweaver metrics " + p.id + " ..."));
   left.push(h("h2", null, "Timeline"), p.events.length ? h("div", { class: "card" }, timeline(p.events)) : h("p", { class: "muted" }, "No events."));
   const aside = [prompts && prompts.cards.length ? h("div", { class: "card claudecard" }, h("div", { class: "ct" }, icon("chat"), "Work with Claude"),
       promptCards(prompts.cards, true), h("p", { class: "note" }, h("a", { href: "#/claude?post=" + encodeURIComponent(p.id) }, "Ask something else about this post"))) : null,

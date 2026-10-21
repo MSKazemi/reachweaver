@@ -30,7 +30,8 @@ from .privacy import redact, redact_value
 from .show_view import approval_sentence, length_of
 from .insights import top_insights
 from .suggest import build_suggestions
-from .storage import (METRIC_FIELDS, RECONCILE_MIN_SENDING_MINUTES, approval_expiry_problem, approval_max_age_hours,
+from .storage import (MANUAL_STATUS, MEASURED_STATUSES, METRIC_FIELDS, RECONCILE_MIN_SENDING_MINUTES,
+                      approval_expiry_problem, approval_max_age_hours,
                       connect_readonly, get_post, latest_snapshot, list_posts, metric_states, parse_utc, report,
                       schema_gaps, snapshots_for, utc_now)
 
@@ -50,7 +51,7 @@ ATTENTION_LIMIT = 20
 ATTENTION_HORIZON_DAYS = 36500
 # Rows a human has to look at first, in this order.
 ATTENTION_ORDER = {"needs_review": 0, "sending": 1, "approved": 2, "scheduled": 3, "draft": 4,
-                   "published": 5, "cancelled": 6}
+                   "published": 5, MANUAL_STATUS: 5, "cancelled": 6}
 # Plain-language meaning of each approval-ledger state (``ledger.audit``) and problem code.
 LEDGER_SENTENCE = {
     "ok": "The approval ledger matches the database.",
@@ -145,6 +146,9 @@ def next_steps(post) -> list[dict]:
                   "note": "If you find it never posted, use --not-published instead of --published and --remote-url."}]
     elif status == "sending":
         steps = [{"label": "Inspect health for a stale send", "command": "reachweaver health"}]
+    elif status == MANUAL_STATUS:  # posted by hand: only results can be added; it can never be sent
+        steps = [{"label": "Record its results from the platform's own analytics",
+                  "command": f"reachweaver metrics {pid} --observed-at TIME --source native-export --views N --likes N"}]
     return steps
 
 
@@ -168,6 +172,9 @@ def post_detail(con, post_id: str, accounts: dict) -> dict:
     detail["length"] = length_of(detail)  # the platform's own count and limit, or None (never guessed)
     detail["approval_summary"] = approval_sentence(detail)
     published = next((e["at"] for e in reversed(detail["events"]) if e["action"] == "published"), None)
+    if post["status"] == MANUAL_STATUS:  # the time the owner declared he posted it by hand
+        published = post["send_started_at"]
+    detail["posted_by_hand"] = post["status"] == MANUAL_STATUS
     detail["results"] = post_results(con, post_id, published)  # recorded snapshots only; [] when none
     detail["owner_action"] = owner_action(post, _owner_kind(post, approval_max_age_hours(con), utc_now()))
     exact = post["content"]
@@ -389,12 +396,13 @@ def _snapshot_view(row, posted_at: str | None) -> dict | None:
 def results_view(con, *, account: str | None = None, platform: str | None = None) -> dict:
     """Recorded results: per-platform totals of exact values (``storage.report``) and each published post's latest
     snapshot, newest post first. Nothing is fetched; a post without a snapshot is listed as not recorded."""
-    entries = build_entries(con, statuses=("published",), account=account, platform=platform, by_hand=False,
+    entries = build_entries(con, statuses=MEASURED_STATUSES, account=account, platform=platform, by_hand=False,
                             limit=RESULTS_LIMIT + 1)
     shown = entries[:RESULTS_LIMIT]
     posts = []
     for entry in shown:
         item = redact_value({k: entry.get(k) for k in ("id", "when", "platform", "account", "campaign", "remote_url")})
+        item["posted_by_hand"] = entry.get("status") == MANUAL_STATUS  # labelled "posted by hand" on the page
         text = entry.get("text") or ""
         item["excerpt"] = _excerpt(text)
         item["looks_like_secret"] = redact(text) != text
@@ -405,6 +413,7 @@ def results_view(con, *, account: str | None = None, platform: str | None = None
         if platform is not None and name != platform:
             continue
         platforms.append({"platform": name, "published": summary["published"],
+                          "posted_by_hand": summary.get("posted_by_hand", 0),
                           "with_snapshot": summary["metric_coverage"],
                           "metrics": {k: {"value": summary["metrics"][k]["value"],
                                           "coverage": summary["metrics"][k]["coverage"],
@@ -656,6 +665,8 @@ ACTIVITY_LABEL = {
     "reconciled_published": ("Recorded as posted", "ok"), "reconciled_not_published": ("Recorded as not posted", ""),
     "emergency_paused": ("Emergency stop turned on", "bad"), "resumed": ("Emergency stop turned off", "ok"),
     "metrics_recorded": ("Results recorded", "info"), "material_shared_recorded": ("Shared by hand recorded", "info"),
+    "manual_publish_recorded": ("Posted by hand recorded (measurable)", "info"),
+    "posts_status_check_widened": ("Database upgraded for posts published by hand", ""),
     "media_set": ("Images attached", ""), "video_attached": ("Video attached", ""), "video_detached": ("Video detached", ""),
     "attachment_relinked": ("Attachment relinked", ""),
     "campaign_variant_staged": ("Campaign variant staged as a draft", "info"),

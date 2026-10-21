@@ -140,7 +140,9 @@ class SchemaExportTests(unittest.TestCase):
                     "redrafted": "draft", "cancelled": "cancelled"}
         for name, state in expected.items():
             self.assertEqual(jobs[self.ids[name]]["state"], state, name)
-        self.assertEqual({j["state"] for j in jobs.values()}, set(STORAGE_STATUS_MAP.values()))
+        # published_manual (posted by hand) maps to None: never a PublishJob
+        self.assertEqual({j["state"] for j in jobs.values()},
+                         {state for state in STORAGE_STATUS_MAP.values() if state is not None})
         for job in jobs.values():
             self.assertEqual(job["payload_sha256"], payload_sha256(job["payload"]))
             self.assertEqual(job["payload"]["locale"], "und")

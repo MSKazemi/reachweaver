@@ -6,6 +6,25 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Added
+
+- **Measure posts you shared by hand.** `mark-shared --url LINK` (owner-approved 2026-10-21) now also creates a measurable record: a post with the new terminal status `published_manual` ("posted by hand") holding the platform, the account (optional), the text, the link and the time you posted it (`--at`, default now; more than 10 minutes in the future is refused). It prints the post id. `metrics`, `import-metrics`, `report` (including `--since`), `insights`, `journal` and the dashboard's Posted and Results pages include it, labelled "posted by hand". `metrics-fetch --online` reads its public counters when the link is a Mastodon link on the configured server and handle, or a Bluesky `bsky.app/profile/did:.../post/...` link by the configured handle (derived offline; no new endpoint). The same link recorded twice for a platform is refused. Without `--url`, `mark-shared` is unchanged. `storage.record_manual_publish(...)` is the one entry point, for the browser composer's planned "Mark as posted" button. Guide: [docs/MANUAL-EXPORT.md#measure-posts-you-shared-by-hand](docs/MANUAL-EXPORT.md#measure-posts-you-shared-by-hand). Tests: `tests/test_manual_published.py` (synthetic data, no network).
+- `report` JSON gains `posted_by_hand` per platform (how many of `published` were posted by hand), Markdown shows "N (M posted by hand)", CSV gains a last column `posted_by_hand`. `insights` cohorts gain `posted_by_hand`. `show` gains a `posted_by_hand` block (provenance, declared time, link) for such a record.
+
+### Changed
+
+- `journal`: a record made with `mark-shared --url` is listed once (source `posted_by_hand`, status `published_manual`), not twice; `--no-by-hand` leaves it out too. The repeat guard compares only its `mark-shared` entry (same account scope as before), never the record itself, and a record is never reported as a repeat of its own entry.
+- `data-purge`: the `published_content_days` redaction also covers `published_manual` text.
+- `schema-export` lists `published_manual` posts as unmapped (no canonical state; no `PublishJob` or approval is invented).
+
+### Security
+
+- `published_manual` is born terminal: `transition` has no edge into or out of it (approve, unapprove, cancel and schedule refuse it), `reconcile` refuses it, and `pending`, `claim_sending`, `publish` (dry run and `--live`, with or without `--post-id` or `--scheduled-only`), the Postiz and TikTok runners, the media/video setters, `queue-health`, `dead-letter` and the approval-ledger audit never select it. Every approval column of the record is NULL. Covered by `tests/test_manual_published.py`. No send path, network endpoint or credential use was added.
+
+### Upgrade note
+
+- Schema: `shared_material` gains the nullable column `post_id` (added automatically by the usual migration). The `posts.status` CHECK of a database created before this version does not allow `published_manual`; the first `mark-shared --url` rebuilds the `posts` table once (SQLite's documented table-rebuild procedure in one transaction: every row and column is copied, approval hashes and MACs stay valid, `foreign_key_check` must pass, otherwise everything rolls back) and logs a `posts_status_check_widened` event. Nothing changes until then. Older ReachWeaver versions were not tested against a database that holds `published_manual` records; back up `state/` before downgrading.
+
 ## [0.14.0] - 2026-10-21
 
 Handier, smarter and aware of newer distribution paradigms. A short everyday `--help`, a first run that starts in the browser composer, `report --since`, and a `suggest` that works with no flags. `insights` learns what works from your own results. Every platform fact shows how old it is. `ai-visibility` checks what your own pages tell AI answer engines, `ai-label-check` gives per-platform AI-content label rules, and `social-web-plan` maps your reach across the fediverse, Bluesky and bridges. 125 commands (6 more than 0.13.0, none removed). Everything new is read-only or advisory; no live adapter is added.

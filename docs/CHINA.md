@@ -65,7 +65,7 @@ Other notes in the checklist: a WeChat subscription account can mass-send once a
 
 ## After you post
 
-Keep the native post URL: it is the only evidence that a post exists. Record it with `reachweaver mark-shared --platform weibo --text "..."` so the [repeat guard](REPEAT-GUARD.md) warns you before the same wording goes out again. Views and likes come only from the platform's own analytics.
+Keep the native post URL: it is the only evidence that a post exists. Record it with `reachweaver mark-shared --platform weibo --text "..." --url URL` so the [repeat guard](REPEAT-GUARD.md) warns you before the same wording goes out again. Views and likes come only from the platform's own analytics; with `--url` you can record them on the printed post id with `reachweaver metrics` or `import-metrics` ([measure posts you shared by hand](MANUAL-EXPORT.md#measure-posts-you-shared-by-hand)).
 
 ## Limits of this guide
 

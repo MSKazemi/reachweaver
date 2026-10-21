@@ -139,6 +139,8 @@ def find_repeats(con, *, platform: str, account_id: str | None, material: dict, 
                                  source="post", ref=row["id"], account_id=row["account_id"], status=row["status"],
                                  when=row["activity_at"], near_ok=recent))
     for entry in shared_entries(con, platform):
+        if exclude_post_id is not None and entry.get("post_id") == exclude_post_id:
+            continue  # the ledger half of the published_manual record being checked is not a repeat of itself
         prior = {"text": entry["content"], "images": entry["images"], "video": entry["video"],
                  "links": entry["links"]}
         same = account_id is None or entry["account_id"] is None or entry["account_id"] == account_id  # unknown: assume same

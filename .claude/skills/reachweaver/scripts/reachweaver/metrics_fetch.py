@@ -15,6 +15,9 @@ readouts can use first-party numbers instead of hand-copied ones.
   ``{env_prefix}_TOKEN`` is set, it is retried exactly once with that bearer token
   (a token with ``read:statuses`` is sufficient). The returned ``account`` must be
   the configured handle on the configured server.
+* Posts published by hand (``mark-shared --url``, status ``published_manual``) are polled the same way when
+  ``platform_id_from_url`` could derive their id offline from the link; a by-hand Bluesky post must also be
+  authored by the configured handle. Nothing else is resolved over the network.
 
 Field mapping uses only fields the cited docs define. Anything else stays NULL
 (unknown), never zero: neither API exposes views, impressions or link clicks.
@@ -40,7 +43,7 @@ from urllib.parse import quote, urlencode, urlparse
 from . import publishers
 from .accounts import credential
 from .policy import ValidationError, require_https_public_server
-from .storage import METRIC_FIELDS, store_metrics, utc_now
+from .storage import MANUAL_STATUS, MEASURED_STATUSES, METRIC_FIELDS, store_metrics, utc_now
 
 BLUESKY_APPVIEW = "https://public.api.bsky.app"
 GET_POSTS = "/xrpc/app.bsky.feed.getPosts"
@@ -152,10 +155,11 @@ def select_posts(con: sqlite3.Connection, accounts: dict[str, dict], *, account_
         reason = None
         if row["platform"] not in SOURCES:
             reason = "platform_not_supported_for_public_counters"
-        elif row["status"] != "published":
+        elif row["status"] not in MEASURED_STATUSES:
             reason = f"not_published (status={row['status']})"
         elif not remote_id:
-            reason = "published_without_remote_id"
+            reason = ("posted_by_hand_without_platform_id (record results with metrics or import-metrics)"
+                      if row["status"] == MANUAL_STATUS else "published_without_remote_id")
         elif account is None or account["platform"] != row["platform"]:
             reason = "account_not_in_config"
         elif account.get("backend") is not None:
@@ -172,8 +176,60 @@ def select_posts(con: sqlite3.Connection, accounts: dict[str, dict], *, account_
         if len(eligible) >= max_posts:
             skipped.append({**base, "reason": f"deferred_max_posts_{max_posts}"})
             continue
-        eligible.append({**base, "remote_id": remote_id, "account": account})
+        eligible.append({**base, "remote_id": remote_id, "account": account,
+                         "posted_by_hand": row["status"] == MANUAL_STATUS})
     return eligible, skipped
+
+
+def platform_id_from_url(platform: str, url: str, account: dict | None) -> str | None:
+    """The platform id ``metrics-fetch`` needs, derived OFFLINE from the link of a post the owner published by
+    hand (``mark-shared --url``), or None when it cannot be derived without a network lookup.
+
+    * Mastodon: ``https://SERVER/@USER/ID`` (or ``/users/USER/statuses/ID``) on the account's configured server,
+      where USER is the configured local handle; the id is ID. The fetch still checks the returned author.
+    * Bluesky: ``https://bsky.app/profile/DID/post/RKEY`` with a ``did:`` profile only (a handle link would need
+      a resolveHandle request); the id is ``at://DID/app.bsky.feed.post/RKEY``. The fetch then checks that the
+      author DID matches and, for a by-hand record, that the author handle is the configured one.
+    Anything else (other platforms, other hosts, an unknown account) returns None; nothing is fetched to decide.
+    """
+    if account is None or account.get("platform") != platform or account.get("backend") is not None:
+        return None
+    parts = urlparse(url.strip())
+    if parts.scheme != "https" or parts.query or parts.fragment:
+        return None
+    segments = [segment for segment in parts.path.split("/") if segment]
+    host = (parts.hostname or "").casefold()
+    if platform == "mastodon":
+        try:
+            server = urlparse(require_https_public_server(str(account.get("server", "")))).hostname or ""
+            handle = _mastodon_local_handle(account)
+        except ValidationError:
+            return None
+        if host != server.casefold():
+            return None
+        if len(segments) == 2 and segments[0].casefold() == "@" + handle:
+            status_id = segments[1]
+        elif len(segments) == 4 and segments[0] == "users" and segments[1].casefold() == handle \
+                and segments[2] == "statuses":
+            status_id = segments[3]
+        else:
+            return None
+        return status_id if re.fullmatch(r"[0-9]{1,30}", status_id) else None
+    if platform == "bluesky":
+        if host != "bsky.app" or len(segments) != 4 or segments[0] != "profile" or segments[2] != "post":
+            return None
+        uri = f"at://{segments[1]}/app.bsky.feed.post/{segments[3]}"
+        return uri if _POST_URI.fullmatch(uri) else None
+    return None
+
+
+def _bluesky_handle_ok(item: dict, post: dict) -> bool:
+    """A by-hand record's link was typed by the owner, so its author must also be the configured handle."""
+    if not item.get("posted_by_hand"):
+        return True
+    expected = str(item["account"].get("handle") or "").strip().lstrip("@").casefold()
+    author = post.get("author")
+    return bool(expected) and isinstance(author, dict) and str(author.get("handle", "")).casefold() == expected
 
 
 def _result(item: dict, data: dict, observed_at: str, auth: str) -> tuple[dict, dict[str, int | None]]:
@@ -290,6 +346,8 @@ def fetch_metrics(con: sqlite3.Connection, accounts: dict[str, dict], *, account
                     summary["failed"].append({**_ref(item), "reason": "not_returned (deleted, hidden or not indexed)"})
                 elif not _bluesky_author_ok(item["remote_id"], post):
                     summary["failed"].append({**_ref(item), "reason": "author_mismatch: author DID differs from URI DID"})
+                elif not _bluesky_handle_ok(item, post):
+                    summary["failed"].append({**_ref(item), "reason": "author_mismatch: author is not the configured handle"})
                 else:
                     record(item, post, observed_at, "none")
         for item in mastodon:

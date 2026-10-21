@@ -297,7 +297,7 @@ def plan_purge(con, policy: dict, now: str | None = None) -> dict:
             else:
                 actions["cancelled_posts_delete"].append(row["id"])
     for row in con.execute("""SELECT id,content,created_at,approved_at,send_started_at FROM posts
-                              WHERE status='published' ORDER BY created_at,id"""):
+                              WHERE status IN ('published','published_manual') ORDER BY created_at,id"""):
         reference = row["send_started_at"] or row["approved_at"] or row["created_at"]
         if row["content"] != PURGED and _older(reference, cutoff["published_content_days"]):
             actions["published_content_redact"].append(row["id"])
@@ -399,7 +399,8 @@ def apply_purge(con, plan: dict, *, now: str | None = None) -> dict:
         for post_id in actions.get("published_content_redact", []):
             # Keep id/account/platform/remote_id/remote_url/status/timestamps for duplicate protection.
             counts["published_content_redact"] += con.execute(
-                f"UPDATE posts SET content=?,media_json=NULL,last_error=NULL{clear}{target_sql} WHERE id=? AND status='published'",
+                f"UPDATE posts SET content=?,media_json=NULL,last_error=NULL{clear}{target_sql} WHERE id=? "
+                "AND status IN ('published','published_manual')",
                 (PURGED, *target_args, post_id)).rowcount
         for event_id in actions.get("event_log_delete", []):
             counts["event_log_delete"] += con.execute("""DELETE FROM event_log WHERE id=?

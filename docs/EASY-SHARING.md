@@ -95,7 +95,19 @@ Do not automate groups, DM strangers, copy spam across communities, or bypass lo
 | Check your text before saving files | Add --preview |
 | Change a post for only one destination | Edit that platform's caption.txt or post.txt before manually pasting |
 | Remember a post you shared manually | reachweaver mark-shared (see the repeat-guard guide) |
+| Measure a post you shared manually | reachweaver mark-shared --platform P --url LINK --text "..." (see below) |
 | Connect an account for an actual API send | See the security checklist and account onboarding; Share intentionally never sends |
+
+## Measure posts you shared by hand
+
+Share cannot see what you post. After you have posted, give ReachWeaver the link so the post counts in your results:
+
+```bash
+reachweaver mark-shared --platform bluesky --url https://bsky.app/profile/you.bsky.social/post/3kabc \
+  --at 2026-10-20T09:00:00+02:00 --text "the caption you posted"
+```
+
+It prints a post id. Record that post's numbers with `reachweaver metrics POST_ID ...` or `import-metrics`; `report`, `insights` and the dashboard then show it, labelled "posted by hand". The record is only a note in your local database: it never sends anything and can never be approved, scheduled or sent. Details: [manual export](MANUAL-EXPORT.md#measure-posts-you-shared-by-hand).
 
 If you need automated sending, that is a **different, approval-first** process and only works for specifically supported, owner-authorized accounts. One Share package is not consent to publish automatically.
 

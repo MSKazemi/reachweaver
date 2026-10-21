@@ -21,7 +21,7 @@ For every post that went out, or may have gone out (`published`, `sending`, `nee
 - **Files**: each image and the video, with path, SHA-256, size, type, and whether the file is still on disk (`--verify-files` also checks it still matches the recorded hash)
 - **Timeline**: the audit events with their times (for example `draft_created`, `approve`, `send_claimed`, `published`)
 
-Material you posted by hand and recorded with `mark-shared` appears too, marked `shared_by_hand`. Use `--no-by-hand` to leave it out.
+Material you posted by hand and recorded with `mark-shared` appears too, marked `shared_by_hand`. A post recorded with `mark-shared --url` is listed once, as a measurable post with status `published_manual` and source `posted_by_hand` ([measure posts you shared by hand](MANUAL-EXPORT.md#measure-posts-you-shared-by-hand)). Use `--no-by-hand` to leave both out.
 
 ```bash
 reachweaver journal                                  # a table of what went out, newest first

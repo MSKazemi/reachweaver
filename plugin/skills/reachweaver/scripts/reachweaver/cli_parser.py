@@ -250,7 +250,8 @@ def make_parser() -> argparse.ArgumentParser:
                         "wording are always found")
     p.add_argument("--json", action="store_true", help="Machine-readable result")
     p = sub.add_parser("mark-shared", help="Record material you shared by hand (manual export, a platform app) so "
-                       "later drafts are checked against it; local, writes the shared-material ledger only")
+                       "later drafts are checked against it; with --url also makes it measurable (posted by hand); "
+                       "local, never sends")
     p.add_argument("--platform", required=True, help="The platform it was shared on, e.g. youtube")
     p.add_argument("--account", help="The account it was shared from; without it the record counts for every account "
                                       "on that platform")
@@ -259,8 +260,12 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--image", action="append", default=[], type=Path, metavar="FILE", help="An image file; repeatable")
     p.add_argument("--video", type=Path, metavar="FILE", help="A video file")
     p.add_argument("--link", action="append", default=[], metavar="URL", help="A link; repeatable")
-    p.add_argument("--url", default="", help="Where the post lives (your own record)")
-    p.add_argument("--at", help="When it was shared, ISO 8601 with a timezone (default: now)")
+    p.add_argument("--url", default="", help="The link of the post on the platform. With it the post also becomes "
+                                             "measurable: a 'published_manual' record that metrics, import-metrics, "
+                                             "report, insights and the dashboard include, labelled posted by hand; it "
+                                             "can never be approved, scheduled or sent")
+    p.add_argument("--at", help="When it was shared, ISO 8601 with a timezone (default: now); with --url this is the "
+                                "post's send time for report --since and insights")
     p.add_argument("--note", default="", help="A short label for yourself")
     p = sub.add_parser("disconnect", help="Stop publishing to one account on this installation (#38): tighten-only, local; "
                        "lists the credential variable names and the steps to revoke at the provider; revokes nothing itself")

@@ -59,6 +59,9 @@ STORAGE_STATUS_MAP = {
     "draft": "draft", "approved": "approved", "scheduled": "scheduled",
     "sending": "publishing", "published": "published", "needs_review": "unknown",
     "cancelled": "cancelled",
+    # 2026-10-21: posted by hand (mark-shared --url). No canonical state: it was never approved, queued or sent by
+    # ReachWeaver, so schema-export reports it as unmapped instead of inventing a PublishJob or an approval.
+    "published_manual": None,
 }
 
 

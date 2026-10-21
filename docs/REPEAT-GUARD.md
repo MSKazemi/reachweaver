@@ -23,7 +23,7 @@ reachweaver mark-shared --platform youtube --account my-channel \
   --video launch.mp4 --text "Version 3 is out" --url https://youtu.be/EXAMPLE --note "launch video"
 ```
 
-`mark-shared` stores the text, the file hashes and the canonical links in the local database. It does not copy your video or image files, contacts nobody and posts nothing. Without `--account` the record counts for every account on that platform.
+`mark-shared` stores the text, the file hashes and the canonical links in the local database. It does not copy your video or image files, contacts nobody and posts nothing. Without `--account` the record counts for every account on that platform. Add `--url LINK` to also make the post measurable (results, report, insights); the repeat check treats it exactly the same ([measure posts you shared by hand](MANUAL-EXPORT.md#measure-posts-you-shared-by-hand)).
 
 ## The commands
 
