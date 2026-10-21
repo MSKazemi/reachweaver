@@ -9,7 +9,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from . import confirmation, engage_scout, followups, repeat_guard
+from . import confirmation, engage_scout, followups, insights, repeat_guard
 from .account_advisor import FORMATS as ADVISOR_FORMATS
 from .attribution import ATTRIBUTION_SOURCES, CAMPAIGN_TYPES
 from .campaigns import OBJECTIVES
@@ -754,6 +754,7 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--confidence", type=float, default=0.95, help="Interval level; alpha = 1 - confidence")
     p.add_argument("--seed", type=int, default=16, help="Fixed seed: same inputs give identical output")
     p.add_argument("--json", action="store_true")
+    insights.add_parser(sub)  # insights (reachweaver/insights.py)
     p = sub.add_parser("experiment-evaluate", help="Matched-age, non-causal readout of preregistered post pairs")
     p.add_argument("--file", type=Path, required=True)
     p = sub.add_parser("experiment-preregister",

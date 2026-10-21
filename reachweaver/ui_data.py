@@ -28,6 +28,7 @@ from .policy import SUPPORTED_LIVE, ValidationError
 from .post_view import build_post_view
 from .privacy import redact, redact_value
 from .show_view import approval_sentence, length_of
+from .insights import top_insights
 from .suggest import build_suggestions
 from .storage import (METRIC_FIELDS, RECONCILE_MIN_SENDING_MINUTES, approval_expiry_problem, approval_max_age_hours,
                       connect_readonly, get_post, latest_snapshot, list_posts, metric_states, parse_utc, report,
@@ -412,7 +413,23 @@ def results_view(con, *, account: str | None = None, platform: str | None = None
     return {"metrics": list(METRIC_FIELDS), "platforms": platforms, "posts": posts, "shown": len(posts),
             "with_snapshot": recorded, "truncated": len(entries) > RESULTS_LIMIT,
             "platform_totals_scope": "all published posts of each platform (not filtered by account)",
-            "note": RESULTS_NOTE}
+            "note": RESULTS_NOTE, "insights": insights_panel(con, account=account, platform=platform)}
+
+
+INSIGHTS_NOTE = ("Observations from your own past posts (interactions = likes + replies + reposts about 7 days after "
+                 "posting), not causes. Each line is a hypothesis to test with experiment-preregister. Details and "
+                 "every group: reachweaver insights.")
+
+
+def insights_panel(con, *, account: str | None = None, platform: str | None = None) -> dict:
+    """'What works for you': up to three lines per account from ``insights.top_insights`` (read-only)."""
+    try:
+        lines = top_insights(con, account_id=account, platform=platform)
+    except ValidationError:
+        lines = []
+    keep = ("account_id", "platform", "direction", "feature", "value", "n", "median", "rest_n", "rest_median",
+            "relative_difference", "text")
+    return {"lines": [redact_value({k: line[k] for k in keep}) for line in lines], "note": INSIGHTS_NOTE}
 
 
 def post_results(con, post_id: str, posted_at: str | None) -> list[dict]:

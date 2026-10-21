@@ -1005,6 +1005,13 @@ async function viewResults(params) {
         h("div", { class: "note" }, m.coverage + (m.estimated ? " · ~" + NUM.format(m.estimated.sum) + " est." : ""))); })))));
     if (unused.length) out.push(h("p", { class: "note" }, (used.length ? "Nothing recorded yet for: " : "No value recorded yet for any metric: ") + unused.join(", ") + ". They stay unknown, not zero."));
   }
+  if (d.insights && d.posts.length) {
+    out.push(h("h2", null, "What works for you"));
+    out.push(d.insights.lines.length ? h("ol", null, d.insights.lines.map(l => h("li", null, l.text,
+      h("div", { class: "note" }, l.account_id + " · " + pf(l.platform))))) :
+      h("p", { class: "muted" }, "Not enough results yet to compare your posts: about 10 posts per account need a result recorded around 7 days after posting."));
+    out.push(h("p", { class: "note" }, d.insights.note));
+  }
   const barKey = used[0] || null;
   const max = barKey ? Math.max(0, ...d.posts.map(p => p.latest && p.latest.metrics[barKey] && p.latest.metrics[barKey].state === "exact" ? p.latest.metrics[barKey].value : 0)) : 0;
   out.push(h("h2", null, "Posts (" + d.with_snapshot + " of " + d.shown + " with a record)"));

@@ -129,6 +129,7 @@ COMMANDS: dict[str, dict] = {
     "youtube-analytics": _c(R),
     "timing-evaluate": _c(W, note=DB_NOTE),
     "baseline-eval": _c(W, note=DB_NOTE),
+    "insights": _c(R, note="database mode=ro; never creates the database; observations to test, never causes"),
     "attribution-report": _c(W, note=DB_NOTE),
     "pilot-report": _c(R),
     "peer-benchmark": _c(R),

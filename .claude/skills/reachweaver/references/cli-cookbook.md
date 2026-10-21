@@ -128,6 +128,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `youtube-analytics` | Sampling report over stored YouTube snapshots; fetches nothing | `--account`, `--post-id` |
 | `timing-evaluate` | Per-account matched-age outcomes; not optimal-time proof | `--account`, `--timezone`, `--source`, `--metric`, `--denominator`, `--stratify format/campaign`, `--since`, `--until` |
 | `baseline-eval` | Personalized slots/arms vs the generic baseline; bootstrap CI, non-causal | `--account`, `--timezone`, `--since`, `--until`, `--source`, `--metric`, `--denominator`, `--slot exploit:Tue@09:00`, `--campaign-arm`, `--readout`, `--attribution`, `--attribution-source analytics/ga4`, `--json` |
+| `insights` | "What works for you": your own posts' matched-age results by time, weekday, length, link, format, hashtags, hook; median + n per group, top 3 hypotheses to test; never causal, read-only | `--account`, `--platform`, `--since 30d`, `--timezone`, `--source`, `--metric interactions`, `--denominator`, `--min-posts`, `--resamples`, `--json` |
 | `attribution-report` | UTM/referrer join of local analytics exports; not causal | `--analytics`, `--github-traffic`, `--ga4-csv`, `--gsc-csv`, `--json` |
 | `pilot-report` | Per-arm readout of an owner field-pilot CSV log | `--log CSV`, `--min-weeks`, `--json` |
 | `peer-benchmark` | Compare with peers' public counters copied by hand | `--file F`, `--platform`, `--include-individuals`, `--json` |

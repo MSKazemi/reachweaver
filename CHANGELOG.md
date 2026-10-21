@@ -6,6 +6,14 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+### Added
+
+- **`insights`: "What works for you"** (read-only, offline). Compares your own published posts, per account, by time of day, weekday, weekday/weekend, text length, link, format (text/image/video), hashtag count, opening hook (question/number/statement) and each hashtag, using the result recorded about 7 days after posting (default `interactions` = likes + replies + reposts, the same matched-age snapshot rule as `baseline-eval`). Each group reports its median and count against the rest; fewer than 5 posts on either side is `too little data`, anything else is an `observation`, never a cause. Up to three "try more of / try less of" lines per account are phrased as hypotheses to test with `experiment-preregister`/`experiment-readout`; groups made of mostly the same posts are folded into one line. Filters `--account`, `--platform`, `--since 30d|DATE`; `--json` has a stable schema (`reachweaver.insights` version 1, see [docs/INSIGHTS.md](docs/INSIGHTS.md)). With too little data, or no database yet, it exits 0 and explains how to record results (`metrics-fetch`, `import-metrics`, `metrics`). It opens the database read-only, never creates or migrates it and has no network or send path. The dashboard's Results page shows the same lines under "What works for you". Tests: `tests/test_insights.py` (synthetic data only).
+
+### Changed
+
+- `baseline_eval.matched_snapshot` is the shared nearest-age snapshot helper (`baseline-eval` now calls it through `_matched_rate`; output unchanged).
+
 ## [0.13.0] - 2026-10-21
 
 Approval covers more of what is actually sent, and stays withdrawn when you withdraw it. A Mastodon post's visibility, language and content warning and a Postiz post's server and integration are bound into the approval; an exact repeat of material already shared on the same account is refused at send time unless you approved it with `--allow-repeat`; `unapprove` and `cancel` are recorded in the approval ledger, so a restored backup cannot send a withdrawn post. New owner-only `review` walks your drafts one by one in your own terminal. Preflight retries appear in the worker log. 119 commands (1 more than 0.12.0, none removed). No live adapter is added; dry-run, emergency-stop, credential isolation and reconciliation are unchanged.
