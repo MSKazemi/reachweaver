@@ -6,6 +6,10 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-22
+
+Much easier to use, measured. `reachweaver studio` opens one browser app where you write a post (your networks preselected), copy it for each network, mark it as posted with its numbers and see how it did. In the terminal, `posted LINK --likes N` records a post you made by hand in one step, `next` answers "what should I post next?" with your ideas by name, `report --week` gives a short summary instead of JSON, and every error says what to do. Measured against 0.15.0 with the same journeys: failed commands, dead ends, errors without a next step, hand-edited files and web steps that needed the terminal all went to zero; phone tap targets under 44 px went from 71 to 2; journey friction is about 3x lower. 133 commands (4 more than 0.15.0, none removed). No live adapter is added.
+
 ### Security
 
 - Composer numbers and link accounts (owner-approved write path, 2026-10-21): `/api/mark-posted` takes optional `numbers` (only likes/replies/reposts/views, each an exact JSON integer 0..10^9 or null; strings, decimals, booleans and other keys are refused before any write) and stores them with `storage.store_metrics` (source `entered-by-hand`, observed now) for the post it just created. New `/api/numbers` adds a snapshot only for the post named by that package network's `POSTED.json`, and only when the database row is `published_manual` with the same platform and link (a draft, another post or a tampered record is refused, nothing written). A chosen account that the link contradicts is refused before the database is opened. New read-only `/api/link-account` returns which configured account a link names. All new routes sit behind the same Host/token/Origin/size/depth guards and the server write lock; nothing new can approve, schedule or send, and the dashboard stays GET/HEAD-only. Tests: `tests/test_composer_ux3.py`.

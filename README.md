@@ -451,7 +451,7 @@ ReachWeaver is on [PyPI](https://pypi.org/project/reachweaver/), and every relea
 pipx install reachweaver          # or: python3 -m pip install reachweaver
 reachweaver version               # or: reachweaver --version; version --verbose adds the install kind
 # the same file from the GitHub release:
-pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.15.0/reachweaver-0.15.0-py3-none-any.whl"
+pipx install "https://github.com/MSKazemi/reachweaver/releases/download/v0.16.0/reachweaver-0.16.0-py3-none-any.whl"
 ```
 
 Checksums, what CI checks in the package, and why it is not on PyPI or GitHub Packages (yet) are in [the Python package guide](docs/PACKAGING.md).
