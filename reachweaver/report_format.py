@@ -97,10 +97,12 @@ def render_markdown(result: dict, *, level: int = 1, title: str = "ReachWeaver r
     out = [f"{h1} {title}", "",
            f"Generated {_md(result.get('generated_at', UNKNOWN))} from the local database only. "
            f"{_md(result.get('note', ''))}".rstrip(), "",
+           *([f"Window: posts sent since {_md(result['window']['since'])}, with their latest snapshot observed "
+              f"since then (until {_md(result['window']['until'])}).", ""] if result.get("window") else []),
            f"{h2} Exact values (latest snapshot per published post)", "",
            "`unknown` = no post has an exact value. `(n/N)` = only n of N published posts have one.", ""]
     if not platforms:
-        out += ["No published posts.", ""]
+        out += ["No published posts in this window." if result.get("window") else "No published posts.", ""]
         return "\n".join(out + _replies_markdown(result, h2))
     out += ["| Platform | Published | With snapshot | " + " | ".join(METRIC_FIELDS) + " | Observation window |",
             "|---|---|---|" + "---|" * len(METRIC_FIELDS) + "---|"]

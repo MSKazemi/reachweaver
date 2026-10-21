@@ -24,6 +24,12 @@ If you have a lawful owner export, normalized to `examples/profile-post-metrics.
 
 ## Safe quickstart
 
+With **no input flag**, `suggest` looks at what is already on your computer: an existing local database, opened query-only exactly as with `--include-db` (a missing one is skipped and never created), plus the number of open ideas in your ideas inbox (counts only, never the idea text). If there is nothing to rank yet, it prints where to go next (`share --web --open`, `idea add`, `start`) instead of an error, and `--json` adds a `next_steps` list. Explicit input flags work exactly as before.
+
+```bash
+reachweaver suggest
+```
+
 Try the checked-in **synthetic example** first:
 
 ```bash
