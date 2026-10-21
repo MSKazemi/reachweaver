@@ -26,12 +26,14 @@ for ``engage_scout`` to clean; nothing here interprets it. Nothing here posts, r
 from __future__ import annotations
 
 import http.client
+import socket
+import time
 from datetime import datetime, timedelta
 from html.parser import HTMLParser
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode, urlsplit
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, HTTPSHandler, Request, build_opener
 
 from .inputs import loads_text
 from .policy import ValidationError
@@ -74,9 +76,53 @@ class _NoRedirects(HTTPRedirectHandler):
         return None  # a 3xx surfaces as HTTPError and is refused
 
 
+CONNECT_TIMEOUT_SECONDS = 4  # per address; the whole connect is still bounded by TIMEOUT_SECONDS
+
+
+def _connect_ipv4_first(address, timeout, source_address=None, *args, **kwargs):
+    """``socket.create_connection`` that tries IPv4 addresses first, each with a short connect timeout.
+
+    On a network with a broken IPv6 route, Python tried every AAAA address with the full timeout before
+    IPv4: one mastodon.social request took 40 s (measured 2026-10-21). IPv6 is still tried after IPv4, so
+    an IPv6-only network keeps working. Read timeouts stay at ``timeout``.
+    """
+    host, port = address
+    infos = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
+    infos.sort(key=lambda info: info[0] != socket.AF_INET)
+    deadline = time.monotonic() + (timeout if isinstance(timeout, (int, float)) else TIMEOUT_SECONDS)
+    last: OSError | None = None
+    for family, kind, proto, _name, sockaddr in infos:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            break
+        sock = socket.socket(family, kind, proto)
+        try:
+            sock.settimeout(min(CONNECT_TIMEOUT_SECONDS, left))
+            if source_address:
+                sock.bind(source_address)
+            sock.connect(sockaddr)
+            sock.settimeout(timeout)
+            return sock
+        except OSError as exc:
+            last = exc
+            sock.close()
+    raise last or OSError("no address could be reached")
+
+
+class _IPv4FirstHTTPSConnection(http.client.HTTPSConnection):
+    def connect(self):  # same as the stdlib method, with the IPv4-first connector
+        sock = _connect_ipv4_first((self.host, self.port), self.timeout, self.source_address)
+        self.sock = self._context.wrap_socket(sock, server_hostname=self.host)  # type: ignore[attr-defined]
+
+
+class _IPv4FirstHTTPSHandler(HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_IPv4FirstHTTPSConnection, req, context=self._context)  # certificate checks unchanged
+
+
 def _open(req: Request):
     """The only place a connection is opened (tests replace this with recorded fixtures)."""
-    return build_opener(_NoRedirects()).open(req, timeout=TIMEOUT_SECONDS)
+    return build_opener(_NoRedirects(), _IPv4FirstHTTPSHandler()).open(req, timeout=TIMEOUT_SECONDS)
 
 
 def get_json(url: str, allowed_hosts: frozenset[str]) -> Any:
