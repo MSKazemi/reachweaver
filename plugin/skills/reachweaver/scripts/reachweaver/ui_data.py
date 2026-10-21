@@ -189,6 +189,19 @@ def _excerpt(text: str) -> str:
     return flat if len(flat) <= EXCERPT else flat[:EXCERPT - 1] + "…"
 
 
+def _title(text: str | None, platform: str | None, when: object = None) -> str:
+    """The excerpt, or for a post recorded from its link without text ``Instagram post of 18 Oct``: the same name
+    the terminal uses (``results.untitled_label``), never "(empty)"."""
+    from .results import untitled_label  # results reads storage only; a late import keeps this module's import light
+    return _excerpt(text or "") or untitled_label(platform or "", when)
+
+
+def _row_title(row) -> str:
+    keys = row.keys()
+    when = row["send_started_at"] if "send_started_at" in keys else (row["created_at"] if "created_at" in keys else None)
+    return _title(row["content"], row["platform"], when)
+
+
 def posts_list(con, *, status: str | None = None, account_id: str | None = None,
                campaign: str | None = None, platform: str | None = None) -> dict:
     """Posts needing a human first, then newest; excerpts only (full text is in the review sheet).
@@ -205,7 +218,7 @@ def posts_list(con, *, status: str | None = None, account_id: str | None = None,
                            "created_at": r["created_at"], "approved_at": r["approved_at"],
                            "remote_url": r["remote_url"], "last_error": r["last_error"]} for r in shown])
     for item, row in zip(items, shown):
-        item["excerpt"] = _excerpt(row["content"])
+        item["excerpt"] = _row_title(row)
         item["looks_like_secret"] = redact(row["content"]) != row["content"]
     return {"total": total, "shown": len(items), "truncated": total > len(items), "posts": items}
 
@@ -326,7 +339,7 @@ def journal_view(con, *, platform: str | None = None, account: str | None = None
     items = redact_value([{k: e.get(k) for k in keep} for e in shown])
     for item, entry in zip(items, shown):
         text = entry.get("text") or ""
-        item["excerpt"] = _excerpt(text)
+        item["excerpt"] = _title(text, entry.get("platform"), entry.get("when"))
         item["looks_like_secret"] = redact(text) != text
         item["files"] = _file_counts(entry.get("files") or [])
     return {"entries": items, "shown": len(items), "truncated": len(entries) > JOURNAL_LIMIT, "note": JOURNAL_NOTE}
@@ -345,7 +358,7 @@ def _schedule_item(row, now: str, max_age: int | None) -> dict:
     item = redact_value({"id": row["id"], "status": row["status"], "account_id": row["account_id"],
                          "platform": row["platform"], "campaign": row["campaign"], "scheduled_at": row["scheduled_at"],
                          "approved_at": row["approved_at"], "last_error": row["last_error"]})
-    item["excerpt"] = _excerpt(row["content"])
+    item["excerpt"] = _row_title(row)
     item["looks_like_secret"] = redact(row["content"]) != row["content"]
     item.update(approval_expires_at=None, approval_expired=False, expires_before_due=False)
     if max_age is not None and row["status"] in ("approved", "scheduled"):
@@ -430,7 +443,7 @@ def attention_view(con, *, now: str | None = None) -> dict:
                              "platform": row["platform"], "campaign": row["campaign"],
                              "scheduled_at": row["scheduled_at"], "approved_at": row["approved_at"],
                              "last_error": row["last_error"], "created_at": row["created_at"]})
-        item["excerpt"] = _excerpt(row["content"])
+        item["excerpt"] = _row_title(row)
         item["looks_like_secret"] = redact(row["content"]) != row["content"]
         found[row["id"]] = (row["status"], item)
     order = {kind: i for i, kind in enumerate(ATTENTION_KINDS)}
@@ -529,7 +542,7 @@ def results_view(con, *, account: str | None = None, platform: str | None = None
         item = redact_value({k: entry.get(k) for k in ("id", "when", "platform", "account", "campaign", "remote_url")})
         item["posted_by_hand"] = entry.get("status") == MANUAL_STATUS  # labelled "posted by hand" on the page
         text = entry.get("text") or ""
-        item["excerpt"] = _excerpt(text)
+        item["excerpt"] = _title(text, entry.get("platform"), entry.get("when"))
         item["looks_like_secret"] = redact(text) != text
         item["latest"] = _snapshot_view(latest_snapshot(con, entry["id"]), entry.get("when"))
         if start and item["latest"] and (item["latest"]["observed_at"] or "") < start:
@@ -639,7 +652,7 @@ def campaign_detail(con, campaign: str) -> dict:
                              "account_id": row["account_id"], "scheduled_at": row["scheduled_at"],
                              "approved_at": row["approved_at"], "remote_url": row["remote_url"],
                              "last_error": row["last_error"], "variant": staged.get(row["id"])})
-        item["excerpt"] = _excerpt(row["content"])
+        item["excerpt"] = _row_title(row)
         item["looks_like_secret"] = redact(row["content"]) != row["content"]
         item["chars"] = len(row["content"])
         item["results"] = ({k: _exact(latest, k) for k in METRIC_FIELDS} | {"observed_at": latest["observed_at"]}
@@ -682,7 +695,7 @@ def search(con, query: str) -> dict:
                              "account_id": row["account_id"], "campaign": row["campaign"] or None,
                              "created_at": row["created_at"],
                              "posted_at": row["send_started_at"] if went_out else None})
-        item["excerpt"] = _excerpt(row["content"])
+        item["excerpt"] = _row_title(row)
         item["looks_like_secret"] = redact(row["content"]) != row["content"]
         hits.append(item)
     shared = []
@@ -876,7 +889,7 @@ def activity_view(con, ideas_path: Path, *, limit: int = ACTIVITY_LIMIT) -> dict
                              "post_id": row["post_id"], "account_id": account, "platform": row["platform"],
                              "by": by.group(1) if by else None, "idea_id": None})
         if row["content"] is not None:
-            item["excerpt"] = _excerpt(row["content"])
+            item["excerpt"] = _row_title(row)
             item["looks_like_secret"] = redact(row["content"]) != row["content"]
         items.append((_sort_key(row["at"], 1, row["id"]) or ("", 1, row["id"]), item))
     ideas, error = _load_ideas(ideas_path)

@@ -43,6 +43,7 @@ HOSTS: dict[str, str] = {
     "x.com": "x", "twitter.com": "x",
     "facebook.com": "facebook",
     "t.me": "telegram",
+    "mastodon.social": "mastodon",  # the flagship server; other servers match a configured Mastodon account
     "dev.to": "devto",
     "reddit.com": "reddit",
     "pinterest.com": "pinterest",

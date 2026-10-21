@@ -126,7 +126,7 @@ def _no_accounts_steps() -> list[dict]:
     if named is None and root is None:
         steps.append(_step("To post from ReachWeaver itself, make this folder a workspace first",
                            "reachweaver workspace --init .",
-                           "Creates config/accounts.json (example accounts to edit), state/, media/ and logs/ here. "
+                           "Creates config/accounts.json (it asks which networks you use), state/, media/ and logs/ here. "
                            "It holds no secrets and contacts nothing."))
     elif named is None:
         steps.append(_step("Restore this workspace's accounts file (existing files are kept)",

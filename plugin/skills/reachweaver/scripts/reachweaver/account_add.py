@@ -61,13 +61,16 @@ SCHEMAS: dict[str, dict] = {
     "facebook": {"required": ("page_name",), "optional": ("page_id",), "prefix": "REACHWEAVER_FACEBOOK"},
 }
 PLATFORMS = tuple(SCHEMAS)
+LINKEDIN_DOC = "https://github.com/MSKazemi/reachweaver/blob/main/docs/LINKEDIN.md"
+HANDLE_QUESTIONS = {"bluesky": "Your Bluesky handle, e.g. name.bsky.social",
+                    "mastodon": "Your Mastodon username without the server, e.g. name (not @name@server)"}
 QUESTIONS = {
-    "handle": "Your public username on {label} (for Bluesky the full handle, e.g. name.bsky.social)",
+    "handle": "Your public username on {label}",
     "server": "Your Mastodon server, e.g. https://mastodon.social",
     "chat_id": "Telegram channel: @channelname or its numeric id",
     "bot_username": "The username of the bot that posts to the channel (you add it as a channel admin)",
-    "person_id": "Your LinkedIn member id (the 'sub' value, see docs/LINKEDIN.md)",
-    "linkedin_version": "LinkedIn API version YYYYMM (the 'Latest Version' in docs/LINKEDIN.md)",
+    "person_id": "Your LinkedIn member id (the 'sub' value; how to find it: " + LINKEDIN_DOC + ")",
+    "linkedin_version": "LinkedIn API version YYYYMM (the 'Latest Version' listed in " + LINKEDIN_DOC + ")",
     "page_name": "The name of the Facebook Page you manage",
 }
 LABELS = {"bluesky": "Bluesky", "mastodon": "Mastodon", "telegram": "Telegram", "linkedin": "LinkedIn",
@@ -110,7 +113,8 @@ def _example(platform: str, key: str) -> str:
 def _ask_required(platform: str, key: str) -> str:
     """Ask for one required field; a blank answer asks again (with an example) instead of stopping."""
     for attempt in range(REQUIRED_ATTEMPTS):
-        answer = _ask(QUESTIONS.get(key, key).format(label=LABELS[platform]))
+        question = HANDLE_QUESTIONS.get(platform) if key == "handle" else None
+        answer = _ask(question or QUESTIONS.get(key, key).format(label=LABELS[platform]))
         if answer:
             return answer
         if attempt < REQUIRED_ATTEMPTS - 1:

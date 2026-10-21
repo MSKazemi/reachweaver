@@ -605,7 +605,7 @@ button { font-family: inherit; }
    const hint = el("next-hint");
    hint.replaceChildren(text("b", at === -1 ? "Done: " : "Next: "));
    hint.appendChild(document.createTextNode(at === -1 ?
-     "posted and recorded. Add the numbers the app shows with “Update numbers” under Saved packages." : STEPS[at][1]));
+     "posted and recorded. When the app shows new numbers, use “Update numbers” under Saved packages." : STEPS[at][1]));
  }
  function setSaved(label, kind) {
    const node = el("saved");

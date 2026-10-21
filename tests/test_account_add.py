@@ -122,7 +122,7 @@ class AccountAddTests(unittest.TestCase):
         with patch("builtins.input", side_effect=lambda prompt: (prompts.append(prompt), answers.readline().strip())[1]):
             code, out, err = self.cli("bluesky", stdin=answers)
         self.assertEqual(code, 0, err)
-        self.assertEqual(sum("Your public username" in p for p in prompts), 3)
+        self.assertEqual(sum("Your Bluesky handle" in p for p in prompts), 3)
         self.assertIn("Bluesky needs your handle (like name.bsky.social). Type it, or press Ctrl-D to stop.", out)
         self.assertEqual(load_accounts(self.accounts)["my-bluesky"]["handle"], "maker.bsky.social")
 
