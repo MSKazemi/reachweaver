@@ -146,6 +146,7 @@ def build_context(db: str | Path | None, accounts_arg: str | None, profile_arg: 
         "next_actions": [{"label": step["label"], "command": step["command"],
                           "owner_runs": catalog.owner_runs(step["command"])} for step in guide["steps"]],
         "suggestions": facts["suggestions"] if facts else [],
+        "warnings": guide["warnings"],
         "owner_only_commands": {"note": catalog.OWNER_ONLY_NOTE, "commands": catalog.owner_only_commands()},
         "note": NOTE,
     }

@@ -8,6 +8,7 @@ only. The easiest path for a first-time creator, the browser composer (``share -
 from __future__ import annotations
 
 import shlex
+import sqlite3
 from pathlib import Path
 
 from . import home
@@ -23,6 +24,7 @@ SHARE_WEB = "reachweaver share --web --open"
 SHARE_GUIDE = "reachweaver share --guide"
 REVIEW = "reachweaver review"
 REPORT = "reachweaver report --since 30d --format markdown"
+INSIGHTS = "reachweaver insights"
 
 
 def _step(label: str, command: str | None = None, note: str | None = None) -> dict:
@@ -83,8 +85,37 @@ def _no_accounts_steps() -> list[dict]:
     return steps
 
 
+def _freshness_warnings() -> list[str]:
+    """One line when bundled platform facts are aging, stale or a registry is invalid; never raises."""
+    from . import freshness
+    try:
+        line = freshness.warning_line()
+    except (OSError, ValueError) as exc:  # a broken bundle must not break the session guide
+        return [f"WARNING: could not check research registry freshness: {exc}"]
+    return [line + " -- run 'reachweaver registry-age'"] if line else []
+
+
+def _insight_step(con) -> dict | None:
+    """The strongest "what works for you" line from the owner's own matched-age results, if any."""
+    from .insights import top_insights
+    try:
+        lines = top_insights(con, limit=1)
+    except (sqlite3.Error, ValidationError, ValueError):
+        return None
+    if not lines:
+        return None
+    return _step("What works for you: " + lines[0]["text"], INSIGHTS,
+                 "From your own published posts; an observation to test, not a cause.")
+
+
 def build_guide(db: str | Path | None, accounts_path: str | None) -> dict:
-    """{"state": ..., "summary": ..., "steps": [...]}; ``state`` is a short code for tests and --json."""
+    """{"state", "summary", "steps", "warnings"}; ``state`` is a short code for tests and --json."""
+    guide = _build_guide(db, accounts_path)
+    guide["warnings"] = _freshness_warnings()
+    return guide
+
+
+def _build_guide(db: str | Path | None, accounts_path: str | None) -> dict:
     try:
         accounts = load_accounts(accounts_path)
         accounts_error = None
@@ -101,8 +132,7 @@ def build_guide(db: str | Path | None, accounts_path: str | None) -> dict:
     placeholders = placeholder_accounts(accounts)
     real = [account_id for account_id in accounts if account_id not in placeholders]
     configured = f"{len(real)} account(s) configured" + (
-        f"; {len(placeholders)} account(s) still use example placeholders — edit {_shown_path(accounts_file)}"
-        if placeholders else "")
+        f", {len(placeholders)} with example placeholders" if placeholders else "")
     open_ideas = _open_ideas(db)
     if not database.is_file():
         setup = _share_steps()
@@ -120,6 +150,7 @@ def build_guide(db: str | Path | None, accounts_path: str | None) -> dict:
                 counts[row["status"]] = counts.get(row["status"], 0) + row["count"]
             paused = is_paused(con)
             snapshots = metric_snapshot_count(con)
+            insight = _insight_step(con) if snapshots else None
     except ValidationError as exc:
         return {"state": "database_unreadable", "summary": str(exc),
                 "steps": [_step("Upgrade or recreate the local database", "reachweaver init")]}
@@ -151,6 +182,8 @@ def build_guide(db: str | Path | None, accounts_path: str | None) -> dict:
     if snapshots:
         steps.append(_step(f"See how your posts did ({snapshots} metric snapshot(s) recorded)", REPORT,
                            "Exact numbers from your own records only; a missing number stays unknown."))
+    if insight:
+        steps.append(insight)
     steps.append(_step("Browse everything in a read-only dashboard", "reachweaver ui"))
     total = sum(counts.values())
     return {"state": "needs_review" if counts.get("needs_review") else "paused" if paused else
@@ -162,7 +195,7 @@ def build_guide(db: str | Path | None, accounts_path: str | None) -> dict:
 
 
 def render(guide: dict) -> str:
-    lines = [guide["summary"], ""]
+    lines = [guide["summary"], *guide.get("warnings", []), ""]
     for number, step in enumerate(guide["steps"], 1):
         lines.append(f"{number}. {step['label']}")
         if step["command"]:

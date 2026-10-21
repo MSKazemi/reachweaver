@@ -512,6 +512,8 @@ const REASON_HELP = {
   no_accounts_configured: "No accounts are configured yet. Drafts can still be exported for manual posting.",
   manual_platform_has_queued_posts: "Posts are queued for a platform that is manual-only; post them yourself from the export.",
   registry_entry_stale: "The platform capability research is old. Re-check the platform before relying on it.",
+  research_facts_stale: "Some research facts about this platform (formats, timing, profile tips) are over 120 days old. Run registry-age to see which, and re-check them before relying on them.",
+  research_registry_invalid: "A bundled research file failed its checks, so its platform facts are not used. Reinstall or update ReachWeaver.",
   approval_key_unavailable: "Keyed approvals are on but the key is not readable in this process.",
   caps_file_invalid: "The send-limits file is invalid.",
   capability_registry_invalid: "The capability registry failed validation.",

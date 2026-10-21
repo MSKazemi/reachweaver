@@ -74,7 +74,8 @@ class StateTests(StartBase):
         guide = start.build_guide(None, None)
         self.assertEqual(guide["state"], "no_database")
         self.assertIn("0 account(s) configured", guide["summary"])
-        self.assertIn("4 account(s) still use example placeholders — edit config/accounts.json", guide["summary"])
+        self.assertIn("4 with example placeholders", guide["summary"])
+        self.assertNotIn("edit config/accounts.json", guide["summary"])  # said once, in the step
         labels = [s["label"] for s in guide["steps"]]
         self.assertIn("4 account(s) still use example placeholders — edit config/accounts.json", labels)
         self.assertEqual(self.commands(guide)[:2], [start.SHARE_WEB, start.SHARE_GUIDE])
@@ -107,6 +108,30 @@ class StateTests(StartBase):
         guide = self.guide()
         self.assertIn(start.REPORT, self.commands(guide))
         self.assertIn("1 saved idea(s)", start.render(guide))
+
+    def test_what_works_for_you_step_comes_from_own_results_only(self):
+        from test_insights import Seeder
+        self.config.write_text(ACCOUNTS, encoding="utf-8")
+        with connect(str(self.db)) as con:
+            add_post(con, "s-bsky", "bluesky", "a draft")
+        self.assertNotIn(start.INSIGHTS, self.commands(self.guide()))  # no results yet: no claim
+        with connect(str(self.db)) as con:
+            Seeder(con).link_effect(n=8)
+        steps = [s for s in self.guide()["steps"] if s["command"] == start.INSIGHTS]
+        self.assertEqual(len(steps), 1)
+        self.assertTrue(steps[0]["label"].startswith("What works for you: Try more of: posts with a link"),
+                        steps[0]["label"])
+        self.assertIn("not a cause", steps[0]["note"])
+
+    def test_aging_research_facts_add_one_warning_line(self):
+        from unittest import mock
+        self.config.write_text(ACCOUNTS, encoding="utf-8")
+        with mock.patch("reachweaver.freshness.warning_line", return_value=None):
+            self.assertEqual(self.guide()["warnings"], [])
+        with mock.patch("reachweaver.freshness.warning_line", return_value="WARNING: 3 aging facts"):
+            guide = self.guide()
+        self.assertEqual(guide["warnings"], ["WARNING: 3 aging facts -- run 'reachweaver registry-age'"])
+        self.assertEqual(start.render(guide).splitlines()[1], guide["warnings"][0])
 
     def test_a_broken_accounts_file_is_reported_and_never_overwritten(self):
         self.config.write_text("{not json", encoding="utf-8")
