@@ -20,12 +20,12 @@ import sys
 from typing import Any
 
 from . import home
-from .manual_export import MANUAL_PLATFORMS, build_export, write_export
+from .manual_export import MANUAL_PLATFORMS, MEDIA_NOT_CHECKED, YOUTUBE_TITLE_MISSING, build_export, write_export
 from .inputs import split_list_args
 from .manual_package import build_package, generic_platforms, write_package
 from .policy import SUPPORTED_LIVE, ValidationError, validate_post
 from .privacy import write_private_file
-from .share_tailor import RULES, fit
+from .share_tailor import RULES, fit, phrase_warnings
 
 SEND_PATH = None
 MAX_DESTINATIONS = 10
@@ -47,6 +47,24 @@ API_NOTE = ("Copy and post it yourself; to send it from ReachWeaver instead, con
 MEDIA_TABLES = {"bluesky": "bluesky", "mastodon": "mastodon", "instagram": "instagram", "tiktok": "tiktok",
                 "linkedin": "linkedin", "youtube": "youtube_shorts", "dev": "devto"}
 MEDIA_TABLE_NOTES = {"youtube_shorts": " (YouTube Shorts rules: only if you post it as a Short)"}
+# One short tip per network for OPEN-FIRST.md. Each restates a fact ReachWeaver already holds with a source
+# (manual_export.FACTS, the capability and distribution registries, policy limits); none is a reach promise.
+TIPS = {
+    "instagram": "A caption holds up to 2200 characters and 30 hashtags; write it so it still makes sense if "
+                 "the link in it cannot be tapped.",
+    "threads": "Threads allows at most 5 links and 1 topic tag per post.",
+    "tiktok": "Choose who can see the video yourself (ReachWeaver never pre-selects it), and do not count on a "
+              "caption link being tappable (unverified).",
+    "youtube": "Keep the title to 100 characters or fewer; links in the description are clickable only for "
+               "channels that meet YouTube's requirements.",
+    "facebook": "Post it on a Facebook Page you manage; personal profiles and groups are not covered here.",
+    "bluesky": "A Bluesky post holds 300 graphemes; a link in the text becomes a link when you post it.",
+    "mastodon": "Mastodon counts a link as 23 characters by default however long it is, so no link shortener is "
+                "needed.",
+    "linkedin": "ReachWeaver's LinkedIn sending covers personal profiles only; post on a company Page by hand.",
+}
+TIP_LABEL = "Tip (from ReachWeaver's sourced notes; a suggestion, not a promise of reach): "
+YOUTUBE_TITLE_SHARE = 'YouTube needs a video title: add --title "…"'
 MEDIA_CHECK_NOTE = ("Media header checks ran offline from --attach; alt text, captions, rights and consent "
                     "were not checked (a media manifest with media-check covers those)")
 
@@ -64,6 +82,16 @@ def available() -> tuple[str, ...]:
     return tuple(sorted(set(MANUAL_PLATFORMS) | set(generic_platforms()) | set(api_text_platforms())))
 
 
+def unknown_network(name: str) -> str:
+    """``Unknown network 'blusky'. Did you mean bluesky?`` plus where to see every name."""
+    import difflib
+    names = list(available()) + list(ALIASES)
+    close = difflib.get_close_matches(name, names, n=1, cutoff=0.6)
+    guess = f" Did you mean {ALIASES.get(close[0], close[0])}?" if close else ""
+    return (f"Unknown network {name!r}.{guess} 'reachweaver share --list' shows the easy names; "
+            "'reachweaver delivery-options' lists every id")
+
+
 def destinations(raw: list[str]) -> list[str]:
     allowed = set(available())
     chosen: list[str] = []
@@ -71,10 +99,7 @@ def destinations(raw: list[str]) -> list[str]:
         key = token.casefold()
         key = ALIASES.get(key, key)
         if key not in allowed:
-            raise ValidationError(
-                f"Unknown manual destination {key!r}; try 'reachweaver share --list' "
-                "or 'reachweaver delivery-options'."
-            )
+            raise ValidationError(unknown_network(key))
         if key in chosen:
             raise ValidationError(f"Duplicate destination {key!r}")
         chosen.append(key)
@@ -104,20 +129,54 @@ def _guided(args) -> list[str]:
             "reachweaver share --platform instagram --text 'Your caption'"
         )
     print("ReachWeaver Share: prepare a post without logging in or publishing.")
-    print("Popular networks: " + ", ".join(x for x in SUGGESTED if x in available()))
-    if not args.platform:
-        args.platform = [_ask("Where to share? (names separated by commas): ")]
-    selected = destinations(args.platform)
+    popular = ", ".join(x for x in SUGGESTED if x in available())
+    print("Popular networks: " + popular)
+    selected = destinations(args.platform) if args.platform else _ask_networks(popular)
     human = _human_only()
     if any(p not in human for p in selected) and args.text is None and args.file is None:
         print("For several lines, save your caption in a .txt file and use --file instead.")
         args.text = _ask("Caption or post text: ")
+    if any(p not in human for p in selected) and not args.attach:
+        attach = _ask_attachment()
+        if attach is not None:
+            args.attach = [attach]
     if any(p in human for p in selected) and not args.note:
         print("For communities, you write the final post yourself. Only short notes are prepared.")
         args.note = [_ask("One short reminder or idea: ")]
     if "youtube" in selected and not args.title:
         args.title = _ask("YouTube video title: ")
     return selected
+
+
+GUIDE_ATTEMPTS = 5  # wrong answers in a row before the guide stops (nothing is written)
+
+
+def _ask_networks(popular: str) -> list[str]:
+    """Ask until the answer names known networks; an empty or unknown answer re-asks with the list."""
+    for _ in range(GUIDE_ATTEMPTS):
+        answer = _ask("Where to share? (names separated by commas): ")
+        if not answer:
+            print("Type at least one network, for example: " + popular)
+            continue
+        try:
+            return destinations([answer])
+        except ValidationError as exc:
+            print(f"{exc}. Try again.")
+    raise ValidationError("No network chosen. Nothing was written. 'reachweaver share --list' shows the names")
+
+
+def _ask_attachment() -> Path | None:
+    """A photo or video path for --attach, or None when the person presses Enter."""
+    for _ in range(GUIDE_ATTEMPTS):
+        answer = _ask("Attach a photo or video? (path, or Enter to skip): ")
+        answer = answer.strip().strip("'\"")  # a dragged-in file often arrives quoted
+        if not answer:
+            return None
+        path = Path(answer).expanduser()
+        if path.is_file():
+            return path
+        print(f"File not found: {path} (looked in {path.absolute().parent}). Try again, or press Enter to skip.")
+    raise ValidationError("No usable attachment given. Nothing was written")
 
 
 def _caption(args) -> str | None:
@@ -222,6 +281,8 @@ def _api_extras(platform: str, package: dict) -> None:
     package["ready_for_human_review"] = not errors
     package["limits"]["text"] = {"value": None, "display": RULES[platform][0],
                                  "note": "Same rule as draft and check (policy.validate_post)."}
+    package["checklist"] = [f"Text limit: {RULES[platform][0]}." if step.startswith("Text limit:") else step
+                            for step in package["checklist"]]
     if platform == "bluesky":
         from .richtext import bluesky_preview
         package["content"]["bluesky_preview"] = dict(
@@ -287,8 +348,10 @@ def _share_section(platform: str, package: dict, tailoring: dict | None, media: 
     warnings = package["preflight"]["warnings"]
     if tailoring and tailoring["note"]:
         warnings.insert(0, tailoring["note"])
+    if tailoring:
+        warnings.extend(phrase_warnings(platform, tailoring["text"]))
     if media:
-        warnings[:] = [w for w in warnings if not w.startswith("no media manifest supplied")]
+        warnings[:] = [w for w in warnings if MEDIA_NOT_CHECKED not in w]
         warnings.extend(_media_lines(media))
         warnings.append(MEDIA_CHECK_NOTE)
 
@@ -333,10 +396,12 @@ def _readme(packages: list[tuple[str, dict]], files: list[Path]) -> str:
              if human else "3. Review and copy the text into the app's native composer."),
             "4. Review that platform's CHECKLIST.md (rights, labels, audience and rules).",
             "5. Upload your own media if needed, choose privacy and publishing time yourself.",
-            "6. Publish manually if you decide to, then keep the native post URL.", "",
+            "6. Post it yourself if you decide to, then copy and keep the link to your post.", "",
         ]
         if (pkg.get("share") or {}).get("send_from_reachweaver"):
             lines += [pkg["share"]["send_from_reachweaver"], ""]
+        if platform in TIPS and not human:
+            lines += [TIP_LABEL + TIPS[platform], ""]
         for warning in pkg["preflight"]["warnings"]:
             lines.append("- Check: " + warning)
         if pkg["preflight"]["warnings"]:
@@ -388,6 +453,9 @@ def run(args) -> int:
     files = _attachments(args.attach)
     packages, errors = make_packages(platforms, text, args.note or [], args.title,
                                      args.format, files, args.media, shorten=not args.no_shorten)
+    # In this command the title is a flag, not a variant field: say which flag to add.
+    errors = [f"youtube: {YOUTUBE_TITLE_SHARE}" if error == f"youtube: {YOUTUBE_TITLE_MISSING}" else error
+              for error in errors]
     if errors:
         print("BLOCKED. No files were written:", file=sys.stderr)
         for error in errors:
@@ -407,7 +475,8 @@ def run(args) -> int:
     if args.preview:
         print("PREVIEW ONLY: nothing saved, uploaded or published.")
         return 0
-    if guided and _ask("Save the private handoff folder? [y/N]: ").casefold() not in ("y", "yes"):
+    # Saving only writes private local files (nothing is sent), so Enter means yes.
+    if guided and _ask("Save these files? [Y/n]: ").casefold() not in ("", "y", "yes"):
         print("Cancelled: nothing written.")
         return 0
     out = _output_path(args.out)

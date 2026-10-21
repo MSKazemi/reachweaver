@@ -22,7 +22,7 @@ import textwrap
 
 # (title, command names in the order a person meets them)
 GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Get started and look around", ("start", "help", "context", "describe", "connect", "account-add", "account-advisor", "profile", "account-route", "account-kit", "version", "init", "doctor", "health", "workspace", "ui", "list", "show", "journal", "capabilities", "registry-age", "completion", "mcp-serve")),
+    ("Get started and look around", ("start", "help", "context", "describe", "connect", "account-add", "account-remove", "account-advisor", "profile", "account-route", "account-kit", "version", "init", "doctor", "health", "workspace", "ui", "list", "show", "journal", "capabilities", "registry-age", "completion", "mcp-serve")),
     ("Draft and approve (nothing is sent)", (
         "idea", "draft", "check", "repeat-check", "mark-shared", "review", "approve", "unapprove", "cancel", "schedule", "media-attach", "media-detach", "ai-declare",
         "video-attach", "video-detach", "youtube-attach", "youtube-detach", "campaign-check", "campaign-preview",
@@ -188,13 +188,16 @@ class TieredHelpAction(argparse._HelpAction):
 
 
 _HINTS = (
-    (re.compile(r"^Missing \S*accounts"), "Next: copy config/accounts.example.json to config/accounts.json (no "
-                                           "secrets) or pass --accounts FILE. To try it with no account at all, "
-                                           "follow docs/QUICKSTART.md."),
+    (re.compile(r"^Missing \S*accounts|^Missing \S+: no accounts yet"), "Next: 'reachweaver account-add bluesky' adds your first account (public "
+                                           "details only). To post by hand with no account at all: "
+                                           "'reachweaver share --guide'."),
     (re.compile(r"^Unknown post id"), "Next: 'reachweaver list' shows the post ids."),
-    (re.compile(r"^Unknown account"), "Next: 'reachweaver doctor' lists the configured accounts."),
+    (re.compile(r"^Unknown account"), "Next: 'reachweaver doctor' lists the configured accounts; "
+                                      "'reachweaver account-add PLATFORM' adds one."),
+    (re.compile(r"^Unknown network"), "Next: 'reachweaver share --list' shows the network names."),
     (re.compile(r"does not exist; .*never create"), "Next: 'reachweaver init' creates the local database."),
     (re.compile(r"State directory is not private"), "Next: restrict the state folder with chmod 700."),
+    (re.compile(r"YouTube needs a video title"), "Next: add --title \"Your video title\" to the same command."),
 )
 
 
@@ -203,4 +206,30 @@ def error_hint(message: str) -> str | None:
     for pattern, hint in _HINTS:
         if pattern.search(message):
             return hint
+    return None
+
+
+def file_error_message(exc: BaseException, parsed: argparse.Namespace | None) -> str | None:
+    """A plain sentence for a file named on the command line that cannot be opened, or None.
+
+    ``main`` prints it instead of Python's ``[Errno 2] No such file or directory: 'x'``. Only the path the
+    operating system reported is shown (made absolute, so the person sees which folder was searched).
+    """
+    import os
+    filename = getattr(exc, "filename", None)
+    if not isinstance(exc, OSError) or not isinstance(filename, (str, os.PathLike)):
+        return None
+    name = os.fsdecode(filename)
+    where = os.path.dirname(os.path.abspath(name))
+    if isinstance(exc, FileNotFoundError):
+        text_flag = parsed is not None and hasattr(parsed, "text") and hasattr(parsed, "file")
+        return (f"File not found: {name} (looked in {where}). Check the name"
+                + (', or use --text "..." instead.' if text_flag else " and the folder you run the command from."))
+    if isinstance(exc, IsADirectoryError):
+        return f"{name} is a folder, not a file. Give the path of a file inside it."
+    if isinstance(exc, NotADirectoryError):
+        return f"Part of the path {name} is a file, not a folder. Check the path."
+    if isinstance(exc, PermissionError):
+        return (f"Permission denied: {name}. Your user cannot read or write it here; check its owner and "
+                "permissions (ls -l), or use a copy you own.")
     return None

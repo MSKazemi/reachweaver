@@ -25,8 +25,8 @@ from . import china
 from .campaigns import _sensitive_keys, public_url
 from .capabilities import load_registry as load_capability_registry
 from .distribution import load_registry as load_distribution_registry
-from .manual_export import (MANUAL_PLATFORMS, STATUS, _check_text_common, extract_hashtags, extract_links,
-                            extract_mentions, utf16_length)
+from .manual_export import (KEEP_LINK, MANUAL_PLATFORMS, STATUS, STATUS_PLAIN, _check_text_common, extract_hashtags,
+                            extract_links, extract_mentions, media_unchecked, utf16_length)
 from .media import constraint_table, read_manifest, validate_media_manifest
 from .policy import ValidationError
 from .privacy import write_private_file
@@ -243,8 +243,7 @@ def _media_section(platform: str, fmt: str, manifest, base_dir) -> tuple[dict, l
                                "targets": list(targets)}
     if manifest is None:
         if required:
-            warnings.append(f"no media manifest supplied: {', '.join(required)} not validated; attach the file "
-                            "yourself and run media-check before posting")
+            warnings.append(media_unchecked(platform, platform, required))
         return section, errors, warnings
     if isinstance(manifest, (str, Path)):
         path = Path(manifest)
@@ -397,15 +396,14 @@ def _checklist(package: dict) -> list[str]:
     if "china" in package:
         steps.extend(china.checklist(platform, package))
     steps.append("Confirm rights, consent and disclosure for all text and media.")
-    steps.append("If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver "
-                 "records nothing from this package.")
+    steps.append(KEEP_LINK)
     return steps
 
 
 def render_markdown(package: dict) -> str:
     label = package["platform_label"]
     lines = [f"# {label} manual package checklist", "",
-             f"Status: `{package['status']}`", "", package["notice"], ""]
+             f"Status: {STATUS_PLAIN}", "", package["notice"], ""]
     if package["preflight"]["errors"]:
         lines += ["## Blocking errors", ""] + [f"- {e}" for e in package["preflight"]["errors"]] + [""]
     if package["preflight"]["warnings"]:
@@ -454,14 +452,26 @@ def render_markdown(package: dict) -> str:
     lines += ["## Checklist", ""] + [f"- [ ] {step}" for step in package["checklist"]] + [""]
     registry = package["registry"]
     capability = registry["capability"]
-    lines += ["## Why this is manual", "",
-              f"Distribution registry: delivery `{registry['reachweaver_delivery']}`, human-only "
+    lines += ["## Why you post this yourself", "", _why_plain(package), "",
+              f"Details: distribution registry delivery `{registry['reachweaver_delivery']}`, human-only "
               f"`{str(registry['human_only']).lower()}`, scheduling `{registry['scheduling_mode']}`, checked "
               f"{registry['checked_on']}."
               + (f" Capability registry `{capability['id']}`: status `{capability['status']}`, adapter "
                  f"`{capability['reachweaver_adapter']}`, verified {capability['verified_date']}."
                  if capability else ""), ""]
     return "\n".join(lines) + "\n"
+
+
+def _why_plain(package: dict) -> str:
+    """One plain sentence for the registry status below it; never says more than the registry does."""
+    label = package["platform_label"]
+    if package["human_only"]:
+        return (f"{label} is a human-only venue: you write and post it yourself. ReachWeaver never drafts or "
+                "sends there.")
+    if package["registry"]["reachweaver_delivery"] == "mock_tested_text":
+        return (f"This is a copy-only package: you post it yourself. To send to {label} from ReachWeaver instead, "
+                "connect the account and use the separate draft, review and approval flow.")
+    return f"ReachWeaver cannot post to {label}; you post it yourself in the app or website."
 
 
 def _china_markdown(package: dict) -> list[str]:
@@ -495,7 +505,7 @@ def _china_markdown(package: dict) -> list[str]:
 def render_notes(package: dict) -> str:
     """The human-only notes form: talking points and blanks, never text to paste."""
     label = package["platform_label"]
-    lines = [f"# {label} notes (write the post yourself)", "", f"Status: `{package['status']}`", "",
+    lines = [f"# {label} notes (write the post yourself)", "", f"Status: {STATUS_PLAIN}", "",
              f"**{package['content']['write_it_yourself']}** These are notes, not text to paste.", ""]
     points = package["content"]["talking_points"]
     if points:
@@ -507,7 +517,7 @@ def render_notes(package: dict) -> str:
               "- Why this community would care:",
               "- Community rules I checked (and where):",
               "- Links I will include:",
-              "- Post URL after I post it (keep it as first-party evidence):", ""]
+              "- Link to my post after I post it (keep it: it is the proof the post exists):", ""]
     return "\n".join(lines)
 
 

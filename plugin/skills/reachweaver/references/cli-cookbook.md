@@ -33,6 +33,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `account-advisor` | Ranked channel shortlist and setup coaching; creates no account | `--region R`, `--goal G`, `--format F`, `--weekly-hours N`, `--existing`, `--setup PLATFORM_ID`, `--json` |
 | `profile` | Private `config/profile.json`: personas, usernames, sign-up details | `--init`, `--persona ID`, `--show`, `--check`, `--set PATH=VALUE`, `--handle PLATFORM:PERSONA=NAME` |
 | `account-add` | Append one public account entry to `accounts.json` (loader-validated, duplicates and placeholders refused, `.bak` kept, persona guard); never asks for or stores a secret, prints the variable names | `PLATFORM`, `--handle H`, `--server URL`, `--field KEY=VALUE`, `--id ID`, `--persona ID`, `--env-prefix P`, `--dry-run` |
+| `account-remove` | Remove one entry from `accounts.json` (`.bak` kept); never touches credentials, the database, approvals or disconnect state; posts of that account stay and are counted | `ID`, `--dry-run`, `--yes` (needed outside a terminal) |
 | `account-route` | Which account/username to use for a persona on a network | `--platform P`, `--persona ID`, `--json` |
 | `account-kit` | Plan sign-up packets for accounts the user creates; creates none | `--platform P` (repeat), `--persona ID`, `--questions`, `--out NEW_DIR`, `--json`; **OWNER** `--approve-plan SHA` |
 | `context` | Start every session here: one compact read-only summary (accounts, pause, live gate, approval mode, posts waiting for the owner, next steps, owner-only commands); creates nothing | `--json` |
@@ -43,7 +44,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 | `init` | Create the local database (0600); connects nothing | none |
 | `doctor` | Account config and missing credential names; no API call | none |
 | `health` | Per-account readiness `ok`/`attention`/`blocked`; exit 1 when blocked | `--json`, `--stale-minutes N` |
-| `workspace` | Folder report: config, database, ledger; will a copy work elsewhere | `--json`, `--init DIR`, `--gather`, `--repair` (dry runs); `--apply` is the owner's decision |
+| `workspace` | Folder report: config, database, ledger; will a copy work elsewhere. `--init` starts with an empty accounts list (a terminal asks which networks to add placeholders for) | `--json`, `--init DIR`, `--with-examples` (with `--init`: the four example placeholders), `--gather`, `--repair` (dry runs); `--apply` is the owner's decision |
 | `ui` | **OWNER**: read-only dashboard on 127.0.0.1 with a per-run URL token; Claude never starts it or reads its URL | `--port N`, `--open` |
 | `mcp-serve` | **OWNER** (draft, pending security review): stdio MCP server for other MCP clients such as Claude Desktop; read-only tools only, no approve or publish tool; the owner registers it in the client's config; Claude Code never starts it | `--allow-drafts`, `--root DIR`, `--max-output-bytes N`, `--max-calls-per-minute N` |
 | `statusline` | One short read-only line for Claude Code's status line (version, drafts, queued, needs review, ideas, PAUSED); creates no database, no network | none |
@@ -104,7 +105,7 @@ Then the owner, in their own terminal: `approve POST_ID` (or `review` to walk se
 
 | Command | Purpose | Key flags |
 |---|---|---|
-| `share` | Copy-ready caption files and checklists per network, including copy-only Bluesky/Mastodon/Telegram/LinkedIn (sending them stays draft → review); over-limit captions shortened at a word boundary and marked SHORTENED; `--attach` media header-checked offline; never sends or writes the database | `--platform instagram,threads`, `--text T` or `--file F`, `--note` (human-only venues), `--title`, `--format`, `--attach`, `--no-shorten`, `--preview`, `--list`; **OWNER** `--guide`, `--web --open` |
+| `share` | Copy-ready caption files and checklists per network, including copy-only Bluesky/Mastodon/Telegram/LinkedIn (sending them stays draft → review); over-limit captions shortened at a sentence end or a word (closing link kept) and marked SHORTENED with what was removed; "link in bio" flagged where post links work; `--attach` media header-checked offline; never sends or writes the database | `--platform instagram,threads`, `--text T` or `--file F`, `--note` (human-only venues), `--title`, `--format`, `--attach`, `--no-shorten`, `--preview`, `--list`; **OWNER** `--guide`, `--web --open` |
 | `manual-export` | Creator-ready package for one manual destination | `--platform P`, `--variant FILE`, `--out NEW_DIR`, `--media MANIFEST`, `--account-meta F`, `--json` |
 | `manual-export-batch` | Preflight 1-25 manual-export items, one folder each | `--file BATCH.json`, `--out NEW_DIR`, `--json` |
 | `delivery-options` | Route per registry channel: adapter, manual package, human-only, unsupported | `--platform P`, `--json` |

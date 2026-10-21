@@ -9,6 +9,12 @@ network) are refused, and so are the example placeholder values. When the file s
 example entry for that network (``workspace --init`` copies one per network), that entry is filled in place
 with its id and env_prefix kept, unless ``--id`` is given. The previous file is kept as
 ``accounts.json.bak`` and the new one replaces it atomically. ``--dry-run`` prints the entry and writes nothing.
+The entry is shown as plain lines (``describe``), and a terminal confirmation defaults to yes because the write
+is local and reversible.
+
+``account-remove ID`` (``run_remove``) drops one entry the same way (``.bak`` kept, terminal confirmation or
+``--yes``). It never touches credentials, the database, approvals or disconnect state; posts recorded for the
+account are counted read-only and left in place.
 
 Wrong-account guard: ``--persona`` must be a persona in your profile (when you have one), and an entry whose
 username the profile records under another persona, or that contradicts the profile, is refused.
@@ -292,13 +298,14 @@ def run(args) -> int:
     others = {str(a["id"]): a for a in kept}
     notes = _persona_checks(normalized, args.persona, others, profile_store.load_optional(args.profile))
     names = [normalized["env_prefix"] + suffix for suffix in account_credential_suffixes(normalized)]
-    print(json.dumps(normalized, indent=2, ensure_ascii=False))
+    print(describe(normalized))
     for note in notes:
         print("Note: " + note)
     if args.dry_run:
         print(f"DRY RUN: nothing written. Without --dry-run this entry is added to {path}.")
         return 0
-    if asked and _ask(f"Add this account to {path}? [y/N]").casefold() not in ("y", "yes"):
+    # A local, reversible write (the previous file is kept as .bak), so Enter means yes.
+    if asked and _ask(f"Add this account to {path}? [Y/n]").casefold() not in ("", "y", "yes"):
         print("Cancelled: nothing written.")
         return 0
     backup = _write(path, candidate)
@@ -309,9 +316,80 @@ def run(args) -> int:
               + ", ".join(names))
         print(f"Next: reachweaver connect --guide --account {account_id}  (official sign-in steps; you type any "
               "secret yourself, ReachWeaver never asks for it here). Then draft and review as usual.")
+        print(f"Or post by hand now, no sign-in needed: reachweaver share --platform {platform} --text '...'")
     else:
         print(f"ReachWeaver has no enabled {LABELS[platform]} adapter, so this entry is public metadata for "
-              "manual-export, the calendar and the wrong-account guard. Post by hand: "
-              f"reachweaver share --platform {platform} --text '...'"
-              + (f". Credential names reserved for a future supervised pilot: {', '.join(names)}" if names else ""))
+              "manual-export, the calendar and the wrong-account guard."
+              + (f" Credential names reserved for a future supervised pilot: {', '.join(names)}." if names else ""))
+        print(f"Next: reachweaver share --platform {platform} --text '...'  (copy-ready text you post by hand)")
     return 0
+
+
+FIELD_LABELS = {"handle": "Handle", "server": "Server", "chat_id": "Channel", "bot_username": "Bot",
+                "channel_username": "Channel name", "person_id": "LinkedIn member id",
+                "linkedin_version": "LinkedIn API version", "page_name": "Page", "page_id": "Page id",
+                "persona": "Persona", "service": "Server", "visibility": "Visibility"}
+_NOT_SHOWN = frozenset({"id", "platform", "env_prefix"})
+
+
+def describe(entry: dict) -> str:
+    """The entry as plain lines (Network, the public identity, Account name) instead of raw JSON."""
+    rows = [("Network", LABELS.get(str(entry.get("platform")), str(entry.get("platform"))))]
+    for key, value in entry.items():
+        if key in _NOT_SHOWN or value in (None, ""):
+            continue
+        shown = f"@{value}" if key in ("handle", "bot_username") and entry.get("platform") != "bluesky" else value
+        rows.append((FIELD_LABELS.get(key, key.replace("_", " ").capitalize()), str(shown)))
+    rows.append(("Account name", f"{entry['id']} (what you type after --account)"))
+    rows.append(("Credential prefix", f"{entry['env_prefix']} (variable names only; values never go in this file)"))
+    width = max(len(label) for label, _ in rows) + 2
+    return "\n".join(f"  {(label + ':').ljust(width)}{value}" for label, value in rows)
+
+
+def run_remove(args) -> int:
+    """``account-remove ID``: drop one entry from accounts.json, keeping the previous file as .bak.
+
+    Only the public entry goes. Credentials (environment variables, the credentials directory), the database,
+    approvals, the approval ledger and disconnect state are never touched; posts recorded for the account stay
+    in the database and are counted read-only so the person knows they are there.
+    """
+    path = accounts_path(args.accounts)
+    accounts = load_accounts(path)  # a missing or broken file stops here with its own message
+    if args.id not in accounts:
+        known = ", ".join(accounts) or "none"
+        raise ValidationError(f"Unknown account {args.id!r} in {path} (accounts: {known}). Nothing was written.")
+    data = read_json_file(path)
+    entry = accounts[args.id]
+    print(describe(entry))
+    posts = _posts_of(args.db, args.id)
+    if posts:
+        print(f"{posts} post(s) in the local database belong to {args.id}. They are kept: the database is not "
+              "changed, and they cannot be sent while the account is missing from accounts.json.")
+    if args.dry_run:
+        print(f"DRY RUN: nothing written. Without --dry-run this entry is removed from {path}.")
+        return 0
+    if sys.stdin.isatty():
+        if _ask(f"Remove {args.id} from {path}? The previous file is kept as a .bak [y/N]").casefold() not in ("y", "yes"):
+            print("Cancelled: nothing written.")
+            return 0
+    elif not args.yes:
+        raise ValidationError("account-remove asks for confirmation in a terminal; elsewhere add --yes. "
+                              "Nothing was written.")
+    data["accounts"] = [a for a in data["accounts"] if not (isinstance(a, dict) and a.get("id") == args.id)]
+    backup = _write(path, data)
+    print(f"Removed account {args.id} ({LABELS.get(entry['platform'], entry['platform'])}) from {path}. "
+          f"The previous file is kept as {backup}; to undo, copy it back over {path.name}.")
+    names = [entry["env_prefix"] + suffix for suffix in account_credential_suffixes(entry)]
+    print("Not touched: credentials, the database, approvals and disconnect state."
+          + (f" If you set {', '.join(names)}, remove them yourself when you no longer need them." if names else ""))
+    return 0
+
+
+def _posts_of(db: str | None, account_id: str) -> int:
+    """Posts recorded for the account, read-only; 0 when there is no database yet."""
+    from .storage import connect_readonly, database_path
+    database = database_path(db)
+    if not database.is_file():
+        return 0
+    with connect_readonly(database) as con:
+        return int(con.execute("SELECT COUNT(*) FROM posts WHERE account_id=?", (account_id,)).fetchone()[0])

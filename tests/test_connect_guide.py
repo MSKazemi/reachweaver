@@ -79,7 +79,11 @@ class StatusTableTests(Base):
         self.assertIn("REACHWEAVER_CG_BSKY_APP_PASSWORD", rendered)
 
     def test_empty_account_list_explains_what_to_do(self):
-        self.assertIn("accounts.example.json", cg.render_rows([]))
+        text = cg.render_rows([])
+        self.assertIn("No accounts yet", text)
+        self.assertIn("reachweaver account-add bluesky", text)
+        self.assertIn("reachweaver workspace --init .", text)
+        self.assertNotIn("accounts.example.json", text)
 
 
 class WalkthroughTests(Base):

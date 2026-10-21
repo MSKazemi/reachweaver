@@ -141,17 +141,90 @@ class _TopParser(argparse.ArgumentParser):
         kwargs["allow_abbrev"] = False
         super().__init__(*args, **kwargs)
 
+    def parse_args(self, args=None, namespace=None):  # type: ignore[override]
+        self._seen_argv = list(sys.argv[1:] if args is None else args)  # for the unknown-flag hint in error()
+        return super().parse_args(args, namespace)
+
     def error(self, message):
         import re
         found = re.search(r"argument COMMAND: invalid choice: '([^']*)'", message)
+        usage_of: argparse.ArgumentParser = self
         if found:
-            import difflib
-            action = next(a for a in self._actions if isinstance(a, argparse._SubParsersAction))
-            close = difflib.get_close_matches(found.group(1), list(action.choices), n=3, cutoff=0.6)
+            action = _subparsers_action(self)
+            close = _command_suggestions(found.group(1), list(action.choices))
             hint = f" Did you mean: {', '.join(close)}?" if close else ""
             message = f"unknown command '{found.group(1)}'.{hint} 'reachweaver --help all' lists every command by task"
-        self.print_usage(sys.stderr)
-        self.exit(2, f"{self.prog}: error: {message}\n")
+        elif message.startswith("unrecognized arguments: "):
+            message, usage_of = _unrecognized_hint(self, message)
+        else:
+            message = _invalid_choice_hint(message)
+        usage_of.print_usage(sys.stderr)
+        self.exit(2, f"{usage_of.prog}: error: {message}\n")
+
+
+def _subparsers_action(parser: argparse.ArgumentParser) -> argparse._SubParsersAction:
+    return next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
+
+
+# Words people type for a job that has another name here. Only existing commands are suggested; `next` is left
+# to `start`, which already answers "what do I do next".
+COMMAND_ALIASES: dict[str, tuple[str, ...]] = {
+    "post": ("share", "draft"), "write": ("share", "draft"), "compose": ("share", "draft"),
+    "undo": ("cancel", "unapprove"), "results": ("report",), "stats": ("report",),
+}
+
+
+def _command_suggestions(typed: str, commands: list[str]) -> list[str]:
+    import difflib
+    aliased = [name for name in COMMAND_ALIASES.get(typed.casefold(), ()) if name in commands]
+    close = difflib.get_close_matches(typed, commands, n=3, cutoff=0.6)
+    return list(dict.fromkeys(aliased + close))[:3]
+
+
+def _unrecognized_hint(top: argparse.ArgumentParser, message: str) -> tuple[str, argparse.ArgumentParser]:
+    """``unrecognized arguments: --platfrom x`` -> the same plus 'Did you mean --platform?', with the usage of
+    the subcommand the flag was given to (argparse reports it on the top-level parser)."""
+    import difflib
+    seen = getattr(top, "_seen_argv", None) or []
+    try:
+        action = _subparsers_action(top)
+    except StopIteration:
+        return message, top
+    command = next((token for token in seen if token in action.choices), None)
+    target = action.choices[command] if command else top
+    own = sorted({flag for a in target._actions for flag in a.option_strings if flag.startswith("--")})
+    top_level = {flag for a in top._actions for flag in a.option_strings if flag.startswith("--")}
+    hints: list[str] = []
+    for token in message[len("unrecognized arguments: "):].split():
+        if not token.startswith("--"):
+            continue
+        flag = token.split("=", 1)[0]
+        if command and flag in top_level:
+            hints.append(f"{flag} is a global option: put it before the command (reachweaver {flag} ... {command} ...).")
+            continue
+        close = difflib.get_close_matches(flag, own, n=1, cutoff=0.6)
+        if close:
+            hints.append(f"Did you mean {close[0]}?")
+    help_cmd = f"reachweaver {command} --help" if command else "reachweaver --help"
+    tail = (" " + " ".join(dict.fromkeys(hints))) if hints else ""
+    return f"{message}.{tail} '{help_cmd}' lists the options", target
+
+
+def _invalid_choice_hint(message: str) -> str:
+    """``argument X: invalid choice: 'blusky' (choose from ...)`` gains 'Did you mean bluesky?'."""
+    import ast
+    import difflib
+    import re
+    found = re.search(r"invalid choice: '([^']*)' \(choose from (.*)\)$", message)
+    if not found:
+        return message
+    raw = found.group(2)
+    try:  # Python < 3.12 quotes each choice ('a', 'b'); later versions print them bare
+        choices = [str(c) for c in ast.literal_eval(f"[{raw}]")]
+    except (SyntaxError, ValueError):
+        choices = [c.strip().strip("'\"") for c in raw.split(",")]
+    close = difflib.get_close_matches(found.group(1), choices, n=1, cutoff=0.6)
+    return f"{message}. Did you mean {close[0]}?" if close else message
 
 
 def make_parser() -> argparse.ArgumentParser:
@@ -161,6 +234,8 @@ def make_parser() -> argparse.ArgumentParser:
     parser.add_argument("-h", "--help", action=TieredHelpAction,
                         help="Show the everyday commands; --help all lists every command by task, "
                              "--help COMMAND shows one command's options")
+    parser.add_argument("--version", dest="show_version", action="store_true",
+                        help="Print the installed version (the same as the version command) and exit")
     parser.add_argument("--db", help="Local persistent SQLite database path (defaults to state/reachweaver.sqlite)")
     parser.add_argument("--accounts", help="Accounts config path (defaults to config/accounts.json)")
     parser.add_argument("--profile", help="Profile knowledge base path (defaults to config/profile.json in the workspace); "
@@ -214,6 +289,10 @@ def make_parser() -> argparse.ArgumentParser:
                       help="After copying the workspace to a new computer: find attachments of unsent posts again in "
                            "media/ by size and SHA-256 and fix the recorded paths; dry run unless --apply")
     p.add_argument("--apply", action="store_true", help="With --gather or --repair: write the change")
+    p.add_argument("--with-examples", action="store_true",
+                   help="With --init: seed config/accounts.json with the four example placeholder accounts (the "
+                        "old default). Without it the file starts empty, or, in a terminal, with placeholders for "
+                        "the networks you name")
     p = sub.add_parser("media-relink", help="After moving the workspace: point recorded attachment paths of unsent posts "
                        "at the new folder, only for files whose SHA-256 still matches; dry run unless --apply")
     p.add_argument("--from", dest="from_prefix", required=True, metavar="OLD_FOLDER", help="Absolute folder the files were in")
@@ -1053,6 +1132,15 @@ def make_parser() -> argparse.ArgumentParser:
     p.add_argument("--env-prefix", metavar="REACHWEAVER_NAME", help="Credential variable prefix (default: the example's "
                    "prefix for the first account of a network, else derived from the id)")
     p.add_argument("--dry-run", action="store_true", help="Print the entry and checks; write nothing")
+    p = sub.add_parser("account-remove", help="Remove one account entry from accounts.json (keeps accounts.json.bak); "
+                       "never touches credentials, the database, approvals or disconnect state",
+                       description="Offline. Removes one entry from config/accounts.json (or --accounts) after you "
+                       "confirm it in a terminal (elsewhere pass --yes). The previous file is kept as "
+                       "accounts.json.bak. Posts recorded for the account stay in the database (counted read-only); "
+                       "credential variables are yours to remove.")
+    p.add_argument("id", metavar="ID", help="The account id, as listed by doctor or connect")
+    p.add_argument("--yes", action="store_true", help="Confirm without a prompt (needed outside a terminal)")
+    p.add_argument("--dry-run", action="store_true", help="Show what would be removed; write nothing")
     p = sub.add_parser("discovery-plan", help="Offline platform discovery and topic/hashtag recommendations; not a reach forecast or publisher")
     p.add_argument("--file", type=Path, required=True, help="Owner-reviewed JSON with post text, topics and optional dated trend evidence")
     p.add_argument("--account", metavar="ID", help="Show only this account's own results per tag (default: every "

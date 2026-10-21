@@ -136,6 +136,6 @@
     "Target is a Facebook Page you manage (declared: page); never a personal profile or group",
     "Paste caption.txt into Facebook Pages exactly; do not let tools add text, links or watermarks.",
     "Confirm rights, consent and disclosure for all text and media.",
-    "If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver records nothing from this package."
+    "If you post it, copy the post's link from the app and keep it: that link is the proof the post exists. ReachWeaver records nothing from this package."
   ]
 }

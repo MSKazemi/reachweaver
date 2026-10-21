@@ -26,6 +26,8 @@ reachweaver workspace --init ~/reachweaver-work     # creates the layout; never 
 cd ~/reachweaver-work                               # from here on, every command uses this folder
 ```
 
+A new folder's `config/accounts.json` starts with no accounts. In a terminal, `--init` asks `Which networks do you use? (e.g. bluesky,instagram — Enter to skip)` and adds one placeholder entry per network you name; `--init DIR --with-examples` adds the four example accounts instead (the earlier default). Either way, `reachweaver account-add NETWORK` then fills in your real public details, and the command prints exactly what to type next.
+
 Already have a folder with `config/` and `state/`? Run `reachweaver workspace --init .` inside it: it only adds the marker and the missing sub-folders and leaves your files alone. You can run commands from any sub-folder, or from anywhere with `--home ~/reachweaver-work`. An explicit `--db` or `--accounts`, or a `REACHWEAVER_DB` / `REACHWEAVER_ACCOUNTS` setting, still wins over the workspace. A folder without the marker behaves exactly as before.
 
 Keep the images and videos you attach in `media/`. If some live elsewhere (your Pictures folder), pull them in once:

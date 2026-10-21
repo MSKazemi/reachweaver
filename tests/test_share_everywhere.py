@@ -121,10 +121,10 @@ class TailoringTests(ShareCase):
         self.assertEqual(code, 0, errors)
         self.assertIn("SHORTENED", output)
         bluesky = (self.out / "bluesky" / "post.txt").read_text(encoding="utf-8")
-        self.assertTrue(bluesky.endswith(ELLIPSIS))
+        self.assertTrue(bluesky.endswith("plain words."), "cut at the end of a sentence, no ellipsis needed")
         self.assertLessEqual(grapheme_count(bluesky), 300)
         self.assertEqual(validate_post("bluesky", bluesky), [])
-        self.assertTrue(LONG.startswith(bluesky[:-1]), "only the end is cut, at a word boundary")
+        self.assertTrue(LONG.startswith(bluesky), "only the end is cut")
         package = json.loads((self.out / "bluesky" / "manual-export.json").read_text(encoding="utf-8"))
         self.assertTrue(package["share"]["tailoring"]["shortened"])
         self.assertIn("SHORTENED", package["preflight"]["warnings"][0])
@@ -164,6 +164,55 @@ class TailoringTests(ShareCase):
         self.assertEqual(result["removed_hashtags"], ["#tail", "#end"])
         self.assertIn("#tail", result["note"])
 
+    def test_a_sentence_end_is_preferred_and_a_word_cut_is_the_fallback(self):
+        result = fit("bluesky", WORDS * 3)
+        self.assertEqual(result["cut_at"], "sentence")
+        self.assertTrue(result["text"].endswith("."))
+        self.assertIn("cut at the end of a sentence", result["note"])
+        result = fit("bluesky", "word " * 120)  # no sentence end at all
+        self.assertEqual(result["cut_at"], "word")
+        self.assertTrue(result["text"].endswith(ELLIPSIS))
+        # A long first sentence: a sentence cut would keep far less than a word cut, so the word cut wins.
+        result = fit("bluesky", "Short start. " + "word " * 120 + "end.")
+        self.assertEqual(result["cut_at"], "word")
+
+    def test_a_closing_link_and_call_to_action_survive_and_the_removed_text_is_shown(self):
+        text = WORDS * 3 + "Try it today!\nRead more: https://example.org/release"
+        result = fit("bluesky", text)
+        self.assertTrue(result["text"].endswith("\nRead more: https://example.org/release"))
+        self.assertEqual(result["kept_closing"], "Read more: https://example.org/release")
+        self.assertEqual(result["removed_links"], [])
+        self.assertTrue(result["removed_text"].endswith("Try it today!"))
+        self.assertIn("removed: '", result["note"])
+        self.assertIn("Try it today!'", result["note"], "the end of the removed passage is visible")
+        self.assertIn("kept your closing link", result["note"])
+        self.assertEqual(validate_post("bluesky", result["text"]), [])
+        bare = fit("mastodon", LONG + " https://example.org/x")
+        self.assertTrue(bare["text"].endswith(" https://example.org/x"))
+
+    def test_a_link_that_cannot_stay_is_reported_loudly(self):
+        result = fit("bluesky", "x " + WORDS * 3 + " https://example.org/middle " + WORDS * 3)
+        self.assertEqual(result["removed_links"], ["https://example.org/middle"])
+        self.assertIn("LINK REMOVED: https://example.org/middle", result["note"])
+
+    def test_link_in_bio_is_flagged_where_links_work(self):
+        from reachweaver.share_tailor import phrase_warnings
+        for platform in ("bluesky", "telegram"):
+            warning = phrase_warnings(platform, "New video out, link in bio!")
+            self.assertEqual(len(warning), 1, platform)
+            self.assertIn("Links are clickable on", warning[0])
+            self.assertIn("replace 'link in bio' with the link itself", warning[0])
+            self.assertIn("checked 2026-10-21", warning[0])
+        self.assertIn("https://docs.joinmastodon.org/user/posting/", phrase_warnings("mastodon", "Link in my bio")[0])
+        self.assertIn("unverified", phrase_warnings("linkedin", "links in bio")[0])
+        self.assertEqual(phrase_warnings("instagram", "link in bio"), [], "where caption links are unverified")
+        self.assertEqual(phrase_warnings("bluesky", "A biography link"), [])
+        packages, errors = make_packages(["bluesky", "instagram"], "Out now, link in bio", [], None, None, [], None)
+        self.assertEqual(errors, [])
+        warnings = {platform: "\n".join(p["preflight"]["warnings"]) for platform, p in packages}
+        self.assertIn("link in bio", warnings["bluesky"])
+        self.assertNotIn("replace 'link in bio'", warnings["instagram"])
+
 
 class MediaCheckTests(ShareCase):
     def test_attached_video_is_checked_against_sourced_limits(self):
@@ -176,7 +225,7 @@ class MediaCheckTests(ShareCase):
         bluesky = json.loads((self.out / "bluesky" / "manual-export.json").read_text(encoding="utf-8"))
         warnings = "\n".join(bluesky["preflight"]["warnings"])
         self.assertIn("duration 700.0s exceeds 600s", warnings)
-        self.assertNotIn("no media manifest supplied", warnings)
+        self.assertNotIn("has not checked the file", warnings)
         self.assertEqual(bluesky["share"]["media_checks"][0]["table"], "bluesky")
         instagram = json.loads((self.out / "instagram" / "manual-export.json").read_text(encoding="utf-8"))
         self.assertNotIn("exceeds", "\n".join(instagram["preflight"]["warnings"]))
@@ -197,7 +246,8 @@ class MediaCheckTests(ShareCase):
 
     def test_media_manifest_path_is_unchanged(self):
         packages, _ = make_packages(["instagram"], "caption", [], None, "image", [], None)
-        self.assertIn("no media manifest supplied", "\n".join(packages[0][1]["preflight"]["warnings"]))
+        self.assertIn("Instagram needs a photo or video: attach it in the app. ReachWeaver has not checked the file",
+                      "\n".join(packages[0][1]["preflight"]["warnings"]))
 
 
 class BrowserTests(unittest.TestCase):

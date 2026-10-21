@@ -1,6 +1,6 @@
 # Facebook Pages manual export checklist
 
-Status: `manual_export_not_published`
+Status: Not posted yet. Nothing was sent, uploaded or scheduled.
 
 MANUAL EXPORT ONLY. ReachWeaver has not sent, uploaded, scheduled or shared anything on Facebook Pages. This package is not evidence that a post exists. The account holder decides whether to post it, in the platform's own app.
 
@@ -24,11 +24,11 @@ ReachWeaver release notes for our Page.
 - [ ] Target is a Facebook Page you manage (declared: page); never a personal profile or group
 - [ ] Paste caption.txt into Facebook Pages exactly; do not let tools add text, links or watermarks.
 - [ ] Confirm rights, consent and disclosure for all text and media.
-- [ ] If you choose to post it, keep the native post URL as first-party evidence. ReachWeaver records nothing from this package.
+- [ ] If you post it, copy the post's link from the app and keep it: that link is the proof the post exists. ReachWeaver records nothing from this package.
 
-## Why this is manual
+## Why you post this yourself
 
-Registry status `requires-review`, adapter `none`, verified 2026-10-08. facebook text is api_gated; publish refused (fail closed)
+ReachWeaver cannot post to Facebook Pages; you post it yourself in the app. (Capability registry: status `requires-review`, no ReachWeaver adapter, checked 2026-10-08.)
 
 ## Sourced platform facts
 

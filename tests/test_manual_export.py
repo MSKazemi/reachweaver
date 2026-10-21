@@ -270,7 +270,13 @@ class MediaIntegration(unittest.TestCase):
     def test_without_manifest_media_is_flagged_not_assumed(self):
         package = build_export("tiktok", variant("tiktok"))
         self.assertFalse(package["media"]["validated"])
-        self.assertTrue(any("not validated" in w for w in package["preflight"]["warnings"]))
+        self.assertTrue(any("has not checked the file" in w for w in package["preflight"]["warnings"]))
+        markdown = render_markdown(package)
+        self.assertIn("Status: Not posted yet.", markdown)
+        self.assertIn("ReachWeaver cannot post to TikTok; you post it yourself in the app.", markdown)
+        for internal in ("api_gated", "fail closed", "first-party evidence", "no media manifest supplied"):
+            self.assertNotIn(internal, markdown)
+        self.assertEqual(package["status"], STATUS, "the machine status code is unchanged")
 
 
 class WriteAndCli(unittest.TestCase):

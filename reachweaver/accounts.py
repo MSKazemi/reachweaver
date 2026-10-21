@@ -298,10 +298,24 @@ def accounts_path(path: str | Path | None = None) -> Path:
     return Path(path or os.environ.get("REACHWEAVER_ACCOUNTS", str(home.default_path("config/accounts.json"))))
 
 
+def missing_accounts_message(path: Path) -> str:
+    """The error for an absent accounts file: what to type next, not what to copy.
+
+    It keeps the leading ``Missing <path>`` that callers (``start``, ``error_codes`` and the optional-accounts
+    readers in ``cli``) recognise. The example file is mentioned only when it sits next to the missing file.
+    """
+    text = (f"Missing {path}: no accounts yet. Add one: reachweaver account-add bluesky (public details only), "
+            "or set up a folder: reachweaver workspace --init .")
+    example = path.with_name("accounts.example.json")
+    if example.is_file():
+        text += f" Or copy {example} to {path} and edit it (no secrets)."
+    return text
+
+
 def load_accounts(path: str | Path | None = None) -> dict[str, dict]:
     path = accounts_path(path)
     if not path.is_file():
-        raise ValidationError(f"Missing {path}. Copy config/accounts.example.json and customize it (no secrets).")
+        raise ValidationError(missing_accounts_message(path))
     try:
         data = read_json_file(path)
     except (OSError, json.JSONDecodeError) as exc:

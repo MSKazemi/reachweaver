@@ -127,7 +127,8 @@ def account_rows(accounts: Mapping[str, dict], registry: dict, *, disconnected: 
 
 def render_rows(rows: list[dict]) -> str:
     if not rows:
-        return "No accounts configured. Copy config/accounts.example.json to config/accounts.json and edit it."
+        return ("No accounts yet. Add one: reachweaver account-add bluesky (public details only), "
+                "or set up a folder: reachweaver workspace --init .")
     width = max(len(r["account"]) for r in rows)
     lines = []
     for r in rows:

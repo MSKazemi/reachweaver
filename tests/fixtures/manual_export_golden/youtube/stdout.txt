@@ -1,5 +1,5 @@
 manual_export_not_published: YouTube package for human review
-  WARNING: no media manifest supplied: video not validated; attach the file yourself and run media-check before posting
+  WARNING: This post needs a video: attach it in the app. ReachWeaver has not checked the file (share --attach FILE or media-check MANIFEST checks it first)
   DECIDE YOURSELF: privacy_status (nothing pre-selected)
   DECIDE YOURSELF: made_for_kids (nothing pre-selected)
   DECIDE YOURSELF: altered_or_synthetic_content (nothing pre-selected)

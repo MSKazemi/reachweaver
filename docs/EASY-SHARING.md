@@ -22,9 +22,15 @@ From the ReachWeaver project folder, enter:
 python3 -m reachweaver share --guide
 ~~~
 
-ReachWeaver asks which networks you want (for example, instagram,threads), asks for your caption, reviews the requirements and asks whether to save the package. It creates a private folder named something like state/share-YYYYMMDD-HHMMSS.
+ReachWeaver asks which networks you want (for example, instagram,threads; an empty or mistyped answer is asked again, with a "Did you mean" and the list), asks for your caption, offers to check a photo or video (type its path, or press Enter to skip; nothing is uploaded), reviews the requirements and asks `Save these files? [Y/n]`. Enter saves, because saving only writes private files on your computer. It creates a private folder named something like state/share-YYYYMMDD-HHMMSS.
 
-Open the **OPEN-FIRST.md** file in that folder. It says what to paste into each app, which options to choose yourself, and what to double-check before posting. Every platform has its own caption/post and CHECKLIST.md.
+Open the **OPEN-FIRST.md** file in that folder. It says what to paste into each app, which options to choose yourself, and what to double-check before posting, with one short **Tip** per network (restating a fact ReachWeaver has a source for; a suggestion, not a promise of reach). Every platform has its own caption/post and CHECKLIST.md, written in plain words: "Not posted yet", "ReachWeaver cannot post to Instagram; you post it yourself", "Instagram needs a photo or video: attach it in the app". The machine-readable `manual-export.json` keeps its status codes.
+
+### When a caption is too long, or a phrase does not fit
+
+Each network's copy is fitted to that network's rule. It is cut at the end of the last sentence that fits (when that keeps most of the text), otherwise at a word with `…`. A closing link, alone or on a short last line such as `Read more: https://...`, is kept and the text before it is shortened instead. The `SHORTENED` line names everything removed: the removed passage (its start and its end, so a closing call to action is visible), `LINK REMOVED:` for any link that could not stay, and cut hashtags. `--no-shorten` keeps the text as written and blocks instead.
+
+"link in bio" is flagged where a link in the post itself works: Bluesky ([rich text links](https://docs.bsky.app/docs/about-bluesky-content/post-richtext)), Telegram ([clickable URL entities](https://core.telegram.org/api/entities)) and Mastodon ([links in posts](https://docs.joinmastodon.org/user/posting/)), all checked 2026-10-21; for LinkedIn the note says that clickability is unverified. The text is never changed for you.
 
 If you installed the command-line program, you may type reachweaver instead of python3 -m reachweaver.
 
@@ -136,6 +142,6 @@ If you need automated sending, that is a **different, approval-first** process a
 
 ## What Share does not do
 
-Share does not generate media or text, rewrite or optimize a caption (it only shortens an over-long copy at a word boundary, and says so), move hashtags, guarantee better visibility, detect the target account, validate native post outcomes, collect analytics or publish by itself. It does apply existing per-platform preflight checks where available and refuses to save any packages if one chosen network has a blocking error. Media findings from `--attach` are advice for you and never block.
+Share does not generate media or text, rewrite or optimize a caption (it only shortens an over-long copy at a sentence end or a word, keeping a closing link, and says what it removed), move hashtags, guarantee better visibility, detect the target account, validate native post outcomes, collect analytics or publish by itself. It does apply existing per-platform preflight checks where available and refuses to save any packages if one chosen network has a blocking error. Media findings from `--attach` are advice for you and never block.
 
 **Privacy:** all generated text is local. Files are stored under a new owner-only folder (0700 on POSIX, text files 0600). No new dependency, hosted service or additional charge is required.

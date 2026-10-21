@@ -157,7 +157,7 @@ def inspect(con, db_path: Path, accounts: Mapping[str, dict] | None, accounts_pa
     credentials: dict[str, list[str]] = {}
     if accounts is None:
         add("accounts_file_missing", "info", f"{accounts_path} not found",
-            "Copy config/accounts.json from the old computer, or start from config/accounts.example.json.")
+            "Copy config/accounts.json from the old computer, or add an account: reachweaver account-add bluesky.")
     else:
         credentials = {name: missing_credentials(account) for name, account in accounts.items()}
     return {"workspace": str(root) if root is not None else None, "paths": paths, "database": database, "ledger": audit["status"], "files": files,
@@ -282,8 +282,84 @@ def _example_accounts() -> Path | None:
     return None
 
 
-def init_workspace(root: Path) -> dict:
-    """Create (or complete) the one-folder layout. Existing files are never overwritten or moved."""
+def placeholder_accounts_json(networks: list[str]) -> str:
+    """``config/accounts.json`` text with one unedited placeholder entry per chosen network (none: an empty list).
+
+    The four networks in the example file reuse its entry; any other ``account-add`` network gets the same shape
+    with ``example`` in its required public fields. ``account-add NETWORK`` later fills such an entry in place,
+    and ``start``/``context`` report it as a placeholder until then.
+    """
+    from .account_add import SCHEMAS
+    example = _example_accounts()
+    shipped: dict[str, dict] = {}
+    if example is not None:
+        for entry in json.loads(example.read_text(encoding="utf-8"))["accounts"]:
+            shipped.setdefault(entry["platform"], entry)
+    entries = []
+    for network in dict.fromkeys(networks):
+        if network in shipped:
+            entries.append(shipped[network])
+            continue
+        schema = SCHEMAS[network]
+        entries.append({"id": f"my-{network}", "platform": network, "env_prefix": schema["prefix"],
+                        **{field: "example" for field in schema["required"]}})
+    return json.dumps({"accounts": entries}, indent=2) + "\n"
+
+
+def ask_networks(attempts: int = 5) -> list[str]:
+    """In a terminal, ask which networks to prepare placeholder accounts for; elsewhere (or on Enter) none."""
+    import difflib
+    import sys
+    from .account_add import PLATFORMS
+    if not sys.stdin.isatty():
+        return []
+    for _ in range(attempts):
+        try:
+            answer = input("Which networks do you use? (e.g. bluesky,instagram — Enter to skip): ").strip()
+        except EOFError:
+            return []
+        if not answer:
+            return []
+        names = [n.strip().casefold() for n in answer.replace(" ", ",").split(",") if n.strip()]
+        names = ["bluesky" if n == "bsky" else n for n in names]
+        unknown = [n for n in names if n not in PLATFORMS]
+        if not unknown:
+            return list(dict.fromkeys(names))
+        for name in unknown:
+            close = difflib.get_close_matches(name, PLATFORMS, n=1, cutoff=0.6)
+            print(f"Unknown network {name!r}." + (f" Did you mean {close[0]}?" if close else ""))
+        print("Choose from: " + ", ".join(PLATFORMS) + ". Try again, or press Enter to skip.")
+    return []
+
+
+def next_steps(root: Path, networks: list[str] | None, accounts_created: bool) -> list[str]:
+    """What to type after ``workspace --init``: the exact account-add command(s), or how to post by hand."""
+    if not accounts_created:
+        return ["Next: reachweaver doctor  (checks the accounts file that was already there)"]
+    go = "" if root == Path.cwd().resolve() else f"cd {_shell_quote(str(root))}, then "
+    if networks is None:
+        return [f"Next: {go}replace the example accounts with yours: reachweaver account-add bluesky (fills the "
+                "bluesky example in place); repeat for each network you use."]
+    if networks:
+        lines = [f"Placeholders added for: {', '.join(networks)} (not real accounts yet). Fill each in:"]
+        lines += [f"  reachweaver account-add {network}" for network in networks]
+        return [f"Next: {go}" + lines[0]] + lines[1:]
+    return [f"No accounts yet. Next: {go}reachweaver account-add bluesky (or instagram, mastodon...; public "
+            "details only), or post by hand right away: reachweaver share --guide"]
+
+
+def _shell_quote(text: str) -> str:
+    import shlex
+    return shlex.quote(text)
+
+
+def init_workspace(root: Path, networks: list[str] | None = None) -> dict:
+    """Create (or complete) the one-folder layout. Existing files are never overwritten or moved.
+
+    ``networks``: None copies the whole example accounts file (four placeholder accounts, what ``workspace --init
+    --with-examples`` asks for); a list writes placeholders for those networks only, and an empty list an empty
+    accounts list, so a new folder starts with no pretend accounts.
+    """
     from .home import MARKER
     created: list[str] = []
     kept: list[str] = []
@@ -308,7 +384,9 @@ def init_workspace(root: Path) -> dict:
         make_dir(rel, mode)
     make_file(MARKER, json.dumps({"kind": "reachweaver-workspace", "version": 1, "created_at": utc_now()}) + "\n")
     example = _example_accounts()
-    if example is not None:
+    if networks is not None:
+        make_file("config/accounts.json", placeholder_accounts_json(networks))
+    elif example is not None:
         make_file("config/accounts.json", example.read_text(encoding="utf-8"))
     names: list[str] = []
     try:

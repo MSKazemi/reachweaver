@@ -1,2 +1,2 @@
 manual_export_not_published: Instagram package for human review
-  WARNING: no media manifest supplied: image not validated; attach the file yourself and run media-check before posting
+  WARNING: Instagram needs a photo or video: attach it in the app. ReachWeaver has not checked the file (share --attach FILE or media-check MANIFEST checks it first)

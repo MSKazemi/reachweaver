@@ -19,6 +19,7 @@ from reachweaver.share import SEND_PATH, destinations, make_packages
 from reachweaver.policy import ValidationError
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_media import png_bytes  # noqa: E402
 from test_no_network import NetworkGuard  # noqa: E402
 
 
@@ -167,7 +168,13 @@ class ShareTests(unittest.TestCase):
                                    "--text", "Should be refused",
                                    "--out", str(self.root / "bad"))
         self.assertEqual(code, 2)
-        self.assertIn("unknown manual destination", errors.casefold())
+        self.assertIn("unknown network 'myspace'", errors.casefold())
+        self.assertFalse((self.root / "bad").exists())
+        code, _, errors = self.cli("share", "--platform", "blusky", "--text", "Typo", "--out", str(self.root / "bad"))
+        self.assertEqual(code, 2)
+        self.assertIn("Unknown network 'blusky'. Did you mean bluesky?", errors)
+        code, _, errors = self.cli("share", "--platform", "twiter", "--text", "Typo", "--out", str(self.root / "bad"))
+        self.assertIn("Did you mean x?", errors, "an alias suggests the id it stands for")
         self.assertFalse((self.root / "bad").exists())
 
     def test_api_capable_network_is_a_copy_only_package(self):
@@ -194,15 +201,70 @@ class ShareTests(unittest.TestCase):
         self.assertFalse((self.root / "packages").exists())
 
     def test_guided_terminal_flow_can_be_cancelled(self):
-        with patch("sys.stdin", TerminalText("instagram\nA real caption\nn\n")):
+        # network, caption, attachment (Enter skips), save?
+        with patch("sys.stdin", TerminalText("instagram\nA real caption\n\nn\n")):
             code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
         self.assertEqual(code, 0, errors)
         self.assertIn("Cancelled", output)
         self.assertFalse(self.out.exists())
-        with patch("sys.stdin", TerminalText("instagram\nA real caption\ny\n")):
+        with patch("sys.stdin", TerminalText("instagram\nA real caption\n\ny\n")):
             code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
         self.assertEqual(code, 0, errors)
         self.assertTrue((self.out / "OPEN-FIRST.md").is_file())
+
+    def test_guide_saves_on_enter_because_saving_is_local(self):
+        with patch("sys.stdin", TerminalText("instagram\nA real caption\n\n\n")):
+            code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
+        self.assertEqual(code, 0, errors)
+        self.assertIn("Save these files? [Y/n]", output)
+        self.assertTrue((self.out / "OPEN-FIRST.md").is_file())
+
+    def test_guide_reasks_an_empty_or_unknown_network_with_the_list(self):
+        with patch("sys.stdin", TerminalText("\nblusky\nbluesky\nA real caption\n\n\n")):
+            code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
+        self.assertEqual(code, 0, errors)
+        self.assertIn("Type at least one network, for example: instagram", output)
+        self.assertIn("Unknown network 'blusky'. Did you mean bluesky?", output)
+        self.assertNotIn("--guide", errors)
+        self.assertTrue((self.out / "bluesky" / "post.txt").is_file())
+
+    def test_guide_takes_an_attachment_and_reasks_a_missing_one(self):
+        photo = self.root / "photo one.png"
+        photo.write_bytes(png_bytes(1080, 1080))
+        answers = f"bluesky\nA real caption\nnope.jpg\n'{photo}'\n\n"
+        with patch("sys.stdin", TerminalText(answers)):
+            code, output, errors = self.cli("share", "--guide", "--out", str(self.out))
+        self.assertEqual(code, 0, errors)
+        self.assertIn("Attach a photo or video? (path, or Enter to skip)", output)
+        self.assertIn("File not found: nope.jpg", output)
+        self.assertIn("Media: 1 file(s) checked offline", output)
+        self.assertTrue((self.out / "bluesky" / "post.txt").is_file())
+
+    def test_youtube_without_title_names_the_flag(self):
+        code, _, errors = self.cli("share", "--platform", "youtube", "--text", "A description",
+                                   "--out", str(self.out))
+        self.assertEqual(code, 2)
+        self.assertIn('YouTube needs a video title: add --title "…"', errors)
+        self.assertNotIn("platform_options", errors)
+        self.assertFalse(self.out.exists())
+
+    def test_open_first_has_a_labelled_tip_and_plain_checklists(self):
+        code, _, errors = self.cli("share", "--platform", "instagram,mastodon", "--text", "Our demo is out",
+                                   "--out", str(self.out))
+        self.assertEqual(code, 0, errors)
+        guide = (self.out / "OPEN-FIRST.md").read_text(encoding="utf-8")
+        self.assertIn("Tip (from ReachWeaver's sourced notes; a suggestion, not a promise of reach): Mastodon counts "
+                      "a link as 23 characters", guide)
+        checklist = (self.out / "instagram" / "CHECKLIST.md").read_text(encoding="utf-8")
+        for internal in ("manual_export_not_published", "api_gated", "fail closed", "first-party evidence",
+                         "no media manifest supplied"):
+            self.assertNotIn(internal, checklist)
+        self.assertIn("Status: Not posted yet.", checklist)
+        self.assertIn("ReachWeaver cannot post to Instagram; you post it yourself", checklist)
+        self.assertIn("Instagram needs a photo or video: attach it in the app", checklist)
+        mastodon = (self.out / "mastodon" / "CHECKLIST.md").read_text(encoding="utf-8")
+        self.assertIn("This is a copy-only package", mastodon)
+        self.assertNotIn("limit unknown", mastodon.split("## Checklist")[1].split("##")[0])
 
 
 if __name__ == "__main__":

@@ -154,7 +154,15 @@ class CliPresentationTests(unittest.TestCase):
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = main(["--db", self.db, "--accounts", str(Path(self.db).parent / "absent.json"), "doctor"])
         self.assertEqual(code, 2)
-        self.assertIn("accounts.example.json", err.getvalue())
+        self.assertIn("no accounts yet. Add one: reachweaver account-add bluesky", err.getvalue())
+        self.assertIn("Next: 'reachweaver account-add bluesky'", err.getvalue())
+        self.assertNotIn("accounts.example.json", err.getvalue(), "no example file next to absent.json")
+        Path(self.db).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.db).parent.joinpath("accounts.example.json").write_text('{"accounts": []}', encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err := Tty()):
+            main(["--db", self.db, "--accounts", str(Path(self.db).parent / "absent.json"), "doctor"])
+        self.assertIn("Or copy ", err.getvalue())
+        self.assertIn("accounts.example.json", err.getvalue(), "mentioned only when it is there")
 
 
 if __name__ == "__main__":
