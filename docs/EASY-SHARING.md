@@ -58,7 +58,7 @@ ReachWeaver can also send to these four networks through their APIs, but you do 
 python3 -m reachweaver share --platform bluesky,linkedin,mastodon --text "A small update for new creators" --out state/my-text-share
 ~~~
 
-Each package is checked with the same text rule that `draft` and `check` use for that network (for example 300 graphemes on Bluesky), and each one says: *Copy and post it yourself; to send it from ReachWeaver instead, connect the account and use draft → review.* Share itself never sends, never writes the local database or send queue and never records a post. If you post by hand and want the repeat guard to know, run `reachweaver mark-shared` afterwards.
+Each package is checked with the same text rule that `draft` and `check` use for that network (for example 300 graphemes on Bluesky), and each one says: *Copy and post it yourself; to send it from ReachWeaver instead, connect the account and use draft → review.* Share itself never sends, never writes the local database or send queue and never records a post. After you post by hand, record it from its link with `reachweaver posted LINK --likes N` (the terminal output and OPEN-FIRST.md say the same).
 
 To add one of your accounts for that send route, run `reachweaver account-add bluesky` (or mastodon, telegram, linkedin). It asks only for public details such as your handle, never a password, and prints the names of the environment variables you set yourself. Then follow `reachweaver connect --guide`.
 
@@ -123,20 +123,20 @@ Do not automate groups, DM strangers, copy spam across communities, or bypass lo
 | Check your text before saving files | Add --preview |
 | Change a post for only one destination | Edit that platform's caption.txt or post.txt before manually pasting |
 | Remember a post you shared manually | reachweaver mark-shared (see the repeat-guard guide) |
-| Measure a post you shared manually | reachweaver mark-shared --platform P --url LINK --text "..." (see below) |
+| Measure a post you shared manually, with its numbers | reachweaver posted LINK --likes N --replies N (see below) |
 | Keep an over-long caption as written (and block) | Add --no-shorten |
 | Add your account for an actual API send | reachweaver account-add bluesky, then reachweaver connect --guide; Share intentionally never sends |
 
 ## Measure posts you shared by hand
 
-Share cannot see what you post. After you have posted, give ReachWeaver the link so the post counts in your results:
+Share cannot see what you post. After you have posted, give ReachWeaver the link, and the numbers you see if you have them, in one command:
 
 ```bash
-reachweaver mark-shared --platform bluesky --url https://bsky.app/profile/you.bsky.social/post/3kabc \
-  --at 2026-10-20T09:00:00+02:00 --text "the caption you posted"
+reachweaver posted https://bsky.app/profile/you.bsky.social/post/3kabc --likes 12 --replies 3 \
+  --at yesterday --text "the caption you posted"
 ```
 
-It prints a post id. Record that post's numbers with `reachweaver metrics POST_ID ...` or `import-metrics`; `report`, `insights` and the dashboard then show it, labelled "posted by hand". The record is only a note in your local database: it never sends anything and can never be approved, scheduled or sent. Details: [manual export](MANUAL-EXPORT.md#measure-posts-you-shared-by-hand).
+The network comes from the link and your account is picked when only one fits. Run the same command later with new numbers to update them. `report --week`, `insights` and the dashboard then show the post, labelled "posted by hand". `reachweaver mark-shared --platform P --url LINK` does the same without numbers and can also remember images and videos for the repeat guard. The record is only a note in your local database: it never sends anything and can never be approved, scheduled or sent. Details: [manual export](MANUAL-EXPORT.md#measure-posts-you-shared-by-hand).
 
 If you need automated sending, that is a **different, approval-first** process and only works for specifically supported, owner-authorized accounts. One Share package is not consent to publish automatically.
 

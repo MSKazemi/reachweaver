@@ -181,6 +181,9 @@ def render_csv(result: dict) -> str:
 
 TOP_POSTS = 5
 TEXT_COLUMNS = ("likes", "replies", "reposts", "views")
+# One line wherever there are no results yet (empty report, next, start): the one-step way to record a post made
+# by hand together with its numbers. The command only writes a local record; nothing is posted.
+POSTED_HINT = "Posted something yourself? Record it from its link: reachweaver posted LINK --likes N"
 
 
 def _count(value: Any) -> str:
@@ -188,7 +191,8 @@ def _count(value: Any) -> str:
 
 
 def render_text(result: dict, posts: list[dict] | None = None, *, window_label: str | None = None,
-                early: str | None = None, due: list[dict] | None = None) -> str:
+                early: str | None = None, due: list[dict] | None = None,
+                handles: dict[str, str] | None = None) -> str:
     """The short terminal summary (``report`` at a terminal, or ``--format text``).
 
     ``posts`` is ``results.post_results`` for the same window; ``early`` the plain note from
@@ -200,10 +204,7 @@ def render_text(result: dict, posts: list[dict] | None = None, *, window_label: 
     head = window_label or "All your recorded posts"
     published = sum(int(item["published"]) for item in platforms.values())
     if not published:
-        lines = [f"{head}: no published posts recorded."]
-        if not result.get("window"):
-            lines.append("Record a post you made by hand: reachweaver mark-shared --platform NAME --text '...' "
-                         "--url LINK")
+        lines = [f"{head}: no published posts recorded.", POSTED_HINT]
         return "\n".join(lines) + "\n"
     totals = []
     for key in ("likes", "replies", "reposts", "views"):
@@ -231,7 +232,7 @@ def render_text(result: dict, posts: list[dict] | None = None, *, window_label: 
         for number, row in enumerate(ranked[:TOP_POSTS], 1):
             when = (row["posted_at"] or "")[:10]
             lines.append(f"  {number}. {row['interactions']:>5}  \"{row['first_words']}\"  "
-                         f"{res.platform_name(row['platform'])}, {res.account_label(row['account_id'])}, {when}  "
+                         f"{res.platform_name(row['platform'])}, {res.account_label(row['account_id'], handles)}, {when}  "
                          f"[{row['post_id']}]")
     missing = [row for row in posts if row["observed_at"] is None]
     if missing:

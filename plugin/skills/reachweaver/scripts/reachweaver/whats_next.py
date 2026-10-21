@@ -15,7 +15,8 @@ Fixed order (a rule, not a prediction of reach):
 5. ``rhythm``: days since you last posted on each network you use.
 6. ``what_works``: the strongest "what works for you" line from ``insights`` (an observation, not a cause).
 
-With nothing at all yet it points at the browser composer and the ideas inbox. Ideas fill the slots the other
+With nothing at all yet it points at the browser composer, the ideas inbox and ``reachweaver posted LINK``
+(record a post made by hand, with its numbers). Ideas fill the slots the other
 kinds leave (at least one idea is always shown when there is one).
 """
 from __future__ import annotations
@@ -31,10 +32,11 @@ from .policy import ValidationError
 
 SCHEMA = "reachweaver.next.v1"
 MAX_ACTIONS = 5
-KINDS = ("safety", "drafts", "results_due", "idea", "rhythm", "what_works", "first_post", "save_idea")
+KINDS = ("safety", "drafts", "results_due", "idea", "rhythm", "what_works", "first_post", "save_idea", "record_post")
 IDEA_TEXT_IN_COMMAND = 280  # a longer idea goes into the browser composer instead of a long command line
 IDEA_TITLE = 60
 SHARE_WEB = "reachweaver share --web --open"
+POSTED = "reachweaver posted LINK --likes N"
 STALE_DAYS = 7
 
 
@@ -157,7 +159,9 @@ def build_next(db: str | Path | None, *, now: datetime | None = None, limit: int
     if not actions:
         actions = [_action("first_post", "Write a post in your browser and get a ready-to-paste version for each "
                                          "network", SHARE_WEB, "Runs only on your computer; you post it yourself."),
-                   _action("save_idea", "Or save an idea to post about later", "reachweaver idea add 'Your idea'")]
+                   _action("save_idea", "Or save an idea to post about later", "reachweaver idea add 'Your idea'"),
+                   _action("record_post", "Posted something yourself? Record it from its link, with its numbers",
+                           POSTED, "Only writes a note on this computer; reports and this list then count it.")]
     for rank, item in enumerate(actions, 1):
         item["rank"] = rank
     return {"schema": SCHEMA, "generated_at": current.astimezone(timezone.utc).isoformat(timespec="seconds"),
@@ -225,7 +229,9 @@ def render_text(view: dict) -> str:
             lines.append(f"     {item['command']}")
         if item["note"]:
             lines.append(f"     {item['note']}")
-    lines += [*(f"Note: {w}" for w in view["warnings"]), "",
-              "Read-only: nothing was drafted, approved or sent. More: 'reachweaver report --week' (how your posts "
-              "did), 'reachweaver idea list' (all ideas)."]
+    lines += [*(f"Note: {w}" for w in view["warnings"]), ""]
+    if not counts["posts_recorded"] and not any(item["kind"] == "record_post" for item in view["actions"]):
+        lines.append("Posted something yourself? Record it from its link: " + POSTED)
+    lines.append("Read-only: nothing was drafted, approved or sent. More: 'reachweaver report --week' (how your posts "
+                 "did), 'reachweaver idea list' (all ideas).")
     return "\n".join(lines)

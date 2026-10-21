@@ -2038,6 +2038,20 @@ def execute(args) -> int:
         else:
             print(body, end="" if body.endswith("\n") else "\n")
         return 0
+    if args.command == "posted":  # mark-shared --url + metrics in one step (posted.py); never the send queue
+        from .accounts import placeholder_accounts
+        from .posted import run as run_posted
+        try:
+            posted_accounts = _accounts(args)
+        except ValidationError as exc:
+            if not str(exc).startswith("Missing "):
+                raise
+            posted_accounts = {}  # posting by hand needs no accounts file
+        return run_posted(args, posted_accounts, placeholder_accounts(posted_accounts))
+    if args.command == "metrics" and not args.post_id:
+        raise ValidationError("Which post? For a post you made by hand, give its link instead of an id: "
+                              "reachweaver posted LINK --likes N --replies N. For any post: find its id with "
+                              "'reachweaver list', then reachweaver metrics POST_ID --likes N")
     if args.command in ("repeat-check", "mark-shared"):
         text = args.text
         if args.file is not None:
@@ -2668,16 +2682,18 @@ def execute(args) -> int:
             if args.json:
                 print(json.dumps([dict(row) for row in rows], indent=2, ensure_ascii=False))
             elif term.enabled(sys.stdout):  # a terminal gets an aligned, coloured table; pipes keep the plain format
-                if rows:
-                    print(term.table(["ID", "ACCOUNT", "PLATFORM", "STATUS", "SCHEDULED", "REMOTE URL"],
-                                     [[str(row[k] or "") for k in row.keys()] for row in rows], sys.stdout,
+                headers = ["ID", "ACCOUNT", "PLATFORM", "STATUS", "SCHEDULED", "REMOTE URL"]
+                cells = [[str(row[k] or ("—" if k == "account_id" else "")) for k in row.keys()] for row in rows]
+                if rows:  # "—" = recorded without an account (a post you made by hand)
+                    print(term.table(headers, cells, sys.stdout,
                                      paint=lambda col, text: term.STATUS_COLOUR.get(text) if col == 3 else None,
                                      fixed=(0,)))
                     print(f"\n{len(rows)} post(s). Review one: reachweaver show POST_ID")
                 elif args.status:
                     print(f"No {args.status} posts. See them all: reachweaver list")
                 else:
-                    print("No posts yet. Create a draft: reachweaver draft --account ACCOUNT --text 'Your text'")
+                    print("No posts yet. Create a draft: reachweaver draft --account ACCOUNT --text 'Your text'\n"
+                          "Posted something yourself? Record it from its link: reachweaver posted LINK --likes N")
             else:
                 for row in rows:
                     print(" | ".join(str(row[k] or "") for k in row.keys()))
@@ -3121,7 +3137,8 @@ def _run_report(args, report_window: str | None) -> int:
                                        "after 'since'"}
     if not database.exists() and not database.is_symlink():
         print(f"No ReachWeaver database at {database} yet, so there is nothing to report. It was not created. "
-              "Start with 'reachweaver start' (or 'reachweaver init'), publish a post and record its results.",
+              "Start with 'reachweaver start'. Posted something yourself? Record it with its numbers: "
+              "reachweaver posted LINK --likes N",
               file=sys.stderr)
         print(_report_text(args, envelope) if args.report_format == "text"
               else render_report(envelope, args.report_format), end="")
@@ -3171,6 +3188,19 @@ def _report_text_parts(db, window: str | None) -> dict:
                       if note else None)}
 
 
+def _report_handles(args) -> dict[str, str]:
+    """Public handles of your real accounts for the terminal report (an example placeholder or an unreadable or
+    missing accounts file gives none; the report then shows account ids)."""
+    from .accounts import placeholder_accounts
+    from .results import account_handles
+    try:
+        accounts = load_accounts(args.accounts)
+    except ValidationError:
+        return {}
+    placeholders = set(placeholder_accounts(accounts))
+    return account_handles({k: v for k, v in accounts.items() if k not in placeholders})
+
+
 def _report_text(args, envelope: dict, *, posts=None, due=None, early=None) -> str:
     from .report_format import render_text
     from .results import local_date, to_time
@@ -3180,7 +3210,7 @@ def _report_text(args, envelope: dict, *, posts=None, due=None, early=None) -> s
         since = to_time(window["since"])
         day = local_date(since) if since else window["since"][:10]
         label = f"This week (since {day})" if args.week or args.since == "7d" else f"Since {day}"
-    text = render_text(envelope, posts, window_label=label, early=early, due=due)
+    text = render_text(envelope, posts, window_label=label, early=early, due=due, handles=_report_handles(args))
     if not window:
         text += "Only the last 7 days: reachweaver report --week\n"
     return text

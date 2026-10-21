@@ -135,6 +135,8 @@ COMMANDS: dict[str, dict] = {
     "trace": _c(R),
     # Measure and learn
     "metrics": _c(W),
+    "posted": _c(W, note="records a post the owner made by hand (published_manual, never sendable) and optional "
+                         "hand-entered numbers; offline; ask the owner for the link and numbers"),
     "import-metrics": _c(W),
     "metrics-fetch": _c(NW),
     "report": _c(W, note=DB_NOTE),

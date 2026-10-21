@@ -39,9 +39,27 @@ def platform_name(platform: str) -> str:
     return NAMES.get(platform, platform[:1].upper() + platform[1:])
 
 
-def account_label(account_id: object) -> str:
-    """The account id, or a plain note for a post recorded by hand without one."""
-    return str(account_id) if account_id else "(no account recorded)"
+NO_ACCOUNT = "posted by you (no account)"
+
+
+def account_label(account_id: object, handles: dict[str, str] | None = None) -> str:
+    """``@handle`` when the accounts file gives one for this id, else the account id; a post recorded by hand
+    without an account says so plainly (it was the owner's own post, just not tied to a configured account)."""
+    if not account_id:
+        return NO_ACCOUNT
+    handle = (handles or {}).get(str(account_id))
+    return f"@{handle}" if handle else str(account_id)
+
+
+def account_handles(accounts: dict) -> dict[str, str]:
+    """``account id -> public handle`` from loaded accounts (no '@', control characters removed); ids without one
+    are left out."""
+    out = {}
+    for account_id, account in (accounts or {}).items():
+        handle = str(account.get("handle") or account.get("channel_username") or "").strip().lstrip("@")
+        if handle and not has_control(handle) and " " not in handle and len(handle) <= 100:
+            out[str(account_id)] = handle
+    return out
 
 
 def has_control(text: str) -> bool:
@@ -58,6 +76,23 @@ def first_words(text: object, limit: int = FIRST_WORDS) -> str:
         return flat
     cut = flat[:limit].rsplit(" ", 1)[0] if " " in flat[:limit] else flat[:limit]
     return cut.rstrip(",.;:-") + "…"
+
+
+def post_title(post) -> str:
+    """How a post is named in summaries: its first words, or for a post recorded by its link only
+    (``reachweaver posted URL`` without --text) a short form of that link, e.g. ``bsky.app/…/3kabc``."""
+    content = post["content"] if "content" in post.keys() else ""
+    if " ".join(str(content or "").split()):
+        return first_words(content)
+    url = post["remote_url"] if "remote_url" in post.keys() else None
+    if not url:
+        return first_words("")
+    from urllib.parse import urlsplit
+    parts = urlsplit(str(url))
+    host = (parts.hostname or "").removeprefix("www.")
+    tail = [segment for segment in parts.path.split("/") if segment]
+    shown = host + (f"/…/{tail[-1]}" if len(tail) > 1 else f"/{tail[0]}" if tail else "")
+    return first_words(shown, FIRST_WORDS + 20)
 
 
 def to_time(value: object) -> datetime | None:
@@ -103,7 +138,7 @@ def post_results(con: sqlite3.Connection, *, since: str | None = None) -> list[d
         rows.append({
             "post_id": post["id"], "platform": post["platform"], "account_id": post["account_id"] or None,
             "posted_by_hand": is_manual(post), "posted_at": post["send_started_at"],
-            "first_words": first_words(post["content"]),
+            "first_words": post_title(post),
             "observed_at": snapshot["observed_at"] if snapshot is not None else None,
             "source": snapshot["source"] if snapshot is not None else None,
             "hours_after_posting": (round(hours_between(sent, observed)) if sent and observed else None),
@@ -147,7 +182,7 @@ def results_due(con: sqlite3.Connection, now: datetime) -> list[dict]:
         if any(hours >= DUE_AFTER_HOURS for hours in snapshot_ages(con, post["id"], sent)):
             continue
         due.append({"post_id": post["id"], "platform": post["platform"], "account_id": post["account_id"] or None,
-                    "first_words": first_words(post["content"]), "posted_at": post["send_started_at"],
+                    "first_words": post_title(post), "posted_at": post["send_started_at"],
                     "days_since_posting": int(age // 24), "command": metrics_command(post["id"])})
     due.sort(key=lambda item: (item["posted_at"], item["post_id"]))
     return due

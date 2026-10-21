@@ -62,7 +62,7 @@ Nothing is written for the refused post (no claim, no budget, no `last_error`), 
 ## Honest limits
 
 - **Exact files only.** A video that was re-encoded, trimmed or re-exported has different bytes and is not recognised. There is no look-alike (perceptual) matching.
-- **Only what ReachWeaver knows.** It does not read the platform. Posts made elsewhere count only if you recorded them with `mark-shared`.
+- **Only what ReachWeaver knows.** It does not read the platform. Posts made elsewhere count only if you recorded them with `mark-shared`, or with `posted LINK --text "..."` (wording only). A `posted` record without `--text` holds no material, so it never matches anything.
 - **Wording is a heuristic.** The 60% threshold is an editorial choice, not a platform spam rule. A platform may treat repeats differently; this is your own guard against posting the same thing twice.
 - **Exact repeats only at send time.** The send-time check refuses identical files and identical wording on the same account; *similar* wording and the same link stay warnings at `check`, `show` and `approve`.
 - **It does not judge quality or permission.** Passing the check does not mean a post is allowed on a platform.

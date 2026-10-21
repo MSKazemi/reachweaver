@@ -31,7 +31,7 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Publish and recover (owner only; live sends are gated)", (
         "publish", "pause", "resume", "reconcile", "approval-mode", "calendar-plan", "calendar-gaps",
         "connect-check", "postiz-check", "disconnect", "reconnect")),
-    ("Post by hand", ("share", "manual-export", "manual-export-batch", "delivery-options")),
+    ("Post by hand", ("share", "posted", "manual-export", "manual-export-batch", "delivery-options")),
     ("Monitor", ("statusline", "queue-health", "dead-letter", "ops-metrics", "ops-summary", "credentials-audit", "link-health", "trace")),
     ("Measure and learn", (
         "metrics", "import-metrics", "metrics-fetch", "report", "youtube-analytics", "timing-evaluate",
@@ -62,16 +62,21 @@ GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
 # and `next` answers the everyday question ("what should I post next?") by name; `suggest` stays in `--help all`. They are also the commands the
 # user docs name most often (share, publish, workspace, connect, idea and draft lead that count). The single-post
 # approval command is reached through `review`, which walks the drafts and runs it for each one with the same
-# checks; agent-facing commands (context, describe, mcp-serve) and specialist ones stay in `--help all`. The
+# checks. 2026-10-21 (UX re-measure): `posted` replaced `check` here. Recording a post made by hand and its numbers
+# was the costliest everyday job (mark-shared + metrics per post, neither listed), while `check` is already run for
+# every draft by `review` (review_loop.py runs the real show and check), so the list stays at 16 without losing a
+# step; `check` stays in `--help all`. Agent-facing commands (context, describe, mcp-serve) and specialist ones stay in `--help all`. The
 # lines only describe: publish stays a dry run without the owner's live switches, and review stays owner-only.
 EVERYDAY: tuple[tuple[str, ...], ...] = (
     ("start", "See where you are and the exact next command to type"),
     ("share", "Turn one caption into copy-ready posts you paste into each app yourself",
      "share --web opens the same composer in your browser; nothing goes online"),
+    ("posted", "Posted something yourself? Record it from its link, with its likes and views",
+     "posted LINK --likes 12 --views 300; run it again later to update the numbers"),
     ("idea", "Save a post idea for later; list, drop or promote it to a campaign"),
     ("draft", "Save a post for one account as a draft; nothing is sent"),
-    ("check", "Look for problems in a draft before you approve it"),
-    ("review", "Go through your drafts one by one and approve the ones you want (you only)"),
+    ("review", "Go through your drafts one by one and approve the ones you want (you only)",
+     "each draft's checks are shown first (the same as 'check')"),
     ("publish", "Preview what would be sent; a dry run unless you, the owner, turn on live"),
     ("list", "See your posts and where each one stands"),
     ("next", "What to post next: your ideas by name, each with a ready command"),
