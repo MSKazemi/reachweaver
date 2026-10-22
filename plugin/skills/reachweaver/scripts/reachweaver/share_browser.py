@@ -11,8 +11,12 @@ can send), optionally naming an account that the server checks against
 accounts.json (read, never written; with no account chosen, the account the link
 names is used, as ``reachweaver posted`` does), optionally with the numbers the
 owner read in the app, and later add numbers to such a hand-recorded post
-(``storage.store_metrics``, source entered-by-hand). Nothing here can approve,
-schedule or send; see share_composer_store.
+(``storage.store_metrics``, source entered-by-hand). ``/api/save-and-mark`` (owner
+approved 2026-10-21) does "Save as new package" and Mark as posted in one request,
+under the same guards and write lock: every check of both runs first and a refusal
+writes nothing; only when the database refuses the record after the save does the
+answer say which package was kept (``saved``). Nothing here can approve, schedule
+or send; see share_composer_store.
 
 ``/api/idea`` only READS one open idea's text from the ideas inbox (the page offers it as the caption; the inbox
 is never changed). ``share --web --text/--idea`` seeds the autosaved draft through the same store, and never
@@ -30,6 +34,7 @@ from pathlib import Path
 import re
 import secrets
 import shlex
+import sqlite3
 import threading
 import time
 from typing import Any, Callable
@@ -58,7 +63,8 @@ _SAVE_FIELDS = frozenset({"mode", "package", "revision", "confirm"})
 JSON_ROUTES = frozenset({"/api/preview", "/api/prepare", "/api/packages", "/api/package/open",
                          "/api/package/duplicate", "/api/mark-posted", "/api/draft/load", "/api/draft/save",
                          "/api/draft/clear", "/api/accounts", "/api/idea", "/api/numbers",
-                         "/api/link-account"})
+                         "/api/link-account", "/api/save-and-mark"})
+_MARK_FIELDS = frozenset({"platform", "url", "posted_at", "account_id", "numbers"})
 IDEA_ID = re.compile(r"idea-[0-9a-f]{8}")
 SEED_TEXT_BYTES = 8 * 1024  # an idea is at most ideas.TEXT_MAX characters; --text for the composer stays short too
 MEDIA_ROUTE = "/api/media"
@@ -224,9 +230,13 @@ def _safe_preview(packages: list[tuple[str, dict]]) -> list[dict[str, Any]]:
         media_lines = set(_media_lines(rows)) | {MEDIA_CHECK_NOTE} if rows else set()
         warnings = pkg["preflight"]["warnings"]
         label = pkg["platform_label"]
+        ledger = store.LEDGER_ID.get(platform, platform)
         result.append({
             "id": platform,
             "label": label,
+            # Mark as posted is offered on the card only where the history database can measure the network
+            "ledger": ledger,
+            "measurable": store._measurable(ledger) and not human,
             "human_only": human,
             "text": None if human else content["text"],
             "title": content.get("title"),
@@ -326,6 +336,53 @@ def _mark_posted(obj: Any, db: str | None, accounts: str | None = None) -> dict:
             "next": POSTED_NEXT.format(url=shlex.quote(record["url"])), "results": RESULTS_CMD,
             "notice": f"Recorded as {store.POSTED_LABEL} (post {record['post_id']}). Nothing was posted or sent, "
                       "and this record can never be approved, scheduled or sent."}
+
+
+class SavedNotMarked(ValidationError):
+    """The new package was saved, but the history database refused the record afterwards. The answer names the
+    package that was kept (``state``), so the page can open it and Mark as posted again."""
+
+    def __init__(self, message: str, state: dict, saved_to: str):
+        super().__init__(message)
+        self.state = state
+        self.saved_to = saved_to
+
+
+def _save_and_mark(obj: Any, db: str | None, accounts: str | None = None) -> dict:
+    """Mark one network of the editor's post as posted when the post is not saved yet: "Save as new package" and
+    Mark as posted in one request (owner approved 2026-10-21). The body is the editor's post plus the Mark as posted
+    fields. All checks of both run before anything is written: the post is rechecked for every network
+    (``_incoming``), the network must be one of them, then ``store.mark_checks`` (link, account, numbers, a
+    measurable non-human-only network) and ``store.record_precheck`` (no future time, link not recorded yet; read
+    only). A refusal there writes nothing. Then a NEW package is saved (never an update, nothing existing is
+    overwritten) and ``store.mark_posted`` records it. If the database still refuses the record, the package stays
+    saved and :class:`SavedNotMarked` says so. Like Mark as posted, the record is terminal: never approved,
+    scheduled or sent."""
+    obj = _only(obj, _ALLOWED_FIELDS | _MARK_FIELDS)
+    post = {k: v for k, v in obj.items() if k in _ALLOWED_FIELDS}
+    platform = obj.get("platform")
+    packages = _incoming(post)
+    chosen = next((pkg for name, pkg in packages if name == platform), None)
+    if not isinstance(platform, str) or chosen is None:
+        raise ValidationError("That network is not in this post. Nothing was saved or recorded.")
+    checked = store.mark_checks(platform, str(chosen.get("platform_label") or platform), obj.get("url"),
+                                obj.get("posted_at"), obj.get("account_id"), obj.get("numbers"), accounts)
+    store.record_precheck(checked["ledger"], checked["link"], obj.get("posted_at"), db)
+    target = _write_private(packages, _attachments(post), _editor_fields(post))
+    state = store.package_state(target)
+    mark = {k: obj[k] for k in _MARK_FIELDS if k in obj}
+    try:
+        result = _mark_posted(dict(mark, package=target.name), db, accounts)
+    except (ValidationError, OSError, sqlite3.Error) as exc:
+        reason = plain(str(exc)) if isinstance(exc, ValidationError) else "the history database could not be written."
+        raise SavedNotMarked(f"Saved as a new package: {state['display_name']} (in {state['folder']}), but it was not "
+                             f"marked as posted: {reason} The package is kept; fix this and choose Mark as posted "
+                             "again.", state, str(target)) from None
+    shown = result["package"]["display_name"]
+    return dict(result, saved=True, saved_to=str(target), display_name=shown, folder=state["folder"],
+                notice=f"Saved as a new package: {shown} (in {state['folder']}), and recorded as "
+                       f"{store.POSTED_LABEL} (post {result['posted']['post_id']}). Nothing was posted or sent, and "
+                       "this record can never be approved, scheduled or sent.")
 
 
 def _numbers(obj: Any, db: str | None) -> dict:
@@ -646,6 +703,9 @@ class ShareHandler(BaseHTTPRequestHandler):
             self._json_response(200, data)
         except store.Conflict as exc:  # the package changed or is marked posted: nothing was written
             self._json_response(409, {"errors": [str(exc)]})
+        except SavedNotMarked as exc:  # save and mark: the package was saved, the record was refused
+            self._json_response(422, {"errors": [str(exc)], "saved": True, "saved_to": exc.saved_to,
+                                      "package": exc.state, "published": False})
         except RecursionError:  # deeply nested JSON: refuse it rather than drop the connection
             self._json_response(422, {"errors": ["The request JSON is nested too deeply."]})
         except (ValidationError, UnicodeError, ValueError, TypeError) as exc:
@@ -668,6 +728,8 @@ class ShareHandler(BaseHTTPRequestHandler):
             return _duplicate_package(obj)
         if path == "/api/mark-posted":
             return _mark_posted(obj, self.server.db, self.server.accounts)
+        if path == "/api/save-and-mark":  # Save as new package + Mark as posted, one request (approved 2026-10-21)
+            return _save_and_mark(obj, self.server.db, self.server.accounts)
         if path == "/api/accounts":
             return _accounts(obj, self.server.accounts)
         if path == "/api/link-account":  # read-only: the account a post link names

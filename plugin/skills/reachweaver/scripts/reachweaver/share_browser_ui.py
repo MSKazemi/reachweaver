@@ -10,6 +10,13 @@ never HTML markup. There is no Publish, approve or schedule control:
 own networks (accounts.json, read-only) are listed first and preselected on a
 fresh draft. On phones the brand bar is sticky and keeps the Results link.
 
+The previews follow the editor (``/api/preview`` after a 400 ms pause; a newer request aborts the older one and a
+stale answer is dropped), so writing and copying need no Preview click. Each card offers "Mark <network> as posted":
+for the saved package that the editor holds unchanged it is the usual ``/api/mark-posted``; otherwise
+``/api/save-and-mark`` saves the post as a new package and records it in one request (never an update, never a
+send). The caption takes focus on load when the editor is empty, on wide screens, or on a phone only when the page
+was opened from a "Write" link (``&write=1``).
+
 The look mirrors the read-only dashboard (ui_assets.APP_CSS): the same colour
 tokens (accent #0b6e69, dark mode by prefers-color-scheme), system font stack,
 12px radius and "RW" mark, copied here so the two pages read as one product.
@@ -217,6 +224,10 @@ button { font-family: inherit; }
 .page-foot { max-width: 1160px; margin: 0 auto; padding: 0 24px 40px; font-size: 14px; color: var(--muted); }
 .page-foot .cmdline { margin-top: 0; }
 .no-preview { padding: 24px 0; color: var(--muted); text-align: center; font-size: 14px; }
+.cards > .no-preview { grid-column: 1 / -1; }
+.no-preview.alert { color: var(--ink); text-align: left; padding: 11px 14px; }
+.review .markform { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 4px; }
+.review [role=status]:focus { outline: none; }
 @media (max-width: 820px) {
   header { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid var(--line); }
   .topbar { padding: 6px 14px; flex-wrap: nowrap; }
@@ -355,16 +366,16 @@ button { font-family: inherit; }
 </div>
 <section class="panel go" aria-label="Check your posts">
  <div class="actions">
-   <button id="preview" class="primary" type="button">Preview my posts</button>
+   <button id="preview" class="secondary" type="button">Refresh previews</button>
    <button id="reset" class="secondary" type="button">Clear form</button>
-   <span class="hint">Checks every network's limits on this computer. Nothing is saved or sent.</span>
+   <span class="hint">The previews below follow what you type: every network's limits are checked on this computer. Nothing is saved or sent.</span>
  </div>
 </section>
 <section class="panel wide" aria-labelledby="review-title">
   <div class="review-head">
     <div>
       <h2 id="review-title">Your previews</h2>
-      <p class="explain">Adjust each caption for its network, then preview again before saving.</p>
+      <p class="explain">Copy each version into its app. After you post it, choose “Mark … as posted” on its card: that saves the post too.</p>
     </div>
     <div class="save-buttons">
       <button id="save" class="primary" type="button" disabled>Save as new package</button>
@@ -378,8 +389,8 @@ button { font-family: inherit; }
     <button id="confirm-no" class="secondary" type="button">Cancel</button>
   </div>
   <div id="status" role="status" aria-live="polite"></div>
-  <div id="results" class="cards"><p class="no-preview">Pick networks and choose “Preview my posts” to see each version.</p></div>
-  <p class="foot">Saving creates private files on this computer, not online posts. You still choose the account, media, audience and time inside each app.</p>
+  <div id="results" class="cards"><p class="no-preview">Pick a network and write a few words: each version appears here as you type.</p></div>
+  <p class="foot">Saving creates private files on this computer, not online posts. “Mark as posted” only records a post you already published yourself; it never posts, schedules or sends anything. You still choose the account, media, audience and time inside each app.</p>
 </section>
 <section class="panel wide" aria-labelledby="packages-title">
   <div class="review-head">
@@ -408,6 +419,8 @@ button { font-family: inherit; }
    const value = new URLSearchParams(hashParts.slice(1).join("&")).get("idea") || "";
    return /^idea-[0-9a-f]{8}$/.test(value) ? value : null;
  })();
+ // "&write=1": you came from the dashboard's "Write a new post", so the caption takes focus even on a phone.
+ const writeWanted = new URLSearchParams(hashParts.slice(1).join("&")).get("write") === "1";
  if (hashParts.length > 1) { try { history.replaceState(null, "", "#" + sessionToken); } catch(e) { /* keep going */ } }
  // Under `reachweaver studio`: the dashboard's Results page (its own token is in that URL). null when alone.
  let dashboardUrl = null;
@@ -443,6 +456,7 @@ button { font-family: inherit; }
  // holds the saved package unchanged exactly when editorKey() still equals it.
  let baseline = null;
  let offerValue = null;  // the idea text the notice at the top of the editor offers
+ const cards = new Map();  // preview card parts by network id: kept across live updates (see renderPreview)
  const text = function(tag, value, className) {
    const node = document.createElement(tag);
    node.textContent = value;
@@ -521,19 +535,25 @@ button { font-family: inherit; }
    box.replaceChildren(text("span", "See how your posts did: run "), text("code", RESULTS_CMD));
    box.appendChild(copyButton("Copy", RESULTS_CMD, "Copy the command " + RESULTS_CMD));
  }
- async function send(path, body, contentType, extra) {
+ // A refused request throws an Error with the server's words; error.data keeps the whole answer (Save and mark
+ // says there which package was kept when only the record was refused).
+ async function send(path, body, contentType, extra, signal) {
    const headers = Object.assign({"X-ReachWeaver-Token":sessionToken}, extra || {});
    if (body !== undefined) headers["Content-Type"] = contentType;
    const res = await fetch(path, {
      method: body === undefined ? "GET" : "POST", headers:headers, body:body,
-     credentials:"omit", cache:"no-store", redirect:"error"
+     credentials:"omit", cache:"no-store", redirect:"error", signal:signal
    });
    const data = await res.json();
-   if (!res.ok) throw new Error((data.errors || ["Request failed."]).join("\n"));
+   if (!res.ok) {
+     const error = new Error((data.errors || ["Request failed."]).join("\n"));
+     error.data = data;
+     throw error;
+   }
    return data;
  }
- function api(path, payload) {
-   return send(path, payload === undefined ? undefined : JSON.stringify(payload), "application/json");
+ function api(path, payload, signal) {
+   return send(path, payload === undefined ? undefined : JSON.stringify(payload), "application/json", null, signal);
  }
  function upload(file) {
    return send("/api/media", file, "application/octet-stream",
@@ -582,9 +602,10 @@ button { font-family: inherit; }
  const STEPS = [
    ["write", "write your caption, or attach a photo or video."],
    ["choose", "pick where to share it (up to 10 networks)."],
-   ["preview", "choose “Preview my posts” to check every network."],
-   ["save", "choose “Save as new package” to keep these posts ready."],
-   ["post", "copy each caption into its app and post it, then use “Mark as posted” below."]
+   ["preview", "read each version below; the previews follow what you type."],
+   ["save", "copy each version into its app and post it, then choose “Mark … as posted” on its card (that saves it " +
+            "too), or “Save as new package” to post later."],
+   ["post", "copy each version into its app and post it, then choose “Mark … as posted” on its card."]
  ];
  function progress() {
    const wrote = Boolean(el("caption").value.trim() || media.length || el("notes").value.trim());
@@ -612,20 +633,23 @@ button { font-family: inherit; }
    node.textContent = label;
    node.className = "saved" + (kind ? " " + kind : "");
  }
- function saveDraft() {
+ // quiet: a save nothing typed asked for (your networks chosen on a fresh draft) leaves the label as it is, so a
+ // fresh page never says "Saving…" before you write anything.
+ function saveDraft(quiet) {
    saveTimer = null;
    api("/api/draft/save", editorState()).then(function(){
-     setSaved("Draft saved", "ok");
+     if (quiet !== true) setSaved("Draft saved", "ok");
    }).catch(function(e){
      setSaved("Not saved", "bad");
      showMessage("Your draft could not be kept: " + (e.message || "error"), false);
    });
  }
- function scheduleSave() {
+ let loudSave = false;  // a pending save that something you did asked for: its label shows
+ function scheduleSave(quiet) {
    if (!ready) return;
-   setSaved("Saving…", "");
+   if (quiet !== true) { loudSave = true; setSaved("Saving…", ""); }
    if (saveTimer) clearTimeout(saveTimer);
-   saveTimer = setTimeout(saveDraft, 700);
+   saveTimer = setTimeout(function(){ const loud = loudSave; loudSave = false; saveDraft(!loud); }, 700);
  }
  function changed() {
    const now = Date.now();
@@ -646,18 +670,40 @@ button { font-family: inherit; }
  // What the last preview or save checked. "Your post changed" is only true against that; after a reload, an opened
  // package or Undo there is no preview on the page yet, which is not a change.
  let previewedKey = null;
+ // Live previews: every change asks /api/preview again after a 400 ms pause in typing. A newer request aborts the
+ // one still running, and an answer that no longer matches the editor is dropped. The cards stay on the page while
+ // a new answer is on its way (no flicker, focus and an open "Mark as posted" form are kept).
+ const LIVE_DELAY = 400;
+ let previewTimer = null;
+ let previewAbort = null;
+ let previewSeq = 0;
+ function canPreview() {
+   return selected.size > 0 && Boolean(el("caption").value.trim() || media.length || el("notes").value.trim());
+ }
+ function placeholder(message, isError) {
+   cards.clear();
+   previewData = [];
+   el("results").replaceChildren(text("p", message, isError ? "no-preview alert" : "no-preview"));
+ }
+ function idleText() {
+   return !selected.size ? "Pick a network and write a few words: each version appears here as you type." :
+     "Write a few words: each version appears here as you type.";
+ }
+ function schedulePreview() {
+   if (previewTimer) clearTimeout(previewTimer);
+   previewTimer = null;
+   if (!ready) return;
+   if (!canPreview()) { previewSeq++; if (previewAbort) previewAbort.abort(); placeholder(idleText()); return; }
+   previewTimer = setTimeout(function(){ previewTimer = null; preview(false); }, LIVE_DELAY);
+ }
  function invalidate() {
    previewValid = false;
    savedClean = false;
    el("save").disabled = true;
    el("update").disabled = true;
    el("confirm-update").classList.add("hidden");
-   previewData = [];
-   const differs = previewedKey !== null && JSON.stringify(payload()) !== previewedKey;
-   el("results").replaceChildren(text("p", differs ? "Your post changed. Preview again before saving." :
-     selected.size ? "Choose “Preview my posts” to see each version." :
-     "Pick networks and choose “Preview my posts” to see each version.", "no-preview"));
    showMessage("",false);
+   schedulePreview();
    progress();
  }
  function toggleNetwork(p) {
@@ -816,73 +862,118 @@ button { font-family: inherit; }
    return found.state === "posted" ? ["Posted by you", "chip posted"] : ["Ready to post", "chip ready"];
  }
  function refreshChips() {
-   for (const chip of el("results").querySelectorAll("[data-net]")) {
-     const state = networkState(chip.dataset.net);
-     chip.textContent = state[0]; chip.className = state[1];
-   }
+   for (const parts of cards.values()) fillCard(parts, parts.item);
  }
+ // One card per network, built once and then updated in place by every live preview: the card's caption box keeps
+ // what you are typing in it (and its focus), and its "Mark … as posted" form stays open while the text is checked.
  function renderPreview(packages) {
    const box = el("results");
-   box.replaceChildren();
-   for(const item of packages) {
-     const card = document.createElement("article");
-     card.className = "review";
-     const header = document.createElement("div");
-     header.className = "review-head";
-     header.appendChild(text("h3",item.label));
-     const state = networkState(item.id);
-     const chip = text("span", state[0], state[1]);
-     chip.dataset.net = item.id;
-     header.appendChild(chip);
-     card.appendChild(header);
-     if (item.human_only) {
-       card.appendChild(text("p","You write this one yourself in the community. Only your private note is kept."));
-     } else {
-       if(item.title) {
-         card.appendChild(text("strong","Title"));
-         card.appendChild(text("pre",item.title));
-       }
-       const label = text("label","Caption for " + item.label);
-       const editor = document.createElement("textarea");
-       editor.id = "edit-" + item.id;
-       editor.rows = 5;
-       editor.value = item.text || "";
-       label.setAttribute("for", editor.id);
-       card.appendChild(label);
-       card.appendChild(editor);
-       editor.addEventListener("input",function(){
-         edits.set(item.id, editor.value);
-         previewValid = false;
-         savedClean = false;
-         el("save").disabled = true;
-         el("update").disabled = true;
-         showMessage("Edited " + item.label + ". Preview again to recheck every network.",false);
-         changed();
-       });
-       const actions = document.createElement("div");
-       actions.className = "actions";
-       const copyNode = button("Copy caption","secondary");
-       copyNode.setAttribute("aria-label", "Copy the caption for " + item.label);
-       copyNode.addEventListener("click",function(){copy(editor.value,copyNode);});
-       actions.appendChild(copyNode);
-       card.appendChild(actions);
-       if(item.shortened) card.appendChild(text("p","Shortened to fit " + item.label + ": read the ending before you copy it.","hint"));
-       if(item.note) card.appendChild(text("p",item.note,"hint"));
-     }
-     if(item.media_checks && item.media_checks.length) {
-       card.appendChild(text("strong","Photo and video checks:"));
-       const list = document.createElement("ul");
-       list.className = "media-checks";
-       for(const line of item.media_checks) list.appendChild(text("li", line));
-       card.appendChild(list);
-     }
-     if(item.warnings.length) {
-       card.appendChild(text("strong","Before you post, check:"));
-       const list = document.createElement("ul");
-       for(const warning of item.warnings) list.appendChild(text("li", warning));
-       card.appendChild(list);
-     }
-     box.appendChild(card);
+   const keys = packages.map(item => item.id + (item.human_only ? ":note" : ""));
+   for (const key of Array.from(cards.keys())) if (keys.indexOf(key) < 0) cards.delete(key);
+   for (const node of Array.from(box.children)) if (!node.dataset.card || keys.indexOf(node.dataset.card) < 0) node.remove();
+   packages.forEach(function(item, index) {
+     let parts = cards.get(keys[index]);
+     if (!parts) { parts = buildCard(item, keys[index]); cards.set(keys[index], parts); }
+     fillCard(parts, item);
+     if (box.children[index] !== parts.card) box.insertBefore(parts.card, box.children[index] || null);
+   });
+ }
+ function buildCard(item, key) {
+   const card = document.createElement("article");
+   card.className = "review";
+   card.dataset.card = key;
+   const header = document.createElement("div");
+   header.className = "review-head";
+   const parts = {card:card, item:item, title:text("h3", ""), chip:text("span", "", "chip"), notes:document.createElement("div")};
+   parts.chip.dataset.net = item.id;
+   header.append(parts.title, parts.chip);
+   card.appendChild(header);
+   if (item.human_only) {
+     card.appendChild(text("p","You write this one yourself in the community. Only your private note is kept."));
+     card.appendChild(parts.notes);
+     return parts;
+   }
+   parts.videoTitle = document.createElement("div");
+   parts.label = text("label", "");
+   const editor = document.createElement("textarea");
+   editor.id = "edit-" + item.id;
+   editor.rows = 5;
+   parts.label.setAttribute("for", editor.id);
+   parts.editor = editor;
+   card.append(parts.videoTitle, parts.label, editor);
+   editor.addEventListener("input",function(){
+     edits.set(item.id, editor.value);
+     previewValid = false;
+     savedClean = false;
+     el("save").disabled = true;
+     el("update").disabled = true;
+     changed();
+     schedulePreview();  // every network is checked again after the pause; this box keeps what you type
+   });
+   const actions = document.createElement("div");
+   actions.className = "actions";
+   parts.copy = button("Copy caption","secondary");
+   parts.copy.addEventListener("click",function(){copy(editor.value,parts.copy);});
+   // Mark as posted right here, also before the post is saved: the server then saves it as a new package first.
+   parts.mark = button("", "secondary");
+   actions.append(parts.copy, parts.mark);
+   card.appendChild(actions);
+   parts.status = document.createElement("div");
+   parts.status.id = "mark-status-" + item.id;
+   parts.status.setAttribute("role", "status");
+   parts.status.setAttribute("aria-live", "polite");
+   parts.status.tabIndex = -1;
+   const built = buildMarkForm({id:item.id, label:item.label, ledger:item.ledger}, "card-" + item.id,
+     function(){ markFromPreview(parts); },
+     function(){ built.form.classList.add("hidden"); fillCard(parts, parts.item); parts.mark.focus(); });
+   parts.form = built.form;
+   parts.fields = built.fields;
+   parts.mark.addEventListener("click", function(){
+     showIn(parts.status.id, "", true);
+     built.form.classList.remove("hidden");
+     parts.mark.classList.add("hidden");
+     built.fields.url.focus();
+     refreshAccounts();
+   });
+   card.append(built.form, parts.status, parts.notes);
+   return parts;
+ }
+ function postedHere(id) {
+   return isCleanPackage() && Boolean(current.state && current.state.networks.some(n => n.id === id && n.state === "posted"));
+ }
+ function fillCard(parts, item) {
+   parts.item = item;
+   parts.title.textContent = item.label;
+   const state = networkState(item.id);
+   parts.chip.textContent = state[0]; parts.chip.className = state[1];
+   if (!item.human_only) {
+     parts.videoTitle.replaceChildren();
+     if (item.title) parts.videoTitle.append(text("strong","Title"), text("pre",item.title));
+     parts.label.textContent = "Caption for " + item.label;
+     if (document.activeElement !== parts.editor && parts.editor.value !== (item.text || "")) parts.editor.value = item.text || "";
+     parts.copy.setAttribute("aria-label", "Copy the caption for " + item.label);
+     parts.mark.textContent = "Mark " + item.label + " as posted";
+     parts.mark.classList.toggle("hidden", !item.measurable || postedHere(item.id) || !parts.form.classList.contains("hidden"));
+     if (postedHere(item.id)) parts.form.classList.add("hidden");
+   }
+   const notes = parts.notes;
+   notes.replaceChildren();
+   if (!item.human_only) {
+     if(item.shortened) notes.appendChild(text("p","Shortened to fit " + item.label + ": read the ending before you copy it.","hint"));
+     if(item.note) notes.appendChild(text("p",item.note,"hint"));
+   }
+   if(item.media_checks && item.media_checks.length) {
+     notes.appendChild(text("strong","Photo and video checks:"));
+     const list = document.createElement("ul");
+     list.className = "media-checks";
+     for(const line of item.media_checks) list.appendChild(text("li", line));
+     notes.appendChild(list);
+   }
+   if(item.warnings.length) {
+     notes.appendChild(text("strong","Before you post, check:"));
+     const list = document.createElement("ul");
+     for(const warning of item.warnings) list.appendChild(text("li", warning));
+     notes.appendChild(list);
    }
  }
  function lockBusy(state) {
@@ -891,25 +982,46 @@ button { font-family: inherit; }
    el("save").disabled = state || !previewValid;
    el("update").disabled = state || !previewValid || !current.package || postedLocked();
  }
- async function preview() {
-   if (busy) return;
-   lockBusy(true);
-   showMessage("Checking your posts on this computer…",true);
+ // explicit: the "Refresh previews" button (says what happened and scrolls to the cards); otherwise a live update
+ // that only changes the cards.
+ async function preview(explicit) {
+   if (previewTimer) { clearTimeout(previewTimer); previewTimer = null; }
+   if (!canPreview()) {
+     placeholder(idleText());
+     if (explicit) showMessage(selected.size ? "Write a caption first, or attach a photo or video." :
+       "Pick at least one network first.", false);
+     return;
+   }
+   if (previewAbort) previewAbort.abort();
+   const controller = typeof AbortController === "function" ? new AbortController() : null;
+   previewAbort = controller;
+   const seq = ++previewSeq;
+   const body = payload();
+   const key = JSON.stringify(body);
+   if (explicit) showMessage("Checking your posts on this computer…",true);
+   el("results").setAttribute("aria-busy", "true");
+   let ok = false;
    try {
-     const result = await api("/api/preview",payload());
+     const result = await api("/api/preview", body, controller ? controller.signal : undefined);
+     if (seq !== previewSeq || key !== JSON.stringify(payload())) return;  // the editor changed: a newer one follows
      previewData = result.platforms;
      previewValid = true;
-     previewedKey = JSON.stringify(payload());
+     previewedKey = key;
      renderPreview(previewData);
-     showMessage("Ready to review. Nothing has been saved or sent.",true);
+     ok = true;
+     if (explicit) showMessage("Ready to review. Nothing has been saved or sent.",true);
    } catch(e) {
+     if (seq !== previewSeq || (e && e.name === "AbortError")) return;
      previewValid = false;
-     el("results").replaceChildren(text("p","Fix the problem above and preview again.","no-preview"));
-     showMessage(e.message || "Preview failed.",false);
+     placeholder(e.message || "Preview failed.", true);
+     if (explicit) showMessage(e.message || "Preview failed.",false);
+   } finally {
+     if (seq === previewSeq) { el("results").removeAttribute("aria-busy"); previewAbort = null; }
    }
-   lockBusy(false);
+   el("save").disabled = busy || !previewValid;
+   el("update").disabled = busy || !previewValid || !current.package || postedLocked();
    progress();
-   if (previewValid) el("review-title").scrollIntoView({block:"start", behavior:"smooth"});
+   if (explicit && ok) el("review-title").scrollIntoView({block:"start", behavior:"smooth"});
  }
  async function save(mode) {
    if (!previewValid || busy || (mode === "update" && postedLocked())) return;
@@ -961,7 +1073,7 @@ button { font-family: inherit; }
      updateEditing();
      setSaved("Draft saved", "ok");
      showIn("pkg-status", "", true);
-     showMessage("Opened " + result.package.display_name + ". Preview again before you save it.", true);
+     showMessage("Opened " + result.package.display_name + ". Its previews are below.", true);
      el("caption").focus();
      renderPackages(lastPackages);
      progress();
@@ -1100,40 +1212,51 @@ button { font-family: inherit; }
        [{label:"Copy command", value:RESULTS_CMD, aria:"Copy the command that opens your results"}]);
    }
  }
- async function markPosted(pkg, network, fields) {
+ // The Mark as posted fields as the server takes them, or null after saying what is wrong (focus on the link).
+ async function markBody(fields) {
    const link = normalizeLink(fields.url.value);
    if (!link) {
      fields.url.setAttribute("aria-invalid", "true");
      fields.error.textContent = LINK_HELP;
      fields.error.classList.remove("hidden");
      fields.url.focus();
-     return;
+     return null;
    }
    fields.url.value = link;
    fields.url.removeAttribute("aria-invalid");
    fields.error.classList.add("hidden");
+   const numbers = readNumbers(fields.numbers);
+   await refreshAccounts();  // an account added since the page opened can be checked and named now
+   const at = fields.when.value ? new Date(fields.when.value) : null;
+   if (at && isNaN(at.getTime())) throw new Error("The posted time is not a valid date.");
+   const body = {url:link, posted_at: at ? at.toISOString() : null};
+   if (fields.account && fields.account.value) body.account_id = fields.account.value;
+   if (Object.keys(numbers).length) body.numbers = numbers;
+   return body;
+ }
+ // What happened, in the box statusId: the account the record names, the numbers kept, or how to add them later.
+ function postedReport(statusId, network, result, prefix) {
+   const posted = result.posted;
+   const who = posted.account_id ? " for " + posted.account_id + (posted.account_from === "link" ? " (from the link)" : "") : "";
+   const said = (prefix || "") + "Recorded as posted by you on " + network.label + who + ". Nothing was posted or sent.";
+   if (posted.numbers && Object.keys(posted.numbers).length) {
+     resultsAfter(statusId, said + "\nNumbers kept: " + numbersSentence(posted.numbers) + " (entered by hand, as of now).", network);
+   } else {
+     showIn(statusId, said + "\nNo numbers yet. When the app shows them, use “Update numbers” under Saved packages, or run " +
+       result.next + " (replace N; add --replies N --reposts N --views N as you like)", true,
+       [{label:"Copy command", value:result.next, aria:"Copy the command that adds numbers for " + network.label}]);
+   }
+   announce("Recorded as posted on " + network.label + ".");
+ }
+ async function markPosted(pkg, network, fields) {
+   if (fields.record.disabled) return;
    fields.record.disabled = true;
    try {
-     const numbers = readNumbers(fields.numbers);
-     await refreshAccounts();  // an account added since the page opened can be checked and named now
-     const at = fields.when.value ? new Date(fields.when.value) : null;
-     if (at && isNaN(at.getTime())) throw new Error("The posted time is not a valid date.");
-     const body = {package:pkg.name, platform:network.id, url:link, posted_at: at ? at.toISOString() : null};
-     if (fields.account && fields.account.value) body.account_id = fields.account.value;
-     if (Object.keys(numbers).length) body.numbers = numbers;
-     const result = await api("/api/mark-posted", body);
+     const body = await markBody(fields);
+     if (!body) { fields.record.disabled = false; return; }
+     const result = await api("/api/mark-posted", Object.assign({package:pkg.name, platform:network.id}, body));
      if (current.package === pkg.name) { current.state = result.package; updateLock(); }
-     const posted = result.posted;
-     const who = posted.account_id ? " for " + posted.account_id + (posted.account_from === "link" ? " (from the link)" : "") : "";
-     const said = "Recorded as posted by you on " + network.label + who + ". Nothing was posted or sent.";
-     if (posted.numbers && Object.keys(posted.numbers).length) {
-       resultsAfter("pkg-status", said + "\nNumbers kept: " + numbersSentence(posted.numbers) + " (entered by hand, as of now).", network);
-     } else {
-       showIn("pkg-status", said + "\nNo numbers yet. When the app shows them, use “Update numbers” below, or run " +
-         result.next + " (replace N; add --replies N --reposts N --views N as you like)", true,
-         [{label:"Copy command", value:result.next, aria:"Copy the command that adds numbers for " + network.label}]);
-     }
-     announce("Recorded as posted on " + network.label + ".");
+     postedReport("pkg-status", network, result);
      if (previewData.length) renderPreview(previewData);
      loadPackages();
      progress();
@@ -1142,6 +1265,61 @@ button { font-family: inherit; }
      fields.error.textContent = e.message || "Nothing was recorded.";
      fields.error.classList.remove("hidden");
    }
+ }
+ // The editor now holds this saved package, unchanged (after Save and mark, or a save the record then failed).
+ function adoptSaved(state) {
+   current = {package:state.name, revision:state.revision, state:state};
+   baseline = editorKey();
+   previewedKey = JSON.stringify(payload());
+   savedClean = true;
+   previewValid = false;  // saved: "Save as new package" again only after something changes
+   el("save").disabled = true;
+   el("update").disabled = true;
+   updateEditing();
+   scheduleSave();
+ }
+ // "Mark … as posted" on a preview card. The editor's post is the saved package, unchanged: record it there.
+ // Otherwise the server saves the editor's post as a NEW package and records it in the same request (all checks
+ // first; if only the record is refused, the answer says which package was kept and the editor holds it).
+ async function markFromPreview(parts) {
+   const fields = parts.fields, item = parts.item;
+   if (fields.record.disabled) return;
+   fields.record.disabled = true;
+   const network = {id:item.id, label:item.label, ledger:item.ledger};
+   try {
+     const body = await markBody(fields);
+     if (!body) { fields.record.disabled = false; return; }
+     const inPackage = isCleanPackage() && Boolean(current.state &&
+       current.state.networks.some(n => n.id === item.id && n.state !== "posted"));
+     const result = inPackage ?
+       await api("/api/mark-posted", Object.assign({package:current.package, platform:item.id}, body)) :
+       await api("/api/save-and-mark", Object.assign(payload(), {platform:item.id}, body));
+     if (inPackage) { current.state = result.package; updateLock(); } else adoptSaved(result.package);
+     parts.form.classList.add("hidden");
+     resetMarkForm(fields);
+     postedReport(parts.status.id, network, result, inPackage ? "" :
+       "Saved as a new package: " + result.display_name + " (in " + result.folder + ").\n");
+     renderPreview(previewData);
+     parts.status.focus({preventScroll:true});
+     loadPackages();
+     progress();
+   } catch(e) {
+     if (e.data && e.data.saved === true && e.data.package && typeof e.data.package.name === "string") {
+       adoptSaved(e.data.package);  // saved, not recorded: the editor holds that package; Mark again records there
+       renderPreview(previewData);
+       loadPackages();
+       progress();
+     }
+     fields.record.disabled = false;
+     fields.error.textContent = e.message || "Nothing was recorded.";
+     fields.error.classList.remove("hidden");
+   }
+ }
+ function resetMarkForm(fields) {
+   fields.record.disabled = false;
+   fields.url.value = ""; fields.when.value = "";
+   fields.error.classList.add("hidden");
+   for (const key in fields.numbers) fields.numbers[key].value = "";
  }
  // "Update numbers" on a network marked as posted here: a new hand-entered snapshot for that post only.
  function updateNumbersForm(pkg, network, row, line) {
@@ -1217,9 +1395,23 @@ button { font-family: inherit; }
    }
    const open = button("Mark as posted", "small");
    open.setAttribute("aria-label", "Mark " + network.label + " as posted");
+   const built = buildMarkForm(network, "mark-" + pkg.name + "-" + network.id,
+     function(){ markPosted(pkg, network, built.fields); },
+     function(){ built.form.classList.add("hidden"); open.classList.remove("hidden"); open.focus(); });
+   open.addEventListener("click", function(){
+     built.form.classList.remove("hidden"); open.classList.add("hidden"); built.fields.url.focus();
+     refreshAccounts();
+   });
+   line.appendChild(open);
+   row.appendChild(built.form);
+   return row;
+ }
+ // The Mark as posted form (a saved package's row, or a preview card). Tab order: the link (focused when the form
+ // opens), then Likes, Replies, Reposts, Views, then the optional account and time, then Record. Enter in any of
+ // its fields records it.
+ function buildMarkForm(network, base, onRecord, onCancel) {
    const form = document.createElement("div");
    form.className = "markform hidden";
-   const base = "mark-" + pkg.name + "-" + network.id;
    const urlLabel = text("label", "Link to your post on " + network.label);
    const url = document.createElement("input");
    url.type = "url"; url.id = base + "-url"; url.maxLength = 2048; url.placeholder = "https://";
@@ -1230,6 +1422,9 @@ button { font-family: inherit; }
    url.setAttribute("aria-describedby", error.id);
    form.appendChild(urlLabel); form.appendChild(url); form.appendChild(error);
    const fields = {url:url, error:error, account:null, accountHint:null, when:null, record:null, numbers:null};
+   const nums = numbersFieldset(base, "Likes, Replies, Reposts, Views — optional, as shown in the app");
+   form.appendChild(nums.box);
+   fields.numbers = nums.inputs;
    // Which account: always built, shown only when this network has accounts (the list can change while open).
    const pick = document.createElement("div");
    pick.className = "pickacct";
@@ -1252,9 +1447,6 @@ button { font-family: inherit; }
    whenLabel.setAttribute("for", when.id);
    form.appendChild(whenLabel); form.appendChild(when);
    fields.when = when;
-   const nums = numbersFieldset(base, "Likes, Replies, Reposts, Views — optional, as shown in the app");
-   form.appendChild(nums.box);
-   fields.numbers = nums.inputs;
    const actions = document.createElement("div");
    actions.className = "actions";
    const record = button("Record as posted", "primary");
@@ -1274,22 +1466,18 @@ button { font-family: inherit; }
      if (linkTimer) clearTimeout(linkTimer);
      linkTimer = setTimeout(function(){ accountFromLink(network, fields); }, 300);
    });
-   url.addEventListener("keydown", function(event){ if (event.key === "Enter") markPosted(pkg, network, fields); });
-   open.addEventListener("click", function(){
-     form.classList.remove("hidden"); open.classList.add("hidden"); url.focus();
-     refreshAccounts();
+   form.addEventListener("keydown", function(event){
+     if (event.key === "Enter" && event.target.tagName === "INPUT") { event.preventDefault(); onRecord(); }
    });
-   cancel.addEventListener("click", function(){ form.classList.add("hidden"); open.classList.remove("hidden"); open.focus(); });
-   record.addEventListener("click", function(){ markPosted(pkg, network, fields); });
-   line.appendChild(open);
-   row.appendChild(form);
-   return row;
+   cancel.addEventListener("click", onCancel);
+   record.addEventListener("click", onRecord);
+   return {form:form, fields:fields};
  }
  function renderPackages(list) {
    lastPackages = list;
-   accountSelects = [];
    const box = el("packages");
    box.replaceChildren();
+   accountSelects = accountSelects.filter(s => s.select.isConnected);  // the preview cards' pickers stay
    if (!list.length) {
      box.appendChild(text("p", "No saved packages yet. Save one above and it appears here.", "no-preview"));
      return;
@@ -1347,7 +1535,7 @@ button { font-family: inherit; }
    filter="all";el("all").setAttribute("aria-pressed","true");
    el("popular").setAttribute("aria-pressed","false");renderNetworks();
  });
- el("preview").addEventListener("click",preview);
+ el("preview").addEventListener("click",function(){ preview(true); });
  el("save").addEventListener("click",function(){ save("new"); });
  el("update").addEventListener("click",function(){
    if (!previewValid || !current.package || postedLocked()) return;  // posted: never offered, see #update-why
@@ -1381,7 +1569,7 @@ button { font-family: inherit; }
    undoStack.length = 0; stable = snapshot(); el("undo").disabled = true;
    api("/api/draft/clear", {}).then(function(){
      setSaved("Cleared", "ok");
-     if (preselectYours()) { stable = snapshot(); scheduleSave(); progress(); }  // a fresh draft: your networks
+     if (preselectYours()) { stable = snapshot(); scheduleSave(true); progress(); }  // a fresh draft: your networks
    }).catch(function(e){
      setSaved("Not saved", "bad"); showMessage(e.message || "The draft could not be cleared.", false);
    });
@@ -1412,7 +1600,7 @@ button { font-family: inherit; }
  function useText(value, label) {
    if (!el("caption").value.trim() && !media.length && !el("notes").value.trim() && !current.package) {
      setCaption(value);
-     showMessage("Started from " + label + (selected.size ? ". Your networks are chosen; preview when you are ready." :
+     showMessage("Started from " + label + (selected.size ? ". Your networks are chosen; each version appears below." :
        ". Pick your networks next.") + " Nothing is posted for you.", true);
      el("caption").focus();
      return;
@@ -1438,7 +1626,7 @@ button { font-family: inherit; }
    renderPackages(lastPackages);
    progress();
    showMessage("Started a new post from " + label + ". Your saved package “" + kept + "” is still in Saved packages, " +
-     "unchanged." + (selected.size ? " Your networks are chosen; preview when you are ready." : " Pick your networks next.") +
+     "unchanged." + (selected.size ? " Your networks are chosen; each version appears below." : " Pick your networks next.") +
      " Nothing is posted for you.", true);
    announce("Started a new post from your idea. Your saved package is still in Saved packages.");
    el("caption").focus();
@@ -1483,6 +1671,17 @@ button { font-family: inherit; }
    }
    return "your idea “" + words + "”";
  }
+ // An empty editor takes your typing at once: on a wide screen always, on a phone only when you came from a
+ // "Write" link (the keyboard opening there is what you asked for; a plain visit never pops it up). Never when
+ // something else already has focus, and never over a draft or an idea (useText places the cursor itself).
+ function focusCaption() {
+   if (ideaWanted || pendingOffer || current.package || el("caption").value.trim()) return;
+   const active = document.activeElement;
+   if (active && active !== document.body && active !== document.documentElement) return;
+   const wide = Boolean(window.matchMedia && window.matchMedia("(min-width: 821px)").matches);
+   if (writeWanted) el("caption").focus();
+   else if (wide) el("caption").focus({preventScroll:true});
+ }
  let lastAccountCheck = 0;
  function accountsAgain() {
    if (!ready || document.visibilityState !== "visible" || Date.now() - lastAccountCheck < 2000) return;
@@ -1508,20 +1707,26 @@ button { font-family: inherit; }
    renderNetworks();
    return api("/api/draft/load", {});
  }).then(function(data){
+   // A draft holding only your chosen networks is not something you wrote: the page then looks fresh.
+   const wrote = Boolean(data.draft && ((data.draft.text || "").trim() || (data.draft.note || "").trim() ||
+     (data.draft.title || "").trim() || (data.draft.media || []).length || data.draft.package ||
+     Object.keys(data.draft.overrides || {}).length));
    if (data.draft) {
      current = {package:data.draft.package, revision:data.draft.revision, state:null};
      applyEditor(data.draft, data.media);
      if (current.package && data.package_unchanged === true) baseline = editorKey();  // the package as saved
-     setSaved("Draft saved", "ok");
+     if (wrote) setSaved("Draft saved", "ok");
    } else {
      stable = snapshot();
    }
    updateEditing();
    ready = true;
-   // A fresh draft (no networks chosen, no package open) starts with your own networks; the draft keeps the choice.
+   // A fresh draft (no networks chosen, no package open) starts with your own networks; the draft keeps the choice
+   // (saved quietly: nothing you typed, so the page does not say "Saving…").
    const preselected = !current.package && preselectYours();
-   if (preselected) { stable = snapshot(); scheduleSave(); }
-   showMessage((data.draft ? "Your draft is back. No social network is connected." :
+   if (preselected) { stable = snapshot(); scheduleSave(true); }
+   schedulePreview();  // a draft that came back shows its previews without a click
+   showMessage((wrote ? "Your draft is back. No social network is connected." :
                "Ready. No social network is connected; nothing is posted for you.") +
                (preselected ? " Your networks are chosen; tap one to remove it." : ""), true);
    if (data.offer && typeof data.offer.text === "string") pendingOffer = {text:data.offer.text, label:String(data.offer.label || "your text")};
@@ -1533,6 +1738,7 @@ button { font-family: inherit; }
    renderPackages(data.packages);
    progress();
    startFromRequest();
+   focusCaption();
  }).catch(function(err){
    showMessage(err.message || "Unable to open the local composer.",false);
    el("preview").disabled=true;

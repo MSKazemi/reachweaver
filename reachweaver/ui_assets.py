@@ -179,7 +179,7 @@ button:hover { border-color: var(--accent); }
 .iconbtn { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; border-radius: 9px; }
 button.linkbtn { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; }
 select, input[type="text"], input[type="search"] { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; min-width: 0; }
-label.auto { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 4px 0; }
+label.auto { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0; min-height: 44px; cursor: pointer; }  /* a 44px tap row */
 .pop { margin: 0; inset: 58px 20px auto auto; width: 290px; background: var(--panel); color: var(--ink); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 6px 16px 14px; box-shadow: 0 12px 32px rgba(0, 0, 0, .18); }
 .pophead { margin: 12px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 600; }
@@ -490,6 +490,13 @@ a.fx:hover { text-decoration: underline; }
 .overtop { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
 .overtop .writebtn { display: none; }
 .linkline { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 8px 0; }
+/* The ideas step: your newest open ideas, each with "Write this" */
+.ideapicks { flex: 1 1 100%; min-width: 0; }
+.ideapicklist { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ideapicklist li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.ideapicklist .ideatext { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.ideapicklist .writebtn { padding: 8px 14px; }
 
 /* ---- loading skeleton */
 .sk { border-radius: 8px; background: var(--code-bg); margin: 0 0 12px; }
@@ -707,7 +714,23 @@ function exampleTime(past) {
 }
 const PLATFORMS = ["bluesky", "mastodon", "linkedin", "x", "threads", "instagram", "youtube", "tiktok", "facebook", "reddit", "hackernews", "telegram", "github", "pinterest"];
 function pfClass(platform) { return "pf-" + (PLATFORMS.includes(platform) ? platform : "other"); }
-function pf(platform) { return h("span", { class: "pf" }, h("span", { class: "dot " + pfClass(platform), "aria-hidden": "true" }), platform || "unknown"); }
+// A platform's display name, as the terminal prints it (results.platform_name: these names, else a capital first
+// letter): "Bluesky", "LinkedIn". Ids stay in the data, links and filters; only what you read changes.
+const PLATFORM_NAMES = {"linkedin": "LinkedIn", "youtube": "YouTube", "tiktok": "TikTok", "x": "X", "dev": "DEV", "xiaohongshu": "Xiaohongshu", "sharechat": "ShareChat", "hackernews": "Hacker News"};
+function platformName(platform) {
+  const id = String(platform || "");
+  return Object.prototype.hasOwnProperty.call(PLATFORM_NAMES, id) ? PLATFORM_NAMES[id] : id.slice(0, 1).toUpperCase() + id.slice(1);
+}
+function pf(platform) { return h("span", { class: "pf" }, h("span", { class: "dot " + pfClass(platform), "aria-hidden": "true" }), platform ? platformName(platform) : "unknown"); }
+// "3 days after posting", "5 h", "40 min": how long after the post a result was read (age_hours from the data).
+function sincePosting(hours) {
+  const h_ = Number(hours);
+  if (!Number.isFinite(h_) || h_ < 0) return "unknown";
+  if (h_ < 1) return Math.max(1, Math.round(h_ * 60)) + " min";
+  if (h_ < 48) return Math.round(h_) + " h";
+  const days = Math.round(h_ / 24);
+  return days + (days === 1 ? " day" : " days");
+}
 function avatar(name, platform) {
   const letter = (String(name || "").replace(/^[^A-Za-z0-9]+/, "")[0] || "?").toUpperCase();
   return h("span", { class: "avatar " + pfClass(platform), "aria-hidden": "true" }, letter);
@@ -779,7 +802,9 @@ function command(text) {
 // null when this dashboard runs alone (`ui`): then "Write a new post" stays a command to copy.
 let COMPOSER = null;
 const COMPOSER_URL = /^http:\/\/127\.0\.0\.1:\d{1,5}\/#[A-Za-z0-9_-]{30,}$/;
-function composerHref(ideaId) { return COMPOSER + (ideaId ? "&idea=" + encodeURIComponent(ideaId) : ""); }
+// "&write=1" tells the composer you came to write: its empty caption takes focus even on a phone. An idea link
+// places the cursor through the idea itself.
+function composerHref(ideaId) { return COMPOSER + (ideaId ? "&idea=" + encodeURIComponent(ideaId) : "&write=1"); }
 // The composer is another origin (its own port), so it cannot read this page's theme from browser storage: a link to
 // it carries the Settings choice in its fragment ("&theme=dark"), added when the link is followed so a later change
 // counts. The fragment is never sent to a server; the composer keeps the choice and drops it from its address.
@@ -793,15 +818,15 @@ function themeOnComposerLink(e) {
 }
 document.addEventListener("click", themeOnComposerLink, true);
 document.addEventListener("auxclick", themeOnComposerLink, true);
-function writeLink(label, ideaId) {
-  return h("a", { class: "writebtn", href: COMPOSER ? composerHref(ideaId) : "#/write", rel: COMPOSER ? "noopener noreferrer" : null }, icon("pen"), label);
+function writeLink(label, ideaId, ariaLabel) {
+  return h("a", { class: "writebtn", href: COMPOSER ? composerHref(ideaId) : "#/write", rel: COMPOSER ? "noopener noreferrer" : null, "aria-label": ariaLabel || null }, icon("pen"), label);
 }
 async function loadStudio() {
   try { const d = await api("studio"); if (d && typeof d.composer === "string" && COMPOSER_URL.test(d.composer)) COMPOSER = d.composer; } catch (e) { /* the dashboard alone */ }
   if (!COMPOSER) return;
   const cta = document.querySelector(".writecta");
-  if (cta) { cta.href = COMPOSER; cta.rel = "noopener noreferrer"; cta.removeAttribute("data-route"); }
-  for (const p of PAGES) if (p[1] === "#/write") p[1] = COMPOSER;
+  if (cta) { cta.href = composerHref(); cta.rel = "noopener noreferrer"; cta.removeAttribute("data-route"); }
+  for (const p of PAGES) if (p[1] === "#/write") p[1] = composerHref();
 }
 async function api(path) {
   const res = await fetch("api/" + path, { headers: { Accept: "application/json" }, cache: "no-store" });
@@ -841,10 +866,25 @@ function refreshBadges() { api("attention").then(applyBadges).catch(() => { /* b
 // The ideas step's note names commands; in the browser the Ideas page has a "Write a post from this idea" link per idea
 // under `studio`, and a command per idea alone.
 const IDEAS_NOTE_STUDIO = "Pick one and write it in the composer.";
-const IDEAS_NOTE_ALONE = "Pick one on the Ideas page: each has a command that opens it in the composer.";
+const IDEAS_NOTE_ALONE = "Pick one: each command opens it in the composer.";
+const IDEAS_ON_OVERVIEW = 3;
+// The ideas step shows your newest open ideas right here (at most three), each with "Write this": one click opens
+// the composer with that idea as the caption (`studio`); alone, the command that does. The Ideas page has the rest.
+function ideaPicks() {
+  const all = () => h("a", { class: "tap", href: "#/ideas" }, "See your ideas");
+  const box = h("div", { class: "ideapicks" }, h("p", { class: "muted" }, "Loading your ideas…"));
+  api("ideas?status=open").then(d => {
+    const list = (d.ideas || []).slice(0, IDEAS_ON_OVERVIEW);
+    if (!list.length) { box.replaceChildren(all()); return; }
+    box.replaceChildren(h("ul", { class: "ideapicklist" }, list.map(i => h("li", null, h("span", { class: "ideatext" }, i.excerpt),
+      COMPOSER ? writeLink("Write this", i.id, "Write a post from your idea: " + i.excerpt) : command("reachweaver share --web --open --idea " + i.id)))),
+      (d.total || 0) > list.length ? h("a", { class: "tap", href: "#/ideas" }, "All " + d.total + " ideas") : null);
+  }).catch(() => box.replaceChildren(all()));
+  return box;
+}
 function stepBlock(step, lead) {
   const link = step.opens === "composer" && COMPOSER ? writeLink("Open the composer") :
-    step.opens === "ideas" ? h("a", { class: "tap", href: "#/ideas" }, "See your ideas") : null;
+    step.opens === "ideas" ? ideaPicks() : null;
   const note = step.opens === "ideas" ? (COMPOSER ? IDEAS_NOTE_STUDIO : IDEAS_NOTE_ALONE) : step.note;
   return [h(lead ? "p" : "div", { class: lead ? "lead" : null }, step.label),
     link ? h("div", { class: "linkline" }, link) : step.command ? command(step.command) : null,
@@ -994,7 +1034,7 @@ async function suggestionNodes() {
   const d = await api("suggest");
   if (!d.actions.length) return [];
   return [h("p", { class: "muted" }, "Offline rules over your local database, not a reach prediction. Each needs a human; nothing here changes anything."),
-    h("ol", null, d.actions.map(a => h("li", null, h("span", { class: "src" }, a.priority), " ", h("b", null, a.title), a.platform ? " (" + a.platform + ")" : "",
+    h("ol", null, d.actions.map(a => h("li", null, h("span", { class: "src" }, a.priority), " ", h("b", null, a.title), a.platform ? " (" + platformName(a.platform) + ")" : "",
       h("div", null, a.next_step), h("div", { class: "note" }, "Evidence: " + a.evidence_source.replace(/_/g, " ") + " · " + a.confidence.replace(/_/g, " "))))),
     d.more ? h("p", { class: "note" }, d.more + " more: ", h("code", null, "reachweaver suggest --include-db")) : null];
 }
@@ -1045,7 +1085,7 @@ function calendar(d, picked) { // 5 weeks from this Monday, in local time; overd
       "aria-label": day.toDateString() + ": " + items.length + " post(s)" },
       items.length ? h("a", { class: "num", href: dayLink, title: "List this day" }, text) : h("span", { class: "num" }, text),
       items.slice(0, 3).map(p => h("a", { class: "item" + (d.overdue.includes(p) ? " overdue" : "") + (p.approval_expired ? " expired" : ""),
-        href: postHref(p.id), title: p.platform + " · " + p.excerpt }, h("span", { class: "dot " + pfClass(p.platform), "aria-hidden": "true" }), clock(p.scheduled_at), h("span", null, p.excerpt || "(empty)"))),
+        href: postHref(p.id), title: platformName(p.platform) + " · " + p.excerpt }, h("span", { class: "dot " + pfClass(p.platform), "aria-hidden": "true" }), clock(p.scheduled_at), h("span", null, p.excerpt || "(empty)"))),
       items.length > 3 ? h("a", { class: "more", href: dayLink }, "+" + (items.length - 3) + " more") : null));
   }
   return h("div", { class: "cal" }, cells);
@@ -1101,8 +1141,8 @@ function postedRow(e) {
       e.note && !measured ? h("div", { class: "muted" }, "Note: " + e.note) : null],  // a measured one's note only repeats the badge
     right: [h("div", null, when(e.when)), link ? h("a", { class: "over", href: link, rel: "noopener noreferrer", target: "_blank" }, "Open ", icon("external")) : h("span", { class: "muted" }, "no link")] });
 }
-function listSearch(rowsList, placeholder, total, suffix) {
-  const search = h("input", { type: "text", id: "search", placeholder, "aria-label": "Search the listed posts" });
+function listSearch(rowsList, placeholder, total, suffix, label) {
+  const search = h("input", { type: "text", id: "search", placeholder, "aria-label": label || "Search the listed posts" });
   const shown = h("span", { class: "muted", role: "status", "aria-live": "polite" });
   const count = () => { shown.textContent = rowsList.filter(r => !r.hidden).length + " of " + total + (suffix || "") + " shown"; };
   search.addEventListener("input", () => { const t = search.value.trim().toLowerCase();
@@ -1154,7 +1194,7 @@ function snapshotCell(s, keys, barKey, max) {
   if (!s) return h("span", { class: "muted" }, "not recorded");
   const m = barKey && s.metrics[barKey];
   return [metricLine(s.metrics, keys), m && m.state === "exact" ? hbar(m.value, max, barKey + " " + m.value + " of the largest " + max) : null,
-    h("div", { class: "note" }, "recorded ", when(s.observed_at), s.age_hours != null ? " · " + s.age_hours + " h after posting" : "", " · " + s.source)];
+    h("div", { class: "note" }, "recorded ", when(s.observed_at), s.age_hours != null ? " · " + sincePosting(s.age_hours) + " after posting" : "", " · " + s.source)];
 }
 // The time window of the Results page: a read-only query parameter (?since=7d|30d|all); "This week" by default.
 const RESULT_WINDOWS = [["7d", "This week"], ["30d", "30 days"], ["all", "All"]];
@@ -1179,7 +1219,7 @@ async function viewResults(params) {
   const ids = accounts.accounts.map(a => a.id); if (account && !ids.includes(account)) ids.push(account);
   const acc = accountMenu(ids, account, v => go(v, platform, since));
   const names = [...new Set(d.platforms.map(p => p.platform).concat(platform ? [platform] : []))];
-  const plat = h("select", { "aria-label": "Platform filter" }, h("option", { value: "" }, "All platforms"), names.map(n => h("option", { value: n, selected: n === platform }, n)));
+  const plat = h("select", { "aria-label": "Platform filter" }, h("option", { value: "" }, "All platforms"), names.map(n => h("option", { value: n, selected: n === platform }, platformName(n))));
   plat.addEventListener("change", () => go(account, plat.value, since));
   const windows = h("div", { class: "chips", role: "group", "aria-label": "Time window" }, RESULT_WINDOWS.map(([k, label]) => {
     const b = h("button", { type: "button", class: "chipbtn", "aria-pressed": k === since ? "true" : "false" }, label);
@@ -1352,7 +1392,7 @@ function previewText(text) {
 function previewCard(p, acct) {
   const handle = acct && acct.handle ? acct.handle : p.account_id;
   return h("div", { class: "preview" }, avatar(handle, p.platform),
-    h("div", null, h("div", { class: "pv-head" }, h("b", null, p.account_id), h("span", null, handle !== p.account_id ? handle : null), h("span", null, "· " + p.platform)),
+    h("div", null, h("div", { class: "pv-head" }, h("b", null, p.account_id), h("span", null, handle !== p.account_id ? handle : null), h("span", null, "· " + platformName(p.platform))),
       h("div", { class: "pv-text" }, previewText(p.content))));
 }
 // A line through the recorded exact values of one metric by hours after posting; nothing drawn from fewer than two.
@@ -1436,7 +1476,7 @@ async function viewPost(id) {
   if (p.results && p.results.length) {
     const keys = ["views", "impressions", "likes", "replies", "reposts", "saves", "clicks", "signups"];
     left.push(h("h2", null, "Recorded results"), spark(p.results), table(["Recorded", "After posting", "Source", "Values"], p.results.map(r => h("tr", null,
-      h("td", null, when(r.observed_at)), h("td", null, r.age_hours != null ? r.age_hours + " h" : h("span", { class: "muted" }, "unknown")),
+      h("td", null, when(r.observed_at)), h("td", null, r.age_hours != null ? sincePosting(r.age_hours) : h("span", { class: "muted" }, "unknown")),
       h("td", null, r.source), h("td", null, metricLine(r.metrics, keys))))),
       h("p", { class: "note" }, "From the platform's own analytics as you recorded them; unknown is never shown as zero."));
   } else if (p.status === "published" || p.status === "published_manual") left.push(h("p", { class: "muted" }, "No results recorded for this post yet. Record them with reachweaver metrics " + p.id + " ..."));
@@ -1449,7 +1489,7 @@ async function viewPost(id) {
       campaign: p.campaign ? h("a", { href: "#/campaign?name=" + encodeURIComponent(p.campaign) }, p.campaign) : "none" },
       byYou ? { posted: h("span", null, "Posted by you", p.posted_at ? [" on ", h("time", { datetime: p.posted_at, title: p.posted_at }, dateText(p.posted_at))] : "", " (not sent by ReachWeaver)") } :
         { scheduled: when(p.scheduled_at, "not scheduled"), approved: p.approved_at ? when(p.approved_at) : "not approved" })),
-      link ? h("p", null, h("a", { class: "tap", href: link, rel: "noopener noreferrer", target: "_blank" }, wentOut ? "Open it on " + p.platform + " " : "Open remote post ", icon("external"))) : null),
+      link ? h("p", null, h("a", { class: "tap", href: link, rel: "noopener noreferrer", target: "_blank" }, wentOut ? "Open it on " + platformName(p.platform) + " " : "Open remote post ", icon("external"))) : null),
     h("p", { class: "note" }, "This page cannot approve, schedule, pause or publish; run commands in your terminal.")];
   return [pager, h("h1", null, firstWords(p.content, 70), " ", chip(p.status), h("span", { class: "postid" }, "Post ", h("code", null, p.id))),
     h("p", { class: "lede" }, pf(p.platform), " · " + (p.account_id || "account not recorded") + (p.campaign ? " · campaign " + p.campaign : "")),
@@ -1465,7 +1505,7 @@ async function viewAccounts() {
     pagePrompts("page=accounts"),
     d.accounts.length ? h("div", { class: "cards" }, d.accounts.map(a => h("div", { class: "card" },
       h("div", { class: "acct" }, avatar(a.handle || a.id, a.platform), h("div", { class: "acctwho" }, h("b", null, a.id), h("span", { class: "muted" }, a.handle || "handle not set"))),
-      h("div", { class: "badges" }, h("span", { class: "chip info" }, a.platform), h("span", { class: "chip draft" }, ADAPTER_LABEL[a.adapter] || a.adapter),
+      h("div", { class: "badges" }, h("span", { class: "chip info" }, platformName(a.platform)), h("span", { class: "chip draft" }, ADAPTER_LABEL[a.adapter] || a.adapter),
         a.credentials_missing.length ? h("span", { class: "chip draft" }, "Not connected (only needed for automatic sending)") : h("span", { class: "chip ok" }, "connected: all set")),
       h("details", null, h("summary", null, "Technical details"), h("div", { class: "note" }, "Adapter: ", h("code", null, a.adapter + (a.backend ? " (" + a.backend + ")" : ""))),
         a.credentials_missing.length ? h("div", { class: "note" }, a.credentials_missing.length + " missing (names only): " + a.credentials_missing.join(", ")) : null),
@@ -1679,14 +1719,15 @@ async function viewIdeas(params) {
   const status = params.get("status") || "";
   const d = await api("ideas" + (status ? "?status=" + encodeURIComponent(status) : ""));
   const all = Object.values(d.counts).reduce((a, b) => a + b, 0);
-  const chips = h("div", { class: "chips", role: "group", "aria-label": "Filter by state" }, [["", "all", all], ["open", "open", d.counts.open], ["promoted", "promoted", d.counts.promoted], ["dropped", "dropped", d.counts.dropped]].map(([k, label, n]) => {
-    const b = h("button", { type: "button", class: "chipbtn", "aria-pressed": k === status ? "true" : "false" }, label, h("span", { class: "n" }, n));
+  // Each filter's spoken name is "All (2)", not the run-together "all2" of its two visible parts.
+  const chips = h("div", { class: "chips", role: "group", "aria-label": "Filter by state" }, [["", "All", all], ["open", "Open", d.counts.open], ["promoted", "Promoted", d.counts.promoted], ["dropped", "Dropped", d.counts.dropped]].map(([k, label, n]) => {
+    const b = h("button", { type: "button", class: "chipbtn", "aria-pressed": k === status ? "true" : "false", "aria-label": label + " (" + n + ")" }, label, h("span", { class: "n", "aria-hidden": "true" }, n));
     b.addEventListener("click", () => { location.hash = "#/ideas" + (k ? "?status=" + k : ""); }); return b; }));
   const list = d.ideas.map(ideaRow);
   queueRows = list; queueSel = -1;
   return [h("h1", null, "Ideas"), h("p", { class: "lede" }, "Your \"post about this later\" inbox (ideas.json next to the database). An idea is not a draft: it can never be approved or sent."),
     d.error ? h("div", { class: "error" }, "The ideas inbox could not be read: " + d.error) : null, chips,
-    list.length ? [h("div", { class: "filters" }, listSearch(list, "Search these ideas ( / )", d.total, d.truncated ? " (newest " + d.ideas.length + " only)" : "")), rows(list)] :
+    list.length ? [h("div", { class: "filters" }, listSearch(list, "Search your ideas ( / )", d.total, d.truncated ? " (newest " + d.ideas.length + " only)" : "", "Search your ideas")), rows(list)] :
       empty(status ? "No " + status + " ideas" : "No ideas yet", h("span", null, "Tell Claude \"post about this later\", or run ", h("code", null, "reachweaver idea add \"TEXT\" --tag TAG"), " in your terminal."), "idea"),
     h("p", { class: "note" }, "Only the host of a source link is shown. Promoting writes a NEW campaign scaffold folder that stays blocked until you finish and verify it; nothing is staged, approved or sent.")];
 }

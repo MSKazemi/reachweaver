@@ -293,7 +293,9 @@ class PageWiringTests(unittest.TestCase):
         self.assertIn("else if (mine.length === 1 && !select.dataset.touched) select.value = mine[0].id;", html)
         self.assertIn('select.replaceChildren(text("option", "Not sure / skip"))', html)  # still changeable
         self.assertIn('<div class="picked hidden" id="picked"', html)
-        self.assertIn("previewedKey !== null", html)  # "Your post changed" only against the last preview
+        # Previews follow the editor (2026-10-22): an answer that no longer matches what the editor holds is dropped,
+        # so a card never shows an older version than the one being checked.
+        self.assertIn("if (seq !== previewSeq || key !== JSON.stringify(payload())) return;", html)
 
 
 if __name__ == "__main__":

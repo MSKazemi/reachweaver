@@ -482,7 +482,8 @@ class WritePathSecurityTests(ComposerBase):
                   "/api/draft/load": {}, "/api/packages": {}, "/api/prepare": {"platforms": ["threads"], "text": "x"},
                   "/api/accounts": {}, "/api/idea": {"idea": "idea-0a1b2c3d"},
                   "/api/numbers": {"package": name, "platform": "threads", "numbers": {"likes": 3}},
-                  "/api/link-account": {"platform": "threads", "url": URL}}
+                  "/api/link-account": {"platform": "threads", "url": URL},
+                  "/api/save-and-mark": {"platforms": ["threads"], "text": CAPTION, "platform": "threads", "url": URL}}
         self.assertEqual(set(bodies) | {"/api/preview"}, set(JSON_ROUTES))
         port = self.srv.server_port
         variants = [
