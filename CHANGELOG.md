@@ -13,6 +13,10 @@ A documentation website: [mskazemi.com/reachweaver](https://mskazemi.com/reachwe
 - **Documentation website** (Astro Starlight, deployed to GitHub Pages by `.github/workflows/docs-site.yml`). Every public guide in `docs/`, the README, the bundled skill and its references, contributing, security, privacy and disclaimer pages, one page per release from this changelog, and a command reference for all 133 commands generated from the real argument parser. Full-text search, light and dark themes, mobile layout. Built by `scripts/build_docs_site.py` from the Markdown, which stays the single source; private documents are never read (`git ls-files` of the public index, plus a second name check). `make site`, `make site-check`, `make site-dev`.
 - **Search and AI-answer visibility for the site**: a unique title and a 50-160 character description per page, canonical URLs, sitemap, Open Graph and Twitter cards with a social image, JSON-LD (`SoftwareApplication`, `WebSite`, `Person`, `TechArticle`, `BreadcrumbList`), `llms.txt` and `llms-full.txt`, `robots.txt`. `scripts/check_docs_site.py` checks every built page; Lighthouse on the home, quickstart and a command-reference page: performance 99, accessibility 100, best practices 100, SEO 100 (local build, 2026-10-22).
 
+### Changed
+
+- The package's `Documentation` link (PyPI) and the repository's About homepage now point to the documentation website, verified live on 2026-10-22.
+
 ### Fixed
 
 - `docs/WORKER-OPERATIONS.md` linked to an alert-rules heading that had been renamed; the site's anchor check found it.

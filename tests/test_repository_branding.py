@@ -22,7 +22,7 @@ class RepositoryBrandingTests(unittest.TestCase):
         m = self.manifest()
         self.assertEqual(m["repository"], "MSKazemi/reachweaver")
         self.assertEqual(m["product_name"], "ReachWeaver")
-        self.assertIsNone(m["homepage"])
+        self.assertEqual(m["homepage"], "https://mskazemi.com/reachweaver/")  # the docs site, verified live 2026-10-22
         self.assertEqual(m["metadata_scope"], "about_only_no_visibility_changes")
         self.assertIn("Claude Code skill", m["description"])
         self.assertIn("social media", m["description"])
@@ -38,7 +38,7 @@ class RepositoryBrandingTests(unittest.TestCase):
         api.assert_not_called()
         preview = json.loads(output.getvalue())
         self.assertEqual(preview["status"], "offline_preview_only")
-        self.assertIsNone(preview["homepage"])
+        self.assertEqual(preview["homepage"], "https://mskazemi.com/reachweaver/")
 
     def test_apply_requires_explicit_exact_repository_name_before_network(self):
         m = self.manifest()
@@ -67,18 +67,18 @@ class RepositoryBrandingTests(unittest.TestCase):
             ("PUT", "repos/MSKazemi/reachweaver/topics"),
         ])
         patch_body = api.call_args_list[2].args[2]
-        self.assertEqual(patch_body, {"description": m["description"]})
+        self.assertEqual(patch_body, {"description": m["description"], "homepage": m["homepage"]})
         topic_body = api.call_args_list[3].args[2]
         self.assertIn("python", topic_body["names"])
         self.assertEqual(len(topic_body["names"]), len(set(topic_body["names"])))
         self.assertFalse(outcome["visibility_changed"])
-        self.assertFalse(outcome["homepage_updated"])
+        self.assertTrue(outcome["homepage_updated"])
 
     def test_correct_metadata_is_noop(self):
         m = self.manifest()
         with patch.object(about, "_gh_api", side_effect=[
             {"full_name": m["repository"], "description": m["description"],
-             "homepage": None, "private": True},
+             "homepage": m["homepage"], "private": True},
             {"names": m["topics"]},
         ]) as api:
             result = about.apply_metadata(m, confirmed=m["repository"])
