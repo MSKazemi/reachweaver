@@ -18,6 +18,10 @@ It is ``mark-shared --url`` plus ``metrics`` for a person who just posted in an 
   that ``published_manual`` record (``storage.correct_manual_publish``: same row, still never sendable, one
   ``manual_publish_corrected`` event). A post ReachWeaver sent (``published``) is never changed: only numbers.
 * Metric values are checked before anything is written, so a bad value leaves the database unchanged.
+* **This week so far** (2026-10-22): at a terminal the output ends with the first line of ``report --week``
+  (``results.week_summary``: the same window, totals and best post) and ``More: reachweaver report --week``, so
+  "how did my week go" needs no second command. Piped or redirected output is unchanged and ends with
+  ``Next: reachweaver report --week``; the summary only reads the database.
 
 It never writes the send queue, never approves and never contacts a network.
 """
@@ -203,6 +207,22 @@ def ask_when() -> str | None:
     raise ValidationError("No usable date given. Nothing recorded; add --at yesterday (or --at YYYY-MM-DD)")
 
 
+def _terminal_out() -> bool:
+    import sys
+
+    from . import term
+    return term.interactive(sys.stdout)
+
+
+def closing_lines(db) -> list[str]:
+    """The last lines of ``posted``: at a terminal the week so far (read-only, ``results.week_summary``) and where
+    the full report is; piped or redirected, the one ``Next:`` line scripts have always seen."""
+    if not _terminal_out():
+        return [f"Next: {NEXT_STEP}"]
+    from .results import week_summary
+    return [week_summary(db), f"More: {NEXT_STEP}"]
+
+
 def _interactive() -> bool:
     import sys
 
@@ -247,7 +267,7 @@ def _correct(db, post, url: str, platform: str, args, accounts: dict, placeholde
 
 
 def run(args, accounts: dict, placeholders: list[str]) -> int:
-    """The ``posted`` command. Prints 2-5 plain lines and the next step."""
+    """The ``posted`` command. Prints 2-5 plain lines and the next step (at a terminal: the week so far first)."""
     from . import results
     from .storage import (_atomic, connect, find_manual_duplicate, get_post, manual_url_problem, parse_utc,
                           record_manual_publish, store_metrics, utc_now)
@@ -304,7 +324,8 @@ def run(args, accounts: dict, placeholders: list[str]) -> int:
                     results.hours_between(sent, datetime.fromisoformat(observed)) < results.DUE_AFTER_HOURS:
                 again = results.local_date(sent + timedelta(hours=results.MATCH_AGE_HOURS))
                 print(f"For the 7-day comparison, record its numbers around {again}.")
-            print(f"Next: {NEXT_STEP}")
+            for line in closing_lines(db):
+                print(line)
             return 0
     account_id, account_note = pick_account(platform, url, accounts, args.account, placeholders)
     posted_at = None
@@ -324,6 +345,7 @@ def run(args, accounts: dict, placeholders: list[str]) -> int:
             with _atomic(db):
                 store_metrics(db, made["post_id"], observed, results.HAND_ENTERED_SOURCE, **values)
         sent = results.to_time(get_post(db, made["post_id"])["send_started_at"])
+        closing = closing_lines(db)
     day = results.local_date(sent) if sent else "now"
     if posted_at is None:  # "today": say so, and when nobody was asked, how to correct it
         when = f"today ({day})" + ("" if asked else " — if not, run again with --at yesterday")
@@ -338,6 +360,7 @@ def run(args, accounts: dict, placeholders: list[str]) -> int:
         print(_numbers_line(values, sent, datetime.fromisoformat(observed)))
     else:
         print(f"No numbers yet. When you have them: {again} --replies N --reposts N --views N")
-    print(f"Next: {NEXT_STEP}")
+    for line in closing:
+        print(line)
     return 0
 

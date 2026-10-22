@@ -87,12 +87,16 @@ def _add_idea_and_statusline_parsers(sub) -> None:
                        "as idea add); list, drop or promote one to a NEW blocked campaign scaffold; never creates a "
                        "draft, approval or send",
                        description="Save a post idea for later: reachweaver idea \"text\" (short for idea add "
-                                   "\"text\"). Then list, drop or promote it. Nothing is drafted, queued or sent.")
+                                   "\"text\"); several at once: reachweaver idea \"first\" \"second\". Then list, drop "
+                                   "or promote it. Nothing is drafted, queued or sent.")
     actions = p.add_subparsers(dest="idea_action", required=True, metavar="ACTION")
-    q = actions.add_parser("add", help="Add an open idea (text up to 2000 characters)")
-    q.add_argument("text", help="The idea, in a sentence or two")
-    q.add_argument("--source", help="A public https URL the idea comes from (not opened or checked)")
-    q.add_argument("--tag", action="append", default=[], help="A lowercase tag; repeatable (at most 8)")
+    q = actions.add_parser("add", help="Add one or more open ideas (each up to 2000 characters): "
+                           "idea add \"first\" \"second\" saves both in one step")
+    q.add_argument("text", nargs="+", metavar="TEXT",
+                   help="The idea, in a sentence or two; give several (each in quotes) to save them all at once")
+    q.add_argument("--source", help="A public https URL the idea comes from (not opened or checked; one idea only)")
+    q.add_argument("--tag", action="append", default=[], help="A lowercase tag; repeatable (at most 8; with several "
+                                                              "ideas, each gets the tags)")
     q.add_argument("--json", action="store_true", help="Machine-readable result")
     q = actions.add_parser("list", help="List ideas, newest last")
     q.add_argument("--status", choices=("open", "promoted", "dropped"), help="Only ideas in this state")

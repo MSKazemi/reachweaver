@@ -12,6 +12,9 @@ The inbox is deliberately NOT a table in the posts database:
   it BLOCKED until a person writes and verifies it, exactly like a ``signal-brief`` scaffold. It never
   stages, approves, schedules or publishes anything and never opens the database.
 
+``idea "first" "second"`` (2026-10-22) saves several ideas in one locked write, all or none (``add_many``). At a
+terminal the command then prints the top suggestion of ``reachweaver next`` (read-only); piped output is unchanged.
+
 Limits: text up to ``TEXT_MAX`` characters, at most ``TAGS_MAX`` tags, ``IDEAS_MAX`` ideas, a source
 URL must be a public ``https`` URL (``campaigns.public_url``), and text that looks like a credential is
 refused. No network, no model, no external service.
@@ -198,18 +201,44 @@ def _find(data: dict, idea_id: str) -> dict:
 # --------------------------------------------------------------------- operations
 
 def add(path: Path, text: str, *, source: str | None = None, tags=None) -> dict:
-    record = {"id": "", "text": clean_text(text), "source_url": clean_source(source), "tags": clean_tags(tags),
-              "status": "open", "created_at": _now(), "updated_at": None, "promoted": None}
+    return add_many(path, [text], source=source, tags=tags)[0]
+
+
+def add_many(path: Path, texts, *, source: str | None = None, tags=None) -> list[dict]:
+    """Save every idea in ``texts`` in ONE locked write, or none of them: each text is checked first (an empty
+    one is refused and named by its position), then all are appended together. ``source`` belongs to a single
+    idea, so it is refused with several; ``tags`` apply to each."""
+    texts = list(texts)
+    if not texts:
+        raise ValidationError("Give the idea text, for example: reachweaver idea \"Behind the scenes of my studio\"")
+    if source is not None and len(texts) > 1:
+        raise ValidationError("--source names where ONE idea came from; save that idea on its own. Nothing saved")
+    cleaned = []
+    for number, text in enumerate(texts, 1):
+        try:
+            cleaned.append(clean_text(text))
+        except ValidationError as exc:
+            if len(texts) == 1:
+                raise
+            raise ValidationError(f"Idea {number}: {exc}. Nothing saved") from None
+    url, tag_list, created = clean_source(source), clean_tags(tags), _now()
+    records = [{"id": "", "text": text, "source_url": url, "tags": list(tag_list), "status": "open",
+                "created_at": created, "updated_at": None, "promoted": None} for text in cleaned]
     with _locked(path):
         data = load(path)
         if len(data["ideas"]) >= IDEAS_MAX:
             raise ValidationError(f"The inbox already holds {IDEAS_MAX} ideas; drop or promote some first")
+        if len(data["ideas"]) + len(records) > IDEAS_MAX:
+            raise ValidationError(f"The inbox has room for {IDEAS_MAX - len(data['ideas'])} more ideas, not "
+                                  f"{len(records)}; drop or promote some first. Nothing saved")
         taken = {item["id"] for item in data["ideas"]}
-        while not record["id"] or record["id"] in taken:
-            record["id"] = "idea-" + secrets.token_hex(4)
-        data["ideas"].append(record)
+        for record in records:
+            while not record["id"] or record["id"] in taken:
+                record["id"] = "idea-" + secrets.token_hex(4)
+            taken.add(record["id"])
+        data["ideas"].extend(records)
         _save(path, data)
-    return record
+    return records
 
 
 def listing(path: Path, *, status: str | None = None, tag: str | None = None) -> list[dict]:
@@ -382,16 +411,50 @@ def render_list(items: list[dict]) -> str:
     return "\n".join(lines)
 
 
+SAVED_NEXT = "Saved. When you're ready: reachweaver next"
+
+
+def after_saving(db) -> list[str]:
+    """What ``idea`` prints after saving. Piped or redirected: the one line scripts have always seen. At a terminal
+    (2026-10-22): the top suggestion of ``reachweaver next`` itself (``whats_next.build_next``, read-only), so the
+    person can start writing without a second command; ``next`` still lists them all."""
+    import sqlite3
+    import sys
+
+    from . import term
+    if not term.interactive(sys.stdout):
+        return [SAVED_NEXT]
+    from .whats_next import build_next
+    try:
+        top = build_next(db, limit=1)["actions"][0]
+    except (ValidationError, OSError, sqlite3.Error, IndexError):
+        return [SAVED_NEXT]
+    if top["kind"] == "idea":
+        return [f"Top of your list: {top['text']}",
+                f"Write it now: {top['alternative']['command']}  or in the browser: {top['command']}",
+                "All suggestions: reachweaver next"]
+    lines = [f"First, before writing: {top['text']}"]
+    if top["command"]:
+        lines.append(f"  {top['command']}")
+    return lines + ["Saved ideas and everything else: reachweaver next"]
+
+
 def run_cli(args) -> int:
     path = inbox_path(args.db)
     action = args.idea_action
     if action == "add":
-        record = add(path, args.text, source=args.source, tags=args.tag)
-        if args.json:
-            print(json.dumps(record, indent=2, ensure_ascii=False))
+        texts = args.text if isinstance(args.text, list) else [args.text]
+        records = add_many(path, texts, source=args.source, tags=args.tag)
+        if args.json:  # one idea: the record, exactly as before; several: a list of records
+            print(json.dumps(records[0] if len(records) == 1 else records, indent=2, ensure_ascii=False))
+            return 0
+        if len(records) == 1:
+            print(f"Added {records[0]['id']} to the ideas inbox ({path}). Not a draft: nothing was queued or sent.")
         else:
-            print(f"Added {record['id']} to the ideas inbox ({path}). Not a draft: nothing was queued or sent.")
-            print("Saved. When you're ready: reachweaver next")
+            print(f"Added {len(records)} ideas to the ideas inbox ({path}): {', '.join(r['id'] for r in records)}. "
+                  "Not drafts: nothing was queued or sent.")
+        for line in after_saving(args.db):
+            print(line)
         return 0
     if action == "list":
         items = listing(path, status=args.status, tag=args.tag)

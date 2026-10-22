@@ -16,10 +16,16 @@ A documentation website: [mskazemi.com/reachweaver](https://mskazemi.com/reachwe
 ### Changed
 
 - The package's `Documentation` link (PyPI) and the repository's About homepage now point to the documentation website, verified live on 2026-10-22.
+- **Fewer commands in three terminal journeys** (measured with the same literal commands as the 0.16.0 re-measure; extras appear only at a terminal, piped and `--json` output is unchanged):
+  - "How did my week go": `posted LINK --likes N` at a terminal now ends with `This week so far: 3 posts · 49 likes · 3 replies · best: ...` and `More: reachweaver report --week`. The line is the first line of `report --week` under another heading, built by the same functions (`report_format.summary_line` over `storage.report` and `results.post_results` for the same 7-day window, via `results.week_summary`; read-only). Piped, the last line stays `Next: reachweaver report --week`. J3 drops from 5 commands to 4 (bare, then 3x `posted`).
+  - "What next": `idea "first" "second"` (and `idea add "first" "second"`) saves several ideas in one locked write, all or none; an empty idea is refused and nothing is saved, and `--source` belongs to one idea only. At a terminal it then prints rank 1 of `next` (`whats_next.build_next`, read-only): `Write it now: reachweaver share --guide --text '...'  or in the browser: reachweaver share --web --open --idea ID`. One idea, piped output and `--json` (one record) are unchanged; several ideas with `--json` print a list. `next` is unchanged. J4 drops from 4 commands to 2 (bare, one `idea`).
+  - "Connect Bluesky": `account-add` at a terminal (stdin and stdout), for Bluesky, Mastodon, Telegram or LinkedIn, asks `Connect it now so ReachWeaver can post for you? [y/N]` after writing the account. Enter means no (posting by hand needs no connection) and prints the usual next steps; `y` runs `connect --guide --account ID` in the same process through the same parser and `connect` branch, so its official steps, the credential lines and the "not inside an AI chat" wording are byte-identical, and no secret is asked for. Not asked without a terminal, with `--dry-run`, or when `connect` itself adds a first account. J5 drops from 3 commands to 2 (bare, `account-add bluesky`).
+  - Tests: `tests/test_ux5_cli.py`.
 
 ### Fixed
 
 - `docs/WORKER-OPERATIONS.md` linked to an alert-rules heading that had been renamed; the site's anchor check found it.
+- The terminal report's best post said `1 replie` for a single reply; it now says `1 reply` (`results.SINGULAR`).
 
 ## [0.16.0] - 2026-10-22
 

@@ -161,6 +161,15 @@ def _connect_first_account(args) -> str | None:
     return added[0]
 
 
+def _connect_guide_for(args, account_id: str) -> int:
+    """``account-add``'s "Connect it now?" answered y: exactly ``connect --guide --account ID``, parsed by the
+    same parser and run by the same ``connect`` branch, with this run's --db/--accounts/--profile/--home/--plain."""
+    connect_args = make_parser().parse_args(["connect", "--guide", "--account", account_id])
+    for key in ("db", "accounts", "profile", "home", "plain"):
+        setattr(connect_args, key, getattr(args, key, getattr(connect_args, key)))
+    return execute(connect_args)
+
+
 def _social_web_plan(args) -> int:
     """Offline open social web map (social_web.py): reads public account metadata only; no queue, no network."""
     from . import social_web
@@ -1702,7 +1711,7 @@ def execute(args) -> int:
         return _run_identity_command(args)
     if args.command == "account-add":
         from .account_add import run as run_account_add
-        return run_account_add(args)
+        return run_account_add(args, connect_now=lambda account_id: _connect_guide_for(args, account_id))
     if args.command == "account-remove":  # accounts.json only (.bak kept); database counted read-only
         from .account_add import run_remove
         return run_remove(args)

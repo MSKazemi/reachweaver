@@ -15,6 +15,17 @@ For a creator the everyday question is simpler than a ranked review, so `reachwe
 
 Ideas fill the slots the other steps leave, and at least one idea is shown when you have any. With nothing recorded yet it points at the browser composer, `reachweaver idea 'Your idea'` (short for `idea add`) and `reachweaver posted LINK --likes N` (record a post you made by hand from its link, with its numbers, in one step); while no post is recorded the footer repeats that last line.
 
+**Straight from saving an idea.** `reachweaver idea "first idea" "second idea"` saves one or more ideas in one step (all or none; an empty one is refused and nothing is saved). At a terminal it then prints the top step of `next` itself, so you can start writing without a second command:
+
+```text
+Added 2 ideas to the ideas inbox (state/ideas.json): idea-1a2b3c4d, idea-5e6f7a8b. Not drafts: nothing was queued or sent.
+Top of your list: Write a post from your idea "first idea"
+Write it now: reachweaver share --guide --text 'first idea'  or in the browser: reachweaver share --web --open --idea idea-1a2b3c4d
+All suggestions: reachweaver next
+```
+
+That is rank 1 of the same `next` view (read-only), so a safety step or waiting drafts come before your ideas there too (`First, before writing: ...`). Piped or in a script the output is unchanged (`Saved. When you're ready: reachweaver next`), and `--json` prints the saved record (a list with several ideas).
+
 ```bash
 reachweaver next
 reachweaver next --json     # schema reachweaver.next.v1
