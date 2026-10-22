@@ -190,6 +190,34 @@ def _count(value: Any) -> str:
     return "-" if value is None else str(value)
 
 
+def summary_line(result: dict, posts: list[dict] | None = None, *, head: str = "All your recorded posts") -> str:
+    """The one-line answer that opens the terminal report: ``HEAD: N posts · L likes · R replies · best: ...``.
+
+    ``result`` is a ``report`` envelope (``platforms`` from ``storage.report``) and ``posts`` is
+    ``results.post_results`` for the same window. ``posted`` prints it at a terminal as "This week so far" from
+    the same functions ``report --week`` uses, so the two can never disagree. Exact values only."""
+    from . import results as res
+    platforms: dict = result["platforms"]
+    published = sum(int(item["published"]) for item in platforms.values())
+    if not published:
+        return f"{head}: no published posts recorded."
+    totals = []
+    for key in ("likes", "replies", "reposts", "views"):
+        exact = [item[key] for item in platforms.values() if item.get(key) is not None]
+        if exact:
+            totals.append(f"{sum(exact)} {key}")
+    ranked = res.ranked(posts or [])
+    summary = f"{head}: {published} post{'s' if published != 1 else ''}"
+    if totals:
+        summary += " · " + " · ".join(totals)
+    if ranked:
+        best = ranked[0]
+        where = f" on {res.platform_name(best['platform'])}" if best.get("titled", True) else ""  # label names it
+        summary += (f" · best: {res.quoted_title(best)}{where} "
+                    f"({res.numbers_text(best['numbers'], ('likes', 'replies', 'reposts'))})")
+    return term_clean(summary)
+
+
 def render_text(result: dict, posts: list[dict] | None = None, *, window_label: str | None = None,
                 early: str | None = None, due: list[dict] | None = None,
                 handles: dict[str, str] | None = None) -> str:
@@ -204,23 +232,10 @@ def render_text(result: dict, posts: list[dict] | None = None, *, window_label: 
     head = window_label or "All your recorded posts"
     published = sum(int(item["published"]) for item in platforms.values())
     if not published:
-        lines = [f"{head}: no published posts recorded.", POSTED_HINT]
+        lines = [summary_line(result, posts, head=head), POSTED_HINT]
         return "\n".join(lines) + "\n"
-    totals = []
-    for key in ("likes", "replies", "reposts", "views"):
-        exact = [item[key] for item in platforms.values() if item.get(key) is not None]
-        if exact:
-            totals.append(f"{sum(exact)} {key}")
     ranked = res.ranked(posts)
-    summary = f"{head}: {published} post{'s' if published != 1 else ''}"
-    if totals:
-        summary += " · " + " · ".join(totals)
-    if ranked:
-        best = ranked[0]
-        where = f" on {res.platform_name(best['platform'])}" if best.get("titled", True) else ""  # label names it
-        summary += (f" · best: {res.quoted_title(best)}{where} "
-                    f"({res.numbers_text(best['numbers'], ('likes', 'replies', 'reposts'))})")
-    lines = [summary, ""]
+    lines = [summary_line(result, posts, head=head), ""]
     width = max(8, *(len(res.platform_name(p)) for p in platforms))
     lines.append("Network".ljust(width) + "  Posts  With numbers  " + "  ".join(c.capitalize().rjust(7) for c in TEXT_COLUMNS))
     for platform, item in platforms.items():

@@ -166,6 +166,19 @@ def post_results(con: sqlite3.Connection, *, since: str | None = None) -> list[d
     return rows
 
 
+WEEK_SO_FAR = "This week so far"
+
+
+def week_summary(con: sqlite3.Connection, *, now: str | None = None, head: str = WEEK_SO_FAR) -> str:
+    """The first line of ``report --week`` (same window, same ``storage.report`` totals, same ``post_results``
+    ranking, same ``report_format.summary_line``) under another heading. ``posted`` prints it at a terminal so the
+    person sees how the week is going without a second command. SELECT only."""
+    from .report_format import summary_line
+    from .storage import report, report_since
+    since = report_since("7d", now)
+    return summary_line({"platforms": report(con, since=since)}, post_results(con, since=since), head=head)
+
+
 def ranked(rows: list[dict]) -> list[dict]:
     """Posts with recorded interactions, highest first (ties: newest first, then id)."""
     scored = [row for row in rows if row["interactions"] is not None]
@@ -175,8 +188,11 @@ def ranked(rows: list[dict]) -> list[dict]:
     return scored
 
 
+SINGULAR = {"likes": "like", "replies": "reply", "reposts": "repost", "views": "view"}  # "1 reply", not "1 replie"
+
+
 def numbers_text(numbers: dict[str, int], keys=("likes", "replies", "reposts", "views")) -> str:
-    parts = [f"{numbers[key]} {key if numbers[key] != 1 else key.rstrip('s')}" for key in keys if key in numbers]
+    parts = [f"{numbers[key]} {key if numbers[key] != 1 else SINGULAR.get(key, key)}" for key in keys if key in numbers]
     return ", ".join(parts) if parts else "no exact counts"
 
 

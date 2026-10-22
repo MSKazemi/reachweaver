@@ -10,7 +10,9 @@ example entry for that network (``workspace --init`` copies one per network), th
 with its id and env_prefix kept, unless ``--id`` is given. The previous file is kept as
 ``accounts.json.bak`` and the new one replaces it atomically. ``--dry-run`` prints the entry and writes nothing.
 The entry is shown as plain lines (``describe``), and a terminal confirmation defaults to yes because the write
-is local and reversible.
+is local and reversible. Then, at a terminal and for a network with an enabled adapter, it asks ``CONNECT_NOW``
+(default No: posting by hand needs no connection); y continues in this process into the unchanged
+``connect --guide --account ID`` flow (the CLI passes it as ``connect_now``). Elsewhere it prints that command.
 
 ``account-remove ID`` (``run_remove``) drops one entry the same way (``.bak`` kept, terminal confirmation or
 ``--yes``). It never touches credentials, the database, approvals or disconnect state; posts recorded for the
@@ -281,7 +283,28 @@ def _atomic(target: Path, payload: bytes, mode: int) -> None:
         raise
 
 
-def run(args) -> int:
+CONNECT_NOW = "Connect it now so ReachWeaver can post for you? [y/N]"
+
+
+def _offer_connect(platform: str, connect_now) -> bool:
+    """After the write, at a terminal (stdin AND stdout, as ``connect --guide`` needs) and for a network with an
+    enabled adapter: ask whether to continue into the connection guide. Enter, anything but y/yes, or end of input
+    means no, because posting by hand needs no connection. Nothing is asked when no ``connect_now`` was given
+    (``connect`` itself adding a first account already continues)."""
+    if connect_now is None or platform not in SUPPORTED_LIVE:
+        return False
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        return False
+    try:
+        answer = input(CONNECT_NOW + " ").strip().casefold()
+    except EOFError:
+        return False
+    return answer in ("y", "yes")
+
+
+def run(args, connect_now=None) -> int:
+    """``account-add``. ``connect_now(account_id) -> int`` (given by the CLI) runs ``connect --guide --account ID``
+    in this process when the person answers y to ``CONNECT_NOW``; its exit code is returned."""
     platform = args.platform
     if platform not in SCHEMAS:
         raise ValidationError(f"account-add supports {', '.join(PLATFORMS)}")
@@ -356,6 +379,9 @@ def run(args) -> int:
     backup = _write(path, candidate)
     print(f"Added account {account_id} ({LABELS[platform]}) to {path}."
           + (f" The previous file is kept as {backup}." if backup else ""))
+    if _offer_connect(platform, connect_now):  # the same connect --guide flow, unchanged; no secret asked here
+        print(f"\nContinuing with the connection steps for {account_id}.")
+        return connect_now(account_id)
     # Every next step repeats the options this run was given (--accounts, --db ...), so following one reaches
     # this accounts file, not the default one (UX 2026-10-21).
     if platform in SUPPORTED_LIVE:
