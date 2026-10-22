@@ -6,6 +6,8 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-22
+
 A documentation website: [mskazemi.com/reachweaver](https://mskazemi.com/reachweaver/). The studio needs fewer clicks: write from an idea in one click, previews that follow your typing, and Mark as posted (with numbers) straight from a preview card. In the terminal, `posted` shows the week so far, `idea "a" "b"` saves several ideas and says what to write next, and `account-add` can go straight on to connecting the account.
 
 ### Security
