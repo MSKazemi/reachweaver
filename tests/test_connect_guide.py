@@ -291,7 +291,8 @@ class NoAccountsTests(unittest.TestCase):
         self.assertEqual(load_accounts(self.config)["my-bluesky"]["handle"], "me.bsky.social")
         self.assertIn("Continuing with the connection steps for my-bluesky.", out)
         self.assertIn("read -r -s -p 'REACHWEAVER_BSKY_APP_PASSWORD: '", out)
-        self.assertIn("More detail (online): " + cg.DOCS_BASE + "docs/ACCOUNT-ONBOARDING.md", out)
+        self.assertIn("How to keep them safely: " + cg.DOCS_BASE + "docs/ACCOUNT-ONBOARDING.md", out)
+        self.assertNotIn("More detail (online): " + cg.DOCS_BASE + "docs/ACCOUNT-ONBOARDING.md", out)  # once is enough
         for prompt in re.findall(r"[^\n]*\? [^\n]*", out):
             self.assertNotRegex(prompt.lower(), r"password:|token:|secret:")
         self.assertFalse(self.db.exists())

@@ -347,13 +347,12 @@ def run(args, accounts: dict, placeholders: list[str]) -> int:
         sent = results.to_time(get_post(db, made["post_id"])["send_started_at"])
         closing = closing_lines(db)
     day = results.local_date(sent) if sent else "now"
-    if posted_at is None:  # "today": say so, and when nobody was asked, how to correct it
-        when = f"today ({day})" + ("" if asked else " — if not, run again with --at yesterday")
-    else:
-        when = day
+    when = f"today ({day})" if posted_at is None else day
     who = f" as {account_id}" if account_id else ""
-    print(f"Recorded {_label(name, content, url)}, posted {when}{who} (post {made['post_id']}). "
+    print(f"Recorded {_label(name, content, url)}{who}, posted {when} (post {made['post_id']}). "
           "Only noted on this computer; nothing was posted or sent.")
+    if posted_at is None and not asked:  # nobody was asked when: say how to correct it, on its own line
+        print("Not posted today? Run it again with --at yesterday (or a date such as 2026-10-19).")
     if account_note:
         print(account_note)
     if values:

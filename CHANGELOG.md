@@ -6,7 +6,7 @@ No section below claims a growth result. The only delivered posts claimed are th
 
 ## [Unreleased]
 
-A documentation website: [mskazemi.com/reachweaver](https://mskazemi.com/reachweaver/). The studio needs fewer clicks: write from an idea in one click, previews that follow your typing, and Mark as posted (with numbers) straight from a preview card.
+A documentation website: [mskazemi.com/reachweaver](https://mskazemi.com/reachweaver/). The studio needs fewer clicks: write from an idea in one click, previews that follow your typing, and Mark as posted (with numbers) straight from a preview card. In the terminal, `posted` shows the week so far, `idea "a" "b"` saves several ideas and says what to write next, and `account-add` can go straight on to connecting the account.
 
 ### Security
 
@@ -33,6 +33,7 @@ A documentation website: [mskazemi.com/reachweaver](https://mskazemi.com/reachwe
 
 ### Fixed
 
+- The dashboard Overview no longer prints the word "null" next to your ideas; `posted` keeps the account in the first line and gives the date hint on its own line; `connect --guide --account ID` with no accounts yet says so and names `account-add`; the connection guide no longer prints the same link twice; Results says "1, all by you" instead of "1 1 posted by you".
 - `docs/WORKER-OPERATIONS.md` linked to an alert-rules heading that had been renamed; the site's anchor check found it.
 - The terminal report's best post said `1 replie` for a single reply; it now says `1 reply` (`results.SINGULAR`).
 

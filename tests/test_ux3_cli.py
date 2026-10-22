@@ -96,7 +96,8 @@ class PostedWhenTests(Base):
         code, out, err = self.cli("posted", IG_URL, "--likes", "40")
         self.assertEqual(code, 0, out + err)
         today = results.local_date(datetime.now(timezone.utc))
-        self.assertIn(f"posted today ({today}) — if not, run again with --at yesterday", out)
+        self.assertIn(f"posted today ({today})", out)
+        self.assertIn("Not posted today? Run it again with --at yesterday", out)
 
     def test_a_person_at_a_terminal_is_asked_and_enter_means_today(self):
         with patch.object(posted, "_interactive", return_value=True), \

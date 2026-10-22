@@ -2203,7 +2203,10 @@ def execute(args) -> int:
         from . import connect_guide
         accounts = _connect_accounts(args)
         if args.account is not None and args.account not in accounts:
-            raise ValidationError("Unknown account. Run 'doctor' for account IDs")
+            if not accounts:  # say why, not just "unknown": there is nothing to connect yet
+                raise ValidationError(f"No accounts yet, so there is no {args.account!r} to connect. Add it first: "
+                                      + home.command("account-add bluesky") + " (public details only)")
+            raise ValidationError(f"Unknown account {args.account!r}. Yours: " + ", ".join(sorted(accounts)))
         if args.guide and args.json:
             raise ValidationError("connect --json prints the status table; it cannot be combined with --guide")
         if not accounts:  # the natural first command: next steps, not an error (and, in a terminal, add one)

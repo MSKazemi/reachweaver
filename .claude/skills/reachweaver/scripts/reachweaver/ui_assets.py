@@ -876,9 +876,10 @@ function ideaPicks() {
   api("ideas?status=open").then(d => {
     const list = (d.ideas || []).slice(0, IDEAS_ON_OVERVIEW);
     if (!list.length) { box.replaceChildren(all()); return; }
-    box.replaceChildren(h("ul", { class: "ideapicklist" }, list.map(i => h("li", null, h("span", { class: "ideatext" }, i.excerpt),
+    // replaceChildren turns a null argument into the text "null": pass only real nodes
+    box.replaceChildren(...[h("ul", { class: "ideapicklist" }, list.map(i => h("li", null, h("span", { class: "ideatext" }, i.excerpt),
       COMPOSER ? writeLink("Write this", i.id, "Write a post from your idea: " + i.excerpt) : command("reachweaver share --web --open --idea " + i.id)))),
-      (d.total || 0) > list.length ? h("a", { class: "tap", href: "#/ideas" }, "All " + d.total + " ideas") : null);
+      (d.total || 0) > list.length ? h("a", { class: "tap", href: "#/ideas" }, "All " + d.total + " ideas") : null].filter(Boolean));
   }).catch(() => box.replaceChildren(all()));
   return box;
 }
@@ -1233,8 +1234,8 @@ async function viewResults(params) {
   const unused = d.metrics.filter(k => !used.includes(k));
   if (d.platforms.length) {
     out.push(h("h2", null, "By platform"), h("p", { class: "note" }, "Totals of exact values over " + d.platform_totals_scope + "; the coverage says how many posts have a value."));
-    out.push(table(["Platform", "Published", "With data", ...used], d.platforms.map(p => h("tr", null,
-      h("td", null, pf(p.platform)), h("td", { class: "num" }, p.published, p.posted_by_hand ? h("div", { class: "note" }, p.posted_by_hand + " posted by you") : null), h("td", { class: "num" }, p.with_snapshot),
+    out.push(table(["Platform", "Posts", "With numbers", ...used], d.platforms.map(p => h("tr", null,
+      h("td", null, pf(p.platform)), h("td", { class: "num" }, String(p.published) + (p.posted_by_hand ? (p.posted_by_hand === p.published ? ", all by you" : ", " + p.posted_by_hand + " by you") : "")), h("td", { class: "num" }, p.with_snapshot),
       used.map(k => { const m = p.metrics[k]; return h("td", { class: "num" }, m.value == null ? h("span", { class: "muted" }, "unknown") : NUM.format(m.value),
         h("div", { class: "note" }, m.coverage + (m.estimated ? " · ~" + NUM.format(m.estimated.sum) + " est." : ""))); })))));
     if (unused.length) out.push(h("p", { class: "note" }, (used.length ? "Nothing recorded yet for: " : "No value recorded yet for any metric: ") + unused.join(", ") + ". They stay unknown, not zero."));

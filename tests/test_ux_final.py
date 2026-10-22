@@ -53,5 +53,20 @@ class AccountQuestionTests(unittest.TestCase):
         self.assertNotIn("see docs/LINKEDIN.md", account_add.QUESTIONS["person_id"])
 
 
+
+class Round5FixTests(unittest.TestCase):
+    def test_overview_idea_picks_never_print_null(self):
+        from reachweaver import ui_assets
+        js = ui_assets.APP_JS
+        start = js.index("function ideaPicks()")
+        body = js[start:js.index("function stepBlock", start)]
+        self.assertIn(".filter(Boolean)", body)  # replaceChildren(null) would print the text "null"
+
+    def test_results_platform_cell_says_how_many_were_posted_by_you(self):
+        from reachweaver import ui_assets
+        self.assertIn('", all by you"', ui_assets.APP_JS)
+        self.assertNotIn('posted_by_hand + " posted by you"', ui_assets.APP_JS)
+
+
 if __name__ == "__main__":
     unittest.main()

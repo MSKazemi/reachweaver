@@ -244,7 +244,8 @@ def run_guided(accounts: Mapping[str, dict], registry: dict, *, only: str | None
             say("      " + home.command("connect --guide --account " + row["account"]))
             say("  These variables last only until you close that terminal window. How to keep them safely: "
                 + doc_link("docs/ACCOUNT-ONBOARDING.md"))
-            say(f"  More detail (online): {doc_link(guide['doc'])}")
+            if guide["doc"] != "docs/ACCOUNT-ONBOARDING.md":  # the same page twice in a row helps no one
+                say(f"  More detail (online): {doc_link(guide['doc'])}")
             say("  Never paste a password, token or code into Claude, a chat or an issue.")
         else:  # READY
             say("  The credential variables are set. Nothing is posted by this check; it only asks the platform "
