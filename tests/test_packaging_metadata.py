@@ -55,8 +55,12 @@ class Metadata(unittest.TestCase):
     def test_urls_classifiers_and_readme_are_complete(self):
         urls = PROJECT["urls"]
         self.assertEqual(set(urls), {"Homepage", "Documentation", "Source", "Issues", "Changelog"})
-        for url in urls.values():
-            self.assertTrue(url.startswith("https://github.com/MSKazemi/reachweaver"), url)
+        # Documentation is the docs site built from this repository (website/, live since 2026-10-22); every other
+        # URL stays on the repository itself.
+        self.assertEqual(urls["Documentation"], "https://mskazemi.com/reachweaver/")
+        for name, url in urls.items():
+            if name != "Documentation":
+                self.assertTrue(url.startswith("https://github.com/MSKazemi/reachweaver"), url)
         for version in ("3.11", "3.12", "3.13", "3.14"):
             self.assertIn(f"Programming Language :: Python :: {version}", PROJECT["classifiers"])
         self.assertEqual(PROJECT["readme"], "README.md")

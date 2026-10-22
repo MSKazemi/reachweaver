@@ -3,7 +3,7 @@
   "repository": "MSKazemi/reachweaver",
   "product_name": "ReachWeaver",
   "description": "Claude Code skill for evidence-backed social media planning, approval-first scheduling, publishing workflows, and analytics.",
-  "homepage": null,
+  "homepage": "https://mskazemi.com/reachweaver/",
   "topics": [
     "claude-code",
     "claude-skill",
@@ -23,5 +23,5 @@
     "open-source"
   ],
   "metadata_scope": "about_only_no_visibility_changes",
-  "notes": "Proposed GitHub About data. Private repository visibility remains unchanged; homepage stays unset until a verified public ReachWeaver landing URL is available."
+  "notes": "Proposed GitHub About data. Private repository visibility remains unchanged; homepage is the documentation site, verified live (HTTP 200, canonical URL) on 2026-10-22."
 }

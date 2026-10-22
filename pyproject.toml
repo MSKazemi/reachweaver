@@ -31,7 +31,7 @@ dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/MSKazemi/reachweaver"
-Documentation = "https://github.com/MSKazemi/reachweaver/blob/main/docs/README.md"
+Documentation = "https://mskazemi.com/reachweaver/"
 Source = "https://github.com/MSKazemi/reachweaver"
 Issues = "https://github.com/MSKazemi/reachweaver/issues"
 Changelog = "https://github.com/MSKazemi/reachweaver/blob/main/CHANGELOG.md"
